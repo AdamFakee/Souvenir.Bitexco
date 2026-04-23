@@ -1,0 +1,6 @@
+# lệnh check type script trước khi commit
+npx tsc --noEmit
+
+# lệnh check lint code trước khi commit
+npx lint-staged
+

@@ -1,0 +1,16 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit", // Chỉ đích danh sửa lỗi ESLint (An toàn hơn fixAll chung chung)
+    "source.organizeImports": "explicit" // Sắp xếp và XÓA import thừa (Cân nhắc kỹ)
+  },
+
+  // tắt AI gợi ý code khi đang gõ
+  "editor.inlineSuggest.enabled": false,
+  "editor.formatOnPaste": false, // required
+  "editor.formatOnType": false, // required
+  "editor.formatOnSaveMode": "file", // required to format on save
+  "files.autoSave": "onFocusChange", // optional but recommended
+  "vs-code-prettier-eslint.prettierLast": "false" // set as "true" to run 'prettier' last not first
+}
