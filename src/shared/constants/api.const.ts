@@ -1,4 +1,4 @@
-import { seconds } from '@/shared/utils'
+import { seconds } from '../utils/time'
 
 export const API_QUERY_CONFIG = {
   // Request times out after 30s

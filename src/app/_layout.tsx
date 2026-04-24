@@ -26,7 +26,6 @@ export default function RootLayout() {
 
         <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => {}}>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'white' } }}>
-            <Stack.Screen name="(tabs)" />
             <Stack.Screen name="index" />
           </Stack>
         </ErrorBoundary>

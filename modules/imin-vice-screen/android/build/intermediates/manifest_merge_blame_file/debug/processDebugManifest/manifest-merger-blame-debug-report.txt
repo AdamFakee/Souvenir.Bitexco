@@ -1,0 +1,29 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="expo.modules.iminvicescreen" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6
+7    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+7-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:2:5-78
+7-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:2:22-75
+8    <uses-permission android:name="android.permission.SYSTEM_OVERLAY_WINDOW" />
+8-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:3:5-80
+8-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:3:22-77
+9    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+9-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:4:5-81
+9-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:4:22-78
+10    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+10-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:5:5-81
+10-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:5:22-78
+11    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+11-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:6:5-80
+11-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:6:22-77
+12    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+12-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:7:5-82
+12-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:7:22-79
+13    <uses-permission android:name="android.permission.INTERNET" />
+13-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:8:5-66
+13-->D:\AiDx\imin-swan-2\modules\imin-vice-screen\android\src\main\AndroidManifest.xml:8:22-64
+14
+15</manifest>

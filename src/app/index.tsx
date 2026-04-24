@@ -7,13 +7,109 @@ import {
   OptionCard,
   Placeholder,
 } from '@/shared/components/ui'
-import { Bell, Home, Search, Star } from 'lucide-react-native'
-import { useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import {
+  Bell,
+  Hash,
+  Home,
+  Image as ImageIcon,
+  MonitorCheck,
+  QrCode,
+  Search,
+  ShoppingCart,
+  Star,
+  Trash2,
+  User,
+} from 'lucide-react-native'
+import { useEffect, useState } from 'react'
+import { Alert, ScrollView, Text, View } from 'react-native'
+import IminViceScreen from '../../modules/imin-vice-screen'
 
 export default function Index() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState('')
+
+  useEffect(() => {
+    const startSecondaryScreen = async () => {
+      // 1. Kiểm tra máy có hỗ trợ không
+      const isSupport = IminViceScreen.isSupportDoubleScreen()
+
+      // 2. Kiểm tra/Xin quyền Overlay
+      const hasPermission = IminViceScreen.checkOverlayPermission()
+      if (!hasPermission) {
+        IminViceScreen.requestOverlayPermission()
+        return
+      }
+
+      if (isSupport) {
+        // 3. KÍCH HOẠT: Đây là lúc "phép màu" xảy ra
+        // 'ViceScreen' phải khớp với tên bạn đăng ký ở AppRegistry
+        console.log('Open vice screen')
+        IminViceScreen.open('ViceScreen')
+      }
+    }
+
+    startSecondaryScreen()
+  }, [])
+
+  const sendCartData = () => {
+    const mockItems = [
+      { id: '1', name: 'Cà phê sữa đá', price: 2.5, quantity: 2 },
+      { id: '2', name: 'Bánh mì thịt', price: 1.5, quantity: 1 },
+    ]
+    const total = mockItems.reduce((acc, item) => acc + item.price * item.quantity, 0)
+
+    IminViceScreen.sendMsgToViceScreen('updateCart', {
+      items: mockItems,
+      total: total,
+    })
+    Alert.alert('Success', 'Cart data sent to vice screen')
+  }
+
+  const clearCart = () => {
+    IminViceScreen.sendMsgToViceScreen('updateCart', {
+      items: [],
+      total: 0,
+    })
+    IminViceScreen.sendMsgToViceScreen('setOrderId', {
+      orderId: '',
+    })
+    IminViceScreen.sendMsgToViceScreen('setCustomer', {
+      name: '',
+    })
+  }
+
+  const sendOrderId = () => {
+    IminViceScreen.sendMsgToViceScreen('setOrderId', {
+      orderId: 'TƯV62013569A',
+    })
+    Alert.alert('Success', 'Order ID TƯV62013569A sent')
+  }
+
+  const showPaymentQR = () => {
+    IminViceScreen.sendMsgToViceScreen('showPayment', {
+      qrCodeUrl:
+        'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=PAYMENT_FOR_TUV62013569A',
+    })
+    Alert.alert('Success', 'Payment QR sent')
+  }
+
+  const showPhotographyPromo = () => {
+    IminViceScreen.sendMsgToViceScreen('showPromo', {
+      imageUrl:
+        'https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=1000&auto=format&fit=crop',
+    })
+    Alert.alert('Success', 'Photography promo sent')
+  }
+
+  const openSecondScreen = () => IminViceScreen.open('SecondViceScreen')
+  const openFirstScreen = () => IminViceScreen.open('ViceScreen')
+
+  const sendCustomerData = () => {
+    IminViceScreen.sendMsgToViceScreen('setCustomer', {
+      name: 'Anh Bùi',
+    })
+    Alert.alert('Success', 'Customer name sent to vice screen')
+  }
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <View className="mb-6">
@@ -33,6 +129,66 @@ export default function Index() {
       />
 
       <ScrollView className="flex-1 px-md py-md" contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* ---------- VICE SCREEN CONTROLS ---------- */}
+        <Section title="Vice Screen Communication">
+          <View className="gap-3">
+            <Button
+              label="Send Cart Data"
+              variant="primary"
+              leftIcon={ShoppingCart}
+              onPress={sendCartData}
+            />
+            <Button
+              label="Set Customer Name"
+              variant="secondary"
+              leftIcon={User}
+              onPress={sendCustomerData}
+            />
+            <Button
+              label="Send Order ID (TƯV...)"
+              variant="primary"
+              leftIcon={Hash}
+              onPress={sendOrderId}
+            />
+            <Button
+              label="Show Payment QR"
+              variant="secondary"
+              leftIcon={QrCode}
+              onPress={showPaymentQR}
+            />
+            <Button
+              label="Show Photography Promo"
+              variant="primary"
+              leftIcon={ImageIcon}
+              onPress={showPhotographyPromo}
+            />
+            <Button
+              label="Clear Vice Screen"
+              variant="outline"
+              leftIcon={Trash2}
+              onPress={clearCart}
+            />
+          </View>
+        </Section>
+
+        {/* ---------- NATIVE LIFECYCLE TESTS ---------- */}
+        <Section title="Native Lifecycle (Warning: Performance Heavy)">
+          <View className="gap-3">
+            <Button
+              label="Open SecondViceScreen (Native open)"
+              variant="outline"
+              leftIcon={MonitorCheck}
+              onPress={openSecondScreen}
+            />
+            <Button
+              label="Back to ViceApp (Native open)"
+              variant="outline"
+              leftIcon={MonitorCheck}
+              onPress={openFirstScreen}
+            />
+          </View>
+        </Section>
+
         {/* ---------- BUTTONS ---------- */}
         <Section title="Button">
           <View className="gap-3">

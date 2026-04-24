@@ -1,4 +1,4 @@
-import { API_QUERY_CONFIG } from '@/shared/constants'
+import { API_QUERY_CONFIG } from '../constants/api.const'
 
 /**
  * Determines whether a query should be retried based on its failure count and error status.
