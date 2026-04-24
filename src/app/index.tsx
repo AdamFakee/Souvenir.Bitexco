@@ -7,12 +7,14 @@ import {
   OptionCard,
   Placeholder,
 } from '@/shared/components/ui'
+import { useRouter } from 'expo-router'
 import {
   Bell,
   Hash,
   Home,
   Image as ImageIcon,
   MonitorCheck,
+  Printer,
   QrCode,
   Search,
   ShoppingCart,
@@ -25,6 +27,7 @@ import { Alert, ScrollView, Text, View } from 'react-native'
 import IminViceScreen from '../../modules/imin-vice-screen'
 
 export default function Index() {
+  const router = useRouter()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState('')
 
@@ -120,15 +123,27 @@ export default function Index() {
 
   return (
     <View className="flex-1 bg-background-white">
-      {/* AppHeader - Gradient */}
       <AppHeader
-        title="UI Components Demo"
+        title="Hardware & UI Demo"
         variant="gradient"
         rightIcon={Bell}
         showLeftButton={false}
       />
 
       <ScrollView className="flex-1 px-md py-md" contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* ---------- HARDWARE TESTS ---------- */}
+        <Section title="Hardware Controls">
+          <View className="gap-3">
+            <Button
+              label="Go to Printer Test"
+              variant="primary"
+              leftIcon={Printer}
+              className="h-20"
+              onPress={() => router.push('/printer-test')}
+            />
+          </View>
+        </Section>
+
         {/* ---------- VICE SCREEN CONTROLS ---------- */}
         <Section title="Vice Screen Communication">
           <View className="gap-3">
