@@ -9,6 +9,7 @@ import {
 } from '@/shared/components/ui'
 import { useRouter } from 'expo-router'
 import {
+  Barcode,
   Bell,
   Hash,
   Home,
@@ -140,6 +141,13 @@ export default function Index() {
               leftIcon={Printer}
               className="h-20"
               onPress={() => router.push('/printer-test')}
+            />
+            <Button
+              label="Go to Barcode Test"
+              variant="secondary"
+              leftIcon={Barcode}
+              className="h-20"
+              onPress={() => router.push('/barcode-test')}
             />
           </View>
         </Section>
