@@ -1,6 +1,6 @@
 import { ErrorFallback } from '@/shared/components/common'
 import { GlobalPopup } from '@/shared/components/ui'
-import { useAuthGuard } from '@/shared/hooks'
+import { useAppInit, useAuthGuard } from '@/shared/hooks'
 import {
   AppDatabaseProvider,
   onAppStateChange,
@@ -15,16 +15,23 @@ import { useEffect } from 'react'
 import { ErrorBoundary } from 'react-error-boundary'
 import { AppState } from 'react-native'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
+import { configureReanimatedLogger } from 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import './global.css'
 
 setupReactQueryMobile()
+
+// Disable Reanimated strict mode warnings (reading/writing value during render)
+configureReanimatedLogger({
+  strict: false,
+})
 
 /**
  * Component trung gian để đảm bảo useAppInit được gọi
  * bên trong các Provider (Database, QueryClient...)
  */
 function AppBootstrapper() {
+  useAppInit()
   useAuthGuard()
   return null
 }
@@ -50,6 +57,7 @@ export default function RootLayout() {
                 screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'white' } }}
               >
                 <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" />
               </Stack>
             </ErrorBoundary>
             <GlobalPopup />

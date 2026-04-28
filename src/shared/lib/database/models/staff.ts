@@ -1,7 +1,7 @@
 import { Model, Query } from '@nozbe/watermelondb'
-import { date, field, readonly, children } from '@nozbe/watermelondb/decorators'
-import ShiftModel from './shift'
+import { children, date, field, readonly } from '@nozbe/watermelondb/decorators'
 import OrderModel from './order'
+import ShiftModel from './shift'
 
 export enum StaffRole {
   /** Quản trị viên hệ thống (Toàn quyền) */
@@ -22,7 +22,7 @@ export default class StaffModel extends Model {
   @field('username') username!: string
   @field('fullname') fullname!: string
   @field('role') role!: StaffRole
-  @field('pin_hash') pinHash!: string
+  @field('password') password!: string
   @field('is_active') isActive!: boolean
   @field('is_deleted') isDeleted!: boolean
 

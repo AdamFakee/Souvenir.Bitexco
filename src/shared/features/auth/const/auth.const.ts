@@ -1,0 +1,5 @@
+export const AUTH_CONSTANTS = {
+  PIN_LENGTH: 4,
+  DEVICE_PAIRING_CODE_LENGTH: 6,
+  STAFF_SYNC_THRESHOLD: 4 * 60 * 60 * 1000, // 4 hours
+} as const

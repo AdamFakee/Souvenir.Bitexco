@@ -9,7 +9,7 @@ export const schema = appSchema({
         { name: 'username', type: 'string' },
         { name: 'fullname', type: 'string' },
         { name: 'role', type: 'string' },
-        { name: 'pin_hash', type: 'string' },
+        { name: 'password', type: 'string' },
         { name: 'is_active', type: 'boolean' },
         { name: 'is_deleted', type: 'boolean' },
         { name: 'created_at', type: 'number' },

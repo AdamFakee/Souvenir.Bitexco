@@ -12,7 +12,7 @@ export interface Staff {
   username: string
   fullname: string
   role: StaffRole
-  pinHash: string
+  password: string
   isActive: boolean
   isDeleted: boolean
 }
