@@ -16,7 +16,7 @@ export const useAuthGuard = () => {
 
     const timeout = setTimeout(() => {
       const inAuthGroup = segments[0] === '(auth)'
-      // const inTabGroup = segments[0] === '(tab)'
+      const inTabGroup = segments[0] === '(tab)'
       // const isOrderPath = segments[0] === 'order'
       // const isOrderingPath = segments[0] === 'ordering'
       // const isTablePath = segments[0] === 'table'
@@ -31,10 +31,10 @@ export const useAuthGuard = () => {
         }
       }
 
-      // ③ Ca đã mở → bắt vào Tab hoặc màn Order nếu còn đứng ngoài
-      // if (!inTabGroup && !isOrderPath && !isOrderingPath && !isTablePath && !isPaymentPath) {
-      //   router.replace(ROUTES.HOME.path())
-      // }
+      // ③ Ca đã mở → bắt vào Tab POS nếu còn đứng ngoài
+      if (!inTabGroup) {
+        router.replace(ROUTES.POS.path())
+      }
     }, 1)
 
     return () => clearTimeout(timeout)
