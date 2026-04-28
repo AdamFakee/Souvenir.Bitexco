@@ -2,15 +2,33 @@ import { Container } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { getRoleLabel, useAuthStore } from '@/shared/features/auth'
 import { MaterialIcons } from '@expo/vector-icons'
-import { Href, Tabs, useRouter } from 'expo-router'
+import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import React from 'react'
 import { Alert, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-const CustomLeftTabBar = React.memo(({ state, descriptors, navigation }: any) => {
+type MenuItem = {
+  name: string
+  label: string
+  icon: React.ComponentProps<typeof MaterialIcons>['name']
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  { name: 'pos', label: 'Bán hàng', icon: 'point-of-sale' },
+  { name: 'orders', label: 'Đơn hàng', icon: 'receipt-long' },
+  { name: 'shift', label: 'Ca làm việc', icon: 'access-time' },
+  { name: 'dashboard', label: 'Báo cáo', icon: 'dashboard' },
+  { name: 'dev_control', label: 'Dev Control', icon: 'developer-mode' },
+]
+
+const CustomSidebar = React.memo(() => {
   const insets = useSafeAreaInsets()
   const { currentStaff, logout } = useAuthStore()
   const router = useRouter()
+  const segments = useSegments()
+
+  // Determine active route based on segments
+  const activeTab = segments[1] || 'pos'
 
   const handleLogout = () => {
     Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
@@ -28,7 +46,7 @@ const CustomLeftTabBar = React.memo(({ state, descriptors, navigation }: any) =>
 
   return (
     <View
-      className="absolute bottom-0 left-0 top-0 w-[240px] flex-col justify-between border-r border-outline-variant bg-surface-50 px-2"
+      className="h-full w-[240px] flex-col justify-between border-r border-outline-variant bg-surface-50 px-2"
       style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 12 }}
     >
       <View>
@@ -40,21 +58,10 @@ const CustomLeftTabBar = React.memo(({ state, descriptors, navigation }: any) =>
 
         {/* Nav Items */}
         <View className="gap-1.5">
-          {state.routes.map((route: any, index: number) => {
-            const { options } = descriptors[route.key]
-            const label = options.title !== undefined ? options.title : route.name
-            const isFocused = state.index === index
-
+          {MENU_ITEMS.map((item) => {
+            const isFocused = activeTab === item.name
             const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              })
-
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params)
-              }
+              router.navigate(`/(tab)/${item.name}` as Href)
             }
 
             const activeColor = COLORS.primary.on
@@ -62,7 +69,7 @@ const CustomLeftTabBar = React.memo(({ state, descriptors, navigation }: any) =>
 
             return (
               <Pressable
-                key={route.key}
+                key={item.name}
                 onPress={onPress}
                 className={
                   isFocused
@@ -70,19 +77,11 @@ const CustomLeftTabBar = React.memo(({ state, descriptors, navigation }: any) =>
                     : 'flex-row items-center gap-3 rounded-xl bg-transparent px-3 py-2.5 active:bg-surface-200'
                 }
               >
-                {options.tabBarIcon ? (
-                  options.tabBarIcon({
-                    focused: isFocused,
-                    color: isFocused ? activeColor : inactiveColor,
-                    size: 20,
-                  })
-                ) : (
-                  <MaterialIcons
-                    name="help"
-                    size={20}
-                    color={isFocused ? activeColor : inactiveColor}
-                  />
-                )}
+                <MaterialIcons
+                  name={item.icon as any}
+                  size={20}
+                  color={isFocused ? activeColor : inactiveColor}
+                />
 
                 <Text
                   className={
@@ -91,7 +90,7 @@ const CustomLeftTabBar = React.memo(({ state, descriptors, navigation }: any) =>
                       : 'text-sm font-semibold text-secondary'
                   }
                 >
-                  {label}
+                  {item.label}
                 </Text>
               </Pressable>
             )
@@ -127,53 +126,27 @@ const CustomLeftTabBar = React.memo(({ state, descriptors, navigation }: any) =>
   )
 })
 
-CustomLeftTabBar.displayName = 'CustomLeftTabBar'
+CustomSidebar.displayName = 'CustomSidebar'
 
 export default function TabLayout() {
   return (
-    <Tabs
-      {...({ sceneContainerStyle: { paddingLeft: 240 } } as any)}
-      tabBar={(props) => <CustomLeftTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Tabs.Screen
-        name="pos"
-        options={{
-          title: 'Bán hàng',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="point-of-sale" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: 'Đơn hàng',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="receipt-long" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="shift"
-        options={{
-          title: 'Ca làm việc',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="access-time" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="dashboard"
-        options={{
-          title: 'Báo cáo',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="dashboard" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+    <View className="flex-1 flex-row">
+      <CustomSidebar />
+
+      <View className="flex-1">
+        <Tabs
+          tabBar={() => null}
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Tabs.Screen name="pos" options={{ title: 'Bán hàng' }} />
+          <Tabs.Screen name="orders" options={{ title: 'Đơn hàng' }} />
+          <Tabs.Screen name="shift" options={{ title: 'Ca làm việc' }} />
+          <Tabs.Screen name="dashboard" options={{ title: 'Báo cáo' }} />
+          <Tabs.Screen name="dev_control" options={{ title: 'Dev Control' }} />
+        </Tabs>
+      </View>
+    </View>
   )
 }

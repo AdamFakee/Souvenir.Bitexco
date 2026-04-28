@@ -1,0 +1,86 @@
+[
+  {
+    "id": "cat_1",
+    "name": "Tượng & Mô hình",
+    "color": "#4f46e5",
+    "display_order": 1,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_2",
+    "name": "Đồ gốm sứ",
+    "color": "#a44100",
+    "display_order": 2,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_3",
+    "name": "Tranh nghệ thuật",
+    "color": "#0284c7",
+    "display_order": 3,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_4",
+    "name": "Móc khóa & Phụ kiện",
+    "color": "#db2777",
+    "display_order": 4,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_5",
+    "name": "Nón & Trang phục",
+    "color": "#16a34a",
+    "display_order": 5,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_6",
+    "name": "Đặc sản vùng miền",
+    "color": "#ea580c",
+    "display_order": 6,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_7",
+    "name": "Đồ lưu niệm gỗ",
+    "color": "#854d0e",
+    "display_order": 7,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_8",
+    "name": "Thiệp & Sổ tay",
+    "color": "#9333ea",
+    "display_order": 8,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_9",
+    "name": "Nến thơm & Tinh dầu",
+    "color": "#0d9488",
+    "display_order": 9,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_10",
+    "name": "Trang sức thủ công",
+    "color": "#e11d48",
+    "display_order": 10,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_11",
+    "name": "Đồ chơi truyền thống",
+    "color": "#ca8a04",
+    "display_order": 11,
+    "is_deleted": false
+  },
+  {
+    "id": "cat_12",
+    "name": "Nam châm tủ lạnh",
+    "color": "#475569",
+    "display_order": 12,
+    "is_deleted": false
+  }
+]
