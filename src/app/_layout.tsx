@@ -1,5 +1,11 @@
 import { ErrorFallback } from '@/shared/components/common'
-import { onAppStateChange, queryClient, setupReactQueryMobile, useDevTools } from '@/shared/lib'
+import {
+  AppDatabaseProvider,
+  onAppStateChange,
+  queryClient,
+  setupReactQueryMobile,
+  useDevTools,
+} from '@/shared/lib'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
@@ -23,17 +29,19 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <KeyboardProvider>
-        <QueryClientProvider client={queryClient}>
-          <StatusBar style="dark" />
+        <AppDatabaseProvider>
+          <QueryClientProvider client={queryClient}>
+            <StatusBar style="dark" />
 
-          <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => {}}>
-            <Stack
-              screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'white' } }}
-            >
-              <Stack.Screen name="index" />
-            </Stack>
-          </ErrorBoundary>
-        </QueryClientProvider>
+            <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => {}}>
+              <Stack
+                screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'white' } }}
+              >
+                <Stack.Screen name="index" />
+              </Stack>
+            </ErrorBoundary>
+          </QueryClientProvider>
+        </AppDatabaseProvider>
       </KeyboardProvider>
     </SafeAreaProvider>
   )

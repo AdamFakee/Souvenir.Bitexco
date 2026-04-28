@@ -1,3 +1,4 @@
+import type { ActionSheetRef, PopupRef } from '@/shared/components/ui'
 import {
   ActionSheet,
   AppHeader,
@@ -13,9 +14,9 @@ import {
   Placeholder,
   Popup,
 } from '@/shared/components/ui'
-import type { ActionSheetRef, PopupRef } from '@/shared/components/ui'
-import { toast } from '@/shared/store'
 import { COLORS } from '@/shared/constants'
+import { database } from '@/shared/lib'
+import { toast } from '@/shared/store'
 import { useRouter } from 'expo-router'
 import {
   Barcode,
@@ -55,7 +56,80 @@ export default function Index() {
   })
   const [popupAnimation, setPopupAnimation] = useState<'fade' | 'zoom' | 'diagonal'>('fade')
   const [isFullScreenLoading, setIsFullScreenLoading] = useState(false)
+  const [staffCount, setStaffCount] = useState(0)
+  const [latestStaff, setLatestStaff] = useState('None')
 
+  const handleCreate = async () => {
+    try {
+      await database.write(async () => {
+        const newStaff = await database.get('staff').create((staff: any) => {
+          staff.fullName = `Staff ${Date.now()}`
+          staff.role = 'ADMIN'
+          staff.pinHash = '1234'
+          staff.isActive = true
+          staff.outletId = 'outlet_1'
+          staff.isDeleted = false
+        })
+        Alert.alert('Success', `Created:`)
+      })
+      await handleRead()
+    } catch (error) {
+      Alert.alert('Error', String(error))
+    }
+  }
+
+  const handleRead = async () => {
+    try {
+      const staffList = await database.get('staff').query().fetch()
+      if (staffList.length > 0) {
+        const last = staffList[staffList.length - 1] as any
+        setLatestStaff(`ID: ${last.id}\nName: ${last.fullName}`)
+      } else {
+        setLatestStaff('No staff found')
+      }
+      setStaffCount(staffList.length)
+    } catch (error) {
+      Alert.alert('Error', String(error))
+    }
+  }
+
+  const handleUpdate = async () => {
+    try {
+      const staffList = await database.get('staff').query().fetch()
+      if (staffList.length === 0) {
+        Alert.alert('Warning', 'No staff to update')
+        return
+      }
+      const last = staffList[staffList.length - 1] as any
+      await database.write(async () => {
+        await last.update((staff: any) => {
+          staff.fullName = `Updated ${Date.now()}`
+        })
+      })
+      Alert.alert('Success', 'Updated last staff member')
+      await handleRead()
+    } catch (error) {
+      Alert.alert('Error', String(error))
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      const staffList = await database.get('staff').query().fetch()
+      if (staffList.length === 0) {
+        Alert.alert('Warning', 'No staff to delete')
+        return
+      }
+      const last = staffList[staffList.length - 1] as any
+      await database.write(async () => {
+        await last.destroyPermanently()
+      })
+      Alert.alert('Success', 'Deleted last staff member')
+      await handleRead()
+    } catch (error) {
+      Alert.alert('Error', String(error))
+    }
+  }
   useEffect(() => {
     const startSecondaryScreen = async () => {
       // 1. Kiểm tra máy có hỗ trợ không
@@ -156,6 +230,44 @@ export default function Index() {
       />
 
       <ScrollView className="flex-1 px-md py-md" contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* ---------- WATERMELONDB CRUD TEST ---------- */}
+        <Section title="WatermelonDB CRUD Test">
+          <Container className="mb-3 p-4">
+            <Text className="text-on-surface text-body-sm font-semibold">
+              Staff Count: {staffCount}
+            </Text>
+            <Text className="text-on-surface-variant mt-1 text-body-sm">Latest: {latestStaff}</Text>
+          </Container>
+          <View className="flex-row flex-wrap gap-2">
+            <Button
+              label="Create"
+              variant="primary"
+              className="min-w-[120px] flex-1"
+              onPress={handleCreate}
+            />
+            <Button
+              label="Read"
+              variant="secondary"
+              className="min-w-[120px] flex-1"
+              onPress={handleRead}
+            />
+          </View>
+          <View className="mt-2 flex-row flex-wrap gap-2">
+            <Button
+              label="Update"
+              variant="outline"
+              className="min-w-[120px] flex-1"
+              onPress={handleUpdate}
+            />
+            <Button
+              label="Delete"
+              variant="outline"
+              className="min-w-[120px] flex-1"
+              onPress={handleDelete}
+            />
+          </View>
+        </Section>
+
         {/* ---------- HARDWARE TESTS ---------- */}
         <Section title="Hardware Controls">
           <View className="gap-3">
