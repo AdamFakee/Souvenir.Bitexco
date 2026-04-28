@@ -62,18 +62,107 @@ export default function Index() {
   const handleCreate = async () => {
     try {
       await database.write(async () => {
-        const newStaff = await database.get('staff').create((staff: any) => {
-          staff.fullName = `Staff ${Date.now()}`
-          staff.role = 'ADMIN'
-          staff.pinHash = '1234'
-          staff.isActive = true
-          staff.outletId = 'outlet_1'
-          staff.isDeleted = false
+        // 1. Create Staff
+        const staff = await database.get('staff').create((s: any) => {
+          s.username = `nv_${Date.now()}`
+          s.fullname = `Thu ngân ${Date.now()}`
+          s.role = 'CASHIER'
+          s.pinHash = '1111'
+          s.isActive = true
+          s.isDeleted = false
         })
-        Alert.alert('Success', `Created:`)
+
+        // 2. Create Shift
+        const shift = await database.get('shifts').create((sh: any) => {
+          sh.staffId = staff.id
+          sh.deviceId = 'POS_01'
+          sh.startTime = Date.now()
+          sh.startingCash = 1000000
+          sh.expectedEndingCash = 1000000
+          sh.status = 'OPEN'
+          sh.isDeleted = false
+        })
+
+        // 3. Create Category
+        const category = await database.get('categories').create((c: any) => {
+          c.name = `Đồ lưu niệm ${Date.now()}`
+          c.color = '#FF5733'
+          c.displayOrder = 1
+          c.isDeleted = false
+        })
+
+        // 4. Create Product
+        const product = await database.get('products').create((p: any) => {
+          p.categoryId = category.id
+          p.sku = `SP${Date.now()}`
+          p.name = `Móc khóa Bitexco ${Date.now()}`
+          p.price = 50000
+          p.costPrice = 20000
+          p.stock = 100
+          p.isActive = true
+          p.isDeleted = false
+        })
+
+        // 5. Create Order
+        const order = await database.get('orders').create((o: any) => {
+          o.shiftId = shift.id
+          o.staffId = staff.id
+          o.status = 'COMPLETED'
+          o.subtotal = 50000
+          o.discount = 0
+          o.voucherDiscount = 0
+          o.total = 50000
+          o.itemsSnapshot = [
+            {
+              productId: product.id,
+              sku: 'SKU_1',
+              name: 'Product 1',
+              price: 50000,
+              quantity: 1,
+              subtotal: 50000,
+            },
+          ]
+          o.paymentsSnapshot = [
+            {
+              method: 'CASH',
+              amount: 50000,
+            },
+          ]
+          o.customerTaxInfo = {
+            companyName: 'Bitexco Group',
+            taxCode: '0123456789',
+            email: 'tax@bitexco.com',
+          }
+          o.isDeleted = false
+        })
+
+        // 6. Create Order Item
+        await database.get('order_items').create((oi: any) => {
+          oi.orderId = order.id
+          oi.productId = product.id
+          oi.productNameSnapshot = 'xx'
+          oi.priceSnapshot = 50000
+          oi.quantity = 1
+          oi.refundedQuantity = 0
+          oi.subtotal = 50000
+          oi.isDeleted = false
+        })
+
+        // 7. Create Payment
+        await database.get('payments').create((pay: any) => {
+          pay.orderId = order.id
+          pay.method = 'CASH'
+          pay.amount = 50000
+          pay.cashTendered = 100000
+          pay.cashChange = 50000
+          pay.isDeleted = false
+        })
+
+        Alert.alert('Success', `Created linked data for 7 tables!`)
       })
       await handleRead()
     } catch (error) {
+      console.log(error)
       Alert.alert('Error', String(error))
     }
   }
@@ -81,12 +170,32 @@ export default function Index() {
   const handleRead = async () => {
     try {
       const staffList = await database.get('staff').query().fetch()
+      const shifts = await database.get('shifts').query().fetch()
+      const categories = await database.get('categories').query().fetch()
+      const products = await database.get('products').query().fetch()
+      const orders = await database.get('orders').query().fetch()
+      const orderItems = await database.get('order_items').query().fetch()
+      const payments = await database.get('payments').query().fetch()
+
+      let summary = `Totals: `
+      summary += `Staff(${staffList.length}) `
+      summary += `Shifts(${shifts.length}) `
+      summary += `Cats(${categories.length}) `
+      summary += `Prods(${products.length}) `
+      summary += `Orders(${orders.length}) `
+      summary += `Items(${orderItems.length}) `
+      summary += `Pays(${payments.length})\n`
+
       if (staffList.length > 0) {
-        const last = staffList[staffList.length - 1] as any
-        setLatestStaff(`ID: ${last.id}\nName: ${last.fullName}`)
-      } else {
-        setLatestStaff('No staff found')
+        const lastS = staffList[staffList.length - 1] as any
+        summary += `Latest Staff: ${lastS.fullname} (${lastS.role})\n`
       }
+      if (orders.length > 0) {
+        const lastO = orders[orders.length - 1] as any
+        summary += `Latest Order: Total ${lastO.total}đ - Status: ${lastO.status}`
+      }
+
+      setLatestStaff(summary)
       setStaffCount(staffList.length)
     } catch (error) {
       Alert.alert('Error', String(error))
@@ -96,17 +205,39 @@ export default function Index() {
   const handleUpdate = async () => {
     try {
       const staffList = await database.get('staff').query().fetch()
+      const shifts = await database.get('shifts').query().fetch()
+      const categories = await database.get('categories').query().fetch()
+      const products = await database.get('products').query().fetch()
+      const orders = await database.get('orders').query().fetch()
+      const orderItems = await database.get('order_items').query().fetch()
+      const payments = await database.get('payments').query().fetch()
+
       if (staffList.length === 0) {
-        Alert.alert('Warning', 'No staff to update')
+        Alert.alert('Warning', 'No data to update')
         return
       }
-      const last = staffList[staffList.length - 1] as any
+
       await database.write(async () => {
-        await last.update((staff: any) => {
-          staff.fullName = `Updated ${Date.now()}`
-        })
+        if (staffList.length > 0)
+          await staffList[staffList.length - 1].update(
+            (s: any) => (s.fullname = `Updated Thu Ngân ${Date.now()}`),
+          )
+        if (shifts.length > 0)
+          await shifts[shifts.length - 1].update((sh: any) => (sh.actualEndingCash = 1050000))
+        if (categories.length > 0)
+          await categories[categories.length - 1].update(
+            (c: any) => (c.name = `Updated Cat ${Date.now()}`),
+          )
+        if (products.length > 0)
+          await products[products.length - 1].update((p: any) => (p.price = 55000))
+        if (orders.length > 0) await orders[orders.length - 1].update((o: any) => (o.total = 55000))
+        if (orderItems.length > 0)
+          await orderItems[orderItems.length - 1].update((oi: any) => (oi.priceSnapshot = 55000))
+        if (payments.length > 0)
+          await payments[payments.length - 1].update((pay: any) => (pay.amount = 55000))
       })
-      Alert.alert('Success', 'Updated last staff member')
+
+      Alert.alert('Success', 'Updated last records of all 7 tables!')
       await handleRead()
     } catch (error) {
       Alert.alert('Error', String(error))
@@ -116,15 +247,29 @@ export default function Index() {
   const handleDelete = async () => {
     try {
       const staffList = await database.get('staff').query().fetch()
-      if (staffList.length === 0) {
-        Alert.alert('Warning', 'No staff to delete')
+      const shifts = await database.get('shifts').query().fetch()
+      const categories = await database.get('categories').query().fetch()
+      const products = await database.get('products').query().fetch()
+      const orders = await database.get('orders').query().fetch()
+      const orderItems = await database.get('order_items').query().fetch()
+      const payments = await database.get('payments').query().fetch()
+
+      if (staffList.length === 0 && orders.length === 0) {
+        Alert.alert('Warning', 'No data to delete')
         return
       }
-      const last = staffList[staffList.length - 1] as any
+
       await database.write(async () => {
-        await last.destroyPermanently()
+        for (const item of staffList) await item.destroyPermanently()
+        for (const item of shifts) await item.destroyPermanently()
+        for (const item of categories) await item.destroyPermanently()
+        for (const item of products) await item.destroyPermanently()
+        for (const item of orders) await item.destroyPermanently()
+        for (const item of orderItems) await item.destroyPermanently()
+        for (const item of payments) await item.destroyPermanently()
       })
-      Alert.alert('Success', 'Deleted last staff member')
+
+      Alert.alert('Success', 'Deleted ALL records from all 7 tables!')
       await handleRead()
     } catch (error) {
       Alert.alert('Error', String(error))
