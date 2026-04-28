@@ -33,6 +33,21 @@ export const StaffLocalAPI = {
   },
 
   /**
+   * Đăng nhập bằng tài khoản & mật khẩu
+   */
+  login: async (params: { username: string; password: string }): Promise<StaffModel | null> => {
+    const staffs = await database
+      .get<StaffModel>('staff')
+      .query(
+        Q.where('username', params.username),
+        Q.where('password', params.password),
+        Q.where('is_active', true),
+      )
+      .fetch()
+    return staffs.length > 0 ? staffs[0] : null
+  },
+
+  /**
    * Lấy danh sách ID của các nhân viên đang có ca làm việc mở
    */
   getAllOpenShifts: async (): Promise<ShiftModel[]> => {

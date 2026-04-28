@@ -27,8 +27,8 @@ export const useAuthGuard = () => {
       if (!isShiftOpen) {
         if (!inAuthGroup) {
           router.replace(ROUTES.STAFF_LOGIN.path())
+          return
         }
-        return
       }
 
       // ③ Ca đã mở → bắt vào Tab hoặc màn Order nếu còn đứng ngoài

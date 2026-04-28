@@ -2,6 +2,7 @@ import { Href } from 'expo-router'
 
 export const ROUTES = {
   STAFF_LOGIN: { path: () => '/(auth)/staff-login' as Href, params: {} as never },
+  OPEN_SHIFT: { path: () => '/(auth)/open-shift' as Href, params: {} as never },
 } as const
 
 export type RouteName = keyof typeof ROUTES

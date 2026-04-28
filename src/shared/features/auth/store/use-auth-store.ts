@@ -5,7 +5,6 @@ import { AuthSession, Staff } from '../types'
 
 interface AuthState {
   currentStaff: Staff | null
-  isAuthenticated: boolean
   isOfflineMode: boolean
   isShiftOpen: boolean
   session: AuthSession | null
@@ -30,7 +29,7 @@ export const useAuthStore = create<AuthState>()(
       ...DEFAULT_AUTH_STATE,
       setStaff: (staff) => set({ currentStaff: staff }),
       setShiftOpen: (isOpen) => set({ isShiftOpen: isOpen }),
-      authenticate: (session) => set({ isAuthenticated: true, session: session }),
+      authenticate: (session) => set({ session: session }),
       logout: () => set(DEFAULT_AUTH_STATE),
       setOfflineMode: (isOffline) => set({ isOfflineMode: isOffline }),
     }),
@@ -41,7 +40,6 @@ export const useAuthStore = create<AuthState>()(
         if (state.isShiftOpen) {
           return {
             currentStaff: state.currentStaff,
-            isAuthenticated: state.isAuthenticated,
             isShiftOpen: state.isShiftOpen,
             session: state.session,
             isOfflineMode: state.isOfflineMode,
