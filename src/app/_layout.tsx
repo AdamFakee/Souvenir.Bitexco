@@ -1,5 +1,6 @@
 import { ErrorFallback } from '@/shared/components/common'
 import { GlobalPopup } from '@/shared/components/ui'
+import { useAuthGuard } from '@/shared/hooks'
 import {
   AppDatabaseProvider,
   onAppStateChange,
@@ -19,6 +20,15 @@ import './global.css'
 
 setupReactQueryMobile()
 
+/**
+ * Component trung gian để đảm bảo useAppInit được gọi
+ * bên trong các Provider (Database, QueryClient...)
+ */
+function AppBootstrapper() {
+  useAuthGuard()
+  return null
+}
+
 export default function RootLayout() {
   useDevTools(queryClient)
 
@@ -32,6 +42,7 @@ export default function RootLayout() {
       <KeyboardProvider>
         <AppDatabaseProvider>
           <QueryClientProvider client={queryClient}>
+            <AppBootstrapper />
             <StatusBar style="dark" />
 
             <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => {}}>
