@@ -1,4 +1,5 @@
 import { ErrorFallback } from '@/shared/components/common'
+import { GlobalPopup } from '@/shared/components/ui'
 import {
   AppDatabaseProvider,
   onAppStateChange,
@@ -40,6 +41,7 @@ export default function RootLayout() {
                 <Stack.Screen name="index" />
               </Stack>
             </ErrorBoundary>
+            <GlobalPopup />
           </QueryClientProvider>
         </AppDatabaseProvider>
       </KeyboardProvider>

@@ -696,6 +696,20 @@ export default function Index() {
               onPress={() => toast.error('Không thể kết nối máy in', 'Lỗi kết nối')}
             />
           </View>
+          <View className="mt-2 flex-row flex-wrap gap-2">
+            <Button
+              label="Toast Warning"
+              variant="secondary"
+              className="min-w-[120px] flex-1"
+              onPress={() => toast.warning('Hết giấy in bill!', 'Cảnh báo')}
+            />
+            <Button
+              label="Toast Info"
+              variant="outline"
+              className="min-w-[120px] flex-1"
+              onPress={() => toast.info('Ca làm việc đã mở được 4 tiếng.', 'Thông báo')}
+            />
+          </View>
           <View className="mt-2">
             <Button
               label="Confirm Dialog"
