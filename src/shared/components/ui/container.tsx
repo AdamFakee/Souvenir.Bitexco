@@ -37,8 +37,8 @@ export const Container = ({
   return (
     <View
       className={cn(
-        'rounded-2xl bg-background-white px-md',
-        'border border-primary',
+        'rounded-lg bg-surface-50 px-md',
+        'border border-outline-variant',
         centered && 'items-center justify-center',
         className,
       )}
@@ -49,7 +49,7 @@ export const Container = ({
           paddingLeft: insets.left,
           paddingRight: insets.right,
         },
-        shadow && SHADOW.bottom,
+        shadow && SHADOW.default,
         props.style,
       ]}
       {...props}

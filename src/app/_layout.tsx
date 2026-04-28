@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 import { ErrorBoundary } from 'react-error-boundary'
 import { AppState } from 'react-native'
+import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import './global.css'
 
@@ -21,15 +22,19 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <StatusBar style="dark" />
+      <KeyboardProvider>
+        <QueryClientProvider client={queryClient}>
+          <StatusBar style="dark" />
 
-        <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => {}}>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'white' } }}>
-            <Stack.Screen name="index" />
-          </Stack>
-        </ErrorBoundary>
-      </QueryClientProvider>
+          <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => {}}>
+            <Stack
+              screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'white' } }}
+            >
+              <Stack.Screen name="index" />
+            </Stack>
+          </ErrorBoundary>
+        </QueryClientProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   )
 }

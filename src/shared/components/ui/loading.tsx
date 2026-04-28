@@ -7,5 +7,11 @@ interface LoadingIndicatorProps extends ActivityIndicatorProps {
 }
 
 export const LoadingIndicator = ({ className, color, ...props }: LoadingIndicatorProps) => {
-  return <ActivityIndicator color={color ?? COLORS.primary} className={cn(className)} {...props} />
+  return (
+    <ActivityIndicator
+      color={color ?? COLORS.primary.default}
+      className={cn(className)}
+      {...props}
+    />
+  )
 }

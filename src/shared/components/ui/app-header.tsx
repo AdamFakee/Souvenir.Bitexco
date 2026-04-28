@@ -1,10 +1,12 @@
-import { COLORS, LAYOUT } from '@/shared/constants'
+import { COLORS, SHADOW } from '@/shared/constants'
+import { cn } from '@/shared/utils'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { ChevronLeft, LucideIcon } from 'lucide-react-native'
-import { isValidElement, ReactNode } from 'react'
-import { Image, ImageSourcePropType, Pressable, Text, View } from 'react-native'
+import React, { ReactNode, isValidElement } from 'react'
+import { Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { IconButton } from './icon-button'
 
 /**
  * Props for the AppHeader component.
@@ -15,42 +17,38 @@ interface AppHeaderProps {
    */
   title?: string
   /**
+   * Subtitle displayed below the title.
+   */
+  subtitle?: string
+  /**
    * Visual variant of the header:
    * - 'gradient': Uses the primary gradient background (default).
    * - 'white': Uses a solid white background.
    */
   variant?: 'gradient' | 'white'
   /**
-   * Custom handler for the left (back) button press.
-   * If not provided, it defaults to `router.back()`.
+   * Node to display on the left side.
+   * If provided, replaces the default back button.
+   */
+  leftIcon?: LucideIcon | ReactNode
+  /**
+   * Custom handler for the left button press.
    */
   onLeftPress?: () => void
   /**
-   * Icon to display on the right side.
-   * Can be:
-   * - A LucideIcon component (e.g. `Home`).
-   * - An image source object (e.g. `require('./icon.png')`).
-   * - A ReactNode (e.g. `<Icon />`).
+   * Node to display on the right side.
+   * Typically a Lucide icon component.
    */
-  rightIcon?: LucideIcon | ImageSourcePropType | ReactNode
+  rightIcon?: LucideIcon | ReactNode
   /**
    * Handler for the right icon press.
    */
   onRightPress?: () => void
   /**
-   * Whether to show the left (back) button.
+   * Whether to show the left button.
    * Defaults to `true`.
    */
   showLeftButton?: boolean
-  /**
-   * Custom colors for the gradient variant.
-   * Defaults to `COLORS.background.headerGradient`.
-   */
-  colors?: readonly [string, string, ...string[]]
-  /**
-   * Whether to show a bottom border.
-   * Defaults to `false`.
-   */
   /**
    * Whether to show a bottom border.
    * Defaults to `false`.
@@ -69,23 +67,20 @@ interface AppHeaderProps {
  */
 export const AppHeader = ({
   title,
-  variant = 'gradient',
+  subtitle,
+  variant = 'white',
+  leftIcon,
   onLeftPress,
   rightIcon,
   onRightPress,
   showLeftButton = true,
-  colors,
   showBorderBottom = false,
-  borderBottomColor = COLORS.background.secondary,
+  borderBottomColor = COLORS.surface[200],
 }: AppHeaderProps) => {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const isGradient = variant === 'gradient'
 
-  const defaultColors = [
-    COLORS.background.headerGradient.start,
-    COLORS.background.headerGradient.end,
-  ] as const
+  const isGradient = variant === 'gradient'
 
   /**
    * Handles back navigation.
@@ -101,74 +96,59 @@ export const AppHeader = ({
     }
   }
 
-  const textColor = isGradient ? 'text-white' : 'text-text-primary-red'
-  const iconColor = isGradient ? COLORS.text.primary.white : COLORS.text.primary.red
-
-  /**
-   * Renders the right icon based on its type (Component, Element, or Image).
-   */
-  const renderRightIcon = () => {
-    if (!rightIcon) return null
-
-    // Case 1: React Element (e.g. <Icon />)
-    if (isValidElement(rightIcon)) {
-      return rightIcon
-    }
-
-    // Case 2: Lucide Icon Component (e.g. Home)
-    if (typeof rightIcon === 'object') {
-      const Icon = rightIcon as LucideIcon
-      return <Icon size={24} color={iconColor} />
-    }
-
-    // Case 3: Image Source (e.g. require('./icon.png'))
-    return (
-      <Image
-        source={rightIcon as ImageSourcePropType}
-        className="h-6 w-6"
-        style={{ tintColor: iconColor }}
-        resizeMode="contain"
-      />
-    )
-  }
+  const textColor = isGradient ? 'text-white' : 'text-secondary'
+  const subTextColor = isGradient ? 'text-white/80' : 'text-on-surface-variant'
+  const iconColor = isGradient ? '#ffffff' : COLORS.secondary.default
 
   const Content = (
     <View
-      className={'w-full flex-row items-center justify-between px-4'}
-      style={{ paddingTop: insets.top, height: LAYOUT.headerHeight + insets.top / 2 }}
+      className={cn('w-full flex-row items-center justify-between px-4 pb-3')}
+      style={{ paddingTop: insets.top, minHeight: 64 + insets.top }}
     >
-      {/* Left Section: Back Button */}
+      {/* Left Section: Back/Menu Button */}
       <View className="w-12 items-start">
-        {showLeftButton && (
-          <Pressable
+        {(showLeftButton || leftIcon) && (
+          <IconButton
+            icon={
+              !leftIcon ? ChevronLeft : !isValidElement(leftIcon) ? (leftIcon as any) : undefined
+            }
             onPress={handleLeftPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            color={iconColor}
+            variant="md"
+            className={cn(!isGradient && 'bg-surface-100')}
           >
-            <ChevronLeft size={30} color={iconColor} />
-          </Pressable>
+            {isValidElement(leftIcon) ? (leftIcon as ReactNode) : null}
+          </IconButton>
         )}
       </View>
 
-      {/* Center Section: Title */}
-      <View className="flex-1 items-center justify-center">
+      {/* Center Section: Title & Subtitle */}
+      <View className="flex-1 items-center justify-center py-1">
         {title && (
-          <Text className={'text-center text-pageTitle ' + textColor} numberOfLines={1}>
+          <Text className={cn('text-center text-lg font-semibold', textColor)} numberOfLines={1}>
             {title}
+          </Text>
+        )}
+        {subtitle && (
+          <Text className={cn('mt-0.5 text-center text-[11px]', subTextColor)} numberOfLines={1}>
+            {subtitle}
           </Text>
         )}
       </View>
 
       {/* Right Section: Action Icon */}
       <View className="w-12 items-end">
-        {rightIcon && (
-          <Pressable
+        {rightIcon ? (
+          <IconButton
             onPress={onRightPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            variant="md"
+            color={iconColor}
+            icon={!isValidElement(rightIcon) ? (rightIcon as any) : undefined}
           >
-            {renderRightIcon()}
-          </Pressable>
+            {isValidElement(rightIcon) ? (rightIcon as ReactNode) : null}
+          </IconButton>
+        ) : (
+          <View className="w-11" />
         )}
       </View>
     </View>
@@ -177,10 +157,10 @@ export const AppHeader = ({
   if (isGradient) {
     return (
       <LinearGradient
-        colors={colors || defaultColors}
+        colors={[COLORS.primary.default, COLORS.primary.container]}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[showBorderBottom && { borderBottomWidth: 1, borderBottomColor }]}
+        end={{ x: 1, y: 0 }}
+        className="w-full"
       >
         {Content}
       </LinearGradient>
@@ -189,9 +169,14 @@ export const AppHeader = ({
 
   return (
     <View
+      className="bg-white"
       style={[
-        { backgroundColor: COLORS.background.white },
         showBorderBottom && { borderBottomWidth: 1, borderBottomColor },
+        !showBorderBottom && {
+          ...SHADOW.default,
+          elevation: 4, // Tweak elevation for cleaner look
+          shadowOpacity: 0.08,
+        },
       ]}
     >
       {Content}

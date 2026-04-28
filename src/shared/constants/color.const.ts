@@ -1,48 +1,96 @@
 export const COLORS = {
-  text: {
-    primary: {
-      red: '#9B0000',
-      black: '#000000',
-      white: '#FFFFFF',
-    },
-    secondary: '#707070',
+  surface: {
+    50: '#ffffff',
+    100: '#fcf8ff',
+    200: '#f5f2ff',
+    300: '#f0ecf9',
+    400: '#eae6f4',
+    500: '#e4e1ee',
+    600: '#dcd8e5',
+    default: '#fcf8ff',
+    on: '#1b1b24',
+    onVariant: '#464555',
+    inverse: '#302f39',
+    inverseOn: '#f3effc',
+    tint: '#4d44e3',
+    variant: '#e4e1ee',
+  },
+  primary: {
+    default: '#4f46e5',
+    on: '#ffffff',
+    container: '#4f46e5',
+    onContainer: '#dad7ff',
+    inverse: '#c3c0ff',
+    fixed: '#e2dfff',
+    fixedDim: '#c3c0ff',
+    onFixed: '#0f0069',
+    onFixedVariant: '#3323cc',
+  },
+  secondary: {
+    default: '#595f66',
+    on: '#ffffff',
+    container: '#dde3eb',
+    onContainer: '#5f656c',
+    fixed: '#dde3eb',
+    fixedDim: '#c1c7cf',
+    onFixed: '#161c22',
+    onFixedVariant: '#41474e',
+  },
+  tertiary: {
+    default: '#7e3000',
+    on: '#ffffff',
+    container: '#a44100',
+    onContainer: '#ffd2be',
+    fixed: '#ffdbcc',
+    fixedDim: '#ffb695',
+    onFixed: '#351000',
+    onFixedVariant: '#7b2f00',
+  },
+  error: {
+    default: '#ba1a1a',
+    on: '#ffffff',
+    container: '#ffdad6',
+    onContainer: '#93000a',
+  },
+  outline: {
+    default: '#777587',
+    variant: '#c7c4d8',
   },
   background: {
-    headerGradient: {
-      start: '#FFD848',
-      end: '#FDAC41',
-    },
-    primaryGradient: {
-      start: '#FFE149',
-      end: '#F72B2B',
-    },
-    white: '#FFFFFF',
-    secondary: '#D9D9D9',
-    overlay: 'rgba(0, 0, 0, 0.5)',
+    default: '#fcf8ff',
+    on: '#1b1b24',
   },
-  yellow: '#FFDD00',
-  primary: '#9B0000',
 } as const
 
 export const SHADOW = {
-  bottom: {
-    shadowColor: '#000000',
+  sm: {
+    shadowColor: 'rgba(15, 23, 42, 0.08)',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  default: {
+    shadowColor: 'rgba(15, 23, 42, 0.08)',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5, // for android
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  up: {
-    shadowColor: '#000000',
+  lg: {
+    shadowColor: 'rgba(15, 23, 42, 0.08)',
     shadowOffset: {
       width: 0,
-      height: -8,
+      height: 10,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 20,
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    elevation: 10,
   },
 } as const

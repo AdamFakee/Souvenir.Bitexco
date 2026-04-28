@@ -16,9 +16,9 @@ interface ButtonProps extends PressableProps {
 }
 
 const variantStyles = {
-  primary: 'bg-primary border-primary',
-  secondary: 'bg-background-secondary border-primary',
-  outline: 'bg-background-white border-primary',
+  primary: 'bg-primary-container border-primary-container',
+  secondary: 'bg-secondary-container border-secondary-container',
+  outline: 'bg-transparent border-outline-variant',
 }
 
 export const Button = ({
@@ -34,14 +34,19 @@ export const Button = ({
   style,
   ...props
 }: ButtonProps) => {
-  const iconColor = variant === 'primary' ? COLORS.text.primary.white : COLORS.primary
+  const iconColor =
+    variant === 'primary'
+      ? COLORS.primary.on
+      : variant === 'secondary'
+        ? COLORS.secondary.onContainer
+        : COLORS.surface.on
 
   return (
     <Pressable
       disabled={disabled}
       className={cn(
         // Base styles
-        'h-12 flex-row items-center justify-center rounded-full border px-12 py-3',
+        'h-12 flex-row items-center justify-center rounded-md border px-12 py-3',
         // Variants
         variantStyles[variant],
         // Disabled/Loading state
@@ -67,8 +72,12 @@ export const Button = ({
           )}
           <Text
             className={cn(
-              'text-center font-semibold text-mainContent',
-              variant === 'primary' ? 'text-text-primary-white' : 'text-primary',
+              'text-center text-title-sm font-semibold',
+              variant === 'primary'
+                ? 'text-primary-on'
+                : variant === 'secondary'
+                  ? 'text-secondary-on-container'
+                  : 'text-on-surface',
               textClassName,
             )}
           >
