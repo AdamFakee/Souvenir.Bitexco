@@ -1,10 +1,26 @@
 import { Button, IconButton } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
+import { useAuthStore } from '@/shared/features/auth'
+import {
+  CashPaymentPopup,
+  CashPaymentPopupRef,
+  QrPaymentPopup,
+  QrPaymentPopupRef,
+} from '@/shared/features/payment'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
-import { ArrowRight, Minus, Plus, ShoppingBasket, Trash2, X } from 'lucide-react-native'
-import React, { useMemo } from 'react'
+import {
+  Banknote,
+  CreditCard,
+  Minus,
+  Plus,
+  QrCode,
+  ShoppingBasket,
+  Trash2,
+  X,
+} from 'lucide-react-native'
+import React, { useMemo, useRef } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useCartStore } from '../store'
 
@@ -19,6 +35,25 @@ export default function CartSession() {
     removeItem,
     clearCurrentCart,
   } = useCartStore()
+
+  const { isOfflineMode } = useAuthStore()
+  const cashPopupRef = useRef<CashPaymentPopupRef>(null)
+  const qrPopupRef = useRef<QrPaymentPopupRef>(null)
+
+  const handleCashCheckout = () => {
+    toast.success(`Thanh toán thành công!`)
+    clearCurrentCart()
+  }
+
+  const handleQrCheckout = () => {
+    toast.success(`Thanh toán thành công!`)
+    clearCurrentCart()
+  }
+
+  const handleCardCheckout = () => {
+    toast.success(`Thanh toán thành công!`)
+    clearCurrentCart()
+  }
 
   const activeSession = activeSessionId ? sessions[activeSessionId] : null
   const cart = useMemo(() => {
@@ -217,15 +252,45 @@ export default function CartSession() {
           />
         </View>
 
-        <Button
-          label="Thanh toán"
-          variant="primary"
-          rightIcon={ArrowRight}
-          disabled={cart.length === 0}
-          className="mt-3 shadow-md"
-          onPress={() => {}}
-        />
+        {/* Thanh toán trực tiếp */}
+        <View className="mt-3 flex-row gap-2">
+          <Button
+            label="Tiền mặt"
+            variant="primary"
+            leftIcon={Banknote}
+            className="flex-1 shadow-sm"
+            disabled={cart.length === 0}
+            onPress={() => cashPopupRef.current?.open()}
+          />
+        </View>
+        <View className="mt-2 flex-row gap-2">
+          <Button
+            label="QRCode"
+            variant="outline"
+            leftIcon={QrCode}
+            className="flex-1 shadow-sm"
+            disabled={cart.length === 0 || isOfflineMode}
+            onPress={() => qrPopupRef.current?.open()}
+          />
+          <Button
+            label="Thẻ"
+            variant="outline"
+            leftIcon={CreditCard}
+            className="flex-1 shadow-sm"
+            disabled={cart.length === 0}
+            onPress={handleCardCheckout}
+          />
+        </View>
       </View>
+
+      <CashPaymentPopup ref={cashPopupRef} total={total} onCheckout={handleCashCheckout} />
+
+      <QrPaymentPopup
+        ref={qrPopupRef}
+        total={total}
+        activeSessionId={activeSessionId}
+        onCheckout={handleQrCheckout}
+      />
     </View>
   )
 }

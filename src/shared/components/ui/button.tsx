@@ -18,7 +18,7 @@ interface ButtonProps extends PressableProps {
 const variantStyles = {
   primary: 'bg-primary-container border-primary-container',
   secondary: 'bg-secondary-container border-secondary-container',
-  outline: 'bg-transparent border-outline-variant',
+  outline: 'bg-transparent border-primary-container',
   error: 'bg-error/10 border-error/30',
 }
 
@@ -82,7 +82,7 @@ export const Button = ({
                   ? 'text-secondary-on-container'
                   : variant === 'error'
                     ? 'text-error'
-                    : 'text-on-surface',
+                    : 'text-primary',
               textClassName,
             )}
           >
