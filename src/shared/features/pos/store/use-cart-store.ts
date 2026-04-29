@@ -1,5 +1,6 @@
 import { ProductModel } from '@/shared/lib/database/models'
 import { zustandStorage } from '@/shared/lib/storage'
+import { toast } from '@/shared/store'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
@@ -10,6 +11,7 @@ export type CartProduct = {
   sku: string
   barcode?: string | null
   image?: string | null
+  stock?: number | null
 }
 
 export type CartItem = {
@@ -108,6 +110,7 @@ export const useCartStore = create<CartState>()(
           sku: productInput.sku || '',
           barcode: 'barcode' in productInput ? productInput.barcode : null,
           image: 'image' in productInput ? productInput.image : null,
+          stock: 'stock' in productInput ? (productInput.stock as number) : null,
         }
 
         set((currentState) => {
@@ -128,6 +131,21 @@ export const useCartStore = create<CartState>()(
 
           const currentSession = newSessions[sessionId]
           const existingItem = currentSession.items[product.id]
+          const currentQty = existingItem ? existingItem.quantity : 0
+
+          if (product.stock !== undefined && product.stock !== null) {
+            if (product.stock <= 0) {
+              toast.warning(`Sản phẩm [${product.name}] đã hết hàng!`, 'Hết hàng')
+              return currentState
+            }
+            if (currentQty + quantity > product.stock) {
+              toast.warning(
+                `Sản phẩm [${product.name}] chỉ còn ${product.stock} sản phẩm trong kho!`,
+                'Vượt quá số lượng tồn kho',
+              )
+              return currentState
+            }
+          }
 
           const updatedItems = {
             ...currentSession.items,
@@ -186,6 +204,17 @@ export const useCartStore = create<CartState>()(
           const currentSession = state.sessions[sessionId]
           const item = currentSession.items[productId]
           if (!item) return state
+
+          const stock = item.product.stock
+          if (stock !== undefined && stock !== null) {
+            if (quantity > stock) {
+              toast.warning(
+                `Không thể tăng số lượng. Sản phẩm [${item.product.name}] chỉ còn ${stock} sản phẩm trong kho!`,
+                'Vượt quá tồn kho',
+              )
+              return state
+            }
+          }
 
           return {
             sessions: {

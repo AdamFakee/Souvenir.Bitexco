@@ -3,12 +3,27 @@ import { ArrowRight, Store } from 'lucide-react-native'
 import React from 'react'
 import { Text, TouchableOpacity, View } from 'react-native'
 
+import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { useAuthStore } from '@/shared/features/auth'
-import { CartSession, ContentSession, HeaderSession } from '@/shared/features/pos'
+import { CartSession, ContentSession, HeaderSession, useCartStore } from '@/shared/features/pos'
+import { ProductLocalAPI } from '@/shared/features/product'
+import { toast } from '@/shared/store'
 
 export default function PosScreen() {
   const router = useRouter()
   const { isShiftOpen } = useAuthStore()
+  const { addItem } = useCartStore()
+
+  const handleScan = async (codes: string[]) => {
+    for (const code of codes) {
+      const product = await ProductLocalAPI.getProductByCode(code)
+      if (product) {
+        addItem(product)
+      } else {
+        toast.error(`Không tìm thấy sản phẩm cho mã: ${code}`, 'Thông báo')
+      }
+    }
+  }
 
   if (!isShiftOpen) {
     return (
@@ -31,6 +46,7 @@ export default function PosScreen() {
 
   return (
     <View className="flex-1 flex-col bg-background">
+      <HardwareBarcodeScanner onScan={handleScan} />
       <HeaderSession />
 
       <View className="flex-1 flex-row">
