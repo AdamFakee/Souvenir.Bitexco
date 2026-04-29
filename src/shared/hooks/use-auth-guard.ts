@@ -29,6 +29,7 @@ export const useAuthGuard = () => {
           router.replace(ROUTES.STAFF_LOGIN.path())
           return
         }
+        return
       }
 
       // ③ Ca đã mở → bắt vào Tab POS nếu còn đứng ngoài

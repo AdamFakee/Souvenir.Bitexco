@@ -8,6 +8,7 @@ export type CartProduct = {
   name: string
   price: number
   sku: string
+  barcode?: string | null
   image?: string | null
 }
 
@@ -105,6 +106,7 @@ export const useCartStore = create<CartState>()(
           name: productInput.name,
           price: productInput.price,
           sku: productInput.sku || '',
+          barcode: 'barcode' in productInput ? productInput.barcode : null,
           image: 'image' in productInput ? productInput.image : null,
         }
 

@@ -67,6 +67,7 @@ const MemoizedProductCard = memo(ProductCard, (prevProps, nextProps) => {
     prevProps.item.image === nextProps.item.image &&
     prevProps.item.isActive === nextProps.item.isActive &&
     prevProps.item.sku === nextProps.item.sku &&
+    prevProps.item.barcode === nextProps.item.barcode &&
     prevProps.item.stock === nextProps.item.stock
   )
 })

@@ -10,6 +10,7 @@ export default class ProductModel extends Model {
 
   @field('category_id') categoryId!: string
   @field('sku') sku!: string
+  @field('barcode') barcode?: string
   @field('name') name!: string
   @field('price') price!: number
   @field('cost_price') costPrice!: number

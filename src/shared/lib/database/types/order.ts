@@ -6,6 +6,8 @@ export interface ItemSnapshot {
   productId: string
   /** Mã SKU/Barcode */
   sku: string
+  /** Mã Barcode */
+  barcode?: string
   /** Tên sản phẩm */
   name: string
   /** Giá bán tại thời điểm thanh toán */
@@ -24,6 +26,7 @@ export const sanitizeItemsSnapshot = (rawItems: any): ItemSnapshot[] => {
   return rawItems.map((item: any) => ({
     productId: String(item.productId || item.product_id || ''),
     sku: String(item.sku || ''),
+    barcode: item.barcode ? String(item.barcode) : undefined,
     name: String(item.name || ''),
     price: Number(item.price || 0),
     quantity: Number(item.quantity || 0),

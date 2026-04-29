@@ -30,6 +30,7 @@ export const ProductLocalAPI = {
         Q.or(
           Q.where('name', Q.like(`%${Q.sanitizeLikeString(searchQuery)}%`)),
           Q.where('sku', Q.like(`%${Q.sanitizeLikeString(searchQuery)}%`)),
+          Q.where('barcode', Q.like(`%${Q.sanitizeLikeString(searchQuery)}%`)),
         ),
       )
     }

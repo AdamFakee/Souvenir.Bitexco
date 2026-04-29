@@ -50,6 +50,7 @@ export const schema = appSchema({
       columns: [
         { name: 'category_id', type: 'string', isIndexed: true },
         { name: 'sku', type: 'string', isIndexed: true },
+        { name: 'barcode', type: 'string', isOptional: true, isIndexed: true },
         { name: 'name', type: 'string' },
         { name: 'price', type: 'number' },
         { name: 'cost_price', type: 'number' },
