@@ -28,3 +28,10 @@ export const formatRevenue = (amount: number): string => {
 export const formatVND = (amount: number): string => {
   return `${amount.toLocaleString('vi-VN')} vnđ`
 }
+
+/**
+ * Định dạng tiền tệ VND bằng Intl (ví dụ: 100.000 ₫)
+ */
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
+}

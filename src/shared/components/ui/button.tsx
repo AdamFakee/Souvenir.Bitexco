@@ -6,7 +6,7 @@ import { LoadingIndicator } from './loading'
 
 interface ButtonProps extends PressableProps {
   label: string
-  variant?: 'primary' | 'outline' | 'secondary'
+  variant?: 'primary' | 'outline' | 'secondary' | 'error'
   loading?: boolean
   className?: string
   textClassName?: string
@@ -19,6 +19,7 @@ const variantStyles = {
   primary: 'bg-primary-container border-primary-container',
   secondary: 'bg-secondary-container border-secondary-container',
   outline: 'bg-transparent border-outline-variant',
+  error: 'bg-error/10 border-error/30',
 }
 
 export const Button = ({
@@ -39,7 +40,9 @@ export const Button = ({
       ? COLORS.primary.on
       : variant === 'secondary'
         ? COLORS.secondary.onContainer
-        : COLORS.surface.on
+        : variant === 'error'
+          ? COLORS.error.default
+          : COLORS.surface.on
 
   return (
     <Pressable
@@ -77,7 +80,9 @@ export const Button = ({
                 ? 'text-primary-on'
                 : variant === 'secondary'
                   ? 'text-secondary-on-container'
-                  : 'text-on-surface',
+                  : variant === 'error'
+                    ? 'text-error'
+                    : 'text-on-surface',
               textClassName,
             )}
           >
