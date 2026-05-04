@@ -34,7 +34,7 @@ function CategoryRow() {
                 label={cat.name.toUpperCase()}
                 active={selectedCategoryId === cat.id}
                 onPress={() => setSelectedCategoryId(cat.id)}
-                className="mr-3"
+                className="mr-3 h-20 px-6"
               />
             ))}
           </>

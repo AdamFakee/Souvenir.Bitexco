@@ -5,7 +5,12 @@ import { Text, TouchableOpacity, View } from 'react-native'
 
 import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { useAuthStore } from '@/shared/features/auth'
-import { CartSession, ContentSession, HeaderSession, useCartStore } from '@/shared/features/pos'
+import {
+  CheckoutPanel,
+  OrderListSession,
+  QuickActionsBar,
+  useCartStore,
+} from '@/shared/features/pos'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { toast } from '@/shared/store'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -48,13 +53,18 @@ export default function PosScreen() {
   return (
     <SafeAreaView className="flex-1 flex-col bg-background">
       <HardwareBarcodeScanner onScan={handleScan} />
-      <HeaderSession />
+      {/* <HeaderSession /> */}
 
-      <View className="flex-1 flex-row">
-        <ContentSession />
-
-        <CartSession />
+      <View className="w-full flex-1 flex-row" style={{ zIndex: 1 }}>
+        <View style={{ flex: 7 }}>
+          <OrderListSession />
+        </View>
+        <View style={{ flex: 3 }}>
+          <CheckoutPanel />
+        </View>
       </View>
+
+      <QuickActionsBar />
     </SafeAreaView>
   )
 }

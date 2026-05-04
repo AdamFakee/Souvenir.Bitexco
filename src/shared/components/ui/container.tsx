@@ -37,7 +37,7 @@ export const Container = ({
   return (
     <View
       className={cn(
-        'rounded-lg bg-surface-50 px-md',
+        'rounded-lg bg-surface-50 px-4',
         'border border-outline-variant',
         centered && 'items-center justify-center',
         className,

@@ -17,12 +17,12 @@ function ProductCard({ item, addToCart }: ProductCardProps) {
 
   return (
     <Pressable
-      className={`m-2 transition-all active:scale-[0.98] ${isOutOfStock ? 'opacity-75' : ''}`}
+      className={`mx-3 flex-1 p-0 transition-all active:scale-[0.98] ${isOutOfStock ? 'opacity-75' : ''}`}
       onPress={() => addToCart(item)}
       disabled={isOutOfStock}
     >
-      <Container className="overflow-hidden rounded-2xl border-outline-variant px-0 py-0" shadow>
-        <View className="relative h-32 items-center justify-center overflow-hidden bg-surface-300">
+      <Container className="flex-1 overflow-hidden rounded-2xl border-outline-variant p-0" shadow>
+        <View className="relative aspect-square w-full items-center justify-center overflow-hidden bg-surface-300">
           {item.image ? (
             <Image source={{ uri: item.image }} className="h-full w-full" resizeMode="cover" />
           ) : (
