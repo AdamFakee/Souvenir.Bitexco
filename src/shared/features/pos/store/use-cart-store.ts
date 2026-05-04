@@ -43,7 +43,7 @@ interface CartState {
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   setDiscount: (discount: number) => void
-  clearCurrentCart: () => void
+  removeCurrentCart: () => void
 }
 
 const generateSessionId = () =>
@@ -251,20 +251,25 @@ export const useCartStore = create<CartState>()(
         })
       },
 
-      clearCurrentCart: () => {
+      removeCurrentCart: () => {
         set((state) => {
-          const sessionId = state.activeSessionId
-          if (!sessionId || !state.sessions[sessionId]) return state
+          const { activeSessionId, sessions } = state
+          const newSessions = { ...sessions }
+
+          // Xóa session hiện tại nếu có
+          if (activeSessionId && newSessions[activeSessionId]) {
+            delete newSessions[activeSessionId]
+          }
+
+          // Lấy danh sách ID còn lại
+          const remainingIds = Object.keys(newSessions)
+
+          // Chọn session đầu tiên trong danh sách làm active, nếu không còn thì null
+          const nextActiveId = remainingIds.length > 0 ? remainingIds[0] : null
 
           return {
-            sessions: {
-              ...state.sessions,
-              [sessionId]: {
-                ...state.sessions[sessionId],
-                items: {},
-                discount: 0,
-              },
-            },
+            sessions: newSessions,
+            activeSessionId: nextActiveId,
           }
         })
       },

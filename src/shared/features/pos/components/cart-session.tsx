@@ -33,7 +33,7 @@ export default function CartSession() {
     setActiveSession,
     updateQuantity,
     removeItem,
-    clearCurrentCart,
+    removeCurrentCart,
   } = useCartStore()
 
   const { isOfflineMode } = useAuthStore()
@@ -42,17 +42,17 @@ export default function CartSession() {
 
   const handleCashCheckout = () => {
     toast.success(`Thanh toán thành công!`)
-    clearCurrentCart()
+    removeCurrentCart()
   }
 
   const handleQrCheckout = () => {
     toast.success(`Thanh toán thành công!`)
-    clearCurrentCart()
+    removeCurrentCart()
   }
 
   const handleCardCheckout = () => {
     toast.success(`Thanh toán thành công!`)
-    clearCurrentCart()
+    removeCurrentCart()
   }
 
   const activeSession = activeSessionId ? sessions[activeSessionId] : null
@@ -245,7 +245,7 @@ export default function CartSession() {
                 toast.confirm({
                   title: 'Hủy đơn',
                   message: 'Bạn có chắc chắn muốn hủy đơn này không?',
-                  onConfirm: clearCurrentCart,
+                  onConfirm: removeCurrentCart,
                 })
               }
             }}
