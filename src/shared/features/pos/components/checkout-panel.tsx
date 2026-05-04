@@ -1,25 +1,40 @@
-import { Button } from '@/shared/components/ui'
-import { COLORS } from '@/shared/constants'
+import { Button, ControlledInput } from '@/shared/components/ui'
 import { useAuthStore } from '@/shared/features/auth'
 import {
+  calculateVoucherDiscount,
   CashPaymentPopup,
   CashPaymentPopupRef,
   QrPaymentPopup,
   QrPaymentPopupRef,
+  useApplyVoucher,
+  VoucherSchema,
+  type VoucherFormValues,
 } from '@/shared/features/payment'
+import { useIsOnline } from '@/shared/hooks'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
+import { valibotResolver } from '@hookform/resolvers/valibot'
 import { Banknote, CreditCard, QrCode, Trash2 } from 'lucide-react-native'
-import React, { useMemo, useRef } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import React, { useEffect, useMemo, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import { Text, View } from 'react-native'
 import { useCartStore } from '../store'
 
 export default function CheckoutPanel() {
-  const { sessions, activeSessionId, removeCurrentCart } = useCartStore()
+  const { sessions, activeSessionId, removeCurrentCart, applyVoucher, removeVoucher } =
+    useCartStore()
 
   const { isOfflineMode } = useAuthStore()
+  const isOnline = useIsOnline()
   const cashPopupRef = useRef<CashPaymentPopupRef>(null)
   const qrPopupRef = useRef<QrPaymentPopupRef>(null)
+
+  const { control, handleSubmit, setError, clearErrors, reset } = useForm<VoucherFormValues>({
+    resolver: valibotResolver(VoucherSchema),
+    defaultValues: { code: '' },
+  })
+
+  const { mutateAsync: applyVoucherAsync, isPending: isApplyingVoucher } = useApplyVoucher()
 
   const handleCashCheckout = () => {
     toast.success(`Thanh toán thành công!`)
@@ -41,15 +56,43 @@ export default function CheckoutPanel() {
     return activeSession ? Object.values(activeSession.items) : []
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSession?.items])
-  const discount = activeSession?.discount || 0
+
+  const appliedVoucher = activeSession?.appliedVoucher || null
+
+  useEffect(() => {
+    reset({ code: appliedVoucher?.code || '' })
+  }, [appliedVoucher?.code, reset])
 
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
   }, [cart])
 
+  const discount = useMemo(() => {
+    return calculateVoucherDiscount(subtotal, appliedVoucher, activeSession?.discount)
+  }, [subtotal, appliedVoucher, activeSession?.discount])
+
   const total = useMemo(() => {
     return Math.max(0, subtotal - discount)
   }, [subtotal, discount])
+
+  const handleApplyVoucher = async (data: VoucherFormValues) => {
+    if (!data.code) return
+    try {
+      clearErrors('code')
+      const result = await applyVoucherAsync({
+        code: data.code,
+        subtotal,
+      })
+      applyVoucher(result)
+    } catch (error: any) {
+      setError('code', { message: error.message || 'Mã giảm giá không hợp lệ' })
+    }
+  }
+
+  const handleRemoveVoucher = () => {
+    removeVoucher()
+    reset({ code: '' })
+  }
 
   return (
     <View className="flex-1 flex-col justify-between bg-surface-100 p-6">
@@ -63,11 +106,25 @@ export default function CheckoutPanel() {
             </Text>
           </View>
 
-          <View className="mb-8 flex-row justify-between">
-            <Text className="text-title-sm font-semibold text-primary">Giảm giá (-):</Text>
-            <Text className="text-title-sm font-bold text-primary">
-              {discount > 0 ? `-${formatCurrency(discount)}` : '0 đ'}
-            </Text>
+          <View className="mb-8">
+            <View className="flex-row justify-between">
+              <Text className="text-title-sm font-semibold text-primary">Giảm giá (-):</Text>
+              <Text className="text-title-sm font-bold text-primary">
+                {discount > 0 ? `-${formatCurrency(discount)}` : '0 đ'}
+              </Text>
+            </View>
+            {appliedVoucher && (
+              <View className="mt-2 flex-row justify-end">
+                <View className="flex-row items-center rounded-md bg-primary/10 px-2 py-1">
+                  <Text className="text-md font-semibold text-primary">
+                    Voucher {appliedVoucher.percent}%{' '}
+                    {appliedVoucher.maxDiscountAmount
+                      ? `(Tối đa ${formatCurrency(appliedVoucher.maxDiscountAmount)})`
+                      : ''}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
 
           <View className="mb-10 flex-row items-center justify-between border-t border-outline-variant pt-8">
@@ -77,22 +134,42 @@ export default function CheckoutPanel() {
 
           {/* Voucher Input Area */}
           <View className="mt-2 border-t border-dashed border-outline-variant pt-8">
-            <Text className="mb-4 text-xs font-black uppercase tracking-widest text-surface-on-variant">
-              Mã giảm giá / Voucher
-            </Text>
-            <Pressable
-              className="flex-row items-center justify-between rounded-2xl border border-outline-variant bg-surface-100 p-5 active:bg-surface-200"
-              onPress={() => toast.info('Tính năng đang phát triển')}
-            >
-              <View className="flex-row items-center">
-                <View className="rounded-xl bg-primary/10 p-3">
-                  <CreditCard size={22} color={COLORS.primary.default} />
-                </View>
-                <Text className="ml-4 text-body-base font-semibold text-surface-on-variant">
-                  Nhập mã hoặc chọn ưu đãi...
-                </Text>
+            <View className="mb-4">
+              <Text className="text-xs font-black uppercase tracking-widest text-surface-on-variant">
+                Mã giảm giá / Voucher
+              </Text>
+            </View>
+
+            <View className="flex-row items-start gap-3">
+              <View className="flex-1">
+                <ControlledInput
+                  control={control}
+                  name="code"
+                  placeholder="Nhập mã ưu đãi..."
+                  autoCapitalize="characters"
+                  className="h-14"
+                  onSubmitEditing={handleSubmit(handleApplyVoucher)}
+                  editable={!appliedVoucher && !isApplyingVoucher}
+                />
               </View>
-            </Pressable>
+              {appliedVoucher ? (
+                <Button
+                  label="Hủy bỏ"
+                  variant="error"
+                  className="h-14 min-w-[100px] rounded-xl"
+                  onPress={handleRemoveVoucher}
+                />
+              ) : (
+                <Button
+                  label="Áp dụng"
+                  variant="primary"
+                  className="h-14 min-w-[100px] rounded-xl"
+                  onPress={handleSubmit(handleApplyVoucher)}
+                  disabled={isApplyingVoucher || cart.length === 0 || !isOnline}
+                  loading={isApplyingVoucher}
+                />
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -107,7 +184,7 @@ export default function CheckoutPanel() {
             leftIcon={Trash2}
             className="h-16 rounded-xl border-none bg-transparent"
             textClassName="text-error"
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || isApplyingVoucher}
             onPress={() => {
               if (cart.length > 0) {
                 toast.confirm({
@@ -128,7 +205,7 @@ export default function CheckoutPanel() {
             className="h-24 flex-1 rounded-2xl"
             textClassName="text-title-md"
             iconSize={28}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || isApplyingVoucher}
             onPress={() => cashPopupRef.current?.open()}
           />
         </View>
@@ -139,7 +216,7 @@ export default function CheckoutPanel() {
             variant="outline"
             leftIcon={QrCode}
             className="h-20 flex-1 rounded-2xl"
-            disabled={cart.length === 0 || isOfflineMode}
+            disabled={cart.length === 0 || isOfflineMode || isApplyingVoucher}
             onPress={() => qrPopupRef.current?.open()}
           />
           <Button
@@ -147,7 +224,7 @@ export default function CheckoutPanel() {
             variant="outline"
             leftIcon={CreditCard}
             className="h-20 flex-1 rounded-2xl"
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || isApplyingVoucher}
             onPress={handleCardCheckout}
           />
         </View>

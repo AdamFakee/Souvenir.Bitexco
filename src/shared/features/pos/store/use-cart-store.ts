@@ -21,11 +21,18 @@ export type CartItem = {
   price: number // price at the time of adding
 }
 
+export type AppliedVoucher = {
+  code: string
+  percent: number
+  maxDiscountAmount?: number
+}
+
 type CartSessionData = {
   id: string
   name: string
   items: Record<string, CartItem>
   discount: number
+  appliedVoucher?: AppliedVoucher | null
   createdAt: number
 }
 
@@ -43,6 +50,8 @@ interface CartState {
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   setDiscount: (discount: number) => void
+  applyVoucher: (voucher: AppliedVoucher) => void
+  removeVoucher: () => void
   removeCurrentCart: () => void
 }
 
@@ -67,6 +76,7 @@ export const useCartStore = create<CartState>()(
               name,
               items: {},
               discount: 0,
+              appliedVoucher: null,
               createdAt: Date.now(),
             },
             ...state.sessions,
@@ -125,6 +135,7 @@ export const useCartStore = create<CartState>()(
               name: `Đơn ${Object.keys(newSessions).length + 1}`,
               items: {},
               discount: 0,
+              appliedVoucher: null,
               createdAt: Date.now(),
             }
           }
@@ -245,6 +256,40 @@ export const useCartStore = create<CartState>()(
               [sessionId]: {
                 ...state.sessions[sessionId],
                 discount,
+              },
+            },
+          }
+        })
+      },
+
+      applyVoucher: (voucher) => {
+        set((state) => {
+          const sessionId = state.activeSessionId
+          if (!sessionId || !state.sessions[sessionId]) return state
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...state.sessions[sessionId],
+                appliedVoucher: voucher,
+              },
+            },
+          }
+        })
+      },
+
+      removeVoucher: () => {
+        set((state) => {
+          const sessionId = state.activeSessionId
+          if (!sessionId || !state.sessions[sessionId]) return state
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...state.sessions[sessionId],
+                appliedVoucher: null,
               },
             },
           }
