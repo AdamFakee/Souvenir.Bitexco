@@ -1,6 +1,7 @@
 import { ErrorFallback } from '@/shared/components/common'
 import { GlobalPopup } from '@/shared/components/ui'
 import { useAppInit, useAuthGuard } from '@/shared/hooks'
+import { useViceScreen } from '@/screens/use-vice-screen'
 import {
   AppDatabaseProvider,
   onAppStateChange,
@@ -33,6 +34,7 @@ configureReanimatedLogger({
 function AppBootstrapper() {
   useAppInit()
   useAuthGuard()
+  useViceScreen()
   return null
 }
 

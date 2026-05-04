@@ -1,3 +1,4 @@
+import { ViceService } from '@/screens/vice-service'
 import { Button, LoadingIndicator, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { formatCurrency } from '@/shared/utils'
@@ -22,13 +23,20 @@ export const QrPaymentPopup = forwardRef<QrPaymentPopupRef, QrPaymentPopupProps>
     const [visible, setVisible] = useState(false)
 
     useImperativeHandle(ref, () => ({
-      open: () => setVisible(true),
-      close: () => setVisible(false),
+      open: () => {
+        setVisible(true)
+        const qrUrl = `https://docs.lightburnsoftware.com/legacy/img/QRCode/ExampleCode.png`
+        ViceService.showPayment({ qrCodeUrl: qrUrl, total })
+      },
+      close: () => {
+        setVisible(false)
+      },
     }))
 
     const handleSuccess = () => {
       setVisible(false)
       onCheckout()
+      ViceService.paymentSuccess({ total, customerPaid: total, change: 0 })
     }
 
     const handleClose = () => {
@@ -42,52 +50,50 @@ export const QrPaymentPopup = forwardRef<QrPaymentPopupRef, QrPaymentPopupProps>
           <Text className="text-2xl font-bold text-surface-on">Thanh toán QR code</Text>
         </View>
 
-        {/* Content Split Layout */}
-        <View className="flex-row gap-8 bg-surface-100 p-8">
-          {/* Left Column: QR Code */}
-          <View className="flex-1 flex-col items-center justify-center rounded-2xl border border-outline-variant bg-surface-50 p-6 ">
-            <View className="mb-6 rounded-2xl border border-outline-variant bg-white p-4 shadow-sm">
+        {/* Content Split Layout (4:6) */}
+        <View className="flex-row bg-surface-100">
+          {/* Left Column: Transaction Details (40%) */}
+          <View className="flex-[4] justify-center border-r border-outline-variant p-8">
+            <View className="mb-8">
+              <Text className="text-surface-onVariant mb-2 text-sm font-semibold uppercase tracking-wider">
+                Cần thanh toán
+              </Text>
+              <Text className="text-5xl font-black text-primary">{formatCurrency(total)}</Text>
+            </View>
+
+            <View className="gap-6 rounded-2xl border border-outline-variant bg-surface-50 p-6">
+              <View>
+                <Text className="text-surface-onVariant mb-1 text-sm">Mã đơn hàng</Text>
+                <Text className="text-lg font-bold text-surface-on">
+                  {activeSessionId || 'N/A'}
+                </Text>
+              </View>
+
+              <View>
+                <Text className="text-surface-onVariant mb-1 text-sm">Phương thức</Text>
+                <Text className="text-lg font-bold text-surface-on">Chuyển khoản QR</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Right Column: QR Code (60%) */}
+          <View className="flex-[6] flex-col items-center justify-center bg-white p-12">
+            <View className="mb-8 rounded-[32px] border-[8px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/20">
               {activeSessionId ? (
-                <QRCode value={`PAY_${activeSessionId}_${total}`} size={180} />
+                <QRCode value={`PAY_${activeSessionId}_${total}`} size={240} />
               ) : (
-                <View className="h-[180px] w-[180px] items-center justify-center rounded-xl bg-surface-200">
-                  <QrCode size={40} color={COLORS.surface.onVariant} />
+                <View className="h-[240px] w-[240px] items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant bg-surface-100">
+                  <QrCode size={64} color={COLORS.surface.onVariant} />
+                  <Text className="mt-4 font-medium text-surface-on-variant">Đang tạo mã...</Text>
                 </View>
               )}
             </View>
 
-            <View className="flex-row items-center gap-2">
+            <View className="flex-row items-center gap-3 rounded-full border border-surface-200 bg-surface-100 px-6 py-3">
               <LoadingIndicator />
-              <Text className="text-surface-onVariant text-sm font-medium">
-                Đang chờ thanh toán...
+              <Text className="text-surface-onVariant font-semibold tracking-wide">
+                Đang chờ khách quét mã thanh toán
               </Text>
-            </View>
-          </View>
-
-          {/* Right Column: Transaction Details */}
-          <View className="flex-1 justify-center">
-            <View className="rounded-2xl border border-outline-variant bg-surface-50 p-6 shadow-sm">
-              <Text className="text-surface-onVariant mb-1 text-sm font-medium">Tổng số tiền</Text>
-              <Text className="mb-6 text-4xl font-bold text-primary">{formatCurrency(total)}</Text>
-
-              <View className="gap-4">
-                <View className="flex-row items-center justify-between border-b border-outline-variant/60 pb-3">
-                  <Text className="text-surface-onVariant text-sm">Mã đơn hàng</Text>
-                  <Text className="text-sm font-semibold text-surface-on">
-                    {activeSessionId || 'N/A'}
-                  </Text>
-                </View>
-
-                <View className="flex-row items-center justify-between border-b border-outline-variant/60 pb-3">
-                  <Text className="text-surface-onVariant text-sm">Ngân hàng</Text>
-                  <Text className="text-sm font-semibold text-surface-on">Vietcombank</Text>
-                </View>
-
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-surface-onVariant text-sm">Số tài khoản</Text>
-                  <Text className="text-sm font-semibold text-surface-on">00110022334455</Text>
-                </View>
-              </View>
             </View>
           </View>
         </View>

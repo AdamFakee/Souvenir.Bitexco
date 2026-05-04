@@ -8,6 +8,7 @@ import { useAuthStore } from '@/shared/features/auth'
 import { CartSession, ContentSession, HeaderSession, useCartStore } from '@/shared/features/pos'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { toast } from '@/shared/store'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function PosScreen() {
   const router = useRouter()
@@ -45,7 +46,7 @@ export default function PosScreen() {
   }
 
   return (
-    <View className="flex-1 flex-col bg-background">
+    <SafeAreaView className="flex-1 flex-col bg-background">
       <HardwareBarcodeScanner onScan={handleScan} />
       <HeaderSession />
 
@@ -54,6 +55,6 @@ export default function PosScreen() {
 
         <CartSession />
       </View>
-    </View>
+    </SafeAreaView>
   )
 }

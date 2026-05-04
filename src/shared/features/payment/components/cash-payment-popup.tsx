@@ -1,9 +1,10 @@
 import { Button, ModalBase, Numpad } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
-import React, { forwardRef, useImperativeHandle, useState } from 'react'
+import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react'
 import { Text, View } from 'react-native'
 import { Banknote } from 'lucide-react-native'
 import { COLORS } from '@/shared/constants'
+import { ViceService } from '@/screens/vice-service'
 
 export interface CashPaymentPopupProps {
   total: number
@@ -24,11 +25,25 @@ export const CashPaymentPopup = forwardRef<CashPaymentPopupRef, CashPaymentPopup
       open: () => {
         setCashTendered('')
         setVisible(true)
+        ViceService.showCashPayment({ total, customerPaid: 0, change: 0 })
       },
       close: () => {
         setVisible(false)
       },
     }))
+
+    // Debounce cập nhật Vice Screen để tránh lag
+    useEffect(() => {
+      if (!visible) return
+
+      const timer = setTimeout(() => {
+        const paid = Number(cashTendered) || 0
+        const changeAmt = paid >= total ? paid - total : 0
+        ViceService.showCashPayment({ total, customerPaid: paid, change: changeAmt })
+      }, 300)
+
+      return () => clearTimeout(timer)
+    }, [cashTendered, total, visible])
 
     const handleNumpadPress = (digit: string) => {
       if (cashTendered.length < 12) {
@@ -50,6 +65,9 @@ export const CashPaymentPopup = forwardRef<CashPaymentPopupRef, CashPaymentPopup
 
     const handleSuccess = () => {
       setVisible(false)
+      const paid = Number(cashTendered) || 0
+      const changeAmt = paid >= total ? paid - total : 0
+      ViceService.paymentSuccess({ total, customerPaid: paid, change: changeAmt })
       onCheckout()
     }
 
