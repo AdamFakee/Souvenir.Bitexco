@@ -41,5 +41,7 @@ app-example
 
 /android
 /ios
+/modules/*/android/build
+/modules/*/ios/build
 
 .idea
