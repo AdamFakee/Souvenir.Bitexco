@@ -58,4 +58,30 @@ export const ProductLocalAPI = {
       .fetch()
     return products.length > 0 ? products[0] : null
   },
+
+  /**
+   * Trừ tồn kho sản phẩm.
+   */
+  prepareDeductStock: async (
+    items: { product: { id: string }; quantity: number }[],
+  ): Promise<ProductModel[]> => {
+    if (items.length === 0) return []
+
+    const productIds = items.map((i) => i.product.id)
+    const products = await database
+      .get<ProductModel>('products')
+      .query(Q.where('id', Q.oneOf(productIds)))
+      .fetch()
+
+    return products.map((product) => {
+      const cartItem = items.find((i) => i.product.id === product.id)
+      if (!cartItem) return product
+
+      return product.prepareUpdate((p) => {
+        if (p.stock !== null && p.stock !== undefined) {
+          p.stock = Math.max(0, p.stock - cartItem.quantity)
+        }
+      })
+    })
+  },
 }

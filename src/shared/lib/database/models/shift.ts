@@ -26,6 +26,12 @@ export default class ShiftModel extends Model {
   @field('actual_ending_cash') actualEndingCash?: number
   @field('difference_cash') differenceCash?: number
   @field('discrepancy_reason') discrepancyReason?: string
+  /** Tổng doanh thu thu bằng Tiền mặt trong ca (cộng dồn sau mỗi đơn offline) */
+  @field('cash_revenue') cashRevenue!: number
+  /** Tổng doanh thu thu bằng QR/Chuyển khoản trong ca (cộng dồn sau mỗi đơn online) */
+  @field('qr_revenue') qrRevenue!: number
+  /** Tổng số đơn hàng đã bán trong ca */
+  @field('total_orders') totalOrders!: number
   @field('status') status!: ShiftStatus
   @field('is_deleted') isDeleted!: boolean
 

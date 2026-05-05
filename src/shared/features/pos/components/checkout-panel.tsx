@@ -2,11 +2,10 @@ import { Button, ControlledInput } from '@/shared/components/ui'
 import { useAuthStore } from '@/shared/features/auth'
 import {
   calculateVoucherDiscount,
-  CashPaymentPopup,
-  CashPaymentPopupRef,
-  QrPaymentPopup,
-  QrPaymentPopupRef,
+  PAYMENT_REGISTRY,
+  PaymentContext,
   useApplyVoucher,
+  usePaymentFlow,
   VoucherSchema,
   type VoucherFormValues,
 } from '@/shared/features/payment'
@@ -14,8 +13,8 @@ import { useIsOnline } from '@/shared/hooks'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { Banknote, CreditCard, QrCode, Trash2 } from 'lucide-react-native'
-import React, { useEffect, useMemo, useRef } from 'react'
+import { Trash2 } from 'lucide-react-native'
+import React, { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
 import { useCartStore } from '../store'
@@ -24,32 +23,14 @@ export default function CheckoutPanel() {
   const { sessions, activeSessionId, removeCurrentCart, applyVoucher, removeVoucher } =
     useCartStore()
 
-  const { isOfflineMode } = useAuthStore()
+  const { isOfflineMode, session } = useAuthStore()
   const isOnline = useIsOnline()
-  const cashPopupRef = useRef<CashPaymentPopupRef>(null)
-  const qrPopupRef = useRef<QrPaymentPopupRef>(null)
 
   const { control, handleSubmit, setError, clearErrors, reset } = useForm<VoucherFormValues>({
     resolver: valibotResolver(VoucherSchema),
     defaultValues: { code: '' },
   })
-
   const { mutateAsync: applyVoucherAsync, isPending: isApplyingVoucher } = useApplyVoucher()
-
-  const handleCashCheckout = () => {
-    toast.success(`Thanh toán thành công!`)
-    removeCurrentCart()
-  }
-
-  const handleQrCheckout = () => {
-    toast.success(`Thanh toán thành công!`)
-    removeCurrentCart()
-  }
-
-  const handleCardCheckout = () => {
-    toast.success(`Thanh toán thành công!`)
-    removeCurrentCart()
-  }
 
   const activeSession = activeSessionId ? sessions[activeSessionId] : null
   const cart = useMemo(() => {
@@ -74,6 +55,26 @@ export default function CheckoutPanel() {
   const total = useMemo(() => {
     return Math.max(0, subtotal - discount)
   }, [subtotal, discount])
+
+  const paymentContext: PaymentContext = useMemo(
+    () => ({
+      total,
+      sessionId: activeSessionId,
+      items: cart,
+      discount,
+    }),
+    [total, activeSessionId, cart, discount],
+  )
+
+  const { refs, startPayment, handleCheckoutSuccess } = usePaymentFlow(paymentContext)
+
+  const availableMethods = PAYMENT_REGISTRY.filter((m) =>
+    m.isAvailable(paymentContext, isOfflineMode),
+  )
+
+  // Lấy ra Cash để render riêng to hơn (hoặc dùng index nếu muốn render chung)
+  const cashMethod = availableMethods.find((m) => m.type === 'CASH')
+  const otherMethods = availableMethods.filter((m) => m.type !== 'CASH')
 
   const handleApplyVoucher = async (data: VoucherFormValues) => {
     if (!data.code) return
@@ -198,46 +199,53 @@ export default function CheckoutPanel() {
         </View>
         {/* Thanh toán trực tiếp */}
         <View className="flex-row gap-3">
-          <Button
-            label="Tiền mặt"
-            variant="primary"
-            leftIcon={Banknote}
-            className="h-24 flex-1 rounded-2xl"
-            textClassName="text-title-md"
-            iconSize={28}
-            disabled={cart.length === 0 || isApplyingVoucher}
-            onPress={() => cashPopupRef.current?.open()}
-          />
+          {cashMethod && (
+            <Button
+              key={cashMethod.type}
+              label={cashMethod.label}
+              variant="primary"
+              leftIcon={cashMethod.icon}
+              className="h-24 flex-1 rounded-2xl"
+              textClassName="text-title-md"
+              iconSize={28}
+              disabled={cart.length === 0 || isApplyingVoucher}
+              onPress={() => startPayment(cashMethod.type)}
+            />
+          )}
         </View>
 
         <View className="flex-row gap-3">
-          <Button
-            label="QRCode"
-            variant="outline"
-            leftIcon={QrCode}
-            className="h-20 flex-1 rounded-2xl"
-            disabled={cart.length === 0 || isOfflineMode || isApplyingVoucher}
-            onPress={() => qrPopupRef.current?.open()}
-          />
-          <Button
-            label="Thẻ"
-            variant="outline"
-            leftIcon={CreditCard}
-            className="h-20 flex-1 rounded-2xl"
-            disabled={cart.length === 0 || isApplyingVoucher}
-            onPress={handleCardCheckout}
-          />
+          {otherMethods.map((method) => (
+            <Button
+              key={method.type}
+              label={method.label}
+              variant="outline"
+              leftIcon={method.icon}
+              className="h-20 flex-1 rounded-2xl"
+              disabled={cart.length === 0 || isApplyingVoucher}
+              onPress={() => startPayment(method.type)}
+            />
+          ))}
         </View>
       </View>
 
-      <CashPaymentPopup ref={cashPopupRef} total={total} onCheckout={handleCashCheckout} />
-
-      <QrPaymentPopup
-        ref={qrPopupRef}
-        total={total}
-        activeSessionId={activeSessionId}
-        onCheckout={handleQrCheckout}
-      />
+      {/* Render Popups động từ Registry */}
+      {PAYMENT_REGISTRY.map((method) => (
+        <method.PopupComponent
+          key={method.type}
+          ref={(r) => {
+            refs.current[method.type] = r
+          }}
+          total={total}
+          discount={discount}
+          voucherCode={appliedVoucher?.code}
+          items={cart}
+          staffId={session?.staffId ?? ''}
+          shiftId={session?.shiftId ?? ''}
+          activeSessionId={activeSessionId}
+          onSuccess={handleCheckoutSuccess}
+        />
+      ))}
     </View>
   )
 }

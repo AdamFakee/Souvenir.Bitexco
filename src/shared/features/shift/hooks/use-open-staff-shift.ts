@@ -11,7 +11,7 @@ export const useOpenStaffShift = () => {
     setIsLoading(true)
     try {
       // 1. Mở ca local
-      await StaffLocalAPI.openStaffShift({
+      const shift = await StaffLocalAPI.openStaffShift({
         staffId: variables.staffId,
         openingBalance: variables.openingBalance,
       })
@@ -25,6 +25,7 @@ export const useOpenStaffShift = () => {
 
       const session = {
         staffId: variables.staffId,
+        shiftId: shift.id,
         loginAt: Date.now(),
       }
 

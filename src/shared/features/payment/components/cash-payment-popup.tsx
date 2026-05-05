@@ -6,18 +6,11 @@ import { Banknote } from 'lucide-react-native'
 import { COLORS } from '@/shared/constants'
 import { ViceService } from '@/screens/vice-service'
 
-export interface CashPaymentPopupProps {
-  total: number
-  onCheckout: () => void
-}
+import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { PaymentPopupProps, PaymentPopupRef } from '../types'
 
-export interface CashPaymentPopupRef {
-  open: () => void
-  close: () => void
-}
-
-export const CashPaymentPopup = forwardRef<CashPaymentPopupRef, CashPaymentPopupProps>(
-  ({ total, onCheckout }, ref) => {
+export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
+  ({ total, onSuccess }, ref) => {
     const [visible, setVisible] = useState(false)
     const [cashTendered, setCashTendered] = useState('')
 
@@ -68,7 +61,13 @@ export const CashPaymentPopup = forwardRef<CashPaymentPopupRef, CashPaymentPopup
       const paid = Number(cashTendered) || 0
       const changeAmt = paid >= total ? paid - total : 0
       ViceService.paymentSuccess({ total, customerPaid: paid, change: changeAmt })
-      onCheckout()
+      onSuccess({
+        success: true,
+        method: PaymentMethod.CASH,
+        paidAmount: paid,
+        change: changeAmt,
+        isOnline: false,
+      })
     }
 
     // Dynamic VNĐ bill suggestions matching banking behaviors

@@ -2,6 +2,7 @@ import { Staff } from './staff.type'
 
 export interface AuthSession {
   staffId: Staff['id']
+  shiftId: string
   loginAt: number
 }
 

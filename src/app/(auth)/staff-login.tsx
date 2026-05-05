@@ -38,11 +38,6 @@ export default function StaffLogin() {
       })
 
       if (staff) {
-        authenticate({
-          staffId: staff.id,
-          loginAt: Date.now(),
-        })
-
         const plainStaff: Staff = {
           id: staff.id,
           username: staff.username,

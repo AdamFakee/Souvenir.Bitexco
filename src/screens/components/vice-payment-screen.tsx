@@ -1,7 +1,8 @@
 import { Container } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
-import { Image, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
+import QRCode from 'react-native-qrcode-svg'
 import { useViceStore } from '../vice-store'
 
 function VicePaymentScreen() {
@@ -12,30 +13,28 @@ function VicePaymentScreen() {
     <View className="flex-1 items-center justify-center bg-background p-12">
       <Container centered className="rounded-[32px] border-surface-300 p-3">
         {/* QR Code */}
-        <View className="rounded-[24px] bg-white p-1">
+        <View className="rounded-[24px] bg-white p-6 shadow-sm">
           {qrCodeUrl ? (
-            <Image
-              source={{ uri: qrCodeUrl }}
-              className="h-[240px] w-[240px]"
-              resizeMode="contain"
-            />
+            <QRCode value={qrCodeUrl} size={280} color="black" backgroundColor="white" />
           ) : (
-            <View className="h-[240px] w-[240px] items-center justify-center rounded-xl bg-surface-100">
+            <View className="h-[280px] w-[280px] items-center justify-center rounded-xl bg-surface-100">
               <Text className="font-sans text-sm font-bold text-surface-on-variant">
-                Đang tạo mã QR...
+                Đang chuẩn bị mã QR...
               </Text>
             </View>
           )}
         </View>
 
         {/* Thông tin số tiền */}
-        <View className="mt-8 items-center">
-          <Text className="mb-2 text-center font-sans text-5xl font-black text-primary">
+        <View className="mt-10 items-center">
+          <Text className="mb-2 text-center font-sans text-6xl font-black text-primary">
             {formatCurrency(total)}
           </Text>
-          <Text className="text-center font-sans text-lg font-bold uppercase tracking-widest text-surface-on-variant">
-            Quét mã để thanh toán
-          </Text>
+          <View className="rounded-full bg-primary/10 px-6 py-2">
+            <Text className="text-center font-sans text-xl font-bold uppercase tracking-[0.2em] text-primary">
+              Quét mã để thanh toán
+            </Text>
+          </View>
         </View>
       </Container>
     </View>
