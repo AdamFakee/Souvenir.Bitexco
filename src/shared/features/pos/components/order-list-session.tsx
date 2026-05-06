@@ -151,8 +151,10 @@ export default function OrderListSession() {
                     className="flex-row items-center justify-between border-b border-surface-200 px-6 py-4 active:bg-surface-100"
                   >
                     <View className="flex-1">
-                      <Text className="text-lg font-bold text-surface-on">{p.name}</Text>
-                      <Text className="text-sm text-surface-on-variant">{p.sku}</Text>
+                      <Text className="text-lg font-bold text-surface-on">{p.nameEn}</Text>
+                      <Text className="text-sm text-surface-on-variant">
+                        {p.sku} • {p.unit}
+                      </Text>
                     </View>
                     <View className="items-end">
                       <Text className="text-lg font-bold text-primary">
@@ -205,8 +207,6 @@ export default function OrderListSession() {
             </View>
           ) : (
             cart.map((item, index) => {
-              const taxRate = 8
-              const taxAmount = ((item.price * taxRate) / 100) * item.quantity
               const itemTotal = item.price * item.quantity
               return (
                 <View
@@ -219,14 +219,20 @@ export default function OrderListSession() {
                   <Text className="w-32 text-base font-medium text-surface-on-variant">
                     {item.product.sku}
                   </Text>
-                  <Text className="flex-1 text-base font-bold text-surface-on">
-                    {item.product.name}
-                  </Text>
+                  <View className="flex-1">
+                    <Text className="text-base font-bold text-surface-on">
+                      {item.product.nameEn}
+                    </Text>
+                    <Text className="text-xs text-muted">
+                      {item.product.nameVi} • {item.product.unit}
+                    </Text>
+                  </View>
                   <Text className="w-40 text-center text-base font-medium text-surface-on">
                     {formatCurrency(item.price)}
                   </Text>
                   <Text className="w-40 text-center text-xs text-surface-on-variant">
-                    {taxRate}% / {formatCurrency(taxAmount)}
+                    {item.product.taxRate}% /{' '}
+                    {formatCurrency(((item.price * item.product.taxRate) / 100) * item.quantity)}
                   </Text>
                   <View className="w-40 items-center">
                     <View className="flex-row items-center self-center rounded-xl border border-outline-variant bg-surface-200">

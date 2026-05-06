@@ -54,10 +54,15 @@ export default function DevControlScreen() {
             record._raw.id = prod.id
             record.categoryId = prod.category_id
             record.sku = prod.sku
-            record.name = prod.name
+            record.nameEn = prod.name_en
+            record.nameVi = prod.name_vi
+            record.unit = prod.unit
+            record.taxRate = prod.tax_rate
             record.price = prod.price
             record.costPrice = prod.cost_price
             record.stock = prod.stock
+            record.image = prod.image
+            record.supplier = prod.supplier
             record.isActive = prod.is_active
             record.isDeleted = prod.is_deleted
           })

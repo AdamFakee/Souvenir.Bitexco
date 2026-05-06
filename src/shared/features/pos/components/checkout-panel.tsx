@@ -39,7 +39,10 @@ export default function CheckoutPanel() {
   }, [subtotal, appliedVoucher, activeSession?.discount])
 
   const tax = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.product.price * 0.08 * item.quantity, 0)
+    return cart.reduce(
+      (sum, item) => sum + item.product.price * (item.product.taxRate / 100) * item.quantity,
+      0,
+    )
   }, [cart])
 
   const total = useMemo(() => {

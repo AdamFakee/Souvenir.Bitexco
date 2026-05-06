@@ -6,10 +6,12 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 
 export type CartProduct = {
   id: string
-  name: string
+  nameEn: string
+  nameVi: string
   price: number
   sku: string
-  barcode?: string | null
+  unit: string
+  taxRate: number
   image?: string | null
   stock?: number | null
 }
@@ -118,10 +120,12 @@ export const useCartStore = create<CartState>()(
         // Extract plain data from WatermelonDB Model or plain object
         const product: CartProduct = {
           id: productInput.id,
-          name: productInput.name,
+          nameEn: 'nameEn' in productInput ? productInput.nameEn : '',
+          nameVi: 'nameVi' in productInput ? productInput.nameVi : '',
           price: productInput.price,
           sku: productInput.sku || '',
-          barcode: 'barcode' in productInput ? productInput.barcode : null,
+          unit: 'unit' in productInput ? productInput.unit : '',
+          taxRate: 'taxRate' in productInput ? (productInput.taxRate as number) : 0,
           image: 'image' in productInput ? productInput.image : null,
           stock: 'stock' in productInput ? (productInput.stock as number) : null,
         }
@@ -150,12 +154,12 @@ export const useCartStore = create<CartState>()(
 
           if (product.stock !== undefined && product.stock !== null) {
             if (product.stock <= 0) {
-              toast.warning(`Sản phẩm [${product.name}] đã hết hàng!`, 'Hết hàng')
+              toast.warning(`Sản phẩm [${product.nameEn}] đã hết hàng!`, 'Hết hàng')
               return currentState
             }
             if (currentQty + quantity > product.stock) {
               toast.warning(
-                `Sản phẩm [${product.name}] chỉ còn ${product.stock} sản phẩm trong kho!`,
+                `Sản phẩm [${product.nameEn}] chỉ còn ${product.stock} sản phẩm trong kho!`,
                 'Vượt quá số lượng tồn kho',
               )
               return currentState
@@ -224,7 +228,7 @@ export const useCartStore = create<CartState>()(
           if (stock !== undefined && stock !== null) {
             if (quantity > stock) {
               toast.warning(
-                `Không thể tăng số lượng. Sản phẩm [${item.product.name}] chỉ còn ${stock} sản phẩm trong kho!`,
+                `Không thể tăng số lượng. Sản phẩm [${item.product.nameEn}] chỉ còn ${stock} sản phẩm trong kho!`,
                 'Vượt quá tồn kho',
               )
               return state

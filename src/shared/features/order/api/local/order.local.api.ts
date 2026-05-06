@@ -40,8 +40,7 @@ export const OrderLocalAPI = {
     const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => ({
       productId: i.product.id,
       sku: i.product.sku,
-      barcode: i.product.barcode ?? undefined,
-      name: i.product.name,
+      name: i.product.nameEn,
       price: i.product.price,
       quantity: i.quantity,
       subtotal: i.product.price * i.quantity,
@@ -75,7 +74,7 @@ export const OrderLocalAPI = {
       database.get<OrderItemModel>('order_items').prepareCreate((oi) => {
         oi.orderId = preparedOrder.id
         oi.productId = item.product.id
-        oi.productNameSnapshot = item.product.name
+        oi.productNameSnapshot = item.product.nameEn
         oi.priceSnapshot = item.product.price
         oi.quantity = item.quantity
         oi.refundedQuantity = 0

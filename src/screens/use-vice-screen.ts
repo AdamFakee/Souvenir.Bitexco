@@ -55,7 +55,7 @@ export const useViceScreen = () => {
       // Chuyển đổi dữ liệu sang định dạng màn hình phụ mong đợi
       const items = Object.values(session.items).map((cartItem) => ({
         id: cartItem.id,
-        name: cartItem.product.name,
+        name: cartItem.product.nameEn,
         price: cartItem.price,
         quantity: cartItem.quantity,
         image: cartItem.product.image ?? undefined,
