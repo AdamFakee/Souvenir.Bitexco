@@ -26,10 +26,12 @@ export const ProductLocalAPI = {
     }
 
     if (searchQuery) {
+      const sanitized = Q.sanitizeLikeString(searchQuery)
       clauses.push(
         Q.or(
-          Q.where('name', Q.like(`%${Q.sanitizeLikeString(searchQuery)}%`)),
-          Q.where('sku', Q.like(`%${Q.sanitizeLikeString(searchQuery)}%`)),
+          Q.where('name_en', Q.like(`%${sanitized}%`)),
+          Q.where('name_vi', Q.like(`%${sanitized}%`)),
+          Q.where('sku', Q.like(`%${sanitized}%`)),
         ),
       )
     }
