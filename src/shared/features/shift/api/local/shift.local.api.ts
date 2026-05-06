@@ -55,4 +55,22 @@ export const ShiftLocalAPI = {
       }
     })
   },
+
+  /**
+   * Đóng ca làm việc
+   */
+  closeShift: async (
+    shift: ShiftModel,
+    params: { actualEndingCash: number; discrepancyReason?: string },
+  ) => {
+    return await database.write(async () => {
+      return await shift.update((s) => {
+        s.endTime = Date.now()
+        s.actualEndingCash = params.actualEndingCash
+        s.differenceCash = params.actualEndingCash - s.expectedEndingCash
+        s.discrepancyReason = params.discrepancyReason
+        s.status = ShiftStatus.CLOSED
+      })
+    })
+  },
 }

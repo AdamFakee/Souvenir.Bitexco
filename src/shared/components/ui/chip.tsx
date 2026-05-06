@@ -1,6 +1,6 @@
+import { cn } from '@/shared/utils'
 import React from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { cn } from '@/shared/utils'
 
 interface ChipProps {
   label: string
