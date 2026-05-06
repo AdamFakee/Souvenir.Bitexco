@@ -33,6 +33,7 @@ type CartSessionData = {
   items: Record<string, CartItem>
   discount: number
   appliedVoucher?: AppliedVoucher | null
+  note: string
   createdAt: number
 }
 
@@ -52,6 +53,7 @@ interface CartState {
   setDiscount: (discount: number) => void
   applyVoucher: (voucher: AppliedVoucher) => void
   removeVoucher: () => void
+  setNote: (note: string) => void
   removeCurrentCart: () => void
 }
 
@@ -77,6 +79,7 @@ export const useCartStore = create<CartState>()(
               items: {},
               discount: 0,
               appliedVoucher: null,
+              note: '',
               createdAt: Date.now(),
             },
             ...state.sessions,
@@ -136,6 +139,7 @@ export const useCartStore = create<CartState>()(
               items: {},
               discount: 0,
               appliedVoucher: null,
+              note: '',
               createdAt: Date.now(),
             }
           }
@@ -290,6 +294,23 @@ export const useCartStore = create<CartState>()(
               [sessionId]: {
                 ...state.sessions[sessionId],
                 appliedVoucher: null,
+              },
+            },
+          }
+        })
+      },
+
+      setNote: (note) => {
+        set((state) => {
+          const sessionId = state.activeSessionId
+          if (!sessionId || !state.sessions[sessionId]) return state
+
+          return {
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...state.sessions[sessionId],
+                note,
               },
             },
           }

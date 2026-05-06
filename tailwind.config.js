@@ -66,6 +66,7 @@ module.exports = {
           DEFAULT: '#fcf8ff',
           on: '#1b1b24',
         },
+        muted: '#64748b',
       },
       spacing: {
         none: '0px',
