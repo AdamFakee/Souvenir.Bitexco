@@ -4,10 +4,9 @@ import { useCartStore } from '@/shared/features/pos/store'
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
 import { toast } from '@/shared/store/use-alert-store'
 import { useCallback, useRef } from 'react'
-import { PaymentContext, PaymentPopupRef, PaymentResult } from '../types'
-import { calculateVoucherDiscount } from '../utils'
-
 import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
+import { PaymentContext, PaymentPopupRef, PaymentResult } from '../types'
+import { calculateVoucherDiscount, roundCashAmount } from '../utils'
 
 export function usePaymentFlow(context: PaymentContext) {
   const refs = useRef<Record<string, PaymentPopupRef | null>>({})
@@ -32,6 +31,10 @@ export function usePaymentFlow(context: PaymentContext) {
         return
       }
 
+      // Thống nhất logic làm tròn: Chỉ làm tròn cho Tiền mặt
+      const finalTotal =
+        result.method === PaymentMethod.CASH ? roundCashAmount(context.total) : context.total
+
       const checkoutPayload = {
         staffId,
         shiftId,
@@ -42,7 +45,7 @@ export function usePaymentFlow(context: PaymentContext) {
         voucherDiscount: appliedVoucher
           ? calculateVoucherDiscount(context.items, appliedVoucher)
           : 0,
-        total: context.total,
+        total: finalTotal,
         note: activeSession?.note,
         payment: {
           method: result.method,
@@ -56,7 +59,7 @@ export function usePaymentFlow(context: PaymentContext) {
       try {
         if (result.isOnline) {
           if (!result.orderId) {
-            throw new Error('Thanh toán Online thành công nhưng không có orderId từ Server')
+            throw new Error('Thanh toán thất bại!')
           }
 
           // ONLINE: Chỉ trừ kho và cộng doanh thu ca, sau đó kéo data chuẩn từ server về lưu local

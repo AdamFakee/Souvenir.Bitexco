@@ -1,13 +1,14 @@
-import { Button, ModalBase, Numpad } from '@/shared/components/ui'
-import { formatCurrency } from '@/shared/utils'
-import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react'
-import { Text, View } from 'react-native'
-import { Banknote } from 'lucide-react-native'
-import { COLORS } from '@/shared/constants'
 import { ViceService } from '@/screens/vice-service'
+import { Button, ModalBase, Numpad } from '@/shared/components/ui'
+import { COLORS } from '@/shared/constants'
+import { formatCurrency } from '@/shared/utils'
+import { Banknote } from 'lucide-react-native'
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
+import { Text, View } from 'react-native'
 
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
+import { roundCashAmount } from '../utils'
 
 export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
   ({ total, onSuccess }, ref) => {
@@ -25,18 +26,20 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       },
     }))
 
+    const roundedTotal = roundCashAmount(total)
+
     // Debounce cập nhật Vice Screen để tránh lag
     useEffect(() => {
       if (!visible) return
 
       const timer = setTimeout(() => {
         const paid = Number(cashTendered) || 0
-        const changeAmt = paid >= total ? paid - total : 0
-        ViceService.showCashPayment({ total, customerPaid: paid, change: changeAmt })
+        const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
+        ViceService.showCashPayment({ total: roundedTotal, customerPaid: paid, change: changeAmt })
       }, 300)
 
       return () => clearTimeout(timer)
-    }, [cashTendered, total, visible])
+    }, [cashTendered, roundedTotal, visible])
 
     const handleNumpadPress = (digit: string) => {
       if (cashTendered.length < 12) {
@@ -59,8 +62,8 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const handleSuccess = () => {
       setVisible(false)
       const paid = Number(cashTendered) || 0
-      const changeAmt = paid >= total ? paid - total : 0
-      ViceService.paymentSuccess({ total, customerPaid: paid, change: changeAmt })
+      const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
+      ViceService.paymentSuccess({ total: roundedTotal, customerPaid: paid, change: changeAmt })
       onSuccess({
         success: true,
         method: PaymentMethod.CASH,
@@ -96,7 +99,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         .slice(0, 3)
     }
 
-    const suggestions = getSuggestions(total, cashTendered)
+    const suggestions = getSuggestions(roundedTotal, cashTendered)
 
     return (
       <ModalBase visible={visible} onClose={handleClose} className="max-w-[860px] flex-row">
@@ -114,7 +117,9 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
               {/* Total Amount */}
               <View className="rounded-xl border border-outline-variant bg-surface-50 p-4">
                 <Text className="text-surface-onVariant mb-1 text-sm font-medium">Tổng tiền</Text>
-                <Text className="text-3xl font-bold text-primary">{formatCurrency(total)}</Text>
+                <Text className="text-3xl font-bold text-primary">
+                  {formatCurrency(roundedTotal)}
+                </Text>
               </View>
 
               {/* Cash Tendered */}
@@ -129,8 +134,8 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
               <View className="rounded-xl border border-error/20 bg-error/10 p-4">
                 <Text className="mb-1 text-sm font-medium text-error">Tiền thừa</Text>
                 <Text className="text-2xl font-bold text-error">
-                  {Number(cashTendered) >= total
-                    ? formatCurrency(Number(cashTendered) - total)
+                  {Number(cashTendered) >= roundedTotal
+                    ? formatCurrency(Number(cashTendered) - roundedTotal)
                     : '0 đ'}
                 </Text>
               </View>
@@ -156,7 +161,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                 label="Chẵn tiền"
                 variant="outline"
                 className="h-12 min-w-[110px] flex-1"
-                onPress={() => setCashTendered(total.toString())}
+                onPress={() => setCashTendered(roundedTotal.toString())}
               />
             </View>
           </View>
@@ -177,7 +182,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             <Button
               label="Hoàn tất"
               variant="primary"
-              disabled={Number(cashTendered) < total}
+              disabled={Number(cashTendered) < roundedTotal}
               onPress={handleSuccess}
               className="h-14"
             />
