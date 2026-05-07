@@ -233,4 +233,14 @@ export const OrderLocalAPI = {
       await database.batch(...preparedStockUpdates, preparedShiftUpdate)
     })
   },
+
+  /**
+   * Theo dõi danh sách đơn hàng theo shiftId (Realtime)
+   */
+  observeOrdersByShift: (shiftId: string) => {
+    return database
+      .get<OrderModel>('orders')
+      .query(Q.where('is_deleted', Q.notEq(true)), Q.where('shift_id', shiftId))
+      .observe()
+  },
 }

@@ -1,5 +1,5 @@
 export { default as OrderDetailModal, type OrderDetailModalRef } from './order-detail-modal'
 export * from './order-filter-bar'
-export * from './order-status-tabs'
 export * from './order-list'
 export * from './order-stats-footer'
+export * from './order-status-tabs'
