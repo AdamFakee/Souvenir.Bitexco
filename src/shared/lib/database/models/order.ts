@@ -18,6 +18,8 @@ export enum OrderStatus {
   COMPLETED = 'COMPLETED',
   /** Đơn hàng đổi trả/hoàn tiền (Bút toán Doanh thu Âm) */
   REFUNDED = 'REFUNDED',
+  /** Đơn hàng thất bại hoặc bị hủy */
+  FAILED = 'FAILED',
 }
 
 export default class OrderModel extends Model {

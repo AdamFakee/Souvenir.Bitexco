@@ -58,6 +58,24 @@ module.exports = {
           container: '#ffdad6',
           'on-container': '#93000a',
         },
+        success: {
+          DEFAULT: '#10b981',
+          on: '#ffffff',
+          container: '#d1fae5',
+          'on-container': '#064e3b',
+        },
+        warning: {
+          DEFAULT: '#f59e0b',
+          on: '#ffffff',
+          container: '#fef3c7',
+          'on-container': '#78350f',
+        },
+        info: {
+          DEFAULT: '#3b82f6',
+          on: '#ffffff',
+          container: '#dbeafe',
+          'on-container': '#1e3a8a',
+        },
         outline: {
           DEFAULT: '#777587',
           variant: '#c7c4d8',

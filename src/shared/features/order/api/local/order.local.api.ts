@@ -1,11 +1,18 @@
-import { PaymentLocalAPI } from '@/shared/features/payment/api/local'
+import { PaymentLocalAPI } from '@/shared/features/payment/api/local/payment.local.api'
 import type { CartItem } from '@/shared/features/pos/store/use-cart-store'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
-import { ShiftLocalAPI } from '@/shared/features/shift/api/local'
-import { database, OrderItemModel, OrderModel } from '@/shared/lib/database'
-import { OrderStatus } from '@/shared/lib/database/models/order'
-import { PaymentMethod } from '@/shared/lib/database/models/payment'
-import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
+import { ShiftLocalAPI } from '@/shared/features/shift/api/local/shift.local.api'
+import {
+  database,
+  OrderItemModel,
+  OrderModel,
+  OrderStatus,
+  PaymentMethod,
+  type ItemSnapshot,
+  type PaymentSnapshot,
+} from '@/shared/lib/database'
+import { endOfDay, startOfDay } from '@/shared/utils'
+import { Q } from '@nozbe/watermelondb'
 
 export interface CheckoutPaymentPayload {
   method: PaymentMethod
@@ -27,7 +34,82 @@ export interface CheckoutPayload {
   payment: CheckoutPaymentPayload
 }
 
+export interface GetOrdersParams {
+  status?: OrderStatus | null
+  searchQuery?: string
+  dateFrom?: Date | null
+  dateTo?: Date | null
+  limit?: number
+  offset?: number
+}
+
 export const OrderLocalAPI = {
+  /**
+   * Lấy danh sách đơn hàng từ Local Database (WatermelonDB).
+   * Hỗ trợ tìm kiếm theo ID/Sản phẩm, lọc theo trạng thái và khoảng ngày.
+   *
+   * @param params - Các tham số lọc: status, searchQuery, dateFrom, dateTo, limit, offset
+   * @returns Danh sách OrderModel tương ứng
+   */
+  getOrders: async (params: GetOrdersParams): Promise<OrderModel[]> => {
+    const { status, searchQuery, dateFrom, dateTo, limit = 50, offset = 0 } = params
+    const clauses: any[] = [Q.where('is_deleted', Q.notEq(true))]
+
+    if (status) {
+      clauses.push(Q.where('status', status))
+    }
+
+    if (searchQuery) {
+      const sanitized = Q.sanitizeLikeString(searchQuery.trim())
+      clauses.push(
+        Q.or(
+          Q.where('id', Q.like(`%${sanitized}%`)),
+          Q.where('items_snapshot', Q.like(`%${sanitized}%`)),
+        ),
+      )
+    }
+
+    if (dateFrom) {
+      clauses.push(Q.where('created_at', Q.gte(startOfDay(dateFrom).getTime())))
+    }
+
+    if (dateTo) {
+      clauses.push(Q.where('created_at', Q.lte(endOfDay(dateTo).getTime())))
+    }
+
+    clauses.push(Q.sortBy('created_at', Q.desc))
+    clauses.push(Q.skip(offset))
+    clauses.push(Q.take(limit))
+
+    return await database
+      .get<OrderModel>('orders')
+      .query(...clauses)
+      .fetch()
+  },
+
+  /**
+   * Lấy chi tiết đơn hàng
+   */
+  getOrderById: async (id: string): Promise<OrderModel | null> => {
+    try {
+      return await database.get<OrderModel>('orders').find(id)
+    } catch {
+      return null
+    }
+  },
+
+  /**
+   * Cập nhật trạng thái đơn hàng (ví dụ: FAIL, REFUNDED)
+   */
+  updateOrderStatus: async (orderId: string, status: OrderStatus): Promise<void> => {
+    const order = await database.get<OrderModel>('orders').find(orderId)
+    await database.write(async () => {
+      await order.update((o) => {
+        o.status = status
+      })
+    })
+  },
+
   /**
    * Thanh toán chung (Tiền mặt, Chuyển khoản, Card...).
    * Orchestrate việc tạo order, payment và trừ stock trong 1 batch transaction.

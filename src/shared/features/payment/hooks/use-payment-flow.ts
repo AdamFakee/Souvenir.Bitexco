@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/shared/features/auth'
-import { OrderLocalAPI } from '@/shared/features/order'
+import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import { useCartStore } from '@/shared/features/pos/store'
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
 import { toast } from '@/shared/store/use-alert-store'
