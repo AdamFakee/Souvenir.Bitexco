@@ -18,7 +18,7 @@ export const useOrderFilterStore = create<OrderFilterState>((set) => ({
   searchQuery: '',
   status: null,
   dateFrom: null,
-  dateTo: null,
+  dateTo: new Date(),
 
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setStatus: (status) => set({ status }),
@@ -29,6 +29,6 @@ export const useOrderFilterStore = create<OrderFilterState>((set) => ({
       searchQuery: '',
       status: null,
       dateFrom: null,
-      dateTo: null,
+      dateTo: new Date(),
     }),
 }))

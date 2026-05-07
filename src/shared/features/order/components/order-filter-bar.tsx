@@ -32,7 +32,7 @@ export const OrderFilterBar = memo(function OrderFilterBar() {
           onChange={setDateFrom}
           placeholder="Từ ngày"
           className="w-44"
-          maxDate={dateTo || undefined}
+          maxDate={dateTo || new Date()}
         />
         <Text className="font-medium text-muted">đến</Text>
         <DatePicker
@@ -41,6 +41,7 @@ export const OrderFilterBar = memo(function OrderFilterBar() {
           placeholder="Đến ngày"
           className="w-44"
           minDate={dateFrom || undefined}
+          maxDate={new Date()}
         />
       </View>
     </View>
