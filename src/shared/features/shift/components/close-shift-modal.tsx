@@ -1,4 +1,6 @@
 import { Button, Chip, ModalBase } from '@/shared/components/ui'
+import { toast } from '@/shared/store'
+
 import { ControlledInput } from '@/shared/components/ui/form'
 import { COLORS } from '@/shared/constants'
 import { ShiftModel } from '@/shared/lib'
@@ -87,14 +89,20 @@ export const CloseShiftModal = ({ shift, ref }: CloseShiftModalProps) => {
   const currentReason = watch('discrepancyReason')
 
   const onConfirmClose = async (values: CloseShiftInput) => {
-    const data = values as unknown as CloseShiftOutput
-    const success = await closeStaffShift(shift, {
-      actualEndingCash: data.actualEndingCash,
-      discrepancyReason: data.discrepancyReason,
+    toast.confirm({
+      title: 'Xác nhận đóng ca',
+      message: 'Bạn có chắc chắn muốn kết thúc ca làm việc không?',
+      onConfirm: async () => {
+        const data = values as unknown as CloseShiftOutput
+        const success = await closeStaffShift(shift, {
+          actualEndingCash: data.actualEndingCash,
+          discrepancyReason: data.discrepancyReason,
+        })
+        if (success) {
+          setVisible(false)
+        }
+      },
     })
-    if (success) {
-      setVisible(false)
-    }
   }
 
   if (!shift) return null
