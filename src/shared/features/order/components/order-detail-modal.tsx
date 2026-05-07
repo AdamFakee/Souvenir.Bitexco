@@ -59,9 +59,11 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
       <View className="flex-1 p-10">
         {/* Custom Header */}
         <View className="mb-8 flex-row items-center justify-between border-b-2 border-outline-variant pb-6">
-          <Text className="text-4xl font-black tracking-tight text-surface-on">
-            Chi tiết đơn hàng <Text className="text-primary">#{order.id}</Text>
-          </Text>
+          <View className="flex-row items-center gap-4">
+            <Text className="text-4xl font-black tracking-tight text-surface-on">
+              Chi tiết đơn hàng <Text className="text-primary">#{order.id}</Text>
+            </Text>
+          </View>
           <IconButton
             icon={X}
             size={36}
@@ -94,9 +96,11 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
               </View>
               <View>
                 <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
-                  Nhân viên
+                  Nhân viên / Ca làm việc
                 </Text>
-                <Text className="text-base font-black text-surface-on">Admin (129129)</Text>
+                <Text className="text-base font-black text-surface-on">
+                  ID: {order.staffId} | Shift: {order.shiftId}
+                </Text>
               </View>
             </View>
 
@@ -122,96 +126,176 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
               </View>
             </View>
 
-            <View className="mt-4 w-[48%] flex-row items-center gap-4">
-              <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                <Tag size={20} color={COLORS.outline.default} />
+            {order.voucherCode ? (
+              <View className="mt-4 w-[48%] flex-row items-center gap-4">
+                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
+                  <Tag size={20} color={COLORS.primary.default} />
+                </View>
+                <View>
+                  <Text
+                    className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted"
+                    numberOfLines={1}
+                  >
+                    Voucher
+                  </Text>
+                  <Text className="text-base font-black text-primary" numberOfLines={1}>
+                    {order.voucherCode}
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
-                  CTV / Affiliate
-                </Text>
-                <Text className="text-base font-black text-surface-on">—</Text>
+            ) : (
+              <View className="mt-4 w-[48%] flex-row items-center gap-4">
+                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
+                  <Tag size={20} color={COLORS.outline.default} />
+                </View>
+                <View>
+                  <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
+                    CTV / Affiliate
+                  </Text>
+                  <Text className="text-base font-black text-surface-on">—</Text>
+                </View>
               </View>
-            </View>
+            )}
 
             <View className="mt-4 w-full flex-row items-center gap-4 border-t border-dashed border-outline-variant pt-6">
               <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
                 <CreditCard size={20} color={COLORS.outline.default} />
               </View>
-              <View>
+              <View className="flex-1">
                 <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
                   Phương thức thanh toán
                 </Text>
-                <View className="mt-1 flex-row gap-2">
+                <View className="mt-1 flex-row flex-wrap gap-2">
                   {payments.map((p, i) => (
                     <View key={i} className="rounded-lg bg-primary/10 px-3 py-1">
-                      <Text className="text-sm font-bold text-primary">{p.method}</Text>
+                      <Text className="text-sm font-bold text-primary">
+                        {p.method} ({formatCurrency(p.amount)})
+                      </Text>
                     </View>
                   ))}
                 </View>
               </View>
             </View>
+
+            {order.note && (
+              <View className="mt-4 w-full flex-row items-center gap-4 border-t border-dashed border-outline-variant pt-6">
+                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
+                  <Printer size={20} color={COLORS.outline.default} />
+                </View>
+                <View className="flex-1">
+                  <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
+                    Ghi chú đơn hàng
+                  </Text>
+                  <Text className="mt-1 text-base font-medium italic text-surface-on">
+                    {order.note}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
 
-          {/* Items Table */}
-          <View className="mb-8 overflow-hidden rounded-[24px] border border-outline-variant">
-            <View className="flex-row border-b border-outline-variant bg-[#f1f5f9] px-6 py-4">
+          {/* Items Table - Redesigned for Readability */}
+          <View className="mb-8 overflow-hidden rounded-[32px] border border-outline-variant bg-white">
+            <View className="flex-row bg-[#f1f5f9] px-8 py-5">
               <Text className="flex-1 text-xs font-black uppercase tracking-widest text-muted">
-                Sản phẩm
+                Chi tiết sản phẩm
               </Text>
               <Text className="w-20 text-center text-xs font-black uppercase tracking-widest text-muted">
                 Số lượng
               </Text>
-              <Text className="w-32 text-right text-xs font-black uppercase tracking-widest text-muted">
-                Đơn giá
+              <Text className="w-24 text-center text-xs font-black uppercase tracking-widest text-muted">
+                Thuế
               </Text>
-              <Text className="w-32 text-right text-xs font-black uppercase tracking-widest text-muted">
+              <Text className="w-40 text-right text-xs font-black uppercase tracking-widest text-muted">
                 Thành tiền
               </Text>
             </View>
+
             {items.map((item, index) => (
               <View
                 key={index}
-                className="flex-row border-b border-outline-variant px-6 py-5 last:border-b-0"
+                className="flex-row border-b border-outline-variant/50 px-8 py-6 last:border-b-0"
               >
+                {/* 1. Product Info */}
                 <View className="flex-1">
-                  <Text className="text-base font-black text-surface-on">{item.name}</Text>
-                  <Text className="mt-1 text-sm font-bold text-muted">{item.sku}</Text>
+                  <Text className="text-lg font-black text-surface-on">{item.name}</Text>
+                  <Text className="mt-1 text-xs font-bold text-muted">{item.sku}</Text>
                 </View>
-                <Text className="w-20 text-center text-base font-black text-surface-on">
-                  {item.quantity}
-                </Text>
-                <Text className="w-32 text-right text-base font-medium text-surface-on">
-                  {formatCurrency(item.price)}
-                </Text>
-                <Text className="w-32 text-right text-lg font-black text-primary">
-                  {formatCurrency(item.subtotal)}
-                </Text>
+
+                {/* 2. Quantity */}
+                <View className="w-20 items-center justify-center">
+                  <Text className="text-xl font-black text-surface-on">{item.quantity}</Text>
+                </View>
+
+                {/* 3. Tax Column */}
+                <View className="w-24 items-center justify-center">
+                  {item.taxRate > 0 ? (
+                    <View className="rounded-lg bg-surface-100 px-2 py-1">
+                      <Text className="text-sm font-bold text-muted">{item.taxRate}%</Text>
+                    </View>
+                  ) : (
+                    <Text className="text-sm font-bold text-muted/30">—</Text>
+                  )}
+                </View>
+
+                {/* 4. Price & Subtotal */}
+                <View className="w-40 items-end justify-center">
+                  <Text className="text-xl font-black text-primary" numberOfLines={1}>
+                    {formatCurrency(item.subtotal)}
+                  </Text>
+                  <View className="mt-1 flex-row items-center gap-2">
+                    <Text className="text-xs font-medium text-muted" numberOfLines={1}>
+                      {formatCurrency(item.price)}/món
+                    </Text>
+                    {item.discountAmount > 0 && (
+                      <Text className="text-xs font-bold text-error" numberOfLines={1}>
+                        (-{formatCurrency(item.discountAmount)})
+                      </Text>
+                    )}
+                  </View>
+                </View>
               </View>
             ))}
           </View>
 
-          {/* Calculations */}
-          <View className="mb-8 items-end gap-3 px-4">
-            <View className="w-80 flex-row items-center justify-between">
-              <Text className="text-base font-bold text-muted">Tạm tính:</Text>
-              <Text className="text-lg font-black text-surface-on">
-                {formatCurrency(order.subtotal)}
-              </Text>
-            </View>
-            <View className="w-80 flex-row items-center justify-between">
-              <Text className="text-base font-bold text-muted">Giảm giá:</Text>
-              <Text className="text-lg font-black text-error">
-                -{formatCurrency(order.discount)}
-              </Text>
-            </View>
-            <View className="mt-2 w-80 flex-row items-center justify-between border-t-2 border-outline-variant pt-4">
-              <Text className="text-xl font-black uppercase tracking-tight text-surface-on">
-                Tổng cộng:
-              </Text>
-              <Text className="text-3xl font-black text-primary">
-                {formatCurrency(order.total)}
-              </Text>
+          {/* Calculations Summary - Receipt Style */}
+          <View className="mb-8 rounded-[32px] border border-outline-variant/50 bg-[#f8fafc] p-8">
+            <View className="gap-4">
+              <View className="flex-row items-center justify-between">
+                <Text className="text-lg font-medium text-muted">Tạm tính</Text>
+                <Text className="text-lg font-bold text-surface-on">
+                  {formatCurrency(order.subtotal)}
+                </Text>
+              </View>
+
+              {order.discount > 0 && (
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-lg font-medium text-error">Giảm giá</Text>
+                  </View>
+                  <Text className="text-lg font-bold text-error">
+                    -{formatCurrency(order.discount)}
+                  </Text>
+                </View>
+              )}
+
+              {order.totalTax > 0 && (
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-lg font-medium text-muted">Thuế VAT</Text>
+                  <Text className="text-lg font-bold text-surface-on">
+                    {formatCurrency(order.totalTax)}
+                  </Text>
+                </View>
+              )}
+
+              <View className="mt-4 flex-row items-center justify-between border-t border-outline-variant pt-6">
+                <Text className="text-2xl font-black uppercase tracking-tighter text-surface-on">
+                  Tổng thanh toán
+                </Text>
+                <Text className="text-4xl font-black text-primary">
+                  {formatCurrency(order.total)}
+                </Text>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -219,7 +303,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
 
       <View className="flex-row items-center justify-between rounded-b-[40px] border-t border-outline-variant bg-[#f8fafc] p-8">
         <Button
-          label="Hủy đơn hàng"
+          label="Trả hàng"
           variant="outline"
           leftIcon={Trash2}
           className="rounded-2xl border-error/30 bg-white"
