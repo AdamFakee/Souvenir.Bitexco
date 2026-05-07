@@ -54,6 +54,7 @@ const DISCREPANCY_REASONS = [
   'Chi tiền mặt chưa ghi',
   'Nhập sai hóa đơn',
   'Bàn giao thiếu',
+  'Hoàn tiền cho khách',
   'Khác',
 ]
 
@@ -65,7 +66,7 @@ export const CloseShiftModal = ({ shift, ref }: CloseShiftModalProps) => {
   const { control, handleSubmit, watch, reset, setValue } = useForm<CloseShiftInput>({
     resolver: valibotResolver(closeShiftSchema),
     defaultValues: {
-      actualEndingCash: shift?.expectedEndingCash?.toString() || '0',
+      actualEndingCash: '',
       discrepancyReason: '',
     },
   })
@@ -75,7 +76,7 @@ export const CloseShiftModal = ({ shift, ref }: CloseShiftModalProps) => {
       setVisible(true)
       setShowManualInput(false)
       reset({
-        actualEndingCash: shift?.expectedEndingCash?.toString() || '0',
+        actualEndingCash: '',
         discrepancyReason: '',
       })
     },
@@ -254,7 +255,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row items-center justify-between py-2">
       <Text className="text-2xl font-medium text-surface-on-variant">{label}:</Text>
-      <Text className="text-3xl font-black text-surface-on">{value}</Text>
+      <Text className="text-3xl font-black text-surface-on" numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   )
 }

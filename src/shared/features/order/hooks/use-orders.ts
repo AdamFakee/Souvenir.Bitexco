@@ -1,5 +1,5 @@
-import { database, OrderModel } from '@/shared/lib/database'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { database } from '@/shared/lib/database'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import { GetOrdersParams, OrderLocalAPI } from '../api'
 
@@ -9,7 +9,6 @@ export const useOrders = (params: Omit<GetOrdersParams, 'limit' | 'offset'>) => 
   const query = useInfiniteQuery({
     queryKey: ['orders', status, searchQuery, dateFrom, dateTo],
     queryFn: async ({ pageParam = 0 }) => {
-      console.log('Fetching orders', params)
       return await OrderLocalAPI.getOrders({
         status,
         searchQuery,
@@ -29,14 +28,16 @@ export const useOrders = (params: Omit<GetOrdersParams, 'limit' | 'offset'>) => 
     networkMode: 'always',
   })
 
+  const queryClient = useQueryClient()
+
   // Listen to local database changes to keep the list in sync
   useEffect(() => {
-    const subscription = database.get<OrderModel>('orders').changes.subscribe(() => {
-      query.refetch()
+    const subscription = database.withChangesForTables(['orders']).subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
     })
 
     return () => subscription.unsubscribe()
-  }, [query])
+  }, [queryClient])
 
   const orders = useMemo(() => {
     return query.data?.pages.flatMap((page) => page) || []

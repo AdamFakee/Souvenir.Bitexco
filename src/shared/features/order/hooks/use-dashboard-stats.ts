@@ -1,7 +1,7 @@
-import { OrderStatus, PaymentMethod, database, ProductModel } from '@/shared/lib/database'
-import { useEffect, useState, useRef } from 'react'
+import { database, OrderModel, OrderStatus, ProductModel, ShiftModel } from '@/shared/lib/database'
 import { Q } from '@nozbe/watermelondb'
-import { OrderLocalAPI } from '../api/local/order.local.api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
 export interface DashboardStats {
   totalRevenue: number
@@ -28,43 +28,37 @@ const INITIAL_STATS: DashboardStats = {
 }
 
 export const useDashboardStats = (shiftId?: string) => {
-  const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS)
-  const [isLoading, setIsLoading] = useState(true)
-  const productsStockRef = useRef<Record<string, number>>({})
+  const queryClient = useQueryClient()
 
-  // Pre-fetch all products stock to avoid flickering
-  useEffect(() => {
-    database
-      .get<ProductModel>('products')
-      .query()
-      .fetch()
-      .then((products) => {
-        const map: Record<string, number> = {}
-        products.forEach((p) => {
-          map[p.id] = p.stock || 0
-        })
-        productsStockRef.current = map
+  const query = useQuery({
+    queryKey: ['dashboard-stats', shiftId],
+    queryFn: async () => {
+      if (!shiftId) return INITIAL_STATS
+
+      // 1. Fetch Shift, Orders and Products concurrently
+      const [shift, orders, products] = await Promise.all([
+        database.get<ShiftModel>('shifts').find(shiftId),
+        database.get<OrderModel>('orders').query(Q.where('shift_id', shiftId)).fetch(),
+        database.get<ProductModel>('products').query().fetch(),
+      ])
+
+      // 2. Build product stock map
+      const stockMap: Record<string, number> = {}
+      products.forEach((p) => {
+        stockMap[p.id] = p.stock || 0
       })
-  }, [])
 
-  useEffect(() => {
-    if (!shiftId) {
-      setStats(INITIAL_STATS)
-      setIsLoading(false)
-      return
-    }
+      // 3. Revenue from Shift (Fast & Accurate)
+      const revCash = shift.cashRevenue || 0
+      const revQr = shift.qrRevenue || 0
+      const totalRevenue = revCash + revQr
 
-    setIsLoading(true)
-    const subscription = OrderLocalAPI.observeOrdersByShift(shiftId).subscribe((orders) => {
+      // 4. Calculate Other Stats from Orders
       const completed = orders.filter((o) => o.status === OrderStatus.COMPLETED)
       const cancelled = orders.filter(
         (o) => o.status === OrderStatus.FAILED || o.status === OrderStatus.REFUNDED,
       )
 
-      let totalRevenue = 0
-      let revCash = 0
-      let revQr = 0
-      let revCard = 0
       let totalProducts = 0
       const productCounts: Record<
         string,
@@ -72,15 +66,6 @@ export const useDashboardStats = (shiftId?: string) => {
       > = {}
 
       completed.forEach((order) => {
-        totalRevenue += order.total
-
-        // Aggregate payments from snapshot
-        order.paymentsSnapshot.forEach((p) => {
-          if (p.method === PaymentMethod.CASH) revCash += p.amount
-          else if (p.method === PaymentMethod.BANK_TRANSFER) revQr += p.amount
-          else if (p.method === PaymentMethod.CARD) revCard += p.amount
-        })
-
         // Aggregate products from snapshot
         order.itemsSnapshot.forEach((item) => {
           totalProducts += item.quantity
@@ -89,43 +74,54 @@ export const useDashboardStats = (shiftId?: string) => {
               id: item.productId,
               name: item.name,
               qty: 0,
-              stock: productsStockRef.current[item.productId] || 0,
+              stock: stockMap[item.productId] || 0,
             }
           }
           productCounts[item.productId].qty += item.quantity
         })
       })
 
-      // Top 5 Products
       const topProducts = Object.values(productCounts)
         .sort((a, b) => b.qty - a.qty)
         .slice(0, 5)
 
-      // Payment Methods Data for Chart
       const paymentMethodsData = [
         { name: 'Tiền mặt', value: revCash, color: '#0284c7' },
-        { name: 'QR Code', value: revQr, color: '#db2777' },
-        { name: 'Thẻ / Card', value: revCard, color: '#ca8a04' },
+        { name: 'Chuyển khoản / QR', value: revQr, color: '#db2777' },
       ].filter((d) => d.value > 0)
 
-      setStats({
+      return {
         totalRevenue,
         revCash,
         revQr,
-        revCard,
+        revCard: 0, // ShiftModel hiện chưa tách riêng Card
         completedOrders: completed.length,
         cancelledOrders: cancelled.length,
         totalProducts,
         topProducts,
         paymentMethodsData,
+      }
+    },
+    enabled: !!shiftId,
+  })
+
+  // Listen to DB changes to invalidate the query
+  useEffect(() => {
+    if (!shiftId) return
+
+    // Listen to orders, products, and shifts tables
+    const subscription = database
+      .withChangesForTables(['orders', 'products', 'shifts'])
+      .subscribe(() => {
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats', shiftId] })
       })
-      setIsLoading(false)
-    })
 
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [shiftId])
+    return () => subscription.unsubscribe()
+  }, [shiftId, queryClient])
 
-  return { stats, isLoading }
+  return {
+    stats: query.data || INITIAL_STATS,
+    isLoading: query.isLoading,
+    isRefetching: query.isRefetching,
+  }
 }
