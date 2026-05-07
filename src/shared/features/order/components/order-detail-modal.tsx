@@ -1,11 +1,11 @@
 import { Button, IconButton, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { OrderModel } from '@/shared/lib/database'
+import { OrderStatus } from '@/shared/lib/database/models/order'
 import { formatCurrency } from '@/shared/utils'
 import { Clock, CreditCard, Printer, ShieldCheck, Tag, Trash2, User, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
-import { OrderStatus } from '@/shared/lib/database/models/order'
 import { RefundConfirmModal, RefundConfirmModalRef } from './refund-confirm-modal'
 
 export interface OrderDetailModalRef {
@@ -51,6 +51,12 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
     COMPLETED: 'Hoàn thành',
     REFUNDED: 'Hoàn tiền',
     FAILED: 'Thất bại',
+  }
+
+  const paymentMethodLabels: Record<string, string> = {
+    CASH: 'Tiền mặt',
+    CARD: 'Thẻ',
+    BANK_TRANSFER: 'Chuyển khoản',
   }
 
   return (
@@ -130,7 +136,27 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                 </View>
               </View>
 
-              {order.voucherCode ? (
+              <View className="mt-4 w-[48%] flex-row items-center gap-4">
+                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
+                  <CreditCard size={20} color={COLORS.outline.default} />
+                </View>
+                <View className="flex-1">
+                  <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
+                    Phương thức thanh toán
+                  </Text>
+                  <View className="mt-1 flex-row flex-wrap gap-2">
+                    {payments.map((p, i) => (
+                      <View key={i} className="rounded-lg bg-primary/10 px-3 py-1">
+                        <Text className="text-sm font-bold text-primary">
+                          {paymentMethodLabels[p.method] || p.method}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              {order.voucherCode && (
                 <View className="mt-4 w-[48%] flex-row items-center gap-4">
                   <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
                     <Tag size={20} color={COLORS.primary.default} />
@@ -147,39 +173,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                     </Text>
                   </View>
                 </View>
-              ) : (
-                <View className="mt-4 w-[48%] flex-row items-center gap-4">
-                  <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                    <Tag size={20} color={COLORS.outline.default} />
-                  </View>
-                  <View>
-                    <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
-                      CTV / Affiliate
-                    </Text>
-                    <Text className="text-base font-black text-surface-on">—</Text>
-                  </View>
-                </View>
               )}
-
-              <View className="mt-4 w-full flex-row items-center gap-4 border-t border-dashed border-outline-variant pt-6">
-                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                  <CreditCard size={20} color={COLORS.outline.default} />
-                </View>
-                <View className="flex-1">
-                  <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
-                    Phương thức thanh toán
-                  </Text>
-                  <View className="mt-1 flex-row flex-wrap gap-2">
-                    {payments.map((p, i) => (
-                      <View key={i} className="rounded-lg bg-primary/10 px-3 py-1">
-                        <Text className="text-sm font-bold text-primary">
-                          {p.method} ({formatCurrency(p.amount)})
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
 
               {order.note && (
                 <View className="mt-4 w-full flex-row items-center gap-4 border-t border-dashed border-outline-variant pt-6">
@@ -196,6 +190,47 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                   </View>
                 </View>
               )}
+            </View>
+
+            {/* Calculations Summary - Receipt Style */}
+            <View className="mb-8 rounded-[32px] border border-outline-variant/50 bg-[#f8fafc] p-8">
+              <View className="gap-4">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-lg font-medium text-muted">Tạm tính</Text>
+                  <Text className="text-lg font-bold text-surface-on">
+                    {formatCurrency(order.subtotal)}
+                  </Text>
+                </View>
+
+                {order.discount > 0 && (
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2">
+                      <Text className="text-lg font-medium text-error">Giảm giá</Text>
+                    </View>
+                    <Text className="text-lg font-bold text-error">
+                      -{formatCurrency(order.discount)}
+                    </Text>
+                  </View>
+                )}
+
+                {order.totalTax > 0 && (
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-lg font-medium text-muted">Thuế VAT</Text>
+                    <Text className="text-lg font-bold text-surface-on">
+                      {formatCurrency(order.totalTax)}
+                    </Text>
+                  </View>
+                )}
+
+                <View className="mt-4 flex-row items-center justify-between border-t border-outline-variant pt-6">
+                  <Text className="text-2xl font-black uppercase tracking-tighter text-surface-on">
+                    Tổng thanh toán
+                  </Text>
+                  <Text className="text-4xl font-black text-primary">
+                    {formatCurrency(order.total)}
+                  </Text>
+                </View>
+              </View>
             </View>
 
             {/* Items Table - Redesigned for Readability */}
@@ -260,47 +295,6 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                   </View>
                 </View>
               ))}
-            </View>
-
-            {/* Calculations Summary - Receipt Style */}
-            <View className="mb-8 rounded-[32px] border border-outline-variant/50 bg-[#f8fafc] p-8">
-              <View className="gap-4">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-medium text-muted">Tạm tính</Text>
-                  <Text className="text-lg font-bold text-surface-on">
-                    {formatCurrency(order.subtotal)}
-                  </Text>
-                </View>
-
-                {order.discount > 0 && (
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-2">
-                      <Text className="text-lg font-medium text-error">Giảm giá</Text>
-                    </View>
-                    <Text className="text-lg font-bold text-error">
-                      -{formatCurrency(order.discount)}
-                    </Text>
-                  </View>
-                )}
-
-                {order.totalTax > 0 && (
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-lg font-medium text-muted">Thuế VAT</Text>
-                    <Text className="text-lg font-bold text-surface-on">
-                      {formatCurrency(order.totalTax)}
-                    </Text>
-                  </View>
-                )}
-
-                <View className="mt-4 flex-row items-center justify-between border-t border-outline-variant pt-6">
-                  <Text className="text-2xl font-black uppercase tracking-tighter text-surface-on">
-                    Tổng thanh toán
-                  </Text>
-                  <Text className="text-4xl font-black text-primary">
-                    {formatCurrency(order.total)}
-                  </Text>
-                </View>
-              </View>
             </View>
           </ScrollView>
         </View>
