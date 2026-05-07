@@ -38,6 +38,10 @@ export interface PaymentResult {
    * Đơn này được xử lý Online (Backend) hay Offline (Local)
    */
   isOnline: boolean
+  /**
+   * ID đơn hàng từ Backend (Nếu là thanh toán Online)
+   */
+  orderId?: string
 }
 
 /**

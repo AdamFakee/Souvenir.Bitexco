@@ -8,9 +8,11 @@ import {
   OrderModel,
   OrderStatus,
   PaymentMethod,
+  PaymentModel,
   type ItemSnapshot,
   type PaymentSnapshot,
 } from '@/shared/lib/database'
+import type { OrderSyncDataResponse } from '@/shared/features/payment/api/remote/payment.remote.api'
 import { endOfDay, startOfDay } from '@/shared/utils'
 import { Q } from '@nozbe/watermelondb'
 
@@ -242,5 +244,62 @@ export const OrderLocalAPI = {
       .get<OrderModel>('orders')
       .query(Q.where('is_deleted', Q.notEq(true)), Q.where('shift_id', shiftId))
       .observe()
+  },
+
+  /**
+   * Lưu dữ liệu đơn hàng từ Server vào Local DB (Dùng sau khi thanh toán Online thành công).
+   * Sử dụng batch để đảm bảo tính ACID và đánh dấu 'synced' để không bị push ngược lên.
+   */
+  saveOrderSyncData: async (data: OrderSyncDataResponse): Promise<void> => {
+    const { order, orderItems, payments } = data
+    console.log('[saveOrderSyncData] Saving order:', order.id)
+    console.log('[saveOrderSyncData] Items count:', orderItems.length)
+    console.log('[saveOrderSyncData] Payments count:', payments.length)
+
+    await database.write(async () => {
+      // 1. Prepare Order
+      const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
+        o._raw = {
+          ...o._raw,
+          ...order,
+          items_snapshot: JSON.stringify(order.items_snapshot),
+          payments_snapshot: JSON.stringify(order.payments_snapshot),
+          customer_tax_info: order.customer_tax_info
+            ? JSON.stringify(order.customer_tax_info)
+            : null,
+          _status: 'synced',
+          _changed: '',
+        } as any
+      })
+
+      // 2. Prepare Order Items
+      const preparedItems = orderItems.map((item) =>
+        database.get<OrderItemModel>('order_items').prepareCreate((oi) => {
+          oi._raw = {
+            ...oi._raw,
+            ...item,
+            _status: 'synced',
+            _changed: '',
+          } as any
+        }),
+      )
+
+      // 3. Prepare Payments
+      const preparedPayments = payments.map((payment) =>
+        database.get<PaymentModel>('payments').prepareCreate((p) => {
+          p._raw = {
+            ...p._raw,
+            ...payment,
+            _status: 'synced',
+            _changed: '',
+          } as any
+        }),
+      )
+
+      // 4. Thực hiện batch lưu tất cả bản ghi
+      console.log('[saveOrderSyncData] Executing batch...')
+      await database.batch(preparedOrder, ...preparedItems, ...preparedPayments)
+      console.log('[saveOrderSyncData] Batch completed successfully')
+    })
   },
 }

@@ -67,11 +67,11 @@ export const StaffLocalAPI = {
     const { currentStaffId, isShiftOpen } = context
     const staffCollection = database.get<StaffModel>('staff')
 
-    const localStaffs = await StaffLocalAPI.getAllStaffs()
-    const openShifts = await StaffLocalAPI.getAllOpenShifts()
-    const staffIdWithOpenShifts = new Set(openShifts.map((s) => s.staffId))
-
     await database.write(async () => {
+      const localStaffs = await StaffLocalAPI.getAllStaffs()
+      const openShifts = await StaffLocalAPI.getAllOpenShifts()
+      const staffIdWithOpenShifts = new Set(openShifts.map((s) => s.staffId))
+
       const actions: any[] = []
 
       // 1. Process server staffs: Cập nhật hoặc tạo mới

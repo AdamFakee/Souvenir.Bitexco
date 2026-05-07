@@ -7,6 +7,8 @@ import { useCallback, useRef } from 'react'
 import { PaymentContext, PaymentPopupRef, PaymentResult } from '../types'
 import { calculateVoucherDiscount } from '../utils'
 
+import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
+
 export function usePaymentFlow(context: PaymentContext) {
   const refs = useRef<Record<string, PaymentPopupRef | null>>({})
   const { removeCurrentCart, sessions } = useCartStore()
@@ -53,8 +55,17 @@ export function usePaymentFlow(context: PaymentContext) {
 
       try {
         if (result.isOnline) {
-          // ONLINE: Chỉ trừ kho và cộng doanh thu ca, không lưu Order vào Local
+          if (!result.orderId) {
+            throw new Error('Thanh toán Online thành công nhưng không có orderId từ Server')
+          }
+
+          // ONLINE: Chỉ trừ kho và cộng doanh thu ca, sau đó kéo data chuẩn từ server về lưu local
           await OrderLocalAPI.recordOnlineOrderSuccess(checkoutPayload)
+
+          // Kéo dữ liệu Order, Items, Payments chuẩn từ Server về và lưu vào Local (đánh dấu Synced)
+          PaymentRemoteAPI.getOrderSyncData(result.orderId)
+            .then((syncData) => OrderLocalAPI.saveOrderSyncData(syncData))
+            .catch((err) => console.error('Lỗi khi lưu dữ liệu đồng bộ đơn hàng:', err))
         } else {
           // OFFLINE (Cash/Card): Lưu full Order vào Local để Sync sau
           await OrderLocalAPI.checkout(checkoutPayload)

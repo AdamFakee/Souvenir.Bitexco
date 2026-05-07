@@ -53,6 +53,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                 change: 0,
                 referenceCode: billNumber ?? orderId,
                 isOnline: true,
+                orderId: orderId,
               })
             }, 1500)
           }
