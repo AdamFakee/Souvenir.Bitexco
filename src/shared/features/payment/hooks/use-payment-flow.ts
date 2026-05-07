@@ -38,9 +38,10 @@ export function usePaymentFlow(context: PaymentContext) {
         discount: context.discount,
         voucherCode: appliedVoucher?.code,
         voucherDiscount: appliedVoucher
-          ? calculateVoucherDiscount(context.total + context.discount, appliedVoucher)
+          ? calculateVoucherDiscount(context.items, appliedVoucher)
           : 0,
         total: context.total,
+        note: activeSession?.note,
         payment: {
           method: result.method,
           amount: result.paidAmount,

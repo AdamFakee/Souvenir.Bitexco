@@ -39,6 +39,8 @@ export default class OrderModel extends Model {
   @field('voucher_code') voucherCode?: string
   @field('voucher_discount') voucherDiscount!: number
   @field('total') total!: number
+  @field('total_tax') totalTax!: number
+  @field('note') note?: string
   @field('refund_reason') refundReason?: string
   @field('original_order_id') originalOrderId?: string
   @json('customer_tax_info', sanitizeTaxInfo) customerTaxInfo!: TaxInfo | null

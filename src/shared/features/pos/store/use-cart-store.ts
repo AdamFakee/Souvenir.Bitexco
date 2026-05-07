@@ -27,6 +27,7 @@ export type AppliedVoucher = {
   code: string
   percent: number
   maxDiscountAmount?: number
+  applicableProductIds?: string[] // Danh sách ID sản phẩm được áp dụng
 }
 
 type CartSessionData = {

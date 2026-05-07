@@ -16,6 +16,12 @@ export interface ItemSnapshot {
   quantity: number
   /** Thành tiền (price * quantity) */
   subtotal: number
+  /** Mức thuế tại thời điểm thanh toán */
+  taxRate: number
+  /** Tiền thuế tính được */
+  taxAmount: number
+  /** Tiền giảm giá riêng cho món */
+  discountAmount: number
 }
 
 /**
@@ -31,5 +37,8 @@ export const sanitizeItemsSnapshot = (rawItems: any): ItemSnapshot[] => {
     price: Number(item.price || 0),
     quantity: Number(item.quantity || 0),
     subtotal: Number(item.subtotal || 0),
+    taxRate: Number(item.taxRate || item.tax_rate || 0),
+    taxAmount: Number(item.taxAmount || item.tax_amount || 0),
+    discountAmount: Number(item.discountAmount || item.discount_amount || 0),
   }))
 }

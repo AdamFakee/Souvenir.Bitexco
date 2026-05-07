@@ -31,6 +31,7 @@ export interface CheckoutPayload {
   voucherCode?: string
   voucherDiscount: number
   total: number
+  note?: string
   payment: CheckoutPaymentPayload
 }
 
@@ -119,14 +120,23 @@ export const OrderLocalAPI = {
     const shift = await ShiftLocalAPI.getShiftById(payload.shiftId)
 
     // Xây snapshot items
-    const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => ({
-      productId: i.product.id,
-      sku: i.product.sku,
-      name: i.product.nameEn,
-      price: i.product.price,
-      quantity: i.quantity,
-      subtotal: i.product.price * i.quantity,
-    }))
+    const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => {
+      const taxRate = i.product.taxRate || 0
+      const taxAmount = i.price * i.quantity * (taxRate / 100)
+      return {
+        productId: i.product.id,
+        sku: i.product.sku,
+        name: i.product.nameEn,
+        price: i.price,
+        quantity: i.quantity,
+        subtotal: i.price * i.quantity,
+        taxRate,
+        taxAmount,
+        discountAmount: 0, // Hiện tại chưa có giảm giá trên từng item
+      }
+    })
+
+    const totalTax = itemsSnapshot.reduce((sum, item) => sum + item.taxAmount, 0)
 
     // Xây snapshot payments
     const paymentsSnapshot: PaymentSnapshot[] = [
@@ -146,21 +156,26 @@ export const OrderLocalAPI = {
       o.voucherCode = payload.voucherCode
       o.voucherDiscount = payload.voucherDiscount
       o.total = payload.total
+      o.totalTax = totalTax
+      o.note = payload.note
       o.itemsSnapshot = itemsSnapshot
       o.paymentsSnapshot = paymentsSnapshot
       o.isDeleted = false
     })
 
     // 3. Prepare OrderItems
-    const preparedItems = payload.items.map((item) =>
+    const preparedItems = itemsSnapshot.map((item) =>
       database.get<OrderItemModel>('order_items').prepareCreate((oi) => {
         oi.orderId = preparedOrder.id
-        oi.productId = item.product.id
-        oi.productNameSnapshot = item.product.nameEn
-        oi.priceSnapshot = item.product.price
+        oi.productId = item.productId
+        oi.productNameSnapshot = item.name
+        oi.priceSnapshot = item.price
         oi.quantity = item.quantity
         oi.refundedQuantity = 0
-        oi.subtotal = item.product.price * item.quantity
+        oi.subtotal = item.subtotal
+        oi.taxRateSnapshot = item.taxRate
+        oi.taxAmount = item.taxAmount
+        oi.discountAmount = item.discountAmount
         oi.isDeleted = false
       }),
     )

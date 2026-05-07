@@ -7,6 +7,7 @@ export type VerifyVoucherResponse = {
   code: string
   percent: number // 0-100
   maxDiscountAmount?: number // limit
+  applicableProductIds?: string[] // Danh sách ID sản phẩm được áp dụng
 }
 
 export const remoteVoucherApi = {
@@ -17,10 +18,32 @@ export const remoteVoucherApi = {
     const normalizedCode = payload.code.trim().toUpperCase()
 
     // Mock data
+    if (normalizedCode === '20') {
+      return {
+        code: normalizedCode,
+        percent: 20,
+        maxDiscountAmount: 50000,
+        applicableProductIds: [
+          'prod_1',
+          'prod_2',
+          'prod_3',
+          'prod_4',
+          'prod_5',
+          'prod_6',
+          'prod_7',
+          'prod_8',
+          'prod_9',
+          'prod_10',
+        ],
+      }
+    }
+
     if (normalizedCode === '10') {
       return {
         code: normalizedCode,
         percent: 10,
+        maxDiscountAmount: 100000,
+        applicableProductIds: [],
       }
     }
 
@@ -29,6 +52,7 @@ export const remoteVoucherApi = {
         code: normalizedCode,
         percent: 50,
         maxDiscountAmount: 50000,
+        applicableProductIds: [],
       }
     }
 
