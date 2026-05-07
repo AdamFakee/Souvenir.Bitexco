@@ -18,7 +18,6 @@ type MenuItem = {
 const MENU_ITEMS: MenuItem[] = [
   { name: 'pos', label: 'Bán hàng', icon: 'point-of-sale' },
   { name: 'orders', label: 'Đơn hàng', icon: 'receipt-long' },
-  { name: 'shift', label: 'Ca làm việc', icon: 'access-time' },
   { name: 'dashboard', label: 'Báo cáo', icon: 'dashboard' },
   { name: 'dev_control', label: 'Dev Control', icon: 'developer-mode' },
 ]
@@ -135,7 +134,6 @@ export default function TabLayout() {
         >
           <Tabs.Screen name="pos" options={{ title: 'Bán hàng' }} />
           <Tabs.Screen name="orders" options={{ title: 'Đơn hàng' }} />
-          <Tabs.Screen name="shift" options={{ title: 'Ca làm việc' }} />
           <Tabs.Screen name="dashboard" options={{ title: 'Báo cáo' }} />
           <Tabs.Screen name="dev_control" options={{ title: 'Dev Control' }} />
         </Tabs>

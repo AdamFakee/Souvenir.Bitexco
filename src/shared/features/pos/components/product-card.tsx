@@ -41,7 +41,7 @@ function ProductCard({ item, addToCart }: ProductCardProps) {
             className="mb-2 text-body-base font-bold leading-tight text-surface-on"
             numberOfLines={2}
           >
-            {item.nameEn}
+            {item.nameVi}
           </Text>
           <View className="mt-2 flex-row items-end justify-between">
             <Text
@@ -63,7 +63,7 @@ const MemoizedProductCard = memo(ProductCard, (prevProps, nextProps) => {
   return (
     prevProps.item.id === nextProps.item.id &&
     prevProps.item.price === nextProps.item.price &&
-    prevProps.item.nameEn === nextProps.item.nameEn &&
+    prevProps.item.nameVi === nextProps.item.nameVi &&
     prevProps.item.image === nextProps.item.image &&
     prevProps.item.isActive === nextProps.item.isActive &&
     prevProps.item.sku === nextProps.item.sku &&

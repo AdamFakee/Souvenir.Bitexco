@@ -8,14 +8,27 @@ interface DashboardChartsProps {
 }
 
 export function DashboardCharts({ topProducts, paymentMethodsData }: DashboardChartsProps) {
-  // Format Bar Data
-  const barData = topProducts.map((p, index) => ({
-    value: p.qty,
-    label: p.name,
-    stock: p.stock,
-    index,
-    frontColor: '#3b82f6',
-  }))
+  const barData = React.useMemo(() => {
+    const data = topProducts.map((p, index) => ({
+      value: p.qty,
+      label: p.name,
+      stock: p.stock,
+      index,
+      frontColor: '#3b82f6',
+    }))
+
+    // Fill to 5 items for consistent UI
+    while (data.length < 5) {
+      data.push({
+        value: 0,
+        label: '',
+        stock: 0,
+        index: data.length,
+        frontColor: 'transparent',
+      })
+    }
+    return data
+  }, [topProducts])
 
   // Format Pie Data
   const pieData = paymentMethodsData.map((d) => ({
@@ -25,14 +38,14 @@ export function DashboardCharts({ topProducts, paymentMethodsData }: DashboardCh
   }))
 
   return (
-    <View className="flex-row gap-8">
+    <View className="flex-1 flex-row gap-8">
       {/* Top Products Bar Chart */}
       <View
         style={{ backgroundColor: '#ffffff', zIndex: 10, overflow: 'visible' }}
-        className="flex-1 rounded-[32px] border border-outline-variant p-10 shadow-sm"
+        className="flex-[3] rounded-[32px] border border-outline-variant p-10 shadow-sm"
       >
         <Text className="mb-8 text-2xl font-black uppercase tracking-widest text-surface-on-variant">
-          Top 5 Best-Selling Products
+          Top 5 sản phẩm bán chạy nhất
         </Text>
         <View style={{ overflow: 'visible' }} className="z-10 items-center">
           {barData.length > 0 ? (
@@ -68,6 +81,9 @@ export function DashboardCharts({ topProducts, paymentMethodsData }: DashboardCh
               focusBarOnPress={true}
               activeOpacity={0.7}
               renderTooltip={(item: any) => {
+                // Don't show tooltip for empty placeholders
+                if (item.frontColor === 'transparent') return null
+
                 const isFirst = item.index === 0
                 const isLast = item.index === barData.length - 1
                 // Dynamic positioning to prevent edge clipping
@@ -120,7 +136,7 @@ export function DashboardCharts({ topProducts, paymentMethodsData }: DashboardCh
             />
           ) : (
             <View className="h-[200px] items-center justify-center">
-              <Text className="text-surface-on-variant">No data available</Text>
+              <Text className="text-surface-on-variant">Không có dữ liệu</Text>
             </View>
           )}
         </View>
@@ -129,10 +145,10 @@ export function DashboardCharts({ topProducts, paymentMethodsData }: DashboardCh
       {/* Payment Breakdown Pie Chart */}
       <View
         style={{ backgroundColor: '#ffffff', zIndex: 1 }}
-        className="flex-1 rounded-[32px] border border-outline-variant p-10 shadow-sm"
+        className="flex-[2] rounded-[32px] border border-outline-variant p-10 shadow-sm"
       >
         <Text className="mb-8 text-2xl font-black uppercase tracking-widest text-surface-on-variant">
-          Payment Breakdown
+          Phương thức thanh toán
         </Text>
         <View className="items-center">
           {pieData.length > 0 ? (
@@ -144,7 +160,7 @@ export function DashboardCharts({ topProducts, paymentMethodsData }: DashboardCh
                 innerRadius={80}
                 innerCircleColor={'white'}
                 centerLabelComponent={() => {
-                  return <Text className="text-xl font-bold text-surface-on">Methods</Text>
+                  return <Text className="text-xl font-bold text-surface-on">Phương thức</Text>
                 }}
               />
               <View className="w-full flex-row flex-wrap justify-center gap-x-10 gap-y-4 px-4">
@@ -158,7 +174,7 @@ export function DashboardCharts({ topProducts, paymentMethodsData }: DashboardCh
             </View>
           ) : (
             <View className="h-[200px] items-center justify-center">
-              <Text className="text-surface-on-variant">No data available</Text>
+              <Text className="text-surface-on-variant">Không có dữ liệu</Text>
             </View>
           )}
         </View>

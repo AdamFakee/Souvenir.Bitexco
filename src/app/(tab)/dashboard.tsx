@@ -33,7 +33,9 @@ export default function DashboardScreen() {
   return (
     <View style={{ backgroundColor: '#f8fafc' }} className="flex-1">
       <View className="page-header sticky top-0 z-10 border-b border-outline-variant bg-surface px-12 py-10">
-        <Text className="text-5xl font-black tracking-tighter text-surface-on">Shift Report</Text>
+        <Text className="text-5xl font-black tracking-tighter text-surface-on">
+          Báo cáo ca làm việc
+        </Text>
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 40, paddingBottom: 120 }}>
@@ -41,13 +43,13 @@ export default function DashboardScreen() {
           {/* Dashboard Info */}
           <View className="mb-10 flex-row items-center justify-between rounded-[32px] border border-outline-variant bg-surface px-10 py-8 shadow-sm">
             <View className="flex-row items-center">
-              <Text className="text-2xl font-medium text-surface-on-variant">Staff:</Text>
+              <Text className="text-2xl font-medium text-surface-on-variant">Nhân viên:</Text>
               <Text className="ml-3 text-2xl font-black text-primary">
                 {currentStaff?.fullname || '—'}
               </Text>
             </View>
             <View className="flex-row items-center">
-              <Text className="text-2xl font-medium text-surface-on-variant">Shift start:</Text>
+              <Text className="text-2xl font-medium text-surface-on-variant">Bắt đầu ca:</Text>
               <Text className="ml-3 text-2xl font-black text-surface-on">
                 {shift ? new Date(shift.startTime).toLocaleString('vi-VN') : '—'}
               </Text>
@@ -57,14 +59,14 @@ export default function DashboardScreen() {
           {/* 4 Main Stats */}
           <View className="mb-10 flex-row gap-8">
             <DashboardStatCard
-              label="Total Revenue"
+              label="Tổng doanh thu"
               value={formatCurrency(stats.totalRevenue)}
               icon={CircleDollarSign}
               iconBgColor="#e0e7ff"
               iconColor="#4338ca"
             />
             <DashboardStatCard
-              label="Cash"
+              label="Tiền mặt"
               value={formatCurrency(stats.revCash)}
               icon={Wallet}
               iconBgColor="#e0f2fe"
@@ -78,7 +80,7 @@ export default function DashboardScreen() {
               iconColor="#db2777"
             />
             <DashboardStatCard
-              label="Card"
+              label="Thẻ"
               value={formatCurrency(stats.revCard)}
               icon={CreditCard}
               iconBgColor="#fef08a"
@@ -89,21 +91,21 @@ export default function DashboardScreen() {
           {/* 3 Secondary Stats */}
           <View className="mb-10 flex-row gap-8">
             <DashboardStatCard
-              label="Completed Orders"
+              label="Đơn hoàn thành"
               value={stats.completedOrders.toString()}
               icon={CheckCircle2}
               iconBgColor="#dcfce7"
               iconColor="#16a34a"
             />
             <DashboardStatCard
-              label="Cancelled Orders"
+              label="Đơn đã hủy"
               value={stats.cancelledOrders.toString()}
               icon={XCircle}
               iconBgColor="#fee2e2"
               iconColor="#ef4444"
             />
             <DashboardStatCard
-              label="Items Sold"
+              label="Sản phẩm đã bán"
               value={stats.totalProducts.toString()}
               icon={Package}
               iconBgColor="#e0e7ff"

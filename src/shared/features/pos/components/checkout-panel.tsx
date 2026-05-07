@@ -92,32 +92,32 @@ export default function CheckoutPanel() {
   return (
     <View className="z-10 flex-row items-stretch gap-10 border-t border-[#e2e8f0] bg-white px-8 py-6 shadow-lg shadow-black/10">
       {/* 1. Left: Voucher Selection & Details */}
-      <View className="min-w-[280px] flex-1 flex-col">
+      <View className="min-w-[350px] flex-1 flex-col">
         {/* Voucher Info Details (Dạng dòng kẻ đồng bộ) */}
-        <View className="rounded-2xl border border-dashed border-[#e2e8f0] bg-[#f8fafc] p-5">
-          <Text className="mb-4 text-xs font-bold uppercase tracking-widest text-muted">
-            Voucher Information
+        <View className="rounded-[24px] border border-dashed border-[#e2e8f0] bg-[#f8fafc] p-6">
+          <Text className="mb-4 text-sm font-black uppercase tracking-widest text-surface-on">
+            Thông tin Voucher
           </Text>
 
           {appliedVoucher ? (
-            <View className="gap-3">
+            <View className="gap-4">
               <View className="flex-row items-center justify-between">
-                <Text className="text-sm text-muted">Mức giảm giá</Text>
-                <Text className="text-base font-bold text-primary">{appliedVoucher.percent}%</Text>
+                <Text className="text-lg font-bold text-[#64748b]">Mức giảm giá</Text>
+                <Text className="text-xl font-black text-primary">{appliedVoucher.percent}%</Text>
               </View>
 
               {appliedVoucher.maxDiscountAmount && (
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-sm text-muted">Giảm tối đa</Text>
-                  <Text className="text-base font-bold text-surface-on">
+                  <Text className="text-lg font-bold text-[#64748b]">Giảm tối đa</Text>
+                  <Text className="text-xl font-black text-surface-on">
                     {formatCurrency(appliedVoucher.maxDiscountAmount)}
                   </Text>
                 </View>
               )}
 
               <View className="flex-row items-center justify-between">
-                <Text className="text-sm text-muted">Phạm vi áp dụng</Text>
-                <Text className="text-sm font-bold text-primary">
+                <Text className="text-lg font-bold text-[#64748b]">Phạm vi áp dụng</Text>
+                <Text className="text-base font-black text-primary">
                   {appliedVoucher.applicableProductIds &&
                   appliedVoucher.applicableProductIds.length > 0
                     ? 'Sản phẩm chỉ định'
@@ -126,25 +126,25 @@ export default function CheckoutPanel() {
               </View>
             </View>
           ) : (
-            <View className="flex-1 items-center justify-center py-4">
-              <Text className="text-sm font-medium text-muted/60">Chưa có thông tin ưu đãi</Text>
+            <View className="flex-1 items-center justify-center py-6">
+              <Text className="text-lg font-black text-[#94a3b8]">Chưa có thông tin ưu đãi</Text>
             </View>
           )}
         </View>
 
         {/* Voucher Input Section */}
-        <View className="mt-6">
-          <Text className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">
-            Voucher Code
+        <View className="mt-8">
+          <Text className="mb-4 text-sm font-black uppercase tracking-widest text-surface-on">
+            Mã giảm giá
           </Text>
-          <View className="flex-row items-center gap-3">
-            <View className="relative flex-1">
-              <View className="absolute left-4 top-4 z-10">
-                <Ticket size={20} color={COLORS.muted} />
+          <View className="flex-row items-center gap-4">
+            <View className="relative flex-1 justify-center">
+              <View className="absolute left-5 z-10">
+                <Ticket size={24} color={COLORS.muted} />
               </View>
               <TextInput
-                className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] py-3.5 pl-12 pr-4 text-base font-semibold text-surface-on"
-                placeholder="Enter code..."
+                className="py-4.5 rounded-[20px] border border-[#e2e8f0] bg-[#f8fafc] pl-14 pr-6 text-xl font-black text-surface-on"
+                placeholder="Nhập mã..."
                 value={voucherInput}
                 onChangeText={setVoucherInput}
                 autoCapitalize="characters"
@@ -154,15 +154,16 @@ export default function CheckoutPanel() {
             {appliedVoucher ? (
               <IconButton
                 icon={XCircle}
-                size={28}
+                size={36}
                 color={COLORS.error.default}
-                className="h-12 w-12 rounded-2xl border border-error/30 bg-error/10"
+                className="h-16 w-16 rounded-[20px] border border-error/30 bg-error/10"
                 onPress={handleRemoveVoucher}
               />
             ) : (
               <Button
-                label="Apply"
-                className="h-12 min-w-[100px] rounded-2xl"
+                label="Áp dụng"
+                className="h-16 min-w-[120px] rounded-[20px]"
+                textClassName="text-lg font-black"
                 onPress={handleApplyVoucher}
                 disabled={!voucherInput.trim() || isVerifying}
                 loading={isVerifying}
@@ -173,20 +174,20 @@ export default function CheckoutPanel() {
       </View>
 
       {/* 2. Middle: Calculation Summary */}
-      <View className="min-w-[300px] flex-1 flex-col justify-center gap-3 border-x border-dashed border-[#e2e8f0] px-8">
+      <View className="min-w-[400px] flex-1 flex-col justify-center gap-4 border-x border-dashed border-[#e2e8f0] px-10">
         <View className="flex-row items-center justify-between">
-          <Text className="text-base text-muted" numberOfLines={1}>
-            Total Qty
+          <Text className="text-xl font-bold text-[#64748b]" numberOfLines={1}>
+            Tổng SL
           </Text>
-          <Text className="text-lg font-bold text-black" numberOfLines={1}>
+          <Text className="text-2xl font-black text-black" numberOfLines={1}>
             {totalQty}
           </Text>
         </View>
         <View className="flex-row items-center justify-between">
-          <Text className="text-base text-muted" numberOfLines={1}>
-            Subtotal
+          <Text className="text-xl font-bold text-[#64748b]" numberOfLines={1}>
+            Tạm tính
           </Text>
-          <Text className="text-lg font-bold text-black" numberOfLines={1}>
+          <Text className="text-2xl font-black text-black" numberOfLines={1}>
             {formatCurrency(subtotal)}
           </Text>
         </View>
@@ -196,34 +197,34 @@ export default function CheckoutPanel() {
             // Handle discount edit
           }}
         >
-          <View className="flex-row items-center gap-1.5">
-            <Text className="text-base font-bold text-primary" numberOfLines={1}>
-              Discount
+          <View className="flex-row items-center gap-2">
+            <Text className="text-xl font-black text-primary" numberOfLines={1}>
+              Giảm giá
             </Text>
-            <PenSquare size={16} color={COLORS.primary.default} />
+            <PenSquare size={20} color={COLORS.primary.default} />
           </View>
-          <Text className="text-lg font-bold text-primary" numberOfLines={1}>
+          <Text className="text-2xl font-black text-primary" numberOfLines={1}>
             {formatCurrency(discount)}
           </Text>
         </Pressable>
         <View className="flex-row items-center justify-between">
-          <Text className="text-base text-muted" numberOfLines={1}>
-            Tax
+          <Text className="text-xl font-bold text-[#64748b]" numberOfLines={1}>
+            Thuế
           </Text>
-          <Text className="text-lg font-bold text-black" numberOfLines={1}>
+          <Text className="text-2xl font-black text-black" numberOfLines={1}>
             {formatCurrency(tax)}
           </Text>
         </View>
       </View>
 
       {/* 3. Right: Total & Payment Actions */}
-      <View className="min-w-[500px] flex-col justify-between">
-        <View className="mb-4 flex-row items-center justify-between">
-          <Text className="mr-6 text-lg font-bold uppercase text-muted" numberOfLines={1}>
-            Grand Total
+      <View className="min-w-[600px] flex-col justify-between">
+        <View className="mb-6 flex-row items-center justify-between">
+          <Text className="mr-6 text-2xl font-black uppercase text-surface-on" numberOfLines={1}>
+            Tổng thanh toán
           </Text>
           <Text
-            className="flex-1 text-right text-[42px] font-extrabold tracking-[-1px] text-primary"
+            className="flex-1 text-right text-[56px] font-black tracking-[-2px] text-primary"
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -231,15 +232,16 @@ export default function CheckoutPanel() {
           </Text>
         </View>
 
-        <View className="h-[74px] flex-row items-stretch gap-4">
+        <View className="h-[96px] flex-row items-stretch gap-6">
           {PAYMENT_REGISTRY.map((method) => (
             <Button
               key={method.type}
               label={method.label}
               leftIcon={method.icon}
-              iconSize={24}
+              iconSize={32}
               variant="outline"
-              className="flex-1"
+              className="flex-1 rounded-[24px]"
+              textClassName="text-xl font-black"
               onPress={() => startPayment(method.type)}
               disabled={cart.length === 0}
             />

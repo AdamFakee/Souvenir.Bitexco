@@ -1,4 +1,3 @@
-import { COLORS } from '@/shared/constants'
 import React from 'react'
 import { Text, View } from 'react-native'
 

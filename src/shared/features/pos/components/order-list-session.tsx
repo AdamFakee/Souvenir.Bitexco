@@ -43,7 +43,7 @@ export default function OrderListSession() {
                 <Pressable
                   key={session.id}
                   onPress={() => setActiveSession(session.id)}
-                  className={`min-w-[160px] flex-row items-center rounded-t-xl border-x border-t px-6 py-4 ${
+                  className={`min-w-[200px] flex-row items-center rounded-t-2xl border-x border-t px-8 py-6 ${
                     isActive ? 'border-[#e2e8f0] bg-white' : 'border-transparent bg-[#e2e8f0]'
                   }`}
                   style={
@@ -58,7 +58,7 @@ export default function OrderListSession() {
                   }
                 >
                   <Text
-                    className={`flex-1 text-base font-bold ${
+                    className={`flex-1 text-xl font-black ${
                       isActive ? 'text-surface-on' : 'text-muted'
                     }`}
                     numberOfLines={1}
@@ -91,12 +91,12 @@ export default function OrderListSession() {
         </ScrollView>
 
         <Button
-          label="Add Tab"
+          label="Thêm đơn"
           leftIcon={Plus}
-          iconSize={20}
+          iconSize={24}
           variant="outline"
-          className="ml-4 h-11 rounded-xl border-[#e2e8f0] bg-white px-5"
-          textClassName="text-sm font-bold text-[#64748b]"
+          className="ml-6 h-16 rounded-2xl border-[#e2e8f0] bg-white px-8"
+          textClassName="text-lg font-black text-[#64748b]"
           onPress={() => createNewSession()}
         />
       </View>
@@ -123,14 +123,16 @@ export default function OrderListSession() {
       {/* Cart Table */}
       <View className="flex-1 overflow-hidden bg-white">
         {/* Table Header */}
-        <View className="flex-row items-center border-b-2 border-outline-variant bg-[#f1f5f9] px-6 py-4">
-          <Text className="w-16 text-sm font-bold uppercase text-muted">No.</Text>
-          <Text className="flex-1 text-sm font-bold uppercase text-muted">Product Name</Text>
-          <Text className="w-40 text-center text-sm font-bold uppercase text-muted">Price</Text>
-          <Text className="w-40 text-center text-sm font-bold uppercase text-muted">Tax</Text>
-          <Text className="w-40 text-center text-sm font-bold uppercase text-muted">Qty</Text>
-          <Text className="w-40 pr-6 text-right text-sm font-bold uppercase text-muted">Total</Text>
-          <View className="w-16" />
+        <View className="flex-row items-center border-b-2 border-outline-variant bg-[#f1f5f9] px-8 py-6">
+          <Text className="w-20 text-lg font-black uppercase text-muted">STT</Text>
+          <Text className="flex-1 text-lg font-black uppercase text-muted">Tên sản phẩm</Text>
+          <Text className="w-48 text-center text-lg font-black uppercase text-muted">Đơn giá</Text>
+          <Text className="w-48 text-center text-lg font-black uppercase text-muted">Thuế</Text>
+          <Text className="w-56 text-center text-lg font-black uppercase text-muted">SL</Text>
+          <Text className="w-48 pr-8 text-right text-lg font-black uppercase text-muted">
+            Thành tiền
+          </Text>
+          <View className="w-20" />
         </View>
 
         <FlashList
@@ -141,50 +143,52 @@ export default function OrderListSession() {
             return (
               <View
                 key={item.product.id}
-                className="flex-row items-center border-b border-outline-variant px-6 py-5 active:bg-surface-100"
+                className="flex-row items-center border-b border-outline-variant px-8 py-8 active:bg-surface-100"
               >
-                <Text className="w-16 text-base font-medium text-surface-on-variant">
-                  {index + 1}
-                </Text>
+                <Text className="w-20 text-xl font-bold text-surface-on-variant">{index + 1}</Text>
                 <View className="flex-1">
-                  <Text className="text-base font-bold text-surface-on">{item.product.nameEn}</Text>
-                  <Text className="text-xs text-muted">{item.product.sku}</Text>
+                  <Text className="text-2xl font-black text-surface-on">{item.product.nameVi}</Text>
+                  <Text className="mt-1 text-sm font-bold text-muted">{item.product.sku}</Text>
                 </View>
-                <Text className="w-40 text-center text-base font-medium text-surface-on">
+                <Text className="w-48 text-center text-xl font-bold text-surface-on">
                   {formatCurrency(item.price)}
                 </Text>
-                <Text className="w-40 text-center text-xs text-surface-on-variant">
-                  {item.product.taxRate}% /{' '}
-                  {formatCurrency(((item.price * item.product.taxRate) / 100) * item.quantity)}
-                </Text>
-                <View className="w-40 items-center">
-                  <View className="flex-row items-center self-center rounded-xl border border-outline-variant bg-surface-200">
+                <View className="w-48 items-center justify-center">
+                  <Text className="text-base font-bold text-surface-on-variant">
+                    {item.product.taxRate}%
+                  </Text>
+                  <Text className="mt-0.5 text-xs text-muted">
+                    {formatCurrency(((item.price * item.product.taxRate) / 100) * item.quantity)}
+                  </Text>
+                </View>
+                <View className="w-56 items-center">
+                  <View className="flex-row items-center self-center rounded-[20px] border border-outline-variant bg-surface-200">
                     <IconButton
                       icon={Minus}
-                      size={20}
+                      size={28}
                       color={COLORS.surface.on}
-                      className="p-3"
+                      className="p-5"
                       onPress={() => updateQuantity(item.product.id, item.quantity - 1)}
                     />
-                    <Text className="w-20 text-center text-xl font-bold text-surface-on">
+                    <Text className="w-24 text-center text-3xl font-black text-surface-on">
                       {item.quantity}
                     </Text>
                     <IconButton
                       icon={Plus}
-                      size={20}
+                      size={28}
                       color={COLORS.surface.on}
-                      className="p-3"
+                      className="p-5"
                       onPress={() => updateQuantity(item.product.id, item.quantity + 1)}
                     />
                   </View>
                 </View>
-                <Text className="w-40 pr-6 text-right text-lg font-bold text-primary">
+                <Text className="w-48 pr-8 text-right text-2xl font-black text-primary">
                   {formatCurrency(itemTotal)}
                 </Text>
-                <View className="w-16 items-center justify-center">
+                <View className="w-20 items-center justify-center">
                   <IconButton
                     icon={Trash2}
-                    size={24}
+                    size={32}
                     color={COLORS.error.default}
                     className="bg-transparent opacity-50"
                     onPress={() => removeItem(item.product.id)}
@@ -197,7 +201,7 @@ export default function OrderListSession() {
             <View className="flex-1 items-center justify-center p-32">
               <ShoppingBasket size={80} color={COLORS.outline.variant} strokeWidth={1} />
               <Text className="mt-6 text-xl font-medium text-surface-on-variant">
-                Cart is empty
+                Giỏ hàng trống
               </Text>
             </View>
           )}

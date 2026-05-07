@@ -21,11 +21,11 @@ export function ProductSearch() {
 
   return (
     <View className="relative z-20 flex-1">
-      <View className="h-14 flex-row items-center rounded-full border border-outline-variant bg-[#f1f5f9] px-6 focus:border-primary">
-        <Search size={22} color={COLORS.outline.variant} />
+      <View className="h-18 flex-row items-center rounded-full border border-outline-variant bg-[#f1f5f9] px-8 focus:border-primary">
+        <Search size={28} color={COLORS.outline.variant} />
         <TextInput
-          className="ml-4 flex-1 text-lg text-surface-on"
-          placeholder="Search product name or SKU..."
+          className="ml-5 flex-1 text-xl font-bold text-surface-on"
+          placeholder="Tìm tên sản phẩm hoặc SKU..."
           placeholderTextColor="#94a3b8"
           value={searchText}
           onChangeText={setSearchText}
@@ -69,17 +69,19 @@ export function ProductSearch() {
                 <Pressable
                   key={p.id}
                   onPress={() => handleSelectItem(p)}
-                  className="flex-row items-center justify-between border-b border-surface-200 px-6 py-4 active:bg-surface-100"
+                  className="flex-row items-center justify-between border-b border-surface-200 px-8 py-6 active:bg-surface-100"
                 >
                   <View className="flex-1">
-                    <Text className="text-lg font-bold text-surface-on">{p.nameEn}</Text>
-                    <Text className="text-sm text-surface-on-variant">{p.sku}</Text>
+                    <Text className="text-xl font-black text-surface-on">{p.nameVi}</Text>
+                    <Text className="mt-1 text-base font-bold text-surface-on-variant">
+                      {p.sku}
+                    </Text>
                   </View>
                   <View className="items-end">
-                    <Text className="text-lg font-bold text-primary">
+                    <Text className="text-xl font-black text-primary">
                       {formatCurrency(p.price)}
                     </Text>
-                    <Text className="text-xs font-medium text-surface-on-variant">
+                    <Text className="mt-1 text-sm font-bold text-surface-on-variant">
                       Kho: {p.stock} {p.unit}
                     </Text>
                   </View>
