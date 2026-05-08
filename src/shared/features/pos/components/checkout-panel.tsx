@@ -1,6 +1,7 @@
 import { Button, IconButton } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { useAuthStore } from '@/shared/features/auth'
+import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import {
   calculateVoucherDiscount,
   PAYMENT_REGISTRY,
@@ -21,6 +22,7 @@ export default function CheckoutPanel() {
 
   const [voucherInput, setVoucherInput] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
+  const printRef = React.useRef(null)
 
   const activeSession = activeSessionId ? sessions[activeSessionId] : null
   const cart = useMemo(() => {
@@ -59,8 +61,9 @@ export default function CheckoutPanel() {
       sessionId: activeSessionId,
       items: cart,
       discount,
+      printRef,
     }),
-    [total, activeSessionId, cart, discount],
+    [total, activeSessionId, cart, discount, printRef],
   )
 
   const { refs, startPayment, handleCheckoutSuccess } = usePaymentFlow(paymentContext)
@@ -91,6 +94,40 @@ export default function CheckoutPanel() {
 
   return (
     <View className="z-10 flex-row items-stretch gap-10 border-t border-[#e2e8f0] bg-white px-8 py-6 shadow-lg shadow-black/10">
+      {/* Hidden Printer Template */}
+      <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+        <View collapsable={false} ref={printRef}>
+          <BitexcoReceiptTemplate
+            order={
+              {
+                id: 'AUTO-GEN',
+                createdAt: new Date(),
+                total,
+                subtotal,
+                discount,
+                totalTax: tax,
+                itemsSnapshot: cart.map((i) => ({
+                  sku: i.product.sku,
+                  name: i.product.nameEn,
+                  price: i.price,
+                  quantity: i.quantity,
+                  subtotal: i.price * i.quantity,
+                })),
+                paymentsSnapshot: [
+                  {
+                    method: 'CASH', // Default for preview/auto-print logic
+                    amount: total,
+                  },
+                ],
+                staffId: session?.staffId,
+              } as any
+            }
+            staffName={session?.staffId || 'Nhân viên'}
+            posId="F49 - 1"
+          />
+        </View>
+      </View>
+
       {/* 1. Left: Voucher Selection & Details */}
       <View className="min-w-[350px] flex-1 flex-col">
         {/* Voucher Info Details (Dạng dòng kẻ đồng bộ) */}

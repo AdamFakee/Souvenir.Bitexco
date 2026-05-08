@@ -2,10 +2,13 @@ import { Button, IconButton, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { OrderModel } from '@/shared/lib/database'
 import { OrderStatus } from '@/shared/lib/database/models/order'
+import { PrinterService } from '@/shared/services'
+import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { Clock, CreditCard, Printer, ShieldCheck, Tag, Trash2, User, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
+import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { RefundConfirmModal, RefundConfirmModalRef } from './refund-confirm-modal'
 
 export interface OrderDetailModalRef {
@@ -21,6 +24,17 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
   const [visible, setVisible] = useState(false)
   const [order, setOrder] = useState<OrderModel | null>(null)
   const refundModalRef = useRef<RefundConfirmModalRef>(null)
+  const printRef = useRef(null)
+
+  const handlePrint = async () => {
+    try {
+      if (!printRef.current) return
+      await PrinterService.printComponent(printRef)
+      toast.success('Đang in hóa đơn...')
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi khi in hóa đơn')
+    }
+  }
 
   useImperativeHandle(ref, () => ({
     open: (o: OrderModel) => {
@@ -61,6 +75,17 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
 
   return (
     <>
+      {/* Hidden Container for Printing */}
+      <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+        <View collapsable={false} ref={printRef}>
+          <BitexcoReceiptTemplate
+            order={order}
+            staffName={order.staffId} // Or get staff name from a lookup if available
+            posId="F49 - 1"
+          />
+        </View>
+      </View>
+
       <ModalBase
         visible={visible}
         onClose={() => setVisible(false)}
@@ -317,7 +342,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
             leftIcon={Printer}
             className="h-16 rounded-2xl px-10"
             textClassName="text-xl font-black"
-            onPress={() => {}}
+            onPress={handlePrint}
           />
         </View>
       </ModalBase>

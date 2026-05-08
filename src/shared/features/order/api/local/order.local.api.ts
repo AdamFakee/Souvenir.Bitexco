@@ -1,4 +1,5 @@
 import { PaymentLocalAPI } from '@/shared/features/payment/api/local/payment.local.api'
+import type { OrderSyncDataResponse } from '@/shared/features/payment/api/remote/payment.remote.api'
 import type { CartItem } from '@/shared/features/pos/store/use-cart-store'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
 import { ShiftLocalAPI } from '@/shared/features/shift/api/local/shift.local.api'
@@ -12,7 +13,6 @@ import {
   type ItemSnapshot,
   type PaymentSnapshot,
 } from '@/shared/lib/database'
-import type { OrderSyncDataResponse } from '@/shared/features/payment/api/remote/payment.remote.api'
 import { endOfDay, startOfDay } from '@/shared/utils'
 import { Q } from '@nozbe/watermelondb'
 

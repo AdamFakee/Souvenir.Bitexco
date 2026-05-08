@@ -16,6 +16,8 @@ export interface PaymentContext {
   items: CartItem[]
   /** Tổng số tiền được giảm giá */
   discount: number
+  /** Ref để in hóa đơn tự động */
+  printRef?: React.RefObject<any>
 }
 
 /**

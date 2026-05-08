@@ -2,6 +2,7 @@ import { useAuthStore } from '@/shared/features/auth'
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import { useCartStore } from '@/shared/features/pos/store'
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import { useCallback, useRef } from 'react'
 import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
@@ -72,6 +73,13 @@ export function usePaymentFlow(context: PaymentContext) {
         } else {
           // OFFLINE (Cash/Card): Lưu full Order vào Local để Sync sau
           await OrderLocalAPI.checkout(checkoutPayload)
+        }
+
+        // --- IN HÓA ĐƠN TỰ ĐỘNG ---
+        if (context.printRef?.current) {
+          PrinterService.printComponent(context.printRef).catch((err) =>
+            console.error('Lỗi in tự động:', err),
+          )
         }
 
         removeCurrentCart()

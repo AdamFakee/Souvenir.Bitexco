@@ -7,6 +7,8 @@ import CategoryModel from '@/shared/lib/database/models/category'
 import ProductModel from '@/shared/lib/database/models/product'
 import React, { useEffect, useState } from 'react'
 import { Alert, ScrollView, Text, View } from 'react-native'
+import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
+import { formatCurrency } from '@/shared/utils'
 
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
@@ -164,6 +166,53 @@ export default function DevControlScreen() {
           </View>
         ))}
       </Container>
+
+      {/* 3. Receipt Preview */}
+      <Text className="text-headline-sm mb-4 font-bold text-primary">Receipt Preview</Text>
+      <View className="mb-12 items-center justify-center rounded-[32px] bg-surface-100 py-10 shadow-sm">
+        <View className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-xl">
+          <BitexcoReceiptTemplate
+            order={
+              {
+                id: 'ORD-MOCK-2026',
+                createdAt: new Date(),
+                total: 171000,
+                subtotal: 171000,
+                discount: 0,
+                totalTax: 15545,
+                itemsSnapshot: [
+                  {
+                    sku: '2010113000043',
+                    name: 'Metal Magnet Bitexco',
+                    price: 78000,
+                    quantity: 2,
+                    subtotal: 156000,
+                  },
+                  {
+                    sku: '2010113000088',
+                    name: 'Postcard Saigon Skydeck',
+                    price: 15000,
+                    quantity: 1,
+                    subtotal: 15000,
+                  },
+                ],
+                paymentsSnapshot: [
+                  {
+                    method: 'CARD',
+                    amount: 171000,
+                  },
+                ],
+                staffId: 'NV001',
+              } as any
+            }
+            staffName="Nguyễn Huỳnh Trâm Anh"
+            posId="F49 - 1"
+          />
+        </View>
+        <Text className="text-surface-onVariant mt-4 text-xs font-bold uppercase tracking-widest">
+          Mẫu hóa đơn thực tế (Width: 576px)
+        </Text>
+      </View>
     </ScrollView>
   )
 }
