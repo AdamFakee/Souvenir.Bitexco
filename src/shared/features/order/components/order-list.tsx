@@ -37,24 +37,24 @@ const getPaymentMethodInfo = (order: OrderModel) => {
 
 const OrderSkeleton = () => (
   <View className="flex-row items-center border-b border-outline-variant px-8 py-6">
-    <View className="mr-6 w-44">
-      <Shimmer className="h-7 w-32 rounded-lg" />
+    <View className="mr-6 w-52">
+      <Shimmer className="h-7 w-40 rounded-lg" />
     </View>
-    <View className="mr-6 w-44">
-      <Shimmer className="h-6 w-36 rounded-lg" />
+    <View className="mr-6 w-52">
+      <Shimmer className="h-6 w-44 rounded-lg" />
     </View>
     <View className="mr-6 flex-1">
-      <Shimmer className="h-6 w-48 rounded-lg" />
-      <Shimmer className="mt-2 h-4 w-24 rounded-lg" />
+      <Shimmer className="h-6 w-64 rounded-lg" />
+      <Shimmer className="mt-2 h-4 w-32 rounded-lg" />
+    </View>
+    <View className="mr-6 w-64 items-center">
+      <Shimmer className="h-10 w-44 rounded-xl" />
+    </View>
+    <View className="mr-6 w-48">
+      <Shimmer className="ml-auto h-8 w-36 rounded-lg" />
     </View>
     <View className="mr-6 w-44 items-center">
-      <Shimmer className="h-10 w-32 rounded-xl" />
-    </View>
-    <View className="mr-6 w-40">
-      <Shimmer className="ml-auto h-8 w-28 rounded-lg" />
-    </View>
-    <View className="mr-6 w-36 items-center">
-      <Shimmer className="h-8 w-28 rounded-full" />
+      <Shimmer className="h-8 w-36 rounded-full" />
     </View>
     <View className="w-16 items-end">
       <Shimmer className="h-10 w-10 rounded-xl" />
@@ -95,11 +95,11 @@ export const OrderList = memo(function OrderList({ onOpenDetails }: OrderListPro
         return (
           <Pressable
             onPress={() => onOpenDetails(item)}
-            className="flex-row items-center border-b border-outline-variant px-8 py-6 active:bg-surface-100"
+            className="flex-row items-center border-b border-outline-variant px-8 py-7 active:bg-surface-100"
           >
-            <View className="mr-6 w-44">
+            <View className="mr-6 w-52">
               <Text
-                className="text-lg font-black text-primary"
+                className="text-xl font-black text-primary"
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
@@ -107,7 +107,7 @@ export const OrderList = memo(function OrderList({ onOpenDetails }: OrderListPro
               </Text>
             </View>
 
-            <Text className="mr-6 w-44 text-base font-medium text-surface-on">
+            <Text className="mr-6 w-52 text-lg font-medium text-surface-on">
               {item.createdAt.toLocaleString('vi-VN', {
                 day: '2-digit',
                 month: '2-digit',
@@ -118,23 +118,23 @@ export const OrderList = memo(function OrderList({ onOpenDetails }: OrderListPro
             </Text>
 
             <View className="mr-6 flex-1">
-              <Text className="text-base font-bold text-surface-on" numberOfLines={1}>
+              <Text className="text-lg font-bold text-surface-on" numberOfLines={1}>
                 {firstItem?.name || 'Không có sản phẩm'}
               </Text>
               {itemsCount > 1 && (
-                <Text className="mt-1 text-xs font-bold text-primary">
+                <Text className="mt-1 text-sm font-bold text-primary">
                   +{itemsCount - 1} sản phẩm khác
                 </Text>
               )}
             </View>
 
-            <View className="mr-6 w-44 items-center">
+            <View className="mr-6 w-64 items-center">
               <View
-                className="flex-row items-center gap-2 rounded-lg px-4 py-2"
+                className="flex-row items-center gap-2 rounded-lg px-6 py-2.5"
                 style={{ backgroundColor: pttt.bg }}
               >
                 <Text
-                  className="text-sm font-black uppercase tracking-tight"
+                  className="text-base font-black uppercase tracking-tight"
                   style={{ color: pttt.color }}
                 >
                   {pttt.label}
@@ -142,19 +142,16 @@ export const OrderList = memo(function OrderList({ onOpenDetails }: OrderListPro
               </View>
             </View>
 
-            <View className="mr-6 w-40">
-              <Text className="text-right text-xl font-black text-surface-on">
+            <View className="mr-6 w-48">
+              <Text className="text-right text-2xl font-black text-surface-on">
                 {formatCurrency(item.total)}
               </Text>
             </View>
 
-            <View className="mr-6 w-36 items-center">
-              <View
-                className="rounded-full px-4 py-1.5"
-                style={{ backgroundColor: config.bgColor }}
-              >
+            <View className="mr-6 w-44 items-center">
+              <View className="rounded-full px-6 py-2" style={{ backgroundColor: config.bgColor }}>
                 <Text
-                  className="text-xs font-bold uppercase tracking-widest"
+                  className="text-sm font-bold uppercase tracking-widest"
                   style={{ color: config.color }}
                 >
                   {config.label}
@@ -163,8 +160,8 @@ export const OrderList = memo(function OrderList({ onOpenDetails }: OrderListPro
             </View>
 
             <View className="w-16 items-end">
-              <View className="h-10 w-10 items-center justify-center rounded-xl border border-outline-variant bg-surface-100">
-                <Eye size={20} color={COLORS.surface.onVariant} />
+              <View className="h-12 w-12 items-center justify-center rounded-xl border border-outline-variant bg-surface-100">
+                <Eye size={24} color={COLORS.surface.onVariant} />
               </View>
             </View>
           </Pressable>

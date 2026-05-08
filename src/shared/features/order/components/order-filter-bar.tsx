@@ -11,17 +11,17 @@ export const OrderFilterBar = memo(function OrderFilterBar() {
 
   return (
     <View className="mb-6 flex-row items-center gap-4">
-      <View className="h-12 flex-1 flex-row items-center rounded-xl border border-outline-variant bg-surface-100 px-4">
-        <Search size={18} color={COLORS.outline.default} />
+      <View className="h-16 flex-1 flex-row items-center rounded-xl border border-outline-variant bg-surface-100 px-6">
+        <Search size={24} color={COLORS.outline.default} />
         <TextInput
-          className="ml-3 flex-1 text-base font-medium text-surface-on"
+          className="ml-4 flex-1 text-xl font-medium text-surface-on"
           placeholder="Tìm kiếm đơn hàng..."
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery('')}>
-            <X size={18} color={COLORS.outline.default} />
+            <X size={24} color={COLORS.outline.default} />
           </Pressable>
         )}
       </View>
@@ -31,15 +31,15 @@ export const OrderFilterBar = memo(function OrderFilterBar() {
           value={dateFrom}
           onChange={setDateFrom}
           placeholder="Từ ngày"
-          className="w-44"
+          className="w-52"
           maxDate={dateTo || new Date()}
         />
-        <Text className="font-medium text-muted">đến</Text>
+        <Text className="text-lg font-medium text-muted">đến</Text>
         <DatePicker
           value={dateTo}
           onChange={setDateTo}
           placeholder="Đến ngày"
-          className="w-44"
+          className="w-52"
           minDate={dateFrom || undefined}
           maxDate={new Date()}
         />

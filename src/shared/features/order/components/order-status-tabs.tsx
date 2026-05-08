@@ -24,20 +24,20 @@ export const OrderStatusTabs = memo(function OrderStatusTabs({
             <Pressable
               key={s}
               onPress={() => setStatus(s === 'ALL' ? null : s)}
-              className={`border-b-2 px-8 py-4 transition-all ${
+              className={`border-b-4 px-10 py-5 transition-all ${
                 isActive ? 'border-primary' : 'border-transparent'
               }`}
             >
-              <View className="flex-row items-center gap-3">
-                <Text className={`text-lg font-bold ${isActive ? 'text-primary' : 'text-muted'}`}>
+              <View className="flex-row items-center gap-4">
+                <Text className={`text-xl font-bold ${isActive ? 'text-primary' : 'text-muted'}`}>
                   {config.label}
                 </Text>
                 {isActive && ordersCount !== undefined && (
                   <View
-                    className="rounded-full px-2.5 py-0.5"
+                    className="rounded-full px-3 py-1"
                     style={{ backgroundColor: config.bgColor }}
                   >
-                    <Text className="text-xs font-bold" style={{ color: config.color }}>
+                    <Text className="text-sm font-bold" style={{ color: config.color }}>
                       {ordersCount}
                     </Text>
                   </View>
