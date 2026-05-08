@@ -9,35 +9,24 @@ import { Popup, PopupRef } from './popup'
  * Đặt tại Root của ứng dụng
  */
 export const GlobalPopup = () => {
-  const { visible, type, title, message, hide, isConfirm, onConfirm, onCancel } = useAlertStore()
+  const { visible, type, title, message, isConfirm, onConfirm, onCancel } = useAlertStore()
   const popupRef = useRef<PopupRef>(null)
 
   useEffect(() => {
-    if (visible) {
+    if (visible && isConfirm) {
       popupRef.current?.open()
     } else {
       popupRef.current?.close()
     }
-  }, [visible])
+  }, [visible, isConfirm])
+
+  if (!isConfirm && visible) return null
 
   return (
-    <Popup
-      ref={popupRef}
-      type={type}
-      title={title}
-      description={message}
-      onClose={isConfirm ? undefined : hide} // Don't allow dismiss on confirm without selection if desired, or keep it
-      dismissible={!isConfirm}
-    >
+    <Popup ref={popupRef} type={type} title={title} description={message} dismissible={false}>
       <View className="flex-row gap-3">
-        {isConfirm ? (
-          <>
-            <Button label="Hủy" onPress={onCancel} variant="outline" className="flex-1" />
-            <Button label="Đồng ý" onPress={onConfirm} variant="primary" className="flex-1" />
-          </>
-        ) : (
-          <Button label="Đóng" onPress={hide} variant="primary" className="w-full" />
-        )}
+        <Button label="Hủy" onPress={onCancel} variant="outline" className="flex-1" />
+        <Button label="Đồng ý" onPress={onConfirm} variant="primary" className="flex-1" />
       </View>
     </Popup>
   )

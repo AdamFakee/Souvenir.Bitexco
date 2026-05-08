@@ -1,5 +1,5 @@
 import { ErrorFallback } from '@/shared/components/common'
-import { GlobalPopup } from '@/shared/components/ui'
+import { GlobalPopup, GlobalToast } from '@/shared/components/ui'
 import { useAppInit, useAuthGuard } from '@/shared/hooks'
 import { useViceScreen } from '@/screens/use-vice-screen'
 import {
@@ -64,6 +64,7 @@ export default function RootLayout() {
               </Stack>
             </ErrorBoundary>
             <GlobalPopup />
+            <GlobalToast />
           </QueryClientProvider>
         </AppDatabaseProvider>
       </KeyboardProvider>

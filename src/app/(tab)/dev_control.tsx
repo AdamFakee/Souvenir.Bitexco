@@ -1,14 +1,14 @@
 import { Container } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
 import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
+import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
 import { database } from '@/shared/lib/database'
 import CategoryModel from '@/shared/lib/database/models/category'
 import ProductModel from '@/shared/lib/database/models/product'
+import { toast } from '@/shared/store'
 import React, { useEffect, useState } from 'react'
-import { Alert, ScrollView, Text, View } from 'react-native'
-import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
-import { formatCurrency } from '@/shared/utils'
+import { ScrollView, Text, View } from 'react-native'
 
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
@@ -70,42 +70,39 @@ export default function DevControlScreen() {
           })
         }
       })
-      Alert.alert('Thành công', 'Đã nạp dữ liệu Mock vào Local DB!')
+      toast.success('Đã nạp dữ liệu Mock vào Local DB!', 'Thành công')
       loadData()
     } catch (error) {
       console.error('Seeding error:', error)
-      Alert.alert('Lỗi', 'Không thể nạp dữ liệu.')
+      toast.error('Không thể nạp dữ liệu.', 'Lỗi')
     }
   }
 
   const handleClearData = async () => {
-    Alert.alert('Xác nhận', 'Bạn có chắc muốn xóa sạch Local DB?', [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Xóa sạch',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await database.write(async () => {
-              const allProds = await database.collections
-                .get<ProductModel>('products')
-                .query()
-                .fetch()
-              const allCats = await database.collections
-                .get<CategoryModel>('categories')
-                .query()
-                .fetch()
-              for (const p of allProds) await p.destroyPermanently()
-              for (const c of allCats) await c.destroyPermanently()
-            })
-            Alert.alert('Thành công', 'Đã xóa sạch DB!')
-            loadData()
-          } catch (e) {
-            Alert.alert('Lỗi', 'Không thể xóa.')
-          }
-        },
+    toast.confirm({
+      title: 'Xác nhận xóa?',
+      message: 'Bạn có chắc muốn xóa sạch Local DB?',
+      onConfirm: async () => {
+        try {
+          await database.write(async () => {
+            const allProds = await database.collections
+              .get<ProductModel>('products')
+              .query()
+              .fetch()
+            const allCats = await database.collections
+              .get<CategoryModel>('categories')
+              .query()
+              .fetch()
+            for (const p of allProds) await p.destroyPermanently()
+            for (const c of allCats) await c.destroyPermanently()
+          })
+          toast.success('Đã xóa sạch DB!', 'Thành công')
+          loadData()
+        } catch (e) {
+          toast.error('Không thể xóa.', 'Lỗi')
+        }
       },
-    ])
+    })
   }
 
   const getProductCountByCat = (catId: string) => {
@@ -115,6 +112,46 @@ export default function DevControlScreen() {
   return (
     <ScrollView className="flex-1 bg-surface-200 p-6">
       <Text className="mb-6 text-headline-md font-bold text-primary">Dev Control Panel</Text>
+      {/* 1.5. Toast & Alert Testing */}
+      <Container className="mb-6 p-4">
+        <Text className="text-title-md mb-3 font-bold text-surface-on">Test Alert & Toast</Text>
+        <View className="flex-row flex-wrap gap-3">
+          <Button
+            label="Toast Success"
+            className="bg-green-500"
+            onPress={() => toast.success('Giao dịch đã được thực hiện thành công!', 'Thành công')}
+          />
+          <Button
+            label="Toast Error"
+            className="bg-red-500"
+            onPress={() => toast.error('Có lỗi xảy ra khi kết nối máy chủ.', 'Lỗi kết nối')}
+          />
+          <Button
+            label="Toast Warning"
+            className="bg-orange-500"
+            onPress={() => toast.warning('Số lượng hàng trong kho sắp hết.', 'Cảnh báo')}
+          />
+          <Button
+            label="Toast Info"
+            className="bg-blue-500"
+            onPress={() => toast.info('Phiên bản phần mềm đã được cập nhật.', 'Thông báo')}
+          />
+          <Button
+            label="Confirm Dialog"
+            variant="outline"
+            className="border-primary"
+            textClassName="text-primary"
+            onPress={() =>
+              toast.confirm({
+                title: 'Xác nhận in lại?',
+                message: 'Bạn có chắc chắn muốn in lại hóa đơn này không?',
+                onConfirm: () => toast.success('Đang gửi lệnh in...'),
+                onCancel: () => console.log('Hủy in'),
+              })
+            }
+          />
+        </View>
+      </Container>
 
       {/* 1. Seeding / Clearing */}
       <Container className="mb-6 p-4">

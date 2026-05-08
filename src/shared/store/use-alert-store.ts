@@ -2,7 +2,15 @@ import { create } from 'zustand'
 
 export type AlertType = 'success' | 'error' | 'warning' | 'info'
 
+export interface Toast {
+  id: string
+  type: AlertType
+  title: string
+  message: string
+}
+
 interface AlertState {
+  // Confirm Dialog State
   visible: boolean
   type: AlertType
   title: string
@@ -10,10 +18,18 @@ interface AlertState {
   isConfirm: boolean
   onConfirm?: () => void
   onCancel?: () => void
+
+  // Toasts State
+  toasts: Toast[]
+
   /**
-   * Hiển thị thông báo Global (Popup)
+   * Hiển thị thông báo (Toast) - Tự động biến mất
    */
-  show: (params: { type?: AlertType; title: string; message: string }) => void
+  show: (params: { type?: AlertType; title: string; message: string; duration?: number }) => void
+  /**
+   * Ẩn một Toast cụ thể
+   */
+  hideToast: (id: string) => void
   /**
    * Hiển thị hộp thoại xác nhận (Confirm Dialog)
    */
@@ -24,12 +40,12 @@ interface AlertState {
     onCancel?: () => void
   }) => void
   /**
-   * Đóng thông báo
+   * Đóng hộp thoại xác nhận
    */
   hide: () => void
 }
 
-export const useAlertStore = create<AlertState>((set) => ({
+export const useAlertStore = create<AlertState>((set, get) => ({
   visible: false,
   type: 'info',
   title: '',
@@ -37,16 +53,28 @@ export const useAlertStore = create<AlertState>((set) => ({
   isConfirm: false,
   onConfirm: undefined,
   onCancel: undefined,
-  show: ({ type = 'info', title, message }) =>
-    set({
-      visible: true,
-      type,
-      title,
-      message,
-      isConfirm: false,
-      onConfirm: undefined,
-      onCancel: undefined,
-    }),
+  toasts: [],
+
+  show: ({ type = 'info', title, message, duration = 4000 }) => {
+    const id = Math.random().toString(36).substring(2, 9)
+    const newToast: Toast = { id, type, title, message }
+
+    set((state) => ({
+      toasts: [...state.toasts, newToast],
+    }))
+
+    if (duration > 0) {
+      setTimeout(() => {
+        get().hideToast(id)
+      }, duration)
+    }
+  },
+
+  hideToast: (id: string) =>
+    set((state) => ({
+      toasts: state.toasts.filter((t) => t.id !== id),
+    })),
+
   confirm: ({ title, message, onConfirm, onCancel }) =>
     set({
       visible: true,
@@ -63,6 +91,7 @@ export const useAlertStore = create<AlertState>((set) => ({
         set({ visible: false })
       },
     }),
+
   hide: () => set({ visible: false }),
 }))
 
