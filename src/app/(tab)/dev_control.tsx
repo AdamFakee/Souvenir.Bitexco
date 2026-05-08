@@ -206,7 +206,6 @@ export default function DevControlScreen() {
               } as any
             }
             staffName="Nguyễn Huỳnh Trâm Anh"
-            posId="F49 - 1"
           />
         </View>
         <Text className="text-surface-onVariant mt-4 text-xs font-bold uppercase tracking-widest">

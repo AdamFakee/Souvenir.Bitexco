@@ -153,4 +153,16 @@ export const StaffLocalAPI = {
       })
     })
   },
+
+  /**
+   * Lấy thông tin nhân viên theo ID
+   */
+  getStaffById: async (id: string): Promise<StaffModel | null> => {
+    try {
+      return await database.get<StaffModel>('staff').find(id)
+    } catch (error) {
+      console.error(`[StaffLocalAPI] Error fetching staff by id ${id}:`, error)
+      return null
+    }
+  },
 }

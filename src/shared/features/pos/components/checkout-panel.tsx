@@ -18,7 +18,7 @@ import { useCartStore } from '../store'
 
 export default function CheckoutPanel() {
   const { sessions, activeSessionId, applyVoucher, removeVoucher } = useCartStore()
-  const { session } = useAuthStore()
+  const { currentStaff, session } = useAuthStore()
 
   const [voucherInput, setVoucherInput] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
@@ -66,7 +66,8 @@ export default function CheckoutPanel() {
     [total, activeSessionId, cart, discount, printRef],
   )
 
-  const { refs, startPayment, handleCheckoutSuccess } = usePaymentFlow(paymentContext)
+  const { refs, startPayment, handleCheckoutSuccess, lastPaymentResult } =
+    usePaymentFlow(paymentContext)
 
   const handleApplyVoucher = async () => {
     if (!voucherInput.trim()) return
@@ -100,9 +101,10 @@ export default function CheckoutPanel() {
           <BitexcoReceiptTemplate
             order={
               {
-                id: 'AUTO-GEN',
+                id: lastPaymentResult?.orderId || '',
                 createdAt: new Date(),
-                total,
+                total:
+                  lastPaymentResult?.method === 'CASH' ? Math.round(total / 1000) * 1000 : total,
                 subtotal,
                 discount,
                 totalTax: tax,
@@ -113,17 +115,23 @@ export default function CheckoutPanel() {
                   quantity: i.quantity,
                   subtotal: i.price * i.quantity,
                 })),
-                paymentsSnapshot: [
-                  {
-                    method: 'CASH', // Default for preview/auto-print logic
-                    amount: total,
-                  },
-                ],
+                paymentsSnapshot: lastPaymentResult
+                  ? [
+                      {
+                        method: lastPaymentResult.method,
+                        amount: lastPaymentResult.paidAmount,
+                      },
+                    ]
+                  : [
+                      {
+                        method: 'CASH', // Default for preview/auto-print logic
+                        amount: total,
+                      },
+                    ],
                 staffId: session?.staffId,
               } as any
             }
-            staffName={session?.staffId || 'Nhân viên'}
-            posId="F49 - 1"
+            staffName={currentStaff?.fullname}
           />
         </View>
       </View>

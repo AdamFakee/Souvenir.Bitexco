@@ -117,7 +117,7 @@ export const OrderLocalAPI = {
    * Thanh toán chung (Tiền mặt, Chuyển khoản, Card...).
    * Orchestrate việc tạo order, payment và trừ stock trong 1 batch transaction.
    */
-  checkout: async (payload: CheckoutPayload): Promise<void> => {
+  checkout: async (payload: CheckoutPayload): Promise<OrderModel> => {
     // 1. Lấy shift từ shiftId có sẵn trong payload
     const shift = await ShiftLocalAPI.getShiftById(payload.shiftId)
 
@@ -211,6 +211,8 @@ export const OrderLocalAPI = {
         preparedShiftUpdate,
       )
     })
+
+    return preparedOrder
   },
 
   /**

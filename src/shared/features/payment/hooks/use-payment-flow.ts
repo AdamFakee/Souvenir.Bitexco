@@ -4,19 +4,22 @@ import { useCartStore } from '@/shared/features/pos/store'
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
 import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
 import { PaymentContext, PaymentPopupRef, PaymentResult } from '../types'
 import { calculateVoucherDiscount, roundCashAmount } from '../utils'
 
 export function usePaymentFlow(context: PaymentContext) {
   const refs = useRef<Record<string, PaymentPopupRef | null>>({})
+  const [lastPaymentResult, setLastPaymentResult] = useState<PaymentResult | null>(null)
   const { removeCurrentCart, sessions } = useCartStore()
   const { session } = useAuthStore()
 
   // Hàm dùng chung cho MỌI payment method
   const handleCheckoutSuccess = useCallback(
     async (result: PaymentResult) => {
+      setLastPaymentResult(result)
+
       const activeSession = context.sessionId ? sessions[context.sessionId] : null
       const appliedVoucher = activeSession?.appliedVoucher
 
@@ -72,14 +75,21 @@ export function usePaymentFlow(context: PaymentContext) {
             .catch((err) => console.error('Lỗi khi lưu dữ liệu đồng bộ đơn hàng:', err))
         } else {
           // OFFLINE (Cash/Card): Lưu full Order vào Local để Sync sau
-          await OrderLocalAPI.checkout(checkoutPayload)
+          const savedOrder = await OrderLocalAPI.checkout(checkoutPayload)
+          // Cập nhật orderId thực tế để in hóa đơn
+          setLastPaymentResult((prev) => (prev ? { ...prev, orderId: savedOrder.id } : prev))
         }
 
         // --- IN HÓA ĐƠN TỰ ĐỘNG ---
         if (context.printRef?.current) {
-          PrinterService.printComponent(context.printRef).catch((err) =>
-            console.error('Lỗi in tự động:', err),
-          )
+          await new Promise((resolve) => setTimeout(resolve, 800))
+          try {
+            await PrinterService.printComponent(context.printRef)
+          } catch {
+            toast.error('Đã xảy ra lỗi khi xuất hóa đơn!')
+          }
+        } else {
+          toast.error('Đã xảy ra lỗi khi xuất hóa đơn!')
         }
 
         removeCurrentCart()
@@ -101,5 +111,5 @@ export function usePaymentFlow(context: PaymentContext) {
     }
   }, [])
 
-  return { refs, startPayment, handleCheckoutSuccess }
+  return { refs, startPayment, handleCheckoutSuccess, lastPaymentResult }
 }

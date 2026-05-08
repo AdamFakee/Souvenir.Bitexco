@@ -78,11 +78,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
       {/* Hidden Container for Printing */}
       <View style={{ position: 'absolute', left: -2000, top: 0 }}>
         <View collapsable={false} ref={printRef}>
-          <BitexcoReceiptTemplate
-            order={order}
-            staffName={order.staffId} // Or get staff name from a lookup if available
-            posId="F49 - 1"
-          />
+          <BitexcoReceiptTemplate order={order} />
         </View>
       </View>
 

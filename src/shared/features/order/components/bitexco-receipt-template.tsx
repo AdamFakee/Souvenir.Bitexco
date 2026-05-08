@@ -1,13 +1,13 @@
+import { StaffLocalAPI } from '@/shared/features/auth/api/local/staff.local.api'
 import { OrderModel } from '@/shared/lib/database/models'
 import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
 import { formatDateTime } from '@/shared/utils'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 
 interface BitexcoReceiptTemplateProps {
   order: OrderModel
   staffName?: string
-  posId?: string
   copyNumber?: number
 }
 
@@ -25,26 +25,40 @@ const DashedLine = () => (
 export const BitexcoReceiptTemplate = ({
   order,
   staffName,
-  posId,
   copyNumber = 1,
 }: BitexcoReceiptTemplateProps) => {
+  const [resolvedStaffName, setResolvedStaffName] = useState(staffName)
+
+  useEffect(() => {
+    if (order.staffId && !staffName) {
+      StaffLocalAPI.getStaffById(order.staffId).then((s) => {
+        if (s) setResolvedStaffName(s.fullname)
+      })
+    } else if (staffName) {
+      setResolvedStaffName(staffName)
+    }
+  }, [order.staffId, staffName])
+
   const {
     id: orderId,
     createdAt,
     total,
-    subtotal,
-    discount,
     totalTax,
     itemsSnapshot: items = [],
     paymentsSnapshot: payments = [],
   } = order
 
-  // Format currency for Vietnam
-  const formatCurrency = (amount: number) => {
+  // Format currency for
+  const formatCurrency = (amount: any) => {
+    if (typeof amount !== 'number') return '0'
     return amount.toLocaleString('vi-VN')
   }
 
-  const totalPaid = payments.reduce((acc, p: PaymentSnapshot) => acc + (p.amount || 0), 0)
+  const totalPaid = (payments || []).reduce((acc, p: PaymentSnapshot) => acc + (p.amount || 0), 0)
+
+  // Tính toán làm tròn (Rounding)
+  // Trong hệ thống, subtotal - discount + tax là total thực tế trước làm tròn (nếu là tiền mặt)
+  // Nhưng ở đây ta so sánh total lưu trong đơn hàng với (subtotal - discount + tax)
   const changeAmount = Math.max(0, totalPaid - total)
 
   return (
@@ -64,17 +78,12 @@ export const BitexcoReceiptTemplate = ({
         <Text style={{ fontSize: 28 }}>Liên: {copyNumber}</Text>
       </View>
 
-      <View className="mt-6">
-        <View className="flex-row justify-between">
-          <Text style={{ fontSize: 28 }}>{formatDateTime(createdAt || new Date())}</Text>
-          <Text style={{ fontSize: 28 }}>Quầy: {posId || 'F49 - 1'}</Text>
-        </View>
-        <View className="mt-1 flex-row justify-between">
-          <Text style={{ fontSize: 28 }}>
-            Số HD: {orderId ? orderId.slice(0, 15).toUpperCase() : '---'}
-          </Text>
-          <Text style={{ fontSize: 28 }}>NV: {staffName || order.staffId || 'Nhân viên'}</Text>
-        </View>
+      <View className="mt-6 gap-1">
+        <Text style={{ fontSize: 28 }}>{formatDateTime(createdAt || new Date())}</Text>
+        <Text style={{ fontSize: 28 }}>Số HD: {orderId ? orderId.toUpperCase() : '---'}</Text>
+        <Text style={{ fontSize: 28 }}>
+          Nhân viên: {resolvedStaffName || order.staffId || '---'}
+        </Text>
       </View>
 
       <DashedLine />
@@ -127,9 +136,10 @@ export const BitexcoReceiptTemplate = ({
           <Text style={{ fontSize: 32, fontWeight: 'bold' }}>Tổng tiền:</Text>
           <Text style={{ fontSize: 32, fontWeight: 'bold' }}>{formatCurrency(total)}</Text>
         </View>
-        <View className="flex-row justify-between">
-          <Text style={{ fontSize: 28 }}>Tiền khách trả:</Text>
-          <Text style={{ fontSize: 28 }}>{formatCurrency(totalPaid)}</Text>
+
+        <View className="mt-2 flex-row justify-between">
+          <Text style={{ fontSize: 28, fontWeight: 'bold' }}>Tiền khách trả:</Text>
+          <Text style={{ fontSize: 28, fontWeight: 'bold' }}>{formatCurrency(totalPaid)}</Text>
         </View>
         <View className="flex-row justify-between">
           <Text style={{ fontSize: 28 }}>Tiền trả lại cho khách:</Text>
