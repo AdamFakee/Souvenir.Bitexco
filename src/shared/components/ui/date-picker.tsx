@@ -1,9 +1,9 @@
 import { COLORS } from '@/shared/constants'
 import { formatDate } from '@/shared/utils'
 import { Calendar } from 'lucide-react-native'
-import React, { useRef, useState } from 'react'
+import React, { useRef } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { CalendarPopover } from './calendar-popover'
+import { CalendarPopover, CalendarPopoverRef } from './calendar-popover'
 
 interface DatePickerProps {
   value: Date | null
@@ -22,31 +22,26 @@ export function DatePicker({
   minDate,
   maxDate,
 }: DatePickerProps) {
-  const [showCalendar, setShowCalendar] = useState(false)
-  const [anchorPosition, setAnchorPosition] = useState<{
-    x: number
-    y: number
-    width: number
-    height: number
-  } | null>(null)
+  const calendarRef = useRef<CalendarPopoverRef>(null)
   const viewRef = useRef<View>(null)
 
   const handleOpen = () => {
-    viewRef.current?.measureInWindow((x, y, width, height) => {
-      setAnchorPosition({ x, y, width, height })
-      setShowCalendar(true)
-    })
+    viewRef.current?.measureInWindow(
+      (winX: number, winY: number, winWidth: number, winHeight: number) => {
+        calendarRef.current?.open({ x: winX, y: winY + 20, width: winWidth, height: winHeight })
+      },
+    )
   }
 
   return (
     <View ref={viewRef} className={className}>
       <Pressable
         onPress={handleOpen}
-        className="h-12 flex-row items-center rounded-xl border border-outline-variant bg-white px-4"
+        className="h-16 flex-row items-center rounded-xl border border-outline-variant bg-white px-5"
       >
-        <Calendar size={18} color={COLORS.outline.default} />
+        <Calendar size={24} color={COLORS.outline.default} />
         <Text
-          className={`ml-2 text-sm font-medium ${value ? 'text-surface-on' : 'text-muted'}`}
+          className={`ml-3 text-lg font-medium ${value ? 'text-surface-on' : 'text-muted'}`}
           numberOfLines={1}
         >
           {value ? formatDate(value) : placeholder}
@@ -54,11 +49,9 @@ export function DatePicker({
       </Pressable>
 
       <CalendarPopover
-        visible={showCalendar}
-        onClose={() => setShowCalendar(false)}
+        ref={calendarRef}
         onSelect={onChange}
         selectedDate={value}
-        anchorPosition={anchorPosition}
         minDate={minDate}
         maxDate={maxDate}
       />

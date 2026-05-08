@@ -26,20 +26,20 @@ export const OrderFilterBar = memo(function OrderFilterBar() {
         )}
       </View>
 
-      <View className="flex-row items-center gap-3">
+      <View className="flex-row items-center gap-4">
         <DatePicker
           value={dateFrom}
           onChange={setDateFrom}
           placeholder="Từ ngày"
-          className="w-52"
+          className="w-64"
           maxDate={dateTo || new Date()}
         />
-        <Text className="text-lg font-medium text-muted">đến</Text>
+        <Text className="text-xl font-bold text-muted">đến</Text>
         <DatePicker
           value={dateTo}
           onChange={setDateTo}
           placeholder="Đến ngày"
-          className="w-52"
+          className="w-64"
           minDate={dateFrom || undefined}
           maxDate={new Date()}
         />

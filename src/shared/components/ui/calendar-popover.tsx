@@ -1,40 +1,67 @@
 import { COLORS } from '@/shared/constants'
 import { getVietnameseMonth } from '@/shared/utils'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
-import React, { useEffect, useState } from 'react'
+import React, { useImperativeHandle, useState } from 'react'
 import { Dimensions, Modal, Pressable, Text, View } from 'react-native'
 
+/**
+ * Đại diện cho vị trí và kích thước của component kích hoạt (trigger)
+ * Dùng để tính toán vị trí hiển thị popover ngay bên dưới component đó.
+ */
+export interface AnchorPosition {
+  x: number // Tọa độ x trong cửa sổ (window)
+  y: number // Tọa độ y trong cửa sổ (window)
+  width: number // Chiều rộng của component trigger
+  height: number // Chiều cao của component trigger
+}
+
+/**
+ * Interface cho ref của CalendarPopover
+ * Cho phép component cha điều khiển việc đóng/mở bộ lịch một cách chủ động (imperative)
+ */
+export interface CalendarPopoverRef {
+  /**
+   * Mở bộ lịch tại vị trí của component trigger (anchor)
+   */
+  open: (anchor: AnchorPosition) => void
+  /**
+   * Đóng bộ lịch
+   */
+  close: () => void
+}
+
 interface CalendarPopoverProps {
-  visible: boolean
-  onClose: () => void
   onSelect: (date: Date) => void
   selectedDate: Date | null
-  anchorPosition: { x: number; y: number; width: number; height: number } | null
   minDate?: Date
   maxDate?: Date
+  ref?: React.Ref<CalendarPopoverRef>
 }
 
 const DAYS_OF_WEEK = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
 export function CalendarPopover({
-  visible,
-  onClose,
   onSelect,
   selectedDate,
-  anchorPosition,
   minDate,
   maxDate,
+  ref,
 }: CalendarPopoverProps) {
+  const [visible, setVisible] = useState(false)
+  const [anchorPosition, setAnchorPosition] = useState<AnchorPosition | null>(null)
   const [viewDate, setViewDate] = useState(new Date())
 
-  useEffect(() => {
-    if (visible) {
+  useImperativeHandle(ref, () => ({
+    open: (anchor: AnchorPosition) => {
       const dateToShow = selectedDate || new Date()
       setViewDate(new Date(dateToShow.getFullYear(), dateToShow.getMonth(), 1))
-    }
-  }, [visible, selectedDate])
+      setAnchorPosition(anchor)
+      setVisible(true)
+    },
+    close: () => setVisible(false),
+  }))
 
-  if (!visible || !anchorPosition) return null
+  if (!anchorPosition) return null
 
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
   const firstDayOfMonth = (year: number, month: number) => {
@@ -68,7 +95,7 @@ export function CalendarPopover({
   const handleSelect = (day: number) => {
     const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day)
     onSelect(newDate)
-    onClose()
+    setVisible(false)
   }
 
   const isToday = (day: number) => {
@@ -106,19 +133,24 @@ export function CalendarPopover({
 
   // Calculate position: below the anchor
   const windowWidth = Dimensions.get('window').width
-  const popoverWidth = 320
+  const popoverWidth = 420
   let left = anchorPosition.x
   if (left + popoverWidth > windowWidth - 20) {
     left = windowWidth - popoverWidth - 20
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/10" onPress={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setVisible(false)}
+    >
+      <Pressable className="flex-1 bg-black/10" onPress={() => setVisible(false)}>
         <View
-          className="absolute overflow-hidden rounded-2xl border border-outline-variant bg-white shadow-xl"
+          className="absolute overflow-hidden rounded-3xl border border-outline-variant bg-white shadow-2xl"
           style={{
-            top: anchorPosition.y + anchorPosition.height + 8,
+            top: anchorPosition.y + anchorPosition.height + 12,
             left: left,
             width: popoverWidth,
           }}
@@ -126,33 +158,33 @@ export function CalendarPopover({
           onTouchEnd={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <View className="flex-row items-center justify-between border-b border-outline-variant bg-surface-100 px-4 py-3">
+          <View className="flex-row items-center justify-between border-b border-outline-variant bg-surface-100 px-6 py-4">
             <Pressable
               onPress={() => changeMonth(-1)}
-              className="rounded-full p-2 active:bg-surface-200"
+              className="rounded-full p-2.5 active:bg-surface-200"
             >
-              <ChevronLeft size={20} color={COLORS.surface.on} />
+              <ChevronLeft size={28} color={COLORS.surface.on} />
             </Pressable>
 
-            <Text className="text-base font-bold text-surface-on" numberOfLines={1}>
+            <Text className="text-xl font-black text-surface-on" numberOfLines={1}>
               {getVietnameseMonth(viewDate.getMonth())}, {viewDate.getFullYear()}
             </Text>
 
             <Pressable
               onPress={() => changeMonth(1)}
-              className="rounded-full p-2 active:bg-surface-200"
+              className="rounded-full p-2.5 active:bg-surface-200"
             >
-              <ChevronRight size={20} color={COLORS.surface.on} />
+              <ChevronRight size={28} color={COLORS.surface.on} />
             </Pressable>
           </View>
 
           {/* Calendar Grid */}
-          <View className="p-3">
+          <View className="p-4">
             {/* Weekdays */}
-            <View className="mb-2 flex-row">
+            <View className="mb-4 flex-row">
               {DAYS_OF_WEEK.map((day) => (
                 <View key={day} className="flex-1 items-center">
-                  <Text className="text-xs font-bold text-muted">{day}</Text>
+                  <Text className="text-base font-bold text-muted">{day}</Text>
                 </View>
               ))}
             </View>
@@ -167,7 +199,7 @@ export function CalendarPopover({
                       <Pressable
                         onPress={() => !disabled && handleSelect(day)}
                         disabled={disabled}
-                        className={`m-1 flex-1 items-center justify-center rounded-lg ${
+                        className={`m-1.5 flex-1 items-center justify-center rounded-xl ${
                           isSelected(day)
                             ? 'bg-primary'
                             : isToday(day)
@@ -176,7 +208,7 @@ export function CalendarPopover({
                         } ${disabled ? 'opacity-20' : 'opacity-100'}`}
                       >
                         <Text
-                          className={`text-sm font-bold ${
+                          className={`text-lg font-bold ${
                             isSelected(day)
                               ? 'text-white'
                               : isToday(day)
@@ -197,15 +229,15 @@ export function CalendarPopover({
           </View>
 
           {/* Footer */}
-          <View className="flex-row justify-end border-t border-outline-variant p-2">
+          <View className="flex-row justify-end border-t border-outline-variant p-3">
             <Pressable
               onPress={() => {
                 onSelect(new Date())
-                onClose()
+                setVisible(false)
               }}
-              className="rounded-lg px-4 py-2 active:bg-surface-100"
+              className="rounded-xl px-6 py-3 active:bg-surface-100"
             >
-              <Text className="text-sm font-bold text-primary">Hôm nay</Text>
+              <Text className="text-lg font-black text-primary">Hôm nay</Text>
             </Pressable>
           </View>
         </View>
