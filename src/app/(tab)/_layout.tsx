@@ -2,9 +2,10 @@ import { Button, Container } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { getRoleLabel, useAuthStore } from '@/shared/features/auth'
 import { CloseShiftModal, CloseShiftModalRef, useObserveActiveShift } from '@/shared/features/shift'
+import { useSync } from '@/shared/lib/database/sync'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
-import { LogOut } from 'lucide-react-native'
+import { LogOut, RefreshCw } from 'lucide-react-native'
 import React, { useRef } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -27,6 +28,7 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
   const { currentStaff } = useAuthStore()
   const router = useRouter()
   const segments = useSegments()
+  const { syncNow, isSyncing } = useSync()
 
   // Determine active route based on segments
   const activeTab = segments[1] || 'pos'
@@ -87,6 +89,13 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
 
       {/* Sidebar Bottom Info */}
       <View className="gap-4">
+        <Button
+          label="Đồng bộ dữ liệu"
+          variant="outline"
+          onPress={syncNow}
+          loading={isSyncing}
+          leftIcon={RefreshCw}
+        />
         <Button
           label="Kết thúc ca làm việc"
           variant="error"

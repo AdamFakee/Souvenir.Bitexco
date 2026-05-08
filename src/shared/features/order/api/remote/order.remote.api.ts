@@ -111,6 +111,7 @@ export const OrderRemoteAPI: FeatureRemoteAPI = {
         updated: orders.updated.length,
         deleted: orders.deleted.length,
       })
+      console.log('--- Orders Detail ---', orders)
     }
 
     if (order_items) {
@@ -119,6 +120,7 @@ export const OrderRemoteAPI: FeatureRemoteAPI = {
         updated: order_items.updated.length,
         deleted: order_items.deleted.length,
       })
+      console.log('--- Order Items Detail ---', order_items)
     }
 
     if (payments) {
@@ -127,6 +129,7 @@ export const OrderRemoteAPI: FeatureRemoteAPI = {
         updated: payments.updated.length,
         deleted: payments.deleted.length,
       })
+      console.log('--- Payments Detail ---', payments)
     }
 
     // THỰC TẾ: Bạn sẽ gọi API ở đây để lưu các thay đổi này vào Backend

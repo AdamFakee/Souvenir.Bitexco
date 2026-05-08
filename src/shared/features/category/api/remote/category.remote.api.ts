@@ -1,4 +1,4 @@
-import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
+import { FeatureRemoteAPI, PullChangesParams } from '@/shared/lib/database/sync'
 
 /**
  * CategoryRaw - Cấu trúc dữ liệu Danh mục khớp với Backend/Database
