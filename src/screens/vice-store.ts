@@ -11,6 +11,12 @@ export interface Item {
 interface ViceState {
   /** Danh sách sản phẩm trong giỏ hàng */
   items: Item[]
+  /** Tạm tính */
+  subtotal: number
+  /** Giảm giá */
+  discount: number
+  /** Thuế */
+  tax: number
   /** Tổng tiền đơn hàng */
   total: number
   /** Tên khách hàng */
@@ -29,21 +35,39 @@ interface ViceState {
   currentScreen: 'Home' | 'Payment' | 'CashPayment' | 'Success'
 
   // Actions
-  updateCart: (items: Item[], total: number) => void
+  updateCart: (payload: {
+    items: Item[]
+    subtotal: number
+    discount: number
+    tax: number
+    total: number
+  }) => void
   setCustomerName: (name: string) => void
   setOrderId: (orderId: string) => void
-  showPayment: (qrCodeUrl: string, total: number) => void
-  showCashPayment: (
-    total: number,
-    customerPaid: number,
-    change: number,
-    isSuccess?: boolean,
-  ) => void
+  showPayment: (payload: {
+    qrCodeUrl: string
+    subtotal: number
+    discount: number
+    tax: number
+    total: number
+  }) => void
+  showCashPayment: (payload: {
+    subtotal: number
+    discount: number
+    tax: number
+    total: number
+    customerPaid: number
+    change: number
+    isSuccess?: boolean
+  }) => void
   setCurrentScreen: (screen: 'Home' | 'Payment' | 'CashPayment' | 'Success') => void
 }
 
 export const useViceStore = create<ViceState>((set) => ({
   items: [],
+  subtotal: 0,
+  discount: 0,
+  tax: 0,
   total: 0,
   customerName: '',
   orderId: '',
@@ -53,17 +77,16 @@ export const useViceStore = create<ViceState>((set) => ({
   isSuccess: false,
   currentScreen: 'Home',
 
-  updateCart: (items, total) => {
+  updateCart: (payload) => {
     // Nếu đang hiện màn hình thành công mà nhận được giỏ hàng trống (do clear cart)
     // thì bỏ qua để không làm mất màn hình thành công quá sớm.
     // Nếu có món mới (items > 0) thì vẫn cập nhật để phục vụ khách tiếp theo.
-    if (useViceStore.getState().isSuccess && items.length === 0) {
+    if (useViceStore.getState().isSuccess && payload.items.length === 0) {
       return
     }
 
     set({
-      items,
-      total,
+      ...payload,
       currentScreen: 'Home',
       qrCodeUrl: '',
       isSuccess: false,
@@ -71,20 +94,17 @@ export const useViceStore = create<ViceState>((set) => ({
   },
   setCustomerName: (customerName) => set({ customerName }),
   setOrderId: (orderId) => set({ orderId }),
-  showPayment: (qrCodeUrl, total) =>
+  showPayment: (payload) =>
     set({
-      qrCodeUrl,
-      total,
+      ...payload,
       currentScreen: 'Payment',
       isSuccess: false,
     }),
-  showCashPayment: (total, customerPaid, change, isSuccess = false) =>
+  showCashPayment: (payload) =>
     set({
-      total,
-      customerPaid,
-      change,
-      isSuccess,
-      currentScreen: isSuccess ? 'Success' : 'CashPayment',
+      ...payload,
+      isSuccess: payload.isSuccess || false,
+      currentScreen: payload.isSuccess ? 'Success' : 'CashPayment',
     }),
   setCurrentScreen: (currentScreen) => set({ currentScreen }),
 }))

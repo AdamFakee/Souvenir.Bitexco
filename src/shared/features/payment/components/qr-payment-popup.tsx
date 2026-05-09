@@ -41,7 +41,19 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             setStatus('SUCCESS')
 
             // Đồng bộ trạng thái thành công lên Vice Screen
-            ViceService.paymentSuccess({ total, customerPaid: total, change: 0 })
+            const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+            const tax = items.reduce(
+              (sum, i) => sum + i.product.price * (i.product.taxRate / 100) * i.quantity,
+              0,
+            )
+            ViceService.paymentSuccess({
+              subtotal,
+              discount,
+              tax,
+              total,
+              customerPaid: total,
+              change: 0,
+            })
 
             // Đợi 1 chút để khách xem UI thành công rồi mới đóng và hoàn tất đơn
             setTimeout(() => {
@@ -90,7 +102,12 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         setBillNumber(bill)
 
         // Cập nhật Vice Screen với URL thật
-        ViceService.showPayment({ qrCodeUrl: content, total })
+        const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+        const tax = items.reduce(
+          (sum, i) => sum + i.product.price * (i.product.taxRate / 100) * i.quantity,
+          0,
+        )
+        ViceService.showPayment({ qrCodeUrl: content, subtotal, discount, tax, total })
 
         // 3. Chờ thanh toán (WAITING_PAYMENT)
         setStatus('WAITING_PAYMENT')

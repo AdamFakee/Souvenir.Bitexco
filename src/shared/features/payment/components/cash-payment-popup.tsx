@@ -11,7 +11,7 @@ import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { roundCashAmount } from '../utils'
 
 export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
-  ({ total, onSuccess }, ref) => {
+  ({ total, discount, items, onSuccess }, ref) => {
     const [visible, setVisible] = useState(false)
     const [cashTendered, setCashTendered] = useState('')
 
@@ -19,7 +19,12 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       open: () => {
         setCashTendered('')
         setVisible(true)
-        ViceService.showCashPayment({ total, customerPaid: 0, change: 0 })
+        const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+        const tax = items.reduce(
+          (sum, i) => sum + i.product.price * (i.product.taxRate / 100) * i.quantity,
+          0,
+        )
+        ViceService.showCashPayment({ subtotal, discount, tax, total, customerPaid: 0, change: 0 })
       },
       close: () => {
         setVisible(false)
@@ -35,7 +40,19 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       const timer = setTimeout(() => {
         const paid = Number(cashTendered) || 0
         const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
-        ViceService.showCashPayment({ total: roundedTotal, customerPaid: paid, change: changeAmt })
+        const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+        const tax = items.reduce(
+          (sum, i) => sum + i.product.price * (i.product.taxRate / 100) * i.quantity,
+          0,
+        )
+        ViceService.showCashPayment({
+          subtotal,
+          discount,
+          tax,
+          total: roundedTotal,
+          customerPaid: paid,
+          change: changeAmt,
+        })
       }, 300)
 
       return () => clearTimeout(timer)
@@ -63,7 +80,19 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       setVisible(false)
       const paid = Number(cashTendered) || 0
       const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
-      ViceService.paymentSuccess({ total: roundedTotal, customerPaid: paid, change: changeAmt })
+      const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+      const tax = items.reduce(
+        (sum, i) => sum + i.product.price * (i.product.taxRate / 100) * i.quantity,
+        0,
+      )
+      ViceService.paymentSuccess({
+        subtotal,
+        discount,
+        tax,
+        total: roundedTotal,
+        customerPaid: paid,
+        change: changeAmt,
+      })
       onSuccess({
         success: true,
         method: PaymentMethod.CASH,

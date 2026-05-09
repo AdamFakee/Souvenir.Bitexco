@@ -1,4 +1,5 @@
 import { useCartStore } from '@/shared/features/pos'
+import { calculateVoucherDiscount } from '@/shared/features/payment'
 import { toast } from '@/shared/store'
 import { useEffect } from 'react'
 import { InteractionManager } from 'react-native'
@@ -47,13 +48,14 @@ export const useViceScreen = () => {
       const session = sessionId ? state.sessions[sessionId] : null
 
       if (!session) {
-        ViceService.updateCart({ items: [], total: 0 })
+        ViceService.updateCart({ items: [], subtotal: 0, discount: 0, tax: 0, total: 0 })
         ViceService.setOrderId('')
         return
       }
 
       // Chuyển đổi dữ liệu sang định dạng màn hình phụ mong đợi
-      const items = Object.values(session.items).map((cartItem) => ({
+      const cartItems = Object.values(session.items)
+      const items = cartItems.map((cartItem) => ({
         id: cartItem.id,
         name: cartItem.product.nameEn,
         price: cartItem.price,
@@ -61,12 +63,16 @@ export const useViceScreen = () => {
         image: cartItem.product.image ?? undefined,
       }))
 
-      const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-      const discount = session.discount ?? 0
-      const total = Math.max(0, subtotal - discount)
+      const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+      const discount = calculateVoucherDiscount(cartItems, session.appliedVoucher || null)
+      const tax = cartItems.reduce(
+        (sum, item) => sum + item.product.price * (item.product.taxRate / 100) * item.quantity,
+        0,
+      )
+      const total = Math.max(0, subtotal - discount) + tax
 
       // Gửi sự kiện cập nhật
-      ViceService.updateCart({ items, total })
+      ViceService.updateCart({ items, subtotal, discount, tax, total })
       ViceService.setOrderId(session.name)
     })
 
