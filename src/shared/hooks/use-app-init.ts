@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { AppState, AppStateStatus } from 'react-native'
 import { useStaffSync } from '../features/auth'
+import { usePosStore } from '../features/pos/store'
 
 /**
  * Hook khởi tạo ứng dụng (Background Services, Listeners, v.v.)
@@ -22,8 +23,12 @@ export const useAppInit = () => {
 
     const subscription = AppState.addEventListener('change', handleAppStateChange)
 
+    // 3. Khởi tạo POS Machine
+    usePosStore.getState().initPos()
+
     return () => {
       subscription.remove()
+      usePosStore.getState().destroyPos()
     }
   }, [syncIfStale])
 }

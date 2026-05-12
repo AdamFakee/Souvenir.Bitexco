@@ -74,6 +74,7 @@ export const Button = ({
             </View>
           )}
           <Text
+            numberOfLines={1}
             className={cn(
               'text-center text-title-sm font-semibold',
               variant === 'primary'

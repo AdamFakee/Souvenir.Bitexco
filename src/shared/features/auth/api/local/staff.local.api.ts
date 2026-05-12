@@ -67,11 +67,11 @@ export const StaffLocalAPI = {
     const { currentStaffId, isShiftOpen } = context
     const staffCollection = database.get<StaffModel>('staff')
 
-    const localStaffs = await StaffLocalAPI.getAllStaffs()
-    const openShifts = await StaffLocalAPI.getAllOpenShifts()
-    const staffIdWithOpenShifts = new Set(openShifts.map((s) => s.staffId))
-
     await database.write(async () => {
+      const localStaffs = await StaffLocalAPI.getAllStaffs()
+      const openShifts = await StaffLocalAPI.getAllOpenShifts()
+      const staffIdWithOpenShifts = new Set(openShifts.map((s) => s.staffId))
+
       const actions: any[] = []
 
       // 1. Process server staffs: Cập nhật hoặc tạo mới
@@ -152,5 +152,17 @@ export const StaffLocalAPI = {
         record.isDeleted = false
       })
     })
+  },
+
+  /**
+   * Lấy thông tin nhân viên theo ID
+   */
+  getStaffById: async (id: string): Promise<StaffModel | null> => {
+    try {
+      return await database.get<StaffModel>('staff').find(id)
+    } catch (error) {
+      console.error(`[StaffLocalAPI] Error fetching staff by id ${id}:`, error)
+      return null
+    }
   },
 }

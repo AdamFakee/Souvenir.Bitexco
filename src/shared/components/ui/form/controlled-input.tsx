@@ -12,6 +12,8 @@ interface ControlledInputProps<T extends FieldValues> extends Omit<
   label?: string
   required?: boolean
   error?: string
+  formatValue?: (value: any) => string
+  onChangeText?: (text: string) => void
 }
 
 export function ControlledInput<T extends FieldValues>({
@@ -21,6 +23,8 @@ export function ControlledInput<T extends FieldValues>({
   label,
   required,
   error: customError,
+  formatValue,
+  onChangeText: customOnChangeText,
   ...inputProps
 }: ControlledInputProps<T>) {
   const {
@@ -42,9 +46,15 @@ export function ControlledInput<T extends FieldValues>({
         </Text>
       )}
       <Input
-        value={value}
+        value={formatValue ? formatValue(value) : value}
         onBlur={onBlur}
-        onChangeText={onChange}
+        onChangeText={(text) => {
+          if (customOnChangeText) {
+            customOnChangeText(text)
+          } else {
+            onChange(text)
+          }
+        }}
         error={!!errorMessage}
         autoCapitalize="none"
         className={className}

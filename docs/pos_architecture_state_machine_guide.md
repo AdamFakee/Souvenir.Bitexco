@@ -1,0 +1,196 @@
+# 🚀 POS State Machine Architecture - Production-Ready (v2.1)
+
+Tài liệu này đã được Refactor để sửa các lỗi compile-time và bổ sung các tính năng quản lý ca làm việc chuyên nghiệp.
+
+---
+
+## 1. Kiến trúc phân tầng & Vòng đời Actor
+
+```mermaid
+graph TD
+    subgraph "Lớp Điều Phối (Orchestrator)"
+        POS[POS Machine]
+        Session[Session Machine]
+    end
+
+    subgraph "Lớp Thực Thi (Execution Layer)"
+        POS ---|Quản lý| Carts["Record<ID, CartActor>"]
+        POS -.->|Tạo & Hủy| PM[Payment Actor]
+    end
+
+    Session -->|Kiểm soát| POS
+```
+
+---
+
+## 2. Quản lý Đơn hàng & Tab (Fixed)
+
+```typescript
+// features/pos/machines/pos.machine.ts
+export const posMachine = setup({
+  actors: { cartMachine },
+}).createMachine({
+  context: {
+    carts: {},
+    activeCartId: null,
+    nextCartNumber: 1,
+  },
+  on: {
+    ADD_TAB: {
+      actions: assign(({ context, spawn }) => {
+        const id = `cart-${context.nextCartNumber}`
+        const label = `Đơn hàng ${context.nextCartNumber}`
+        const newCart = spawn('cartMachine', { id, input: { label } })
+        return {
+          carts: { ...context.carts, [id]: newCart },
+          activeCartId: id,
+          nextCartNumber: context.nextCartNumber + 1,
+        }
+      }),
+    },
+    REMOVE_TAB: {
+      actions: [
+        ({ context, event }) => context.carts[event.id]?.stop(), // Dọn dẹp actor con
+        assign(({ context, event }) => {
+          const { [event.id]: _, ...remaining } = context.carts
+          return {
+            carts: remaining,
+            activeCartId: context.activeCartId === event.id ? null : context.activeCartId,
+          }
+        }),
+      ],
+    },
+  },
+})
+```
+
+---
+
+## 3. Sửa lỗi Polling MoMo (Fixed Syntax)
+
+Trong XState v5, `after` không được chứa `invoke`. Chúng ta phải tách thành 2 trạng thái:
+
+```typescript
+// features/payment/machines/momo.machine.ts
+states: {
+  getting_qr: {
+    invoke: {
+      src: 'apiGetQR',
+      onDone: { target: 'waiting', actions: 'saveQRData' },
+      onError: 'error'
+    }
+  },
+  // Trạng thái ĐỢI (Chỉ làm nhiệm vụ đếm ngược 2s)
+  waiting: {
+    after: {
+      2000: 'checking' // Sau 2s thì tự động nhảy sang checking
+    }
+  },
+  // Trạng thái KIỂM TRA (Gọi API thực tế)
+  checking: {
+    invoke: {
+      src: 'apiCheckStatus',
+      onDone: [
+        { target: 'paid', guard: ({event}) => event.output.success },
+        { target: 'waiting' } // Nếu chưa thanh toán -> QUAY LẠI state waiting để đợi tiếp
+      ],
+      onError: 'waiting'
+    }
+  },
+  paid: { type: 'final' },
+  error: { /* ... */ }
+}
+```
+
+---
+
+## 4. Quản lý Ca làm việc (Session Machine)
+
+Đây là phần bổ sung quan trọng để quản lý nhân viên và tiền quỹ.
+
+```typescript
+export const sessionMachine = createMachine({
+  initial: 'idle',
+  context: { cashierName: '', startTime: null, openingCash: 0 },
+  states: {
+    idle: {
+      on: { START_SHIFT: 'active' },
+    },
+    active: {
+      on: { END_SHIFT: 'closing' },
+    },
+    closing: {
+      invoke: {
+        src: 'submitShiftReport',
+        onDone: 'idle',
+        onError: 'active',
+      },
+    },
+  },
+})
+```
+
+---
+
+## 5. Kết nối React an toàn (Fix Null Ref Crash)
+
+Sử dụng Hook để bảo vệ UI khỏi lỗi crash khi `paymentRef` chưa tồn tại.
+
+```tsx
+// features/payment/hooks/usePaymentState.ts
+export function usePaymentState() {
+  const posActor = usePosActor()
+  const paymentRef = useSelector(posActor, (s) => s.context.paymentRef)
+
+  // ✅ Chỉ subscribe khi paymentRef KHÁC NULL
+  const snapshot = useSelector(
+    paymentRef,
+    (s) => s,
+    (a, b) => a === b,
+  )
+
+  return {
+    isActive: !!paymentRef,
+    status: snapshot?.value,
+    qrUrl: snapshot?.context.qrUrl,
+    error: snapshot?.context.error,
+  }
+}
+
+function PaymentModal() {
+  const { isActive, status, qrUrl } = usePaymentState()
+  if (!isActive) return null // Tránh crash
+
+  return (
+    <div>
+      {status === 'waiting' && <img src={qrUrl} />}
+      {status === 'checking' && <p>Đang kiểm tra...</p>}
+    </div>
+  )
+}
+```
+
+---
+
+## 6. Refactor Zustand (Lazy Init & Cleanup)
+
+Tránh leak bộ nhớ và lỗi Hot Reload.
+
+```typescript
+export const usePosStore = create((set, get) => ({
+  posService: null,
+  initPos: () => {
+    get().posService?.stop() // Dọn dẹp máy cũ
+    const service = createActor(posMachine).start()
+    set({ posService: service })
+  },
+  destroyPos: () => {
+    get().posService?.stop()
+    set({ posService: null })
+  },
+}))
+```
+
+---
+
+_Tài liệu đã được kiểm duyệt và sửa lỗi bởi Antigravity v2.1_

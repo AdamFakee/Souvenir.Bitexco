@@ -1,10 +1,14 @@
+import { StaffRemoteAPI } from '@/shared/features/auth'
 import { CategoryRemoteAPI } from '@/shared/features/category'
+import { OrderRemoteAPI } from '@/shared/features/order'
 import { ProductRemoteAPI } from '@/shared/features/product'
+import { ShiftRemoteAPI } from '@/shared/features/shift'
 import { SyncDatabaseChangeSet, synchronize } from '@nozbe/watermelondb/sync'
 import { database } from '../database'
 
 /**
- * SyncService - Bộ não điều phối toàn bộ quá trình đồng bộ
+ * SyncService - Chỉ dùng cho mục đích Full Sync (Đồng bộ toàn bộ) định kỳ.
+ * Đối với các hành động cần tốc độ cao (như tạo đơn), hãy gọi API trực tiếp.
  */
 export const SyncService = {
   performSync: async () => {
@@ -14,16 +18,21 @@ export const SyncService = {
         pullChanges: async ({ lastPulledAt }) => {
           const timestamp = lastPulledAt ?? null
 
-          // Gom data từ tất cả feature
-          const [productChanges, categoryChanges] = await Promise.all([
+          // Luôn luôn lấy đầy đủ thay đổi của tất cả feature
+          const [product, category, order, shift, staff] = await Promise.all([
             ProductRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
             CategoryRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
+            OrderRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
+            ShiftRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
+            StaffRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
           ])
 
-          // Hợp nhất các thay đổi
           const changes: SyncDatabaseChangeSet = {
-            ...productChanges,
-            ...categoryChanges,
+            ...product,
+            ...category,
+            ...order,
+            ...shift,
+            ...staff,
           }
 
           return { changes, timestamp: Date.now() }
@@ -31,10 +40,13 @@ export const SyncService = {
         pushChanges: async ({ changes, lastPulledAt }) => {
           const timestamp = lastPulledAt ?? null
 
-          // Phân phối dữ liệu đẩy lên cho từng feature
+          // Đẩy tất cả thay đổi local lên server
           await Promise.all([
             ProductRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp }),
             CategoryRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp }),
+            OrderRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp }),
+            ShiftRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp }),
+            StaffRemoteAPI.pushChanges(),
           ])
         },
       })

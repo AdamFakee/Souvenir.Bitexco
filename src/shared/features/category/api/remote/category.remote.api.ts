@@ -1,32 +1,43 @@
-import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
-import { SyncDatabaseChangeSet } from '@nozbe/watermelondb/sync'
-import mockCategories from './mock-categories.json'
+import { FeatureRemoteAPI, PullChangesParams } from '@/shared/lib/database/sync'
 
+/**
+ * CategoryRaw - Cấu trúc dữ liệu Danh mục khớp với Backend/Database
+ */
+export interface CategoryRaw {
+  id: string
+  name: string
+  color?: string
+  display_order: number
+  is_deleted: boolean
+  created_at?: number
+  updated_at?: number
+}
+
+/**
+ * CategorySyncChanges - Cấu trúc các thay đổi của Danh mục
+ */
+export interface CategorySyncChanges {
+  categories: {
+    created: CategoryRaw[]
+    updated: CategoryRaw[]
+    deleted: string[]
+  }
+}
+
+/**
+ * CategoryRemoteAPI - Xử lý đồng bộ dữ liệu Danh mục với Server
+ */
 export const CategoryRemoteAPI: FeatureRemoteAPI = {
-  fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<SyncDatabaseChangeSet> => {
+  fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<CategorySyncChanges> => {
     console.log('CategoryRemoteAPI: Fetching changes (Pull)...', { lastPulledAt })
-    if (!lastPulledAt) {
-      const now = Date.now()
-      const categories = mockCategories.map((c: any) => ({
-        ...c,
-        created_at: now,
-        updated_at: now,
-      }))
 
-      return {
-        categories: { created: categories, updated: [], deleted: [] },
-      } as any
-    }
-
+    // GIẢ LẬP: Trả về rỗng (Thường được pull từ Server)
     return {
       categories: { created: [], updated: [], deleted: [] },
-    } as any
+    }
   },
 
-  pushChanges: async ({ changes }: PushChangesParams) => {
-    const { categories } = changes as any
-    console.log('CategoryRemoteAPI: Pushing changes to server...', {
-      categoriesCount: categories?.created?.length || 0,
-    })
+  pushChanges: async () => {
+    // Không đẩy thay đổi lên vì Category là read-only trên Client
   },
 }

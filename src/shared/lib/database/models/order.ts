@@ -18,6 +18,8 @@ export enum OrderStatus {
   COMPLETED = 'COMPLETED',
   /** Đơn hàng đổi trả/hoàn tiền (Bút toán Doanh thu Âm) */
   REFUNDED = 'REFUNDED',
+  /** Đơn hàng thất bại hoặc bị hủy */
+  FAILED = 'FAILED',
 }
 
 export default class OrderModel extends Model {
@@ -37,6 +39,8 @@ export default class OrderModel extends Model {
   @field('voucher_code') voucherCode?: string
   @field('voucher_discount') voucherDiscount!: number
   @field('total') total!: number
+  @field('total_tax') totalTax!: number
+  @field('note') note?: string
   @field('refund_reason') refundReason?: string
   @field('original_order_id') originalOrderId?: string
   @json('customer_tax_info', sanitizeTaxInfo) customerTaxInfo!: TaxInfo | null

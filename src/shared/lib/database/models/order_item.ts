@@ -17,6 +17,9 @@ export default class OrderItemModel extends Model {
   @field('quantity') quantity!: number
   @field('refunded_quantity') refundedQuantity!: number
   @field('subtotal') subtotal!: number
+  @field('tax_rate_snapshot') taxRateSnapshot!: number
+  @field('tax_amount') taxAmount!: number
+  @field('discount_amount') discountAmount!: number
   @field('is_deleted') isDeleted!: boolean
 
   @relation('orders', 'order_id') order!: Relation<OrderModel>

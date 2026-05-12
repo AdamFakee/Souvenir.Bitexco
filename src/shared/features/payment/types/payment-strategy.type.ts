@@ -1,4 +1,4 @@
-import { CartItem } from '@/shared/features/pos'
+import { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
 import { LucideIcon } from 'lucide-react-native'
 import React from 'react'
@@ -16,6 +16,8 @@ export interface PaymentContext {
   items: CartItem[]
   /** Tổng số tiền được giảm giá */
   discount: number
+  /** Ref để in hóa đơn tự động */
+  printRef?: React.RefObject<any>
 }
 
 /**
@@ -38,6 +40,10 @@ export interface PaymentResult {
    * Đơn này được xử lý Online (Backend) hay Offline (Local)
    */
   isOnline: boolean
+  /**
+   * ID đơn hàng từ Backend (Nếu là thanh toán Online)
+   */
+  orderId?: string
 }
 
 /**
@@ -53,11 +59,13 @@ export interface BasePaymentPopupProps {
  */
 export interface PaymentPopupProps extends BasePaymentPopupProps {
   discount: number
-  voucherCode?: string
+  appliedVoucher?: AppliedVoucher | null
   items: CartItem[]
   staffId: string
   shiftId: string
+  staffName?: string
   activeSessionId: string | null
+  printRef?: React.RefObject<any>
 }
 
 /**

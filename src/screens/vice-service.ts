@@ -3,15 +3,24 @@ import { Item } from './vice-store'
 
 export interface UpdateCartPayload {
   items: Item[]
+  subtotal: number
+  discount: number
+  tax: number
   total: number
 }
 
 export interface ShowPaymentPayload {
   qrCodeUrl: string
+  subtotal: number
+  discount: number
+  tax: number
   total: number
 }
 
 export interface ShowCashPaymentPayload {
+  subtotal: number
+  discount: number
+  tax: number
   total: number
   customerPaid: number
   change: number

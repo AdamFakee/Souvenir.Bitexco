@@ -52,6 +52,24 @@ export const COLORS = {
     container: '#ffdad6',
     onContainer: '#93000a',
   },
+  success: {
+    default: '#10b981',
+    on: '#ffffff',
+    container: '#d1fae5',
+    onContainer: '#064e3b',
+  },
+  warning: {
+    default: '#f59e0b',
+    on: '#ffffff',
+    container: '#fef3c7',
+    onContainer: '#78350f',
+  },
+  info: {
+    default: '#3b82f6',
+    on: '#ffffff',
+    container: '#dbeafe',
+    onContainer: '#1e3a8a',
+  },
   outline: {
     default: '#777587',
     variant: '#c7c4d8',
@@ -60,6 +78,7 @@ export const COLORS = {
     default: '#fcf8ff',
     on: '#1b1b24',
   },
+  muted: '#64748b',
 } as const
 
 export const SHADOW = {

@@ -1,9 +1,12 @@
-import { Container } from '@/shared/components/ui'
+import { Button, Container } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { getRoleLabel, useAuthStore } from '@/shared/features/auth'
+import { CloseShiftModal, CloseShiftModalRef, useObserveActiveShift } from '@/shared/features/shift'
+import { useSync } from '@/shared/lib/database/sync'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
-import React from 'react'
+import { LogOut, RefreshCw } from 'lucide-react-native'
+import React, { useRef } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -16,16 +19,16 @@ type MenuItem = {
 const MENU_ITEMS: MenuItem[] = [
   { name: 'pos', label: 'Bán hàng', icon: 'point-of-sale' },
   { name: 'orders', label: 'Đơn hàng', icon: 'receipt-long' },
-  { name: 'shift', label: 'Ca làm việc', icon: 'access-time' },
   { name: 'dashboard', label: 'Báo cáo', icon: 'dashboard' },
   { name: 'dev_control', label: 'Dev Control', icon: 'developer-mode' },
 ]
 
-const CustomSidebar = React.memo(() => {
+const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () => void }) => {
   const insets = useSafeAreaInsets()
   const { currentStaff } = useAuthStore()
   const router = useRouter()
   const segments = useSegments()
+  const { syncNow, isSyncing } = useSync()
 
   // Determine active route based on segments
   const activeTab = segments[1] || 'pos'
@@ -85,21 +88,37 @@ const CustomSidebar = React.memo(() => {
       </View>
 
       {/* Sidebar Bottom Info */}
-      <Container className="flex-row items-center justify-between rounded-2xl bg-surface-100 p-4 shadow-sm">
-        <View className="mr-2 flex-1 flex-row items-center gap-3">
-          <View className="h-12 w-12 items-center justify-center rounded-full bg-primary shadow-sm">
-            <MaterialIcons name="person" size={24} color={COLORS.primary.on} />
+      <View className="gap-4">
+        <Button
+          label="Đồng bộ dữ liệu"
+          variant="outline"
+          onPress={syncNow}
+          loading={isSyncing}
+          leftIcon={RefreshCw}
+        />
+        <Button
+          label="Kết thúc ca làm việc"
+          variant="error"
+          onPress={onOpenCloseShift}
+          leftIcon={LogOut}
+        />
+
+        <Container className="flex-row items-center justify-between rounded-2xl bg-surface-100 p-4 shadow-sm">
+          <View className="mr-2 flex-1 flex-row items-center gap-3">
+            <View className="h-12 w-12 items-center justify-center rounded-full bg-primary shadow-sm">
+              <MaterialIcons name="person" size={24} color={COLORS.primary.on} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-black text-surface-on" numberOfLines={1}>
+                {currentStaff?.fullname || 'Nhân viên'}
+              </Text>
+              <Text className="text-surface-onVariant text-xs font-medium" numberOfLines={1}>
+                {currentStaff?.role ? getRoleLabel(currentStaff.role) : 'Role: N/A'}
+              </Text>
+            </View>
           </View>
-          <View className="flex-1">
-            <Text className="text-sm font-black text-surface-on" numberOfLines={1}>
-              {currentStaff?.fullname || 'Nhân viên'}
-            </Text>
-            <Text className="text-surface-onVariant text-xs font-medium" numberOfLines={1}>
-              {currentStaff?.role ? getRoleLabel(currentStaff.role) : 'Role: N/A'}
-            </Text>
-          </View>
-        </View>
-      </Container>
+        </Container>
+      </View>
     </View>
   )
 })
@@ -107,9 +126,13 @@ const CustomSidebar = React.memo(() => {
 CustomSidebar.displayName = 'CustomSidebar'
 
 export default function TabLayout() {
+  const { session } = useAuthStore()
+  const { shift } = useObserveActiveShift(session?.shiftId)
+  const closeShiftModalRef = useRef<CloseShiftModalRef>(null)
+
   return (
     <View className="flex-1 flex-row">
-      <CustomSidebar />
+      <CustomSidebar onOpenCloseShift={() => closeShiftModalRef.current?.open()} />
 
       <View className="flex-1">
         <Tabs
@@ -120,11 +143,12 @@ export default function TabLayout() {
         >
           <Tabs.Screen name="pos" options={{ title: 'Bán hàng' }} />
           <Tabs.Screen name="orders" options={{ title: 'Đơn hàng' }} />
-          <Tabs.Screen name="shift" options={{ title: 'Ca làm việc' }} />
           <Tabs.Screen name="dashboard" options={{ title: 'Báo cáo' }} />
           <Tabs.Screen name="dev_control" options={{ title: 'Dev Control' }} />
         </Tabs>
       </View>
+
+      <CloseShiftModal ref={closeShiftModalRef} shift={shift!} />
     </View>
   )
 }

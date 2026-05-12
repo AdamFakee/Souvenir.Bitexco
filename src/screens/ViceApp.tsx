@@ -20,7 +20,13 @@ export default function ViceApp() {
 
       switch (method) {
         case 'updateCart':
-          updateCart(params.items || [], params.total || 0)
+          updateCart({
+            items: params.items || [],
+            subtotal: params.subtotal || 0,
+            discount: params.discount || 0,
+            tax: params.tax || 0,
+            total: params.total || 0,
+          })
           break
         case 'setCustomer':
           setCustomerName(params.name || '')
@@ -29,15 +35,24 @@ export default function ViceApp() {
           setOrderId(params.orderId || '')
           break
         case 'showPayment':
-          showPayment(params.qrCodeUrl, params.total || 0)
+          showPayment({
+            qrCodeUrl: params.qrCodeUrl,
+            subtotal: params.subtotal || 0,
+            discount: params.discount || 0,
+            tax: params.tax || 0,
+            total: params.total || 0,
+          })
           break
         case 'showCashPayment':
-          showCashPayment(
-            params.total || 0,
-            params.customerPaid || 0,
-            params.change || 0,
-            params.isSuccess || false,
-          )
+          showCashPayment({
+            subtotal: params.subtotal || 0,
+            discount: params.discount || 0,
+            tax: params.tax || 0,
+            total: params.total || 0,
+            customerPaid: params.customerPaid || 0,
+            change: params.change || 0,
+            isSuccess: params.isSuccess || false,
+          })
           break
       }
     })

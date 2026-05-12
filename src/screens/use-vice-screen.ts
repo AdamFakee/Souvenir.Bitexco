@@ -1,4 +1,7 @@
-import { useCartStore } from '@/shared/features/pos'
+import { usePosStore } from '@/shared/features/pos'
+import { calculateVoucherDiscount } from '@/shared/features/payment'
+import { CartItem } from '@/shared/features/pos/types/cart.types'
+import { useSelector } from '@xstate/react'
 import { toast } from '@/shared/store'
 import { useEffect } from 'react'
 import { InteractionManager } from 'react-native'
@@ -42,34 +45,49 @@ export const useViceScreen = () => {
 
   // 2. Đồng bộ giỏ hàng từ POS sang Vice Screen tự động
   useEffect(() => {
-    const unsubscribe = useCartStore.subscribe((state) => {
-      const sessionId = state.activeSessionId
-      const session = sessionId ? state.sessions[sessionId] : null
+    const posService = usePosStore.getState().posService
+    if (!posService) return
 
-      if (!session) {
-        ViceService.updateCart({ items: [], total: 0 })
+    const unsubscribe = posService.subscribe((state) => {
+      const { activeCartId, carts } = state.context
+      const activeCartActor = activeCartId ? carts[activeCartId] : null
+
+      if (!activeCartActor) {
+        ViceService.updateCart({ items: [], subtotal: 0, discount: 0, tax: 0, total: 0 })
         ViceService.setOrderId('')
         return
       }
 
+      const cartSnapshot = activeCartActor.getSnapshot()
+      const { items: cartItemsMap, appliedVoucher, label } = cartSnapshot.context
+      const cartItems = Object.values(cartItemsMap) as CartItem[]
+
       // Chuyển đổi dữ liệu sang định dạng màn hình phụ mong đợi
-      const items = Object.values(session.items).map((cartItem) => ({
+      const items = cartItems.map((cartItem: CartItem) => ({
         id: cartItem.id,
-        name: cartItem.product.name,
+        name: cartItem.product.nameEn,
         price: cartItem.price,
         quantity: cartItem.quantity,
         image: cartItem.product.image ?? undefined,
       }))
 
-      const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-      const discount = session.discount ?? 0
-      const total = Math.max(0, subtotal - discount)
+      const subtotal = cartItems.reduce(
+        (sum: number, item: any) => sum + item.product.price * item.quantity,
+        0,
+      )
+      const discount = calculateVoucherDiscount(cartItems, appliedVoucher || null)
+      const tax = cartItems.reduce(
+        (sum: number, item: any) =>
+          sum + item.product.price * (item.product.taxRate / 100) * item.quantity,
+        0,
+      )
+      const total = Math.max(0, subtotal - discount) + tax
 
       // Gửi sự kiện cập nhật
-      ViceService.updateCart({ items, total })
-      ViceService.setOrderId(session.name)
+      ViceService.updateCart({ items, subtotal, discount, tax, total })
+      ViceService.setOrderId(label)
     })
 
-    return () => unsubscribe()
+    return () => unsubscribe.unsubscribe()
   }, [])
 }

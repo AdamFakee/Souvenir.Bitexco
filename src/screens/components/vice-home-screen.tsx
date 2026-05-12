@@ -24,6 +24,9 @@ const CartItemComponent = memo(function CartItemComponent({ item }: { item: Item
 
 function ViceHomeScreen() {
   const items = useViceStore((state) => state.items)
+  const subtotal = useViceStore((state) => state.subtotal)
+  const discount = useViceStore((state) => state.discount)
+  const tax = useViceStore((state) => state.tax)
   const total = useViceStore((state) => state.total)
 
   const renderItem = useCallback(
@@ -77,6 +80,31 @@ function ViceHomeScreen() {
 
         {/* Footer Tổng tiền */}
         <View className="mt-6 rounded-[32px] border border-surface-300 bg-surface-100 p-8 shadow-xl">
+          {/* Detailed Summary */}
+          <View className="mb-6 gap-2 border-b border-surface-300 pb-6">
+            <View className="flex-row items-center justify-between">
+              <Text className="font-sans text-xl font-bold text-surface-on-variant">Tạm tính</Text>
+              <Text className="font-sans text-2xl font-bold text-surface-on">
+                {formatCurrency(subtotal)}
+              </Text>
+            </View>
+            {discount > 0 && (
+              <View className="flex-row items-center justify-between">
+                <Text className="font-sans text-xl font-bold text-primary">Giảm giá</Text>
+                <Text className="font-sans text-2xl font-bold text-primary">
+                  -{formatCurrency(discount)}
+                </Text>
+              </View>
+            )}
+            <View className="flex-row items-center justify-between">
+              <Text className="font-sans text-xl font-bold text-surface-on-variant">Thuế</Text>
+              <Text className="font-sans text-2xl font-bold text-surface-on">
+                {formatCurrency(tax)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Grand Total */}
           <View className="flex-row items-center justify-between">
             <View>
               <Text className="font-sans text-2xl font-bold uppercase tracking-widest text-surface-on-variant">

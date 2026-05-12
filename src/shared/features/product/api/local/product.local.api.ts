@@ -26,11 +26,12 @@ export const ProductLocalAPI = {
     }
 
     if (searchQuery) {
+      const sanitized = Q.sanitizeLikeString(searchQuery)
       clauses.push(
         Q.or(
-          Q.where('name', Q.like(`%${Q.sanitizeLikeString(searchQuery)}%`)),
-          Q.where('sku', Q.like(`%${Q.sanitizeLikeString(searchQuery)}%`)),
-          Q.where('barcode', Q.like(`%${Q.sanitizeLikeString(searchQuery)}%`)),
+          Q.where('name_en', Q.like(`%${sanitized}%`)),
+          Q.where('name_vi', Q.like(`%${sanitized}%`)),
+          Q.where('sku', Q.like(`%${sanitized}%`)),
         ),
       )
     }
@@ -50,11 +51,7 @@ export const ProductLocalAPI = {
   getProductByCode: async (code: string): Promise<ProductModel | null> => {
     const products = await database
       .get<ProductModel>('products')
-      .query(
-        Q.where('is_deleted', Q.notEq(true)),
-        Q.where('is_active', true),
-        Q.or(Q.where('sku', code), Q.where('barcode', code)),
-      )
+      .query(Q.where('is_deleted', Q.notEq(true)), Q.where('is_active', true), Q.where('sku', code))
       .fetch()
     return products.length > 0 ? products[0] : null
   },
