@@ -3,28 +3,27 @@ import { COLORS } from '@/shared/constants'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
+import { useSelector } from '@xstate/react'
 import { Minus, Plus, ShoppingBasket, Trash2, X } from 'lucide-react-native'
 import React, { useMemo } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { useCartStore } from '../store'
+import { ActorRefFrom } from 'xstate'
+import { useActiveCart, usePosActor } from '../hooks'
+import { cartMachine } from '../machines/cart.machine'
+import { CartItem } from '../types/cart.types'
 import { ProductSearch } from './product-search'
 
 export default function OrderListSession() {
-  const {
-    sessions,
-    activeSessionId,
-    createNewSession,
-    removeSession,
-    setActiveSession,
-    updateQuantity,
-    removeItem,
-    addItem,
-  } = useCartStore()
+  const posActor = usePosActor()
+  const cartActor = useActiveCart()
 
-  const activeSession = activeSessionId ? sessions[activeSessionId] : null
-  const cart = useMemo(() => {
-    return activeSession ? Object.values(activeSession.items) : []
-  }, [activeSession?.items])
+  // Tab Data from POS Actor
+  const carts = useSelector(posActor!, (s) => s.context.carts)
+  const activeCartId = useSelector(posActor!, (s) => s.context.activeCartId)
+
+  // Items from Active Cart Actor
+  const items = useSelector(cartActor!, (s) => s?.context?.items || {})
+  const cart = useMemo(() => Object.values(items || {}) as CartItem[], [items])
 
   return (
     <View className="flex-1 flex-col bg-surface-50">
@@ -32,17 +31,17 @@ export default function OrderListSession() {
       <View className="flex-row items-center border-b border-[#e2e8f0] bg-[#f1f5f9] px-6">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1">
           <View className="flex-row gap-2 pt-3">
-            {Object.values(sessions).map((session) => {
-              const isActive = session.id === activeSessionId
-              const itemCount = Object.values(session.items).reduce(
-                (sum, item) => sum + item.quantity,
-                0,
-              )
+            {Object.entries(carts).map(([id, actor]) => {
+              const isActive = id === activeCartId
+              const cartActor = actor as ActorRefFrom<typeof cartMachine>
+              const snapshot = cartActor?.getSnapshot()
+              if (!snapshot) return null
+              const label = snapshot.context.label
 
               return (
                 <Pressable
-                  key={session.id}
-                  onPress={() => setActiveSession(session.id)}
+                  key={id}
+                  onPress={() => posActor?.send({ type: 'SWITCH_TAB', id })}
                   className={`min-w-[200px] flex-row items-center rounded-t-2xl border-x border-t px-8 py-6 ${
                     isActive ? 'border-[#e2e8f0] bg-white' : 'border-transparent bg-[#e2e8f0]'
                   }`}
@@ -63,22 +62,15 @@ export default function OrderListSession() {
                     }`}
                     numberOfLines={1}
                   >
-                    {session.name}
+                    {label}
                   </Text>
-
-                  {itemCount > 0 && (
-                    <View className="mx-3 rounded-full bg-primary/10 px-2.5 py-1">
-                      <Text className="text-[12px] font-bold text-primary">{itemCount}</Text>
-                    </View>
-                  )}
-
                   <Pressable
                     className="ml-2 h-7 w-7 items-center justify-center rounded-full active:bg-error/10"
                     onPress={() => {
                       toast.confirm({
                         title: 'Hủy đơn',
-                        message: `Bạn có chắc chắn muốn hủy ${session.name} không?`,
-                        onConfirm: () => removeSession(session.id),
+                        message: `Bạn có chắc chắn muốn hủy ${label} không?`,
+                        onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id }),
                       })
                     }}
                   >
@@ -91,13 +83,13 @@ export default function OrderListSession() {
         </ScrollView>
 
         <Button
-          label="Thêm đơn"
+          label="Thêm tab"
           leftIcon={Plus}
           iconSize={24}
           variant="outline"
           className="ml-6 h-16 rounded-2xl border-[#e2e8f0] bg-white px-8"
           textClassName="text-lg font-black text-[#64748b]"
-          onPress={() => createNewSession()}
+          onPress={() => posActor?.send({ type: 'ADD_TAB' })}
         />
       </View>
 
@@ -114,7 +106,7 @@ export default function OrderListSession() {
             toast.confirm({
               title: 'Xóa giỏ hàng',
               message: 'Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?',
-              onConfirm: () => useCartStore.getState().removeCurrentCart(),
+              onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id: activeCartId! }),
             })
           }}
         />
@@ -168,7 +160,13 @@ export default function OrderListSession() {
                       size={28}
                       color={COLORS.surface.on}
                       className="p-5"
-                      onPress={() => updateQuantity(item.product.id, item.quantity - 1)}
+                      onPress={() =>
+                        cartActor?.send({
+                          type: 'UPDATE_QUANTITY',
+                          productId: item.product.id,
+                          quantity: item.quantity - 1,
+                        })
+                      }
                     />
                     <Text className="w-24 text-center text-3xl font-black text-surface-on">
                       {item.quantity}
@@ -178,7 +176,13 @@ export default function OrderListSession() {
                       size={28}
                       color={COLORS.surface.on}
                       className="p-5"
-                      onPress={() => updateQuantity(item.product.id, item.quantity + 1)}
+                      onPress={() =>
+                        cartActor?.send({
+                          type: 'UPDATE_QUANTITY',
+                          productId: item.product.id,
+                          quantity: item.quantity + 1,
+                        })
+                      }
                     />
                   </View>
                 </View>
@@ -191,7 +195,9 @@ export default function OrderListSession() {
                     size={32}
                     color={COLORS.error.default}
                     className="bg-transparent opacity-50"
-                    onPress={() => removeItem(item.product.id)}
+                    onPress={() =>
+                      cartActor?.send({ type: 'REMOVE_ITEM', productId: item.product.id })
+                    }
                   />
                 </View>
               </View>

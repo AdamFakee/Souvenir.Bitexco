@@ -23,6 +23,7 @@
     "@react-navigation/native": "^7.1.8",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/react-query": "^5.90.16",
+    "@xstate/react": "^6.1.0",
     "clsx": "^2.1.1",
     "expo": "~54.0.30",
     "expo-build-properties": "^55.0.13",
@@ -66,6 +67,7 @@
     "tailwind-merge": "^3.4.0",
     "use-debounce": "^10.1.1",
     "valibot": "^1.2.0",
+    "xstate": "^5.31.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
@@ -74,6 +76,7 @@
     "@commitlint/config-conventional": "^20.2.0",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "29.5.14",
+    "@types/lodash.debounce": "^4.0.9",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.25.0",

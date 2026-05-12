@@ -30,38 +30,38 @@ graph TD
 export const posMachine = setup({
   actors: { cartMachine },
 }).createMachine({
-  context: { 
-    carts: {}, 
+  context: {
+    carts: {},
     activeCartId: null,
-    nextCartNumber: 1 
+    nextCartNumber: 1,
   },
   on: {
     ADD_TAB: {
       actions: assign(({ context, spawn }) => {
-        const id = `cart-${context.nextCartNumber}`;
-        const label = `Đơn hàng ${context.nextCartNumber}`;
-        const newCart = spawn('cartMachine', { id, input: { label } });
+        const id = `cart-${context.nextCartNumber}`
+        const label = `Đơn hàng ${context.nextCartNumber}`
+        const newCart = spawn('cartMachine', { id, input: { label } })
         return {
           carts: { ...context.carts, [id]: newCart },
           activeCartId: id,
-          nextCartNumber: context.nextCartNumber + 1
-        };
-      })
+          nextCartNumber: context.nextCartNumber + 1,
+        }
+      }),
     },
     REMOVE_TAB: {
       actions: [
         ({ context, event }) => context.carts[event.id]?.stop(), // Dọn dẹp actor con
         assign(({ context, event }) => {
-          const { [event.id]: _, ...remaining } = context.carts;
+          const { [event.id]: _, ...remaining } = context.carts
           return {
             carts: remaining,
-            activeCartId: context.activeCartId === event.id ? null : context.activeCartId
-          };
-        })
-      ]
-    }
-  }
-});
+            activeCartId: context.activeCartId === event.id ? null : context.activeCartId,
+          }
+        }),
+      ],
+    },
+  },
+})
 ```
 
 ---
@@ -114,20 +114,20 @@ export const sessionMachine = createMachine({
   context: { cashierName: '', startTime: null, openingCash: 0 },
   states: {
     idle: {
-      on: { START_SHIFT: 'active' }
+      on: { START_SHIFT: 'active' },
     },
     active: {
-      on: { END_SHIFT: 'closing' }
+      on: { END_SHIFT: 'closing' },
     },
     closing: {
       invoke: {
         src: 'submitShiftReport',
         onDone: 'idle',
-        onError: 'active'
-      }
-    }
-  }
-});
+        onError: 'active',
+      },
+    },
+  },
+})
 ```
 
 ---
@@ -139,30 +139,34 @@ Sử dụng Hook để bảo vệ UI khỏi lỗi crash khi `paymentRef` chưa t
 ```tsx
 // features/payment/hooks/usePaymentState.ts
 export function usePaymentState() {
-  const posActor = usePosActor();
-  const paymentRef = useSelector(posActor, s => s.context.paymentRef);
+  const posActor = usePosActor()
+  const paymentRef = useSelector(posActor, (s) => s.context.paymentRef)
 
   // ✅ Chỉ subscribe khi paymentRef KHÁC NULL
-  const snapshot = useSelector(paymentRef, (s) => s, (a, b) => a === b);
+  const snapshot = useSelector(
+    paymentRef,
+    (s) => s,
+    (a, b) => a === b,
+  )
 
   return {
     isActive: !!paymentRef,
     status: snapshot?.value,
     qrUrl: snapshot?.context.qrUrl,
-    error: snapshot?.context.error
-  };
+    error: snapshot?.context.error,
+  }
 }
 
 function PaymentModal() {
-  const { isActive, status, qrUrl } = usePaymentState();
-  if (!isActive) return null; // Tránh crash
-  
+  const { isActive, status, qrUrl } = usePaymentState()
+  if (!isActive) return null // Tránh crash
+
   return (
     <div>
       {status === 'waiting' && <img src={qrUrl} />}
       {status === 'checking' && <p>Đang kiểm tra...</p>}
     </div>
-  );
+  )
 }
 ```
 
@@ -176,16 +180,17 @@ Tránh leak bộ nhớ và lỗi Hot Reload.
 export const usePosStore = create((set, get) => ({
   posService: null,
   initPos: () => {
-    get().posService?.stop(); // Dọn dẹp máy cũ
-    const service = createActor(posMachine).start();
-    set({ posService: service });
+    get().posService?.stop() // Dọn dẹp máy cũ
+    const service = createActor(posMachine).start()
+    set({ posService: service })
   },
   destroyPos: () => {
-    get().posService?.stop();
-    set({ posService: null });
-  }
-}));
+    get().posService?.stop()
+    set({ posService: null })
+  },
+}))
 ```
 
 ---
-*Tài liệu đã được kiểm duyệt và sửa lỗi bởi Antigravity v2.1*
+
+_Tài liệu đã được kiểm duyệt và sửa lỗi bởi Antigravity v2.1_

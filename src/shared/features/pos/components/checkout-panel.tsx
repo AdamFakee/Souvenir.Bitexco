@@ -6,32 +6,38 @@ import {
   calculateVoucherDiscount,
   PAYMENT_REGISTRY,
   PaymentContext,
-  usePaymentFlow,
+  PaymentPopupRef,
 } from '@/shared/features/payment'
 import { remoteVoucherApi } from '@/shared/features/payment/api/remote/voucher.remote.api'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
+import { useSelector } from '@xstate/react'
 import { PenSquare, Ticket, XCircle } from 'lucide-react-native'
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { KeyboardStickyView } from 'react-native-keyboard-controller'
-import { useCartStore } from '../store'
+import { useActiveCart, usePosActor } from '../hooks'
+import { CartItem } from '../types/cart.types'
 
 export default function CheckoutPanel() {
-  const { sessions, activeSessionId, applyVoucher, removeVoucher } = useCartStore()
+  const cartActor = useActiveCart()
   const { currentStaff, session } = useAuthStore()
+
+  // Get data from Actor
+  const items = useSelector(cartActor!, (s) => s?.context?.items || {})
+  const activeSessionId = useSelector(cartActor!, (s) => s?.context?.id || null)
+  const appliedVoucher = useSelector(cartActor!, (s) => s?.context?.appliedVoucher || null)
 
   const [voucherInput, setVoucherInput] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
-  const printRef = React.useRef(null)
+  const printRef = useRef(null)
 
-  const activeSession = activeSessionId ? sessions[activeSessionId] : null
+  // Refs cho từng popup — key là PaymentMethod type
+  const popupRefs = useRef<Record<string, PaymentPopupRef | null>>({})
+
   const cart = useMemo(() => {
-    return activeSession ? Object.values(activeSession.items) : []
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSession?.items])
-
-  const appliedVoucher = activeSession?.appliedVoucher || null
+    return Object.values(items) as CartItem[]
+  }, [items])
 
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
@@ -67,8 +73,24 @@ export default function CheckoutPanel() {
     [total, activeSessionId, cart, discount, printRef],
   )
 
-  const { refs, startPayment, handleCheckoutSuccess, lastPaymentResult } =
-    usePaymentFlow(paymentContext)
+  const posActor = usePosActor()
+
+  const handleCheckoutSuccess = () => {
+    if (activeSessionId) {
+      posActor?.send({ type: 'REMOVE_TAB', id: activeSessionId })
+    }
+    toast.success('Thanh toán thành công!')
+  }
+
+  /** Mở popup tương ứng với phương thức thanh toán */
+  const handleStartPayment = (methodType: string) => {
+    const popupRef = popupRefs.current[methodType]
+    if (popupRef) {
+      popupRef.open()
+    } else {
+      toast.error('Phương thức thanh toán này chưa được hỗ trợ')
+    }
+  }
 
   const handleApplyVoucher = async () => {
     if (!voucherInput.trim()) return
@@ -79,8 +101,8 @@ export default function CheckoutPanel() {
         code: voucherInput,
         subtotal,
       })
-      applyVoucher(response)
-      setVoucherInput(response.code) // Giữ lại mã trong ô input
+      cartActor?.send({ type: 'APPLY_VOUCHER', voucher: response })
+      setVoucherInput(response.code)
       toast.success(`Đã áp dụng mã giảm giá: ${response.code}`)
     } catch (error: any) {
       toast.error(error.message || 'Mã giảm giá không hợp lệ')
@@ -90,57 +112,16 @@ export default function CheckoutPanel() {
   }
 
   const handleRemoveVoucher = () => {
-    removeVoucher()
+    cartActor?.send({ type: 'REMOVE_VOUCHER' })
     toast.info(' Đã gỡ mã giảm giá')
   }
 
   return (
     <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
       <View className="z-10 flex-row items-stretch gap-10 border-t border-outline-variant bg-surface-50 px-8 py-6 shadow-lg shadow-black/10">
-        {/* Hidden Printer Template */}
-        <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-          <View collapsable={false} ref={printRef}>
-            <BitexcoReceiptTemplate
-              order={
-                {
-                  id: lastPaymentResult?.orderId || '',
-                  createdAt: new Date(),
-                  total:
-                    lastPaymentResult?.method === 'CASH' ? Math.round(total / 1000) * 1000 : total,
-                  subtotal,
-                  discount,
-                  totalTax: tax,
-                  itemsSnapshot: cart.map((i) => ({
-                    sku: i.product.sku,
-                    name: i.product.nameEn,
-                    price: i.price,
-                    quantity: i.quantity,
-                    subtotal: i.price * i.quantity,
-                  })),
-                  paymentsSnapshot: lastPaymentResult
-                    ? [
-                        {
-                          method: lastPaymentResult.method,
-                          amount: lastPaymentResult.paidAmount,
-                        },
-                      ]
-                    : [
-                        {
-                          method: 'CASH', // Default for preview/auto-print logic
-                          amount: total,
-                        },
-                      ],
-                  staffId: session?.staffId,
-                } as any
-              }
-              staffName={currentStaff?.fullname}
-            />
-          </View>
-        </View>
-
         {/* 1. Left: Voucher Selection & Details */}
         <View className="min-w-[350px] flex-1 flex-col">
-          {/* Voucher Info Details (Dạng dòng kẻ đồng bộ) */}
+          {/* Voucher Info Details */}
           <View className="min-h-[180px] rounded-[24px] border border-dashed border-outline-variant bg-surface-100 p-6">
             {appliedVoucher ? (
               <>
@@ -282,19 +263,24 @@ export default function CheckoutPanel() {
           </View>
 
           <View className="h-[96px] flex-row items-end gap-6">
-            {PAYMENT_REGISTRY.map((method) => (
-              <Button
-                key={method.type}
-                label={method.label}
-                leftIcon={method.icon}
-                iconSize={32}
-                variant="outline"
-                className="flex-1 rounded-[24px]"
-                textClassName="text-xl font-black"
-                onPress={() => startPayment(method.type)}
-                disabled={cart.length === 0}
-              />
-            ))}
+            {PAYMENT_REGISTRY.map((method) => {
+              // isAvailable check từ strategy
+              const isAvailable = method.isAvailable(paymentContext, false)
+              return (
+                <Button
+                  key={method.type}
+                  label={method.label}
+                  leftIcon={method.icon}
+                  iconSize={32}
+                  variant="outline"
+                  className="flex-1 rounded-[24px]"
+                  textClassName="text-xl font-black"
+                  onPress={() => handleStartPayment(String(method.type))}
+                  // Disabled khi giỏ trống HOẶC strategy không available
+                  disabled={cart.length === 0 || !isAvailable}
+                />
+              )
+            })}
           </View>
         </View>
 
@@ -303,15 +289,17 @@ export default function CheckoutPanel() {
           <method.PopupComponent
             key={method.type}
             ref={(r) => {
-              refs.current[method.type] = r
+              popupRefs.current[String(method.type)] = r
             }}
             total={total}
             discount={discount}
-            voucherCode={appliedVoucher?.code}
+            appliedVoucher={appliedVoucher}
             items={cart}
             staffId={session?.staffId ?? ''}
             shiftId={session?.shiftId ?? ''}
             activeSessionId={activeSessionId}
+            printRef={printRef}
+            staffName={currentStaff?.fullname}
             onSuccess={handleCheckoutSuccess}
           />
         ))}

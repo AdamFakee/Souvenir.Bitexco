@@ -3,32 +3,7 @@ import { zustandStorage } from '@/shared/lib/storage'
 import { toast } from '@/shared/store'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-
-export type CartProduct = {
-  id: string
-  nameEn: string
-  nameVi: string
-  price: number
-  sku: string
-  unit: string
-  taxRate: number
-  image?: string | null
-  stock?: number | null
-}
-
-export type CartItem = {
-  id: string // product id
-  product: CartProduct
-  quantity: number
-  price: number // price at the time of adding
-}
-
-export type AppliedVoucher = {
-  code: string
-  percent: number
-  maxDiscountAmount?: number
-  applicableProductIds?: string[] // Danh sách ID sản phẩm được áp dụng
-}
+import { AppliedVoucher, CartItem, CartProduct } from '../types/cart.types'
 
 type CartSessionData = {
   id: string

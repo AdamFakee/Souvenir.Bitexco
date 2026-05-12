@@ -5,16 +5,15 @@ import { formatCurrency } from '@/shared/utils'
 import { Search, SearchX } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import { useProductSearch } from '../hooks'
-import { useCartStore } from '../store'
+import { useActiveCart, usePosActor, useProductSearch } from '../hooks'
 
 export function ProductSearch() {
-  const { addItem } = useCartStore()
+  const posActor = usePosActor()
   const [searchText, setSearchText] = useState('')
   const { products, isLoading, isFetchingNextPage, loadMore } = useProductSearch(searchText)
 
   const handleSelectItem = (product: ProductModel) => {
-    addItem(product)
+    posActor?.send({ type: 'ADD_ITEM', product })
     setSearchText('')
     Keyboard.dismiss()
   }

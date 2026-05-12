@@ -1,4 +1,4 @@
-import { CartItem } from '@/shared/features/pos'
+import { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
 import { LucideIcon } from 'lucide-react-native'
 import React from 'react'
@@ -59,11 +59,13 @@ export interface BasePaymentPopupProps {
  */
 export interface PaymentPopupProps extends BasePaymentPopupProps {
   discount: number
-  voucherCode?: string
+  appliedVoucher?: AppliedVoucher | null
   items: CartItem[]
   staffId: string
   shiftId: string
+  staffName?: string
   activeSessionId: string | null
+  printRef?: React.RefObject<any>
 }
 
 /**

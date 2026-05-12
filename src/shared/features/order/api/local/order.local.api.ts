@@ -1,6 +1,6 @@
 import { PaymentLocalAPI } from '@/shared/features/payment/api/local/payment.local.api'
 import type { OrderSyncDataResponse } from '@/shared/features/payment/api/remote/payment.remote.api'
-import type { CartItem } from '@/shared/features/pos/store/use-cart-store'
+import type { CartItem } from '@/shared/features/pos/types/cart.types'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
 import { ShiftLocalAPI } from '@/shared/features/shift/api/local/shift.local.api'
 import {

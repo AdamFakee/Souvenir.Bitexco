@@ -1,7 +1,6 @@
 import { createMMKV } from 'react-native-mmkv'
 import { StateStorage } from 'zustand/middleware'
-
-const storage = createMMKV()
+export const storage = createMMKV()
 
 export const zustandStorage: StateStorage = {
   setItem: (name, value) => {

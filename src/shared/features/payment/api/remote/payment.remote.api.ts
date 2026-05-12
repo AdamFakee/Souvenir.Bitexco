@@ -5,7 +5,7 @@ import type {
   OrderRaw,
   PaymentRaw,
 } from '@/shared/features/order/api/remote/order.remote.api'
-import type { CartItem } from '@/shared/features/pos/store/use-cart-store'
+import type { CartItem } from '@/shared/features/pos/types/cart.types'
 
 export interface CreateOrderResponse {
   /** ID đơn hàng do Backend tạo ra */

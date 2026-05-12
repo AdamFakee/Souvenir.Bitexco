@@ -1,4 +1,4 @@
-import { AppliedVoucher, CartItem } from '../../pos/store/use-cart-store'
+import { AppliedVoucher, CartItem } from '../../pos/types/cart.types'
 
 /**
  * Tính toán số tiền giảm giá dựa trên voucher

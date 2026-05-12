@@ -1,180 +1,163 @@
 import { ViceService } from '@/screens/vice-service'
 import { Button, LoadingIndicator, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
+import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { formatCurrency } from '@/shared/utils'
+import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle, QrCode } from 'lucide-react-native'
-import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
-import { ShiftLocalAPI } from '@/shared/features/shift/api/local'
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
-import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
+import { getQrPaymentStatusLabel, qrPaymentMachine } from '../machines/qr-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
+import { calculateSubtotal, calculateTotalTax } from '../utils'
 
-type QrStatus = 'IDLE' | 'CREATING_ORDER' | 'FETCHING_QR' | 'WAITING_PAYMENT' | 'SUCCESS' | 'ERROR'
-
+/**
+ * Popup thanh toán QR — driven by `qrPaymentMachine`.
+ */
 export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
-  ({ total, discount, items, staffId, shiftId, voucherCode, activeSessionId, onSuccess }, ref) => {
+  (
+    {
+      total,
+      discount,
+      items,
+      staffId,
+      shiftId,
+      staffName,
+      appliedVoucher,
+      activeSessionId,
+      printRef,
+      onSuccess,
+    },
+    ref,
+  ) => {
     const [visible, setVisible] = useState(false)
-    const [status, setStatus] = useState<QrStatus>('IDLE')
-    const [qrContent, setQrContent] = useState<string | null>(null)
-    const [billNumber, setBillNumber] = useState<string | null>(null)
-    const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-    const orderIdRef = useRef<string | null>(null)
-    const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    // Khởi tạo machine với toàn bộ input cần thiết
+    const actorRef = useActorRef(qrPaymentMachine, {
+      input: {
+        total,
+        discount,
+        items,
+        staffId,
+        shiftId,
+        sessionId: activeSessionId ?? 'unknown',
+        appliedVoucher: appliedVoucher || null,
+        printRef,
+      },
+    })
 
-    const stopPolling = () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current)
-        pollingRef.current = null
-      }
-    }
+    // --- Selectors ---
+    const machineState = useSelector(actorRef, (s) => s.value)
+    const qrContent = useSelector(actorRef, (s) => s.context.qrContent)
+    const billNumber = useSelector(actorRef, (s) => s.context.billNumber)
+    const error = useSelector(actorRef, (s) => s.context.error)
+    const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
+    const savedOrder = useSelector(actorRef, (s) => s.context.savedOrder)
 
-    const startPolling = (orderId: string) => {
-      pollingRef.current = setInterval(async () => {
-        try {
-          const { isPaid } = await PaymentRemoteAPI.verifyPaymentTransaction(orderId)
-          if (isPaid) {
-            stopPolling()
-            setStatus('SUCCESS')
+    // Trạng thái tổng hợp
+    const isSuccess = machineState === 'success'
+    const isError = machineState === 'error'
+    const isCancelled = machineState === 'cancelled'
+    const isCreatingOrder = machineState === 'creatingOrder'
+    const isFetchingQR = machineState === 'fetchingQR'
+    const isWaiting = typeof machineState === 'object' && 'waitingForPayment' in machineState
+    const isSaving = machineState === 'savingOrder'
+    const isPrinting = machineState === 'printingReceipt'
 
-            // Đồng bộ trạng thái thành công lên Vice Screen
-            const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
-            const tax = items.reduce(
-              (sum, i) => sum + i.product.price * (i.product.taxRate / 100) * i.quantity,
-              0,
-            )
-            ViceService.paymentSuccess({
-              subtotal,
-              discount,
-              tax,
-              total,
-              customerPaid: total,
-              change: 0,
-            })
+    const isLoading = isCreatingOrder || isFetchingQR || isWaiting || isSaving || isPrinting
 
-            // Đợi 1 chút để khách xem UI thành công rồi mới đóng và hoàn tất đơn
-            setTimeout(() => {
-              setVisible(false)
-              onSuccess({
-                success: true,
-                method: PaymentMethod.BANK_TRANSFER,
-                paidAmount: total,
-                change: 0,
-                referenceCode: billNumber ?? orderId,
-                isOnline: true,
-                orderId: orderId,
-              })
-            }, 1500)
-          }
-        } catch (error) {
-          // Lỗi mạng khi poll -> tiếp tục poll lần sau
-          console.error('Polling payment status failed:', error)
-        }
-      }, 5000) // Poll mỗi 5 giây theo yêu cầu
-    }
+    // guard can()
+    const canRetry = actorRef.getSnapshot().can({ type: 'RETRY' })
+    const canCancel = actorRef.getSnapshot().can({ type: 'CANCEL' })
 
-    const startFlow = async () => {
-      setErrorMsg(null)
-      setQrContent(null)
-      try {
-        // 0. Kiểm tra ca làm việc local trước khi bắt đầu
-        await ShiftLocalAPI.getShiftById(shiftId)
+    // Status label
+    const statusLabel = getQrPaymentStatusLabel(actorRef.getSnapshot())
 
-        // 1. Tạo đơn hàng (CREATING_ORDER)
-        setStatus('CREATING_ORDER')
-        const { orderId } = await PaymentRemoteAPI.createOrder({
-          items,
-          total,
-          discount,
-          voucherCode,
-          staffId,
-          shiftId,
+    // Cập nhật Vice Screen khi QR sẵn sàng
+    useEffect(() => {
+      if (!qrContent || !visible) return
+      const subtotal = calculateSubtotal(items)
+      const tax = calculateTotalTax(items)
+      ViceService.showPayment({ qrCodeUrl: qrContent, subtotal, discount, tax, total })
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [qrContent, visible])
+
+    // Khi machine thành công → trigger onSuccess và đóng popup
+    useEffect(() => {
+      if (!isSuccess) return
+
+      const subtotal = calculateSubtotal(items)
+      const tax = calculateTotalTax(items)
+      ViceService.paymentSuccess({ subtotal, discount, tax, total, customerPaid: total, change: 0 })
+
+      const snap = actorRef.getSnapshot()
+      const resolvedOrderId = snap.context.orderId ?? snap.context.sessionId
+      const resolvedBillNumber = snap.context.billNumber ?? resolvedOrderId
+
+      // Đợi để khách thấy UI success trước khi đóng
+      setTimeout(() => {
+        setVisible(false)
+        onSuccess({
+          success: true,
+          method: PaymentMethod.BANK_TRANSFER,
+          paidAmount: total,
+          change: 0,
+          referenceCode: resolvedBillNumber,
+          isOnline: true,
+          orderId: resolvedOrderId,
         })
-        orderIdRef.current = orderId
+      }, 1500)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSuccess])
 
-        // 2. Lấy QR (FETCHING_QR)
-        setStatus('FETCHING_QR')
-        const { qrContent: content, billNumber: bill } = await PaymentRemoteAPI.getQrCode(orderId)
-        setQrContent(content)
-        setBillNumber(bill)
-
-        // Cập nhật Vice Screen với URL thật
-        const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
-        const tax = items.reduce(
-          (sum, i) => sum + i.product.price * (i.product.taxRate / 100) * i.quantity,
-          0,
-        )
-        ViceService.showPayment({ qrCodeUrl: content, subtotal, discount, tax, total })
-
-        // 3. Chờ thanh toán (WAITING_PAYMENT)
-        setStatus('WAITING_PAYMENT')
-        startPolling(orderId)
-      } catch (err: any) {
-        setStatus('ERROR')
-        setErrorMsg(err?.message ?? 'Lỗi kết nối máy chủ')
-      }
-    }
+    // Khi cancelled → đóng popup
+    useEffect(() => {
+      if (isCancelled) setVisible(false)
+    }, [isCancelled])
 
     useImperativeHandle(ref, () => ({
       open: () => {
         setVisible(true)
-        setStatus('IDLE')
-        startFlow()
+
+        const freshInput = {
+          total,
+          discount,
+          items,
+          staffId,
+          shiftId,
+          sessionId: activeSessionId ?? 'unknown',
+          appliedVoucher: appliedVoucher || null,
+          printRef,
+        }
+
+        // Khởi động lại machine với dữ liệu mới nhất
+        actorRef.send({ type: 'START', input: freshInput })
       },
       close: () => {
-        stopPolling()
+        actorRef.send({ type: 'CANCEL' })
         setVisible(false)
       },
     }))
 
     const handleCancel = () => {
-      stopPolling()
+      actorRef.send({ type: 'CANCEL' })
       setVisible(false)
     }
 
-    const QR_STATE: Record<
-      QrStatus,
-      { label: string; isLoading: boolean; isSuccess: boolean; isError: boolean }
-    > = {
-      IDLE: { label: 'Đang khởi tạo...', isLoading: true, isSuccess: false, isError: false },
-      CREATING_ORDER: {
-        label: 'Đang tạo đơn hàng...',
-        isLoading: true,
-        isSuccess: false,
-        isError: false,
-      },
-      FETCHING_QR: {
-        label: 'Đang lấy mã QR...',
-        isLoading: true,
-        isSuccess: false,
-        isError: false,
-      },
-      WAITING_PAYMENT: {
-        label: 'Đang chờ khách quét mã thanh toán',
-        isLoading: true,
-        isSuccess: false,
-        isError: false,
-      },
-      SUCCESS: {
-        label: 'Thanh toán thành công!',
-        isLoading: false,
-        isSuccess: true,
-        isError: false,
-      },
-      ERROR: {
-        label: errorMsg ?? 'Có lỗi xảy ra',
-        isLoading: false,
-        isSuccess: false,
-        isError: true,
-      },
+    const handleRetry = () => {
+      actorRef.send({ type: 'RETRY' })
     }
-    const { label: statusLabel, isLoading, isSuccess, isError } = QR_STATE[status]
 
     return (
-      <ModalBase visible={visible} onClose={handleCancel} className="max-w-[860px]">
+      <ModalBase
+        visible={visible}
+        onClose={handleCancel}
+        dismissible={!isLoading}
+        className="max-w-[860px]"
+      >
         {/* Header */}
         <View className="border-b border-outline-variant bg-surface-50 px-6 py-4">
           <Text className="text-2xl font-bold text-surface-on">Thanh toán QR code</Text>
@@ -204,6 +187,12 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                   {activeSessionId || 'N/A'}
                 </Text>
               </View>
+              {/* Retry count indicator */}
+              {isError && retryCount > 0 && (
+                <View>
+                  <Text className="text-xs text-error">Lần thử: {retryCount} / 3</Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -220,7 +209,12 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
               ) : isError ? (
                 <View className="h-[240px] w-[240px] items-center justify-center p-4">
                   <AlertCircle size={64} color="#ef4444" />
-                  <Text className="mt-4 text-center text-sm text-red-500">{errorMsg}</Text>
+                  <Text className="mt-4 text-center text-sm text-red-500">{error}</Text>
+                  {!canRetry && (
+                    <Text className="mt-2 text-center text-xs text-error/70">
+                      Đã hết lần thử lại
+                    </Text>
+                  )}
                 </View>
               ) : qrContent ? (
                 <QRCode value={qrContent} size={240} />
@@ -235,7 +229,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             </View>
 
             <View className="flex-row items-center gap-3 rounded-full border border-surface-200 bg-surface-100 px-6 py-3">
-              {!isSuccess && !isError && <LoadingIndicator />}
+              {isLoading && <LoadingIndicator />}
               <Text className="text-surface-onVariant font-semibold tracking-wide">
                 {statusLabel}
               </Text>
@@ -245,15 +239,57 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
         {/* Footer */}
         <View className="flex-row-reverse gap-4 border-t border-outline-variant bg-surface-50 px-6 py-4">
+          {/* Thử lại — disabled bằng guard canRetry */}
           {isError && (
-            <Button label="Thử lại" variant="primary" onPress={startFlow} className="h-14 flex-1" />
+            <Button
+              label="Thử lại"
+              variant="primary"
+              disabled={!canRetry}
+              onPress={handleRetry}
+              className="h-14 flex-1"
+            />
           )}
           <Button
             label="Hủy giao dịch"
             variant="outline"
+            disabled={!canCancel && !isError}
             onPress={handleCancel}
             className="h-14 px-8"
           />
+        </View>
+
+        {/* Hidden Printer Template — Rendered inside popup using real saved data */}
+        <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+          {savedOrder && (
+            <View collapsable={false} ref={printRef}>
+              <BitexcoReceiptTemplate
+                order={
+                  {
+                    ...savedOrder,
+                    id: savedOrder.id,
+                    total: total,
+                    totalTax: calculateTotalTax(items),
+                    itemsSnapshot: items.map((i) => ({
+                      sku: i.product.sku,
+                      name: i.product.nameEn,
+                      price: i.product.price,
+                      quantity: i.quantity,
+                      subtotal: i.product.price * i.quantity,
+                      taxRate: i.product.taxRate || 0,
+                      taxAmount: i.product.price * i.quantity * ((i.product.taxRate || 0) / 100),
+                    })),
+                    paymentsSnapshot: [
+                      {
+                        method: 'BANK_TRANSFER',
+                        amount: total,
+                      },
+                    ],
+                  } as any
+                }
+                staffName={staffName}
+              />
+            </View>
+          )}
         </View>
       </ModalBase>
     )

@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router'
 import { Store } from 'lucide-react-native'
 import React from 'react'
 import { Text, View } from 'react-native'
@@ -6,21 +5,20 @@ import { Text, View } from 'react-native'
 import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { COLORS } from '@/shared/constants'
 import { useAuthStore } from '@/shared/features/auth'
-import { CheckoutPanel, OrderListSession, useCartStore } from '@/shared/features/pos'
+import { CheckoutPanel, OrderListSession, usePosActor } from '@/shared/features/pos'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { toast } from '@/shared/store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function PosScreen() {
-  const router = useRouter()
+  const posActor = usePosActor()
   const { isShiftOpen } = useAuthStore()
-  const { addItem } = useCartStore()
 
   const handleScan = async (codes: string[]) => {
     for (const code of codes) {
       const product = await ProductLocalAPI.getProductByCode(code)
       if (product) {
-        addItem(product)
+        posActor?.send({ type: 'ADD_ITEM', product })
       } else {
         toast.error(`Không tìm thấy sản phẩm cho mã: ${code}`, 'Thông báo')
       }

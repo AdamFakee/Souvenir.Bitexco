@@ -7,7 +7,7 @@ import { FlashList } from '@shopify/flash-list'
 import { ShoppingBasket, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useState } from 'react'
 import { Dimensions, Text, TouchableOpacity, View } from 'react-native'
-import { useCartStore } from '../store'
+import { useActiveCart } from '../hooks'
 import { usePosStore } from '../store/use-pos-store'
 import CategoryRow from './category-row'
 import ProductCard from './product-card'
@@ -29,12 +29,12 @@ export function ProductSearchModal({ ref }: ProductSearchModalProps) {
     close: () => setVisible(false),
   }))
 
-  const addItem = useCartStore((state) => state.addItem)
+  const cartActor = useActiveCart()
   const selectedCategoryId = usePosStore((state) => state.selectedCategoryId)
   const searchQuery = usePosStore((state) => state.searchQuery)
 
   const addToCart = (product: ProductModel) => {
-    addItem(product, 1)
+    cartActor?.send({ type: 'ADD_ITEM', product })
     setVisible(false)
   }
 
