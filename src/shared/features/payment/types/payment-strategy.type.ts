@@ -1,5 +1,5 @@
 import { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { PaymentMethod } from '@/shared/lib/database'
 import { LucideIcon } from 'lucide-react-native'
 import React from 'react'
 

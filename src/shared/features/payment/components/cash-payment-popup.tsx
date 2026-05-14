@@ -9,7 +9,7 @@ import { Banknote } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
-import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { PaymentMethod } from '@/shared/lib/database'
 import { cashPaymentMachine } from '../machines/cash-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax, getCashSuggestions, roundCashAmount } from '../utils'

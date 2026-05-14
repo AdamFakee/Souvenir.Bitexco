@@ -1,10 +1,8 @@
-import { PaymentLocalAPI } from '@/shared/features/payment/api/local/payment.local.api'
 import type { CartItem } from '@/shared/features/pos/types/cart.types'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
 import { ShiftLocalAPI } from '@/shared/features/shift/api/local/shift.local.api'
 import {
   database,
-  OrderItemModel,
   OrderModel,
   OrderStatus,
   PaymentMethod,
@@ -48,9 +46,6 @@ export const OrderLocalAPI = {
   /**
    * Lấy danh sách đơn hàng từ Local Database (WatermelonDB).
    * Hỗ trợ tìm kiếm theo ID/Sản phẩm, lọc theo trạng thái và khoảng ngày.
-   *
-   * @param params - Các tham số lọc: status, searchQuery, dateFrom, dateTo, limit, offset
-   * @returns Danh sách OrderModel tương ứng
    */
   getOrders: async (params: GetOrdersParams): Promise<OrderModel[]> => {
     const { status, searchQuery, dateFrom, dateTo, limit = 50, offset = 0 } = params
@@ -110,10 +105,9 @@ export const OrderLocalAPI = {
 
   /**
    * Thanh toán chung (Tiền mặt, Chuyển khoản, Card...).
-   * Orchestrate việc tạo order, payment và trừ stock trong 1 batch transaction.
+   * Chỉ tạo bản ghi OrderModel với đầy đủ Snapshots.
    */
   checkout: async (payload: CheckoutPayload): Promise<OrderModel> => {
-    // 1. Lấy shift từ shiftId có sẵn trong payload
     const shift = await ShiftLocalAPI.getShiftById(payload.shiftId)
 
     // Xây snapshot items
@@ -140,10 +134,13 @@ export const OrderLocalAPI = {
       {
         method: payload.payment.method,
         amount: payload.payment.amount,
+        cashTendered: payload.payment.cashTendered,
+        cashChange: payload.payment.cashChange,
+        referenceCode: payload.payment.referenceCode,
       },
     ]
 
-    // 2. Prepare Order
+    // 1. Prepare Order
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
       o.shiftId = shift.id
       o.staffId = payload.staffId
@@ -160,51 +157,19 @@ export const OrderLocalAPI = {
       o.isDeleted = false
     })
 
-    // 3. Prepare OrderItems
-    const preparedItems = itemsSnapshot.map((item) =>
-      database.get<OrderItemModel>('order_items').prepareCreate((oi) => {
-        oi.orderId = preparedOrder.id
-        oi.productId = item.productId
-        oi.productNameSnapshot = item.name
-        oi.priceSnapshot = item.price
-        oi.quantity = item.quantity
-        oi.refundedQuantity = 0
-        oi.subtotal = item.subtotal
-        oi.taxRateSnapshot = item.taxRate
-        oi.taxAmount = item.taxAmount
-        oi.discountAmount = item.discountAmount
-        oi.isDeleted = false
-      }),
-    )
-
-    // 4. Prepare Payment
-    const preparedPayment = PaymentLocalAPI.prepareCreatePayment(preparedOrder.id, {
-      method: payload.payment.method,
-      amount: payload.payment.amount,
-      cashTendered: payload.payment.cashTendered,
-      cashChange: payload.payment.cashChange,
-      referenceCode: payload.payment.referenceCode,
-    })
-
-    // 5. Prepare Stock Updates
+    // 2. Prepare Stock Updates
     const preparedStockUpdates = await ProductLocalAPI.prepareDeductStock(payload.items)
 
-    // 6. Prepare Shift Update
+    // 3. Prepare Shift Update
     const preparedShiftUpdate = ShiftLocalAPI.prepareUpdateStats(shift, {
       cashAmount: payload.payment.method === PaymentMethod.CASH ? payload.total : 0,
       qrAmount: payload.payment.method === PaymentMethod.BANK_TRANSFER ? payload.total : 0,
       incrementOrderCount: true,
     })
 
-    // 7. Batch tất cả (phải được bọc trong writer)
+    // 4. Batch transaction
     await database.write(async () => {
-      await database.batch(
-        preparedOrder,
-        ...preparedItems,
-        preparedPayment,
-        ...preparedStockUpdates,
-        preparedShiftUpdate,
-      )
+      await database.batch(preparedOrder, ...preparedStockUpdates, preparedShiftUpdate)
     })
 
     return preparedOrder
@@ -250,24 +215,8 @@ export const OrderLocalAPI = {
       o.isDeleted = false
     })
 
-    const preparedItems = itemsSnapshot.map((item) =>
-      database.get<OrderItemModel>('order_items').prepareCreate((oi) => {
-        oi.orderId = preparedOrder.id
-        oi.productId = item.productId
-        oi.productNameSnapshot = item.name
-        oi.priceSnapshot = item.price
-        oi.quantity = item.quantity
-        oi.refundedQuantity = 0
-        oi.subtotal = item.subtotal
-        oi.taxRateSnapshot = item.taxRate
-        oi.taxAmount = item.taxAmount
-        oi.discountAmount = item.discountAmount
-        oi.isDeleted = false
-      }),
-    )
-
     await database.write(async () => {
-      await database.batch(preparedOrder, ...preparedItems)
+      await database.batch(preparedOrder)
     })
 
     return preparedOrder
@@ -289,31 +238,23 @@ export const OrderLocalAPI = {
       o.paymentsSnapshot = [payment]
     })
 
-    // 2. Prepare Payment record
-    const preparedPayment = PaymentLocalAPI.prepareCreatePayment(order.id, payment)
-
-    // 3. Prepare Stock Updates
+    // 2. Prepare Stock Updates
     const deductStockItems = order.itemsSnapshot.map((item) => ({
       product: { id: item.productId },
       quantity: item.quantity,
     }))
     const preparedStockUpdates = await ProductLocalAPI.prepareDeductStock(deductStockItems)
 
-    // 4. Prepare Shift Update
+    // 3. Prepare Shift Update
     const preparedShiftUpdate = ShiftLocalAPI.prepareUpdateStats(shift, {
       cashAmount: payment.method === PaymentMethod.CASH ? order.total : 0,
       qrAmount: payment.method === PaymentMethod.BANK_TRANSFER ? order.total : 0,
       incrementOrderCount: true,
     })
 
-    // 5. Batch execution
+    // 4. Batch execution
     await database.write(async () => {
-      await database.batch(
-        preparedOrderUpdate,
-        preparedPayment,
-        ...preparedStockUpdates,
-        preparedShiftUpdate,
-      )
+      await database.batch(preparedOrderUpdate, ...preparedStockUpdates, preparedShiftUpdate)
     })
 
     return order

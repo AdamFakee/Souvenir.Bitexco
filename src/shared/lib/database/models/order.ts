@@ -1,5 +1,5 @@
-import { Model, Query, Relation } from '@nozbe/watermelondb'
-import { children, date, field, json, readonly, relation } from '@nozbe/watermelondb/decorators'
+import { Model, Relation } from '@nozbe/watermelondb'
+import { date, field, json, readonly, relation } from '@nozbe/watermelondb/decorators'
 import {
   ItemSnapshot,
   PaymentSnapshot,
@@ -8,8 +8,6 @@ import {
   sanitizePaymentsSnapshot,
   sanitizeTaxInfo,
 } from '../types'
-import OrderItemModel from './order_item'
-import PaymentModel from './payment'
 import ShiftModel from './shift'
 import StaffModel from './staff'
 
@@ -29,8 +27,6 @@ export default class OrderModel extends Model {
   static associations = {
     shifts: { type: 'belongs_to', key: 'shift_id' },
     staff: { type: 'belongs_to', key: 'staff_id' },
-    order_items: { type: 'has_many', foreignKey: 'order_id' },
-    payments: { type: 'has_many', foreignKey: 'order_id' },
   } as const
 
   @field('shift_id') shiftId!: string
@@ -52,8 +48,6 @@ export default class OrderModel extends Model {
 
   @relation('shifts', 'shift_id') shift!: Relation<ShiftModel>
   @relation('staff', 'staff_id') staff!: Relation<StaffModel>
-  @children('order_items') orderItems!: Query<OrderItemModel>
-  @children('payments') payments!: Query<PaymentModel>
 
   @readonly @date('created_at') createdAt!: Date
   @readonly @date('updated_at') updatedAt!: Date

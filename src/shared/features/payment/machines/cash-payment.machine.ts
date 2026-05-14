@@ -1,7 +1,7 @@
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { OrderModel } from '@/shared/lib/database/models'
-import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { PaymentMethod } from '@/shared/lib/database'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services'
 import { assign, fromPromise, setup } from 'xstate'

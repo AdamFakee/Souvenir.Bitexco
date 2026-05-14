@@ -10,7 +10,7 @@ import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'rea
 import { Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
-import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { PaymentMethod } from '@/shared/lib/database'
 import { getQrPaymentStatusLabel, qrPaymentMachine } from '../machines/qr-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'

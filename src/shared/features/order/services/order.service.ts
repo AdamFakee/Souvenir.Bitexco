@@ -1,14 +1,13 @@
 import { database } from '@/shared/lib/database/database'
 import OrderModel, { OrderStatus } from '@/shared/lib/database/models/order'
-import PaymentModel, { PaymentMethod } from '@/shared/lib/database/models/payment'
 import ProductModel from '@/shared/lib/database/models/product'
 import ShiftModel from '@/shared/lib/database/models/shift'
+import { PaymentMethod } from '@/shared/lib/database/models'
 
 export const OrderService = {
   /**
    * Hoàn tiền toàn bộ cho một đơn hàng.
-   * Tất cả các thao tác (update status, cộng kho, tạo payment âm, trừ doanh thu ca)
-   * ĐỀU ĐƯỢC THỰC HIỆN TRONG 1 TRANSACTION DUY NHẤT.
+   * Cập nhật trạng thái, cộng kho, thêm payment âm vào snapshot và trừ doanh thu ca.
    */
   refundOrder: async (order: OrderModel, reason: string, currentShiftId: string) => {
     return await database.write(async () => {
@@ -19,10 +18,19 @@ export const OrderService = {
         )
       }
 
-      // 1. Cập nhật trạng thái đơn hàng thành REFUNDED
+      // 1. Cập nhật trạng thái đơn hàng thành REFUNDED và push payment âm vào snapshot
       await order.update((o) => {
         o.status = OrderStatus.REFUNDED
         o.refundReason = reason
+        // Thêm bản ghi thanh toán âm vào snapshot (Mặc định hoàn bằng TIỀN MẶT)
+        const currentPayments = o.paymentsSnapshot || []
+        o.paymentsSnapshot = [
+          ...currentPayments,
+          {
+            method: PaymentMethod.CASH,
+            amount: -order.total,
+          },
+        ]
       })
 
       // 2. Cộng lại tồn kho cho các sản phẩm trong đơn
@@ -37,14 +45,7 @@ export const OrderService = {
         })
       }
 
-      // 3. Tạo bản ghi thanh toán âm (Mặc định hoàn bằng TIỀN MẶT theo yêu cầu)
-      await database.get<PaymentModel>('payments').create((p) => {
-        p.orderId = order.id
-        p.method = PaymentMethod.CASH
-        p.amount = -order.total
-      })
-
-      // 4. Cập nhật doanh thu của ca làm việc HIỆN TẠI (Chỉ trừ vào Cash Revenue)
+      // 3. Cập nhật doanh thu của ca làm việc HIỆN TẠI (Chỉ trừ vào Cash Revenue)
       const shift = await database.get<ShiftModel>('shifts').find(currentShiftId)
       if (!shift) {
         throw new Error(

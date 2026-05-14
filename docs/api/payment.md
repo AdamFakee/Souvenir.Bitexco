@@ -67,5 +67,5 @@ Client sẽ gọi API này định kỳ (mỗi 2-5 giây) để kiểm tra trạ
 1. **Local Create**: Client tạo bản ghi đơn hàng trong WatermelonDB với trạng thái `PENDING`.
 2. **Request QR**: Gọi `getQrCode` truyền vào ID đơn hàng local.
 3. **Polling**: Hiển thị QR và gọi `verifyPaymentTransaction` liên tục.
-4. **Local Complete**: Khi `isPaid` là `true`, Client cập nhật đơn hàng local sang `COMPLETED`, trừ kho và lưu thông tin thanh toán.
+4. **Local Complete**: Khi `isPaid` là `true`, Client cập nhật đơn hàng local sang `COMPLETED`, trừ kho và lưu thông tin thanh toán vào `payments_snapshot`.
 5. **Background Sync**: Client kích hoạt lệnh đồng bộ (`SyncService.performSync`) để đẩy dữ liệu vừa cập nhật lên Server ngay lập tức.

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const schema = appSchema({
-  version: 4,
+  version: 5,
   tables: [
     tableSchema({
       name: 'staff',
@@ -86,39 +86,6 @@ export const schema = appSchema({
         { name: 'customer_tax_info', type: 'string', isOptional: true },
         { name: 'items_snapshot', type: 'string' },
         { name: 'payments_snapshot', type: 'string' },
-        { name: 'is_deleted', type: 'boolean' },
-        { name: 'created_at', type: 'number' },
-        { name: 'updated_at', type: 'number' },
-      ],
-    }),
-    tableSchema({
-      name: 'order_items',
-      columns: [
-        { name: 'order_id', type: 'string', isIndexed: true },
-        { name: 'product_id', type: 'string', isIndexed: true },
-        { name: 'product_name_snapshot', type: 'string' },
-        { name: 'price_snapshot', type: 'number' },
-        { name: 'quantity', type: 'number' },
-        { name: 'refunded_quantity', type: 'number' },
-        { name: 'subtotal', type: 'number' },
-        { name: 'tax_rate_snapshot', type: 'number' },
-        { name: 'tax_amount', type: 'number' },
-        { name: 'discount_amount', type: 'number' },
-        { name: 'is_deleted', type: 'boolean' },
-        { name: 'created_at', type: 'number' },
-        { name: 'updated_at', type: 'number' },
-      ],
-    }),
-    tableSchema({
-      name: 'payments',
-      columns: [
-        { name: 'order_id', type: 'string', isIndexed: true },
-        { name: 'method', type: 'string' },
-        { name: 'amount', type: 'number' },
-        { name: 'cash_tendered', type: 'number', isOptional: true },
-        { name: 'cash_change', type: 'number', isOptional: true },
-        { name: 'reference_code', type: 'string', isOptional: true },
-        { name: 'card_type', type: 'string', isOptional: true },
         { name: 'is_deleted', type: 'boolean' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
