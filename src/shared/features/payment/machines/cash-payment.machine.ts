@@ -2,6 +2,7 @@ import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { OrderModel } from '@/shared/lib/database/models'
 import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services'
 import { assign, fromPromise, setup } from 'xstate'
 import { PaymentResult } from '../types'
@@ -157,6 +158,11 @@ export const cashPaymentMachine = setup({
         orderId: context.savedOrder?.id ?? undefined,
       }),
     }),
+    triggerSync: () => {
+      SyncService.performSync().catch((err) => console.error('Sync after Cash failed:', err))
+    },
+    notifyError: () => {}, // Sẽ được override từ UI (Popup)
+    notifyCancel: () => {}, // Sẽ được override từ UI (Popup)
   },
 }).createMachine({
   id: 'cashPayment',
@@ -188,7 +194,7 @@ export const cashPaymentMachine = setup({
           guard: 'canConfirm',
           actions: 'clearError',
         },
-        CANCEL: { target: 'cancelled' },
+        CANCEL: { target: 'cancelled', actions: 'notifyCancel' },
       },
     },
 
@@ -199,11 +205,11 @@ export const cashPaymentMachine = setup({
         input: ({ context }) => context,
         onDone: {
           target: 'preparingReceipt',
-          actions: ['assignSavedOrder', 'assignPaymentResult'],
+          actions: ['assignSavedOrder', 'assignPaymentResult', 'triggerSync'],
         },
         onError: {
           target: 'error',
-          actions: 'recordError',
+          actions: ['recordError', 'notifyError'],
         },
       },
     },
@@ -237,7 +243,7 @@ export const cashPaymentMachine = setup({
           guard: 'canRetry',
           actions: 'clearError',
         },
-        CANCEL: { target: 'cancelled' },
+        CANCEL: { target: 'cancelled', actions: 'notifyCancel' },
       },
     },
 
