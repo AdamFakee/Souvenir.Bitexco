@@ -15,6 +15,7 @@ export type CartItem = {
   product: CartProduct
   quantity: number
   price: number // price at the time of adding
+  discountAmount?: number
 }
 
 export type AppliedVoucher = {

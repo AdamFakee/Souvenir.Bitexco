@@ -3,6 +3,7 @@ import { Button, LoadingIndicator, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { formatCurrency } from '@/shared/utils'
+import { toast } from '@/shared/store/use-alert-store'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle, QrCode } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
@@ -36,18 +37,30 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const [visible, setVisible] = useState(false)
 
     // Khởi tạo machine với toàn bộ input cần thiết
-    const actorRef = useActorRef(qrPaymentMachine, {
-      input: {
-        total,
-        discount,
-        items,
-        staffId,
-        shiftId,
-        sessionId: activeSessionId ?? 'unknown',
-        appliedVoucher: appliedVoucher || null,
-        printRef,
+    const actorRef = useActorRef(
+      qrPaymentMachine.provide({
+        actions: {
+          notifyTimeout: () => {
+            toast.error('Giao dịch đã hết hạn thanh toán (10 phút)')
+          },
+          notifyCancel: () => {
+            toast.info('Giao dịch đã bị hủy')
+          },
+        },
+      }),
+      {
+        input: {
+          total,
+          discount,
+          items,
+          staffId,
+          shiftId,
+          sessionId: activeSessionId ?? 'unknown',
+          appliedVoucher: appliedVoucher || null,
+          printRef,
+        },
       },
-    })
+    )
 
     // --- Selectors ---
     const machineState = useSelector(actorRef, (s) => s.value)
@@ -113,9 +126,12 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSuccess])
 
-    // Khi cancelled → đóng popup
+    // Khi cancelled → đóng popup sau một khoảng trễ ngắn để kịp xử lý DB
     useEffect(() => {
-      if (isCancelled) setVisible(false)
+      if (isCancelled) {
+        const timer = setTimeout(() => setVisible(false), 800)
+        return () => clearTimeout(timer)
+      }
     }, [isCancelled])
 
     useImperativeHandle(ref, () => ({
@@ -138,13 +154,12 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       },
       close: () => {
         actorRef.send({ type: 'CANCEL' })
-        setVisible(false)
       },
     }))
 
     const handleCancel = () => {
       actorRef.send({ type: 'CANCEL' })
-      setVisible(false)
+      // Không setVisible(false) ở đây, để useEffect xử lý sau khi machine chuyển trạng thái
     }
 
     const handleRetry = () => {

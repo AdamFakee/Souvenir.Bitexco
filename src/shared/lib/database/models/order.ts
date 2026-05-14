@@ -1,5 +1,5 @@
-import { Model, Relation, Query } from '@nozbe/watermelondb'
-import { date, field, readonly, relation, children, json } from '@nozbe/watermelondb/decorators'
+import { Model, Query, Relation } from '@nozbe/watermelondb'
+import { children, date, field, json, readonly, relation } from '@nozbe/watermelondb/decorators'
 import {
   ItemSnapshot,
   PaymentSnapshot,
@@ -8,12 +8,14 @@ import {
   sanitizePaymentsSnapshot,
   sanitizeTaxInfo,
 } from '../types'
-import StaffModel from './staff'
-import ShiftModel from './shift'
 import OrderItemModel from './order_item'
 import PaymentModel from './payment'
+import ShiftModel from './shift'
+import StaffModel from './staff'
 
 export enum OrderStatus {
+  /** Đơn hàng đang chờ thanh toán/xử lý */
+  PENDING = 'PENDING',
   /** Đơn hàng bán mới thành công (Doanh thu Dương) */
   COMPLETED = 'COMPLETED',
   /** Đơn hàng đổi trả/hoàn tiền (Bút toán Doanh thu Âm) */
