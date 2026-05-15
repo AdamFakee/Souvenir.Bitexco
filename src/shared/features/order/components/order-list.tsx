@@ -1,6 +1,5 @@
 import { EmptyState, LoadMore, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { OrderModel } from '@/shared/lib/database'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { Eye, PackageOpen } from 'lucide-react-native'
@@ -9,12 +8,13 @@ import { Pressable, Text, View } from 'react-native'
 import { ORDER_STATUS_CONFIG } from '../constants'
 import { useOrders } from '../hooks'
 import { useOrderFilterStore } from '../store'
+import { IOrder } from '../types'
 
 interface OrderListProps {
-  onOpenDetails: (order: OrderModel) => void
+  onOpenDetails: (order: IOrder) => void
 }
 
-const getPaymentMethodInfo = (order: OrderModel) => {
+const getPaymentMethodInfo = (order: IOrder) => {
   const payments = order.paymentsSnapshot || []
   if (payments.length === 0) return { label: '—', color: COLORS.muted, bg: COLORS.surface[100] }
 
