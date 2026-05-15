@@ -8,15 +8,27 @@ interface ChipProps {
   active?: boolean
   onPress?: () => void
   className?: string
+  textClassName?: string
+  disabled?: boolean
 }
 
-export const Chip = ({ label, count, active = false, onPress, className }: ChipProps) => {
+export const Chip = ({
+  label,
+  count,
+  active = false,
+  onPress,
+  className,
+  textClassName,
+  disabled,
+}: ChipProps) => {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       className={cn(
         'flex-row items-center rounded-full border px-4 py-2 transition-all',
         active ? 'border-primary bg-primary' : 'border-outline-variant bg-surface-50',
+        disabled && 'opacity-50',
         className,
       )}
     >
@@ -24,7 +36,9 @@ export const Chip = ({ label, count, active = false, onPress, className }: ChipP
         className={cn(
           'text-[13px] font-semibold',
           active ? 'text-primary-on' : 'text-surface-on-variant',
+          textClassName,
         )}
+        numberOfLines={1}
       >
         {label}
       </Text>

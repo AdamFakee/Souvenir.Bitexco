@@ -1,7 +1,7 @@
-import { assign, fromPromise, setup } from 'xstate'
-import { IOrder } from '../types'
-import { OrderRemoteAPI } from '../api/remote/order.remote.api'
 import { toast } from '@/shared/store'
+import { assign, fromPromise, setup } from 'xstate'
+import { OrderRemoteAPI } from '../api/remote/order.remote.api'
+import { IOrder } from '../types'
 
 export interface RefundOrderContext {
   order: IOrder | null
@@ -49,6 +49,20 @@ export const refundOrderMachine = setup({
       const error = (event as any).error?.message || 'Có lỗi xảy ra khi thực hiện hoàn tiền.'
       toast.error(error)
     },
+    setOrder: assign({
+      order: ({ event }) => (event as any).order,
+      shiftId: ({ event }) => (event as any).shiftId,
+      reason: '',
+      error: null,
+    }),
+    setReason: assign({
+      reason: ({ event }) => (event as any).reason,
+    }),
+    resetContext: assign({
+      order: null,
+      reason: '',
+      error: null,
+    }),
   },
 }).createMachine({
   id: 'refundOrder',
@@ -63,24 +77,17 @@ export const refundOrderMachine = setup({
     idle: {
       on: {
         START: {
-          actions: assign({
-            order: ({ event }) => event.order,
-            shiftId: ({ event }) => event.shiftId,
-            reason: '',
-            error: null,
-          }),
+          actions: ['resetContext', 'setOrder'],
         },
         SET_REASON: {
-          actions: assign({
-            reason: ({ event }) => event.reason,
-          }),
+          actions: 'setReason',
         },
         SUBMIT: {
           target: 'refunding',
         },
         CANCEL: {
           target: 'idle',
-          actions: assign({ order: null }),
+          actions: 'resetContext',
         },
       },
     },
@@ -106,7 +113,7 @@ export const refundOrderMachine = setup({
       on: {
         RESET: {
           target: 'idle',
-          actions: assign({ order: null, reason: '', error: null }),
+          actions: 'resetContext',
         },
       },
     },
