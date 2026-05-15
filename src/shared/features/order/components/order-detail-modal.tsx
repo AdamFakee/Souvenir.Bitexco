@@ -1,6 +1,5 @@
 import { Button, IconButton, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { OrderModel } from '@/shared/lib/database'
 import { OrderStatus } from '@/shared/lib/database/models/order'
 import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
@@ -8,11 +7,12 @@ import { formatCurrency } from '@/shared/utils'
 import { Clock, CreditCard, Printer, ShieldCheck, Tag, Trash2, User, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
+import { IOrder } from '../types'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { RefundConfirmModal, RefundConfirmModalRef } from './refund-confirm-modal'
 
 export interface OrderDetailModalRef {
-  open: (order: OrderModel) => void
+  open: (order: IOrder) => void
   close: () => void
 }
 
@@ -22,7 +22,7 @@ interface OrderDetailModalProps {
 
 export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
   const [visible, setVisible] = useState(false)
-  const [order, setOrder] = useState<OrderModel | null>(null)
+  const [order, setOrder] = useState<IOrder | null>(null)
   const refundModalRef = useRef<RefundConfirmModalRef>(null)
   const printRef = useRef(null)
 
@@ -37,7 +37,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
   }
 
   useImperativeHandle(ref, () => ({
-    open: (o: OrderModel) => {
+    open: (o: IOrder) => {
       setOrder(o)
       setVisible(true)
     },
@@ -330,7 +330,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
             leftIcon={Trash2}
             className="rounded-2xl border-error/30 bg-white"
             textClassName="text-error font-bold"
-            disabled={order.status === OrderStatus.REFUNDED || order.status === OrderStatus.FAILED}
+            disabled={!order.canReturn && order.status !== OrderStatus.COMPLETED}
             onPress={() => {
               refundModalRef.current?.open(order)
               setVisible(false)

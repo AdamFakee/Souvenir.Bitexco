@@ -2,15 +2,17 @@ import { Button, Chip, IconButton, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { useAuthStore } from '@/shared/features/auth/store/use-auth-store'
 import { OrderModel } from '@/shared/lib'
+import { IOrder } from '../types'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { AlertCircle, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useState } from 'react'
 import { ScrollView, Text, TextInput, View } from 'react-native'
 import { OrderService } from '../services/order.service'
+import { database } from '@/shared/lib/database'
 
 export interface RefundConfirmModalRef {
-  open: (order: OrderModel) => void
+  open: (order: IOrder) => void
   close: () => void
 }
 
@@ -23,12 +25,12 @@ interface RefundConfirmModalProps {
 export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, RefundConfirmModalProps>(
   ({ onSuccess }, ref) => {
     const [visible, setVisible] = useState(false)
-    const [order, setOrder] = useState<OrderModel | null>(null)
+    const [order, setOrder] = useState<IOrder | null>(null)
     const [reason, setReason] = useState('')
     const [loading, setLoading] = useState(false)
 
     useImperativeHandle(ref, () => ({
-      open: (o: OrderModel) => {
+      open: (o: IOrder) => {
         setOrder(o)
         setReason('')
         setVisible(true)
@@ -51,7 +53,8 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
         onConfirm: async () => {
           setLoading(true)
           try {
-            await OrderService.refundOrder(order, reason, currentShiftId)
+            const localOrder = await database.get<OrderModel>('orders').find(order.id)
+            await OrderService.refundOrder(localOrder, reason, currentShiftId)
             toast.success(`Đã hoàn tiền ${formatCurrency(order.total)} cho đơn hàng #${order.id}`)
             setVisible(false)
             onSuccess?.()

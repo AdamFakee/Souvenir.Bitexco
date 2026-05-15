@@ -1,11 +1,14 @@
 import { OrderStatus } from '@/shared/lib/database'
-import { FeatureRemoteAPI, PushChangesParams } from '@/shared/lib/database/sync'
-import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
+import { PushChangesParams } from '@/shared/lib/database/sync'
 import { IBaseResponse } from '@/shared/types/api'
+import ordersJson from './order.mock.json'
+
+import { IOrder } from '../../types'
+import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
 
 /**
- * OrderRaw - Cấu trúc dữ liệu Đơn hàng khớp với Backend/Database.
- * Bao gồm cả items và payments snapshots.
+ * OrderRaw - Cấu trúc dữ liệu Đơn hàng khớp 100% với Backend/Database (Wire format).
+ * Phải giữ nguyên snake_case, không kế thừa từ UI interface.
  */
 export interface OrderRaw {
   id: string
@@ -25,12 +28,26 @@ export interface OrderRaw {
   items_snapshot: ItemSnapshot[]
   payments_snapshot: PaymentSnapshot[]
   is_deleted: boolean
-  created_at?: number
-  updated_at?: number
+  created_at: number
+  updated_at: number
+}
+
+const MOCK_ORDERS = ordersJson as OrderRaw[]
+
+/**
+ * Cấu trúc Request Params cho việc lấy danh sách đơn hàng từ xa.
+ */
+export interface GetRemoteOrdersParams {
+  status?: OrderStatus | null
+  searchQuery?: string
+  dateFrom?: Date | null
+  dateTo?: Date | null
+  page?: number
+  limit?: number
 }
 
 /**
- * OrderSyncChanges - Chỉ còn duy nhất bảng orders vì items/payments đã được gộp vào snapshot.
+ * OrderSyncChanges
  */
 export interface OrderSyncChanges {
   orders: {
@@ -43,7 +60,7 @@ export interface OrderSyncChanges {
 /**
  * OrderRemoteAPI - Xử lý đồng bộ dữ liệu Đơn hàng với Server
  */
-export const OrderRemoteAPI: FeatureRemoteAPI = {
+export const OrderRemoteAPI = {
   pushChanges: async ({ changes }: PushChangesParams) => {
     // Ép kiểu để có gợi ý code
     const { orders } = changes as unknown as OrderSyncChanges
@@ -74,6 +91,70 @@ export const OrderRemoteAPI: FeatureRemoteAPI = {
       // }
 
       console.log('--- Orders Detail Pushed ---', orders)
+    }
+  },
+
+  /**
+   * Lấy danh sách đơn hàng (MOCK - Sẽ thay bằng API thật sau)
+   */
+  getOrders: async (params: GetRemoteOrdersParams): Promise<IBaseResponse<IOrder[]>> => {
+    const { status, searchQuery, page = 1, limit = 20 } = params
+
+    // Giả lập độ trễ mạng
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Filter theo status
+    let filtered = MOCK_ORDERS
+    if (status) {
+      filtered = filtered.filter((o) => o.status === status)
+    }
+
+    // Filter theo searchQuery (ID)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter((o) => o.id.toLowerCase().includes(query))
+    }
+
+    const total = filtered.length
+    const totalPages = Math.ceil(total / limit)
+    const offset = (page - 1) * limit
+    const paginatedData = filtered.slice(offset, offset + limit).map((o) => ({
+      id: o.id,
+      shiftId: o.shift_id,
+      staffId: o.staff_id,
+      status: o.status,
+      subtotal: o.subtotal,
+      discount: o.discount,
+      voucherCode: o.voucher_code,
+      voucherDiscount: o.voucher_discount,
+      total: o.total,
+      totalTax: o.total_tax,
+      note: o.note,
+      refundReason: o.refund_reason,
+      originalOrderId: o.original_order_id,
+      customerTaxInfo: o.customer_tax_info,
+      itemsSnapshot: o.items_snapshot,
+      paymentsSnapshot: o.payments_snapshot,
+      isDeleted: o.is_deleted,
+      canReturn: o.status === OrderStatus.COMPLETED,
+      createdAt: new Date(o.created_at),
+      updatedAt: new Date(o.updated_at),
+    }))
+
+    return {
+      success: true,
+      status_code: 200,
+      message: 'Lấy danh sách đơn hàng thành công',
+      data: paginatedData,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        timestamp: Date.now(),
+      },
+      error: null,
     }
   },
 }

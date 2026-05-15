@@ -1,5 +1,5 @@
-import { OrderModel } from '@/shared/lib/database/models'
 import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
+import { IOrder } from '../types'
 import { formatDateTime } from '@/shared/utils'
 import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
@@ -7,7 +7,7 @@ import { Text, View } from 'react-native'
 import { useAuthStore } from '@/shared/features/auth'
 
 interface BitexcoReceiptTemplateProps {
-  order: OrderModel
+  order: IOrder
   staffName?: string
   copyNumber?: number
 }

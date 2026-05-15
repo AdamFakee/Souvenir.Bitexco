@@ -1,6 +1,7 @@
 import {
   OrderDetailModal,
   OrderDetailModalRef,
+  IOrder,
   OrderFilterBar,
   OrderList,
   OrderStatsFooter,
@@ -8,7 +9,8 @@ import {
   useOrderFilterStore,
 } from '@/shared/features/order'
 import { useOrders } from '@/shared/features/order/hooks'
-import { OrderModel, OrderStatus } from '@/shared/lib/database'
+import { OrderStatus } from '@/shared/lib/database'
+import { ItemSnapshot } from '@/shared/lib/database/types'
 import React, { useMemo, useRef } from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -31,7 +33,8 @@ export default function OrdersScreen() {
       if (o.status === OrderStatus.COMPLETED) {
         totalRevenue += o.total
       }
-      totalItems += o.itemsSnapshot?.reduce((acc, item) => acc + item.quantity, 0) || 0
+      totalItems +=
+        o.itemsSnapshot?.reduce((acc: number, item: ItemSnapshot) => acc + item.quantity, 0) || 0
     })
     return {
       totalRevenue,
@@ -40,7 +43,7 @@ export default function OrdersScreen() {
     }
   }, [orders])
 
-  const handleOpenDetails = (order: OrderModel) => {
+  const handleOpenDetails = (order: IOrder) => {
     modalRef.current?.open(order)
   }
 
