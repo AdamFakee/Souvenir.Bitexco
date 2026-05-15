@@ -1,44 +1,23 @@
-import { Button, Chip, ModalBase } from '@/shared/components/ui'
+import { Button, Chip, IconButton, ModalBase, Shimmer } from '@/shared/components/ui'
 import { toast } from '@/shared/store'
 
 import { ControlledInput } from '@/shared/components/ui/form'
 import { COLORS } from '@/shared/constants'
 
+import {
+  closeShiftSchema,
+  ShiftRemoteAPI,
+  useCloseStaffShift,
+  type CloseShiftInput,
+  type CloseShiftOutput,
+} from '@/shared/features/shift'
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { History, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Pressable, Text, useWindowDimensions, View } from 'react-native'
+import { Text, useWindowDimensions, View } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
-import {
-  InferInput,
-  InferOutput,
-  minValue,
-  number,
-  object,
-  optional,
-  pipe,
-  string,
-  transform,
-  union,
-} from 'valibot'
-import { useCloseStaffShift } from '../hooks'
-
-import { ShiftRemoteAPI } from '../api/remote/shift.remote.api'
-
-const closeShiftSchema = object({
-  actualEndingCash: pipe(
-    union([string(), number()]),
-    transform((v) => Number(v) || 0),
-    number(),
-    minValue(0, 'Số tiền không được âm'),
-  ),
-  discrepancyReason: optional(string()),
-})
-
-type CloseShiftInput = InferInput<typeof closeShiftSchema>
-type CloseShiftOutput = InferOutput<typeof closeShiftSchema>
 
 export interface CloseShiftModalRef {
   open: () => void
@@ -114,7 +93,7 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
     if (!shiftId) return
     toast.confirm({
       title: 'Xác nhận đóng ca',
-      message: 'Bạn có chắc chắn muốn kết thúc ca làm việc không?',
+      message: 'Bạn có chắc chắn muốn kết thúc ca làm việc này không?',
       onConfirm: async () => {
         const data = values as unknown as CloseShiftOutput
         const success = await closeStaffShift(shiftId, {
@@ -134,150 +113,169 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
     <ModalBase
       visible={visible}
       onClose={() => setVisible(false)}
-      className="mx-auto w-[850px] rounded-[48px] bg-white shadow-2xl"
+      className="mx-auto w-[1200px] rounded-[48px] bg-background shadow-2xl"
     >
-      <View className="p-12">
-        {/* Header */}
-        <View className="mb-10 flex-row items-center justify-between border-b-2 border-outline-variant pb-8">
+      <View className="p-0">
+        {/* Header - POS Style */}
+        <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-10 py-6">
           <View className="flex-row items-center gap-6">
-            <View className="h-20 w-20 items-center justify-center rounded-3xl bg-primary/10">
-              <History size={48} color={COLORS.primary.default} />
-            </View>
-            <Text className="text-5xl font-black tracking-tight text-surface-on">Kết thúc ca</Text>
+            <History size={40} color={COLORS.primary.default} />
+            <Text className="text-4xl font-black text-surface-on">Kết thúc ca</Text>
           </View>
-          <Pressable onPress={() => setVisible(false)} className="rounded-full bg-surface-100 p-5">
-            <X size={40} color={COLORS.surface.onVariant} />
-          </Pressable>
+          <IconButton
+            icon={X}
+            size={32}
+            color={COLORS.surface.onVariant}
+            onPress={() => setVisible(false)}
+          />
         </View>
 
-        <KeyboardAwareScrollView
-          showsVerticalScrollIndicator={false}
-          style={{ maxHeight: screenHeight * 0.75 }}
-          bottomOffset={20}
-        >
-          {/* Thông tin ca */}
-          <View className="mb-12 space-y-8 rounded-[32px] bg-surface-100 p-10">
-            {isLoadingStats ? (
-              <Text className="my-8 text-center text-2xl text-surface-on-variant">
-                Đang tải dữ liệu ca làm việc...
-              </Text>
-            ) : (
-              <View className="flex-row items-center justify-between pt-4">
-                <Text className="text-3xl font-black uppercase tracking-widest text-primary">
-                  Tiền mặt dự kiến:
-                </Text>
-                <Text className="text-6xl font-black text-primary">
-                  {formatCurrency(expectedEndingCash)}
-                </Text>
-              </View>
-            )}
-          </View>
+        <View className="flex-row" style={{ height: screenHeight * 0.75 }}>
+          {/* Left Column: Summary (POS Sidebar Style) */}
+          <View className="w-[480px] justify-between bg-white p-10">
+            <View>
+              <View className="gap-10">
+                <View className="rounded-3xl border border-primary/10 bg-primary/5 p-8">
+                  <Text className="mb-2 text-xl font-black uppercase tracking-widest text-primary/70">
+                    Tiền mặt dự kiến
+                  </Text>
+                  {isLoadingStats ? (
+                    <Shimmer className="h-16 w-full rounded-2xl" />
+                  ) : (
+                    <Text
+                      className="text-6xl font-black tracking-tighter text-primary"
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {formatCurrency(expectedEndingCash)}
+                    </Text>
+                  )}
+                </View>
 
-          {/* Nhập tiền thực tế */}
-          <View className="mb-12">
-            <Text className="mb-6 text-3xl font-black text-surface-on">
-              Số dư tiền mặt thực tế kiểm đếm:
-            </Text>
-            <View className="relative">
-              <ControlledInput
-                control={control}
-                name="actualEndingCash"
-                keyboardType="numeric"
-                className="h-24 rounded-[32px] px-10 pr-20 text-4xl font-black"
-                placeholder="0"
-                formatValue={(val) => {
-                  if (!val) return ''
-                  return formatCurrency(Number(val.toString().replace(/\D/g, '')), {
-                    showSymbol: false,
-                  })
-                }}
-                onChangeText={(text) => {
-                  const numericValue = text.replace(/\D/g, '')
-                  setValue('actualEndingCash', numericValue as any, { shouldValidate: true })
-                }}
-              />
-              <View className="absolute right-[6%] top-[30%]">
-                <Text className="text-4xl font-black text-surface-on-variant">đ</Text>
+                {isDiscrepancy && (
+                  <View className="rounded-3xl border border-error/10 bg-error-container/10 p-8">
+                    <Text className="mb-2 text-xl font-black uppercase tracking-widest text-error">
+                      Chênh lệch
+                    </Text>
+                    <Text
+                      className={`text-6xl font-black ${actualEndingCashNum > expectedEndingCash ? 'text-success' : 'text-error'}`}
+                    >
+                      {actualEndingCashNum > expectedEndingCash ? '+' : ''}
+                      {formatCurrency(actualEndingCashNum - expectedEndingCash)}
+                    </Text>
+                  </View>
+                )}
               </View>
+            </View>
+
+            <View className="rounded-3xl border border-outline-variant/50 bg-surface-100 p-8">
+              <Text className="text-xl font-bold italic leading-relaxed text-muted">
+                * Vui lòng kiểm đếm chính xác số tiền mặt hiện có tại quầy để đảm bảo tính minh bạch
+                của ca làm việc.
+              </Text>
             </View>
           </View>
 
-          {/* Chênh lệch */}
-          {isDiscrepancy && (
-            <View className="mb-12 border-t-2 border-outline-variant pt-10">
-              <View className="mb-8 flex-row items-center justify-between">
-                <Text className="text-3xl font-black uppercase text-surface-on-variant">
-                  Chênh lệch:
-                </Text>
-                <Text
-                  className={`text-5xl font-black ${actualEndingCashNum > expectedEndingCash ? 'text-success' : 'text-error'}`}
-                >
-                  {formatCurrency(actualEndingCashNum - expectedEndingCash)}
-                </Text>
-              </View>
-
-              <Text className="mb-6 text-2xl font-bold uppercase text-surface-on-variant">
-                Chọn lý do chênh lệch:
-              </Text>
-
-              <View className="mb-10 flex-row flex-wrap gap-5">
-                {DISCREPANCY_REASONS.map((reason) => {
-                  const isActive =
-                    (reason === 'Khác' && showManualInput) ||
-                    (!showManualInput && currentReason === reason)
-                  return (
-                    <Chip
-                      key={reason}
-                      label={reason}
-                      active={isActive}
-                      onPress={() => {
-                        if (reason === 'Khác') {
-                          setShowManualInput(true)
-                          setValue('discrepancyReason', '')
-                        } else {
-                          setShowManualInput(false)
-                          setValue('discrepancyReason', reason)
-                        }
+          {/* Right Column: Interaction (Main Content) */}
+          <View className="flex-1 border-l border-outline-variant bg-surface-50 p-10">
+            <KeyboardAwareScrollView showsVerticalScrollIndicator={false} bottomOffset={40}>
+              <View className="gap-12">
+                <View>
+                  <Text className="mb-6 text-2xl font-black uppercase tracking-widest text-surface-on">
+                    Nhập số dư thực tế kiểm đếm:
+                  </Text>
+                  <View className="relative">
+                    <ControlledInput
+                      control={control}
+                      name="actualEndingCash"
+                      keyboardType="numeric"
+                      className="h-32 rounded-3xl border-2 border-outline-variant bg-white px-10 text-7xl font-black text-surface-on"
+                      placeholder="0"
+                      formatValue={(val) => {
+                        if (!val) return ''
+                        return formatCurrency(Number(val.toString().replace(/\D/g, '')), {
+                          showSymbol: false,
+                        })
                       }}
-                      className="h-22 px-10 py-6"
+                      onChangeText={(text) => {
+                        const numericValue = text.replace(/\D/g, '')
+                        setValue('actualEndingCash', numericValue as any, { shouldValidate: true })
+                      }}
                     />
-                  )
-                })}
+                    <View className="absolute right-10 top-[25%]">
+                      <Text className="text-5xl font-black text-muted/30">đ</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {isDiscrepancy && (
+                  <View className="gap-6">
+                    <Text className="text-2xl font-black uppercase tracking-widest text-surface-on">
+                      Lý do chênh lệch:
+                    </Text>
+                    <View className="flex-row flex-wrap gap-4">
+                      {DISCREPANCY_REASONS.map((reason) => {
+                        const isActive =
+                          (reason === 'Khác' && showManualInput) ||
+                          (!showManualInput && currentReason === reason)
+                        return (
+                          <Chip
+                            key={reason}
+                            label={reason}
+                            active={isActive}
+                            onPress={() => {
+                              if (reason === 'Khác') {
+                                setShowManualInput(true)
+                                setValue('discrepancyReason', '')
+                              } else {
+                                setShowManualInput(false)
+                                setValue('discrepancyReason', reason)
+                              }
+                            }}
+                            className="h-18 self-start px-8 py-4"
+                            textClassName="text-xl font-black"
+                          />
+                        )
+                      })}
+                    </View>
+
+                    {showManualInput && (
+                      <ControlledInput
+                        control={control}
+                        name="discrepancyReason"
+                        placeholder="Nhập ghi chú lý do chi tiết..."
+                        multiline
+                        numberOfLines={2}
+                        required
+                        className="rounded-3xl border border-outline-variant bg-white text-2xl font-bold text-surface-on"
+                        textAlignVertical="top"
+                      />
+                    )}
+                  </View>
+                )}
               </View>
+            </KeyboardAwareScrollView>
 
-              {showManualInput && (
-                <ControlledInput
-                  control={control}
-                  name="discrepancyReason"
-                  placeholder="Ghi chú lý do cụ thể..."
-                  multiline
-                  numberOfLines={3}
-                  required
-                  className="rounded-3xl border border-outline-variant bg-surface-50 p-8 text-2xl"
-                />
-              )}
+            {/* Buttons Grouped at Bottom */}
+            <View className="mt-10 flex-row gap-6">
+              <Button
+                label="HỦY BỎ"
+                variant="outline"
+                className="h-24 flex-1 rounded-[32px] border-2"
+                textClassName="text-2xl font-black"
+                onPress={() => setVisible(false)}
+              />
+              <Button
+                label="XÁC NHẬN ĐÓNG CA"
+                variant="error"
+                className="h-24 flex-1 rounded-[32px]"
+                textClassName="text-2xl font-black"
+                loading={isClosing}
+                onPress={handleSubmit(onConfirmClose)}
+              />
             </View>
-          )}
-
-          {/* Button */}
-          <View className="mb-12 flex-row gap-8">
-            <Button
-              label="Quay lại"
-              variant="outline"
-              className="h-24 flex-1 rounded-[32px] border-2"
-              textClassName="text-3xl font-bold"
-              onPress={() => setVisible(false)}
-            />
-            <Button
-              label="XÁC NHẬN ĐÓNG CA"
-              variant="error"
-              className="h-24 flex-1 rounded-[32px]"
-              textClassName="font-black text-3xl"
-              loading={isClosing}
-              onPress={handleSubmit(onConfirmClose)}
-            />
           </View>
-        </KeyboardAwareScrollView>
+        </View>
       </View>
     </ModalBase>
   )
