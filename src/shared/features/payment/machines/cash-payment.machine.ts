@@ -186,6 +186,7 @@ export const cashPaymentMachine = setup({
   states: {
     idle: {
       on: {
+        START: { actions: 'resetContext' },
         SET_AMOUNT: {
           actions: 'setAmount',
         },
