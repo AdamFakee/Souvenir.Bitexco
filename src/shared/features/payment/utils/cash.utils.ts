@@ -9,7 +9,9 @@ export const roundCashAmount = (amount: number): number => {
   return Math.round(amount / 1000) * 1000
 }
 
-const VND_DENOMS = [10_000, 20_000, 50_000, 100_000, 200_000, 500_000]
+const VND_DENOMS = [
+  10_000, 20_000, 50_000, 100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000,
+]
 
 /**
  * Logic gợi ý số tiền khách đưa (Suggestions):
@@ -19,23 +21,29 @@ const VND_DENOMS = [10_000, 20_000, 50_000, 100_000, 200_000, 500_000]
  *
  * Quy tắc:
  * 1. Nếu khách CHƯA NHẬP (typed rỗng):
- *    - Làm tròn lên theo các mệnh giá phổ biến (10k, 20k, 50k, 100k, 200k, 500k).
+ *    - Làm tròn lên theo các mệnh giá phổ biến (10k, 20k, 50k, 100k, 200k, 500k, 1tr, 2tr, 5tr).
  *    - Chỉ gợi ý số tiền LỚN HƠN tổng tiền (không gợi ý đúng số tiền).
- * 2. Nếu khách ĐANG NHẬP SỐ NHỎ (typed < 1000):
- *    - Giả định khách đang nhập số tờ (VD: "7" → 700k, "50" → 500k).
- *    - Gợi ý bằng cách nhân với 1k, 10k, 100k.
+ * 2. Nếu khách ĐANG NHẬP (typed có giá trị):
+ *    - Giả định khách đang nhập số tờ hoặc shortcut (VD: "7" → 700k, "50" → 500k, 5tr, 50tr).
+ *    - Gợi ý bằng cách nhân với các mốc lũy thừa 10 (1k, 10k, 100k, 1tr, 10tr).
  *    - Chặn trên ở 10× amount để tránh gợi ý vô lý.
- * 3. Nếu khách ĐÃ NHẬP SỐ LỚN (typed >= 1000):
- *    - Trả về danh sách rỗng ([]) vì khách đang nhập chính xác số tiền.
  */
 export const getCashSuggestions = (amount: number, typed: string): number[] => {
   if (typed) {
     const typedNum = Number(typed.replace(/\D/g, ''))
 
-    if (typedNum <= 0 || typedNum >= 1000) return []
+    if (typedNum <= 0) return []
 
-    const MAX = amount * 10
-    return [typedNum * 1_000, typedNum * 10_000, typedNum * 100_000]
+    const MAX = Math.max(amount * 100, 10_000_000) // Cho phép gợi ý lên đến 100 lần amount hoặc ít nhất 10tr
+    return [
+      typedNum * 10,
+      typedNum * 100,
+      typedNum * 1_000,
+      typedNum * 10_000,
+      typedNum * 100_000,
+      typedNum * 1_000_000,
+      typedNum * 10_000_000,
+    ]
       .filter((v) => v > amount && v <= MAX)
       .slice(0, 3)
   }
