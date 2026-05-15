@@ -11,67 +11,69 @@ Mọi phản hồi từ Server đều được bọc trong một "Envelope JSON"
   "success": true,
   "status_code": 200,
   "message": "Thông báo thành công/thất bại",
-  "data": null, // Dữ liệu trả về (Object hoặc Array)
+  "data": null,
   "meta": {
-    "timestamp": 1715137347 // Unix timestamp tại server
+    "timestamp": 1715137347000
   },
-  "error": null // Chi tiết lỗi nếu success = false
+  "error": null
 }
 ```
 
-## Cấu trúc Gói tin Đồng bộ (Sync Packets)
+---
 
-Tất cả các API Sync (Pull/Push) đều tuân theo cấu trúc của WatermelonDB Sync Protocol.
+## Kiến trúc Sync
 
-### 1. Pull Changes (Lấy dữ liệu từ Server)
+Mỗi feature có chiến lược sync khác nhau:
 
-Dùng để lấy các thay đổi của một hoặc nhiều bảng kể từ thời điểm `last_pulled_at`.
+| Feature      | Pull (server → client) | Push (client → server) | Ghi chú                              |
+| :----------- | :--------------------: | :--------------------: | :----------------------------------- |
+| **Product**  |           ✅           |           ❌           | Backend quản lý, client chỉ đọc      |
+| **Category** |           ✅           |           ❌           | Backend quản lý, client chỉ đọc      |
+| **Order**    |           ❌           |           ✅           | Client tạo offline, push khi có mạng |
+| **Staff**    |           ❌           |           ❌           | Remote-Only: Login qua API           |
+| **Shift**    |           ❌           |           ❌           | Remote-Only: Open/Close qua API      |
 
-- **Response (`data` field)**: Trả về Object chứa danh sách thay đổi của các bảng (Table Schema).
+### Cấu trúc gói tin Pull (Product & Category)
+
+- **Request**: `GET /api/v1/sync/<feature>?last_pulled_at=<timestamp>`
+- **Response `data`**:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "table_name_1": {
-      "created": [], // Mảng các bản ghi mới
-      "updated": [], // Mảng các bản ghi đã sửa
-      "deleted": []  // Mảng các ID (string) đã xóa
-    },
-    "table_name_2": { ... }
-  },
-  "meta": {
-    "timestamp": 1715137347 // Dùng làm last_pulled_at cho lần Pull sau
+  "table_name": {
+    "created": [],
+    "updated": [],
+    "deleted": []
   }
 }
 ```
 
-### 2. Push Changes (Đẩy dữ liệu lên Server)
+### Cấu trúc gói tin Push (Order)
 
-Dùng để đẩy các thay đổi từ Local lên Server.
-
-- **Request Body**:
+- **Request**: `POST /api/v1/sync/orders`
+- **Body**:
 
 ```json
 {
   "changes": {
-    "table_name_1": {
+    "orders": {
       "created": [],
       "updated": [],
       "deleted": []
-    },
-    "table_name_2": { ... }
+    }
   },
-  "last_pulled_at": 1715137347
+  "last_pulled_at": 1715137347000
 }
 ```
 
+---
+
 ## Danh mục API theo Feature
 
-- [Order & Payments Sync](order.md)
+- [Order — Push Only](order.md)
 - [QR Payment Flow (Online)](payment.md)
-- [Product & Catalog](product.md)
-- [Category](category.md)
-- [Shift Management](shift.md)
-- [Staff Management](staff.md)
+- [Product & Catalog — Pull Only](product.md)
+- [Category — Pull Only](category.md)
+- [Shift Management — Remote Only](shift.md)
+- [Staff / Auth — Remote Only](staff.md)
 - [Voucher Verification (Online)](voucher.md)

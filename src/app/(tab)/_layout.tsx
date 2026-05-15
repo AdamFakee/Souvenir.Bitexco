@@ -1,7 +1,7 @@
 import { Button, Container } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { getRoleLabel, useAuthStore } from '@/shared/features/auth'
-import { CloseShiftModal, CloseShiftModalRef, useObserveActiveShift } from '@/shared/features/shift'
+import { CloseShiftModal, CloseShiftModalRef } from '@/shared/features/shift'
 import { useSync } from '@/shared/lib/database/sync'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
@@ -127,7 +127,7 @@ CustomSidebar.displayName = 'CustomSidebar'
 
 export default function TabLayout() {
   const { session } = useAuthStore()
-  const { shift } = useObserveActiveShift(session?.shiftId)
+
   const closeShiftModalRef = useRef<CloseShiftModalRef>(null)
 
   return (
@@ -148,7 +148,7 @@ export default function TabLayout() {
         </Tabs>
       </View>
 
-      <CloseShiftModal ref={closeShiftModalRef} shift={shift!} />
+      <CloseShiftModal ref={closeShiftModalRef} shiftId={session?.shiftId} />
     </View>
   )
 }

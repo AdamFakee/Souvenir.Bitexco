@@ -1,12 +1,15 @@
 # Order & Payment API
 
-Tài liệu chi tiết về cấu trúc dữ liệu và các Endpoint đồng bộ cho Đơn hàng. Sau khi refactor, toàn bộ dữ liệu Chi tiết đơn hàng (Items) và Thanh toán (Payments) đều được lưu trữ trực tiếp bên trong bảng `orders` dưới dạng JSON Snapshots để tối ưu hóa việc đồng bộ.
+Tài liệu về cấu trúc dữ liệu và Endpoint đồng bộ Đơn hàng.
+
+> **Lưu ý kiến trúc**: Order hoạt động theo mô hình **Push-Only** — Client tạo đơn offline, lưu WatermelonDB, rồi **đẩy lên server** khi có mạng.  
+> Server **không đẩy ngược** dữ liệu đơn hàng xuống client (không có Pull).
+
+---
 
 ## 1. Data Interfaces (Schema)
 
 ### 1.1 OrderRaw (Bảng orders)
-
-Cấu trúc dữ liệu Đơn hàng khớp chính xác với `OrderRaw` interface. Đây là đối tượng duy nhất cần đồng bộ.
 
 | Trường              | Kiểu dữ liệu      | Bắt buộc | Mô tả                                                            |
 | :------------------ | :---------------- | :------: | :--------------------------------------------------------------- |
@@ -31,8 +34,6 @@ Cấu trúc dữ liệu Đơn hàng khớp chính xác với `OrderRaw` interfac
 | `updated_at`        | number            |  Không   | Unix timestamp (ms)                                              |
 
 ### 1.2 Supporting Types (JSON Snapshots)
-
-Dữ liệu snapshot được lưu dưới dạng chuỗi JSON (trong DB local) và mảng Object (khi truyền qua API).
 
 #### A. ItemSnapshot (Chi tiết sản phẩm)
 
@@ -70,65 +71,18 @@ Hỗ trợ thanh toán một phần hoặc hoàn tiền.
 
 ## 2. API Endpoints
 
-### 2.1 Fetch Changes (Pull)
+### 2.1 Push Changes (Push) — Đồng bộ đơn hàng lên server
 
-Lấy danh sách các thay đổi của Đơn hàng từ Server.
-
-- **Method**: `GET`
-- **Path**: `/api/v1/sync/orders`
-
-#### Request Query Parameters
-
-| Tham số          | Kiểu dữ liệu | Bắt buộc | Mô tả                                            |
-| :--------------- | :----------- | :------: | :----------------------------------------------- |
-| `last_pulled_at` | number       |  Không   | Unix timestamp (ms) lần cuối đồng bộ thành công. |
-
-#### Response Data (`IBaseResponse<OrderSyncChanges>`)
-
-Dữ liệu nằm trong trường `data`:
-
-| Trường   | Kiểu dữ liệu                                                      | Mô tả                        |
-| :------- | :---------------------------------------------------------------- | :--------------------------- |
-| `orders` | `{ created: OrderRaw[], updated: OrderRaw[], deleted: string[] }` | Các thay đổi của bảng orders |
-
-**Ví dụ Response:**
-
-```json
-{
-  "success": true,
-  "status_code": 200,
-  "message": "Fetch success",
-  "data": {
-    "orders": {
-      "created": [
-        {
-          "id": "uuid-1",
-          "total": 150000,
-          "items_snapshot": [{ "productId": "p1", "name": "Cà phê sữa", "quantity": 1 }],
-          "payments_snapshot": [{ "method": "CASH", "amount": 150000 }]
-        }
-      ],
-      "updated": [],
-      "deleted": []
-    }
-  },
-  "meta": { "timestamp": 1715137347 },
-  "error": null
-}
-```
-
-### 2.2 Push Changes (Push)
-
-Đẩy dữ liệu thay đổi của Đơn hàng từ Local lên Server.
+Đẩy các đơn hàng mới/cập nhật từ client lên server sau khi thu ngân bán hàng offline.
 
 - **Method**: `POST`
 - **Path**: `/api/v1/sync/orders`
 
-#### Request Body (`PushChangesParams`)
+#### Request Body
 
 | Trường           | Kiểu dữ liệu                                                      | Bắt buộc | Mô tả                                               |
 | :--------------- | :---------------------------------------------------------------- | :------: | :-------------------------------------------------- |
-| `changes`        | object                                                            |    Có    | Đối tượng chứa các thay đổi (`OrderSyncChanges`)    |
+| `changes`        | object                                                            |    Có    | Đối tượng chứa các thay đổi                         |
 | `changes.orders` | `{ created: OrderRaw[], updated: OrderRaw[], deleted: string[] }` |    Có    | Các thay đổi của bảng orders                        |
 | `last_pulled_at` | number                                                            |    Có    | Thời điểm Client thực hiện Pull trước khi Push (ms) |
 
@@ -141,20 +95,25 @@ Dữ liệu nằm trong trường `data`:
       "created": [
         {
           "id": "uuid-pos-001",
+          "shift_id": "shift-uuid",
+          "staff_id": "staff-uuid",
           "status": "COMPLETED",
-          "items_snapshot": [...],
-          "payments_snapshot": [...]
+          "total": 150000,
+          "items_snapshot": [
+            { "productId": "p1", "name": "Cà phê sữa", "quantity": 1, "price": 150000 }
+          ],
+          "payments_snapshot": [{ "method": "CASH", "amount": 150000 }]
         }
       ],
       "updated": [],
       "deleted": []
     }
   },
-  "last_pulled_at": 1715137347
+  "last_pulled_at": 1715137347000
 }
 ```
 
-**Response Structure:**
+**Response:**
 
 ```json
 {
@@ -162,7 +121,13 @@ Dữ liệu nằm trong trường `data`:
   "status_code": 200,
   "message": "Sync success",
   "data": null,
-  "meta": { "timestamp": 1715137347 },
+  "meta": { "timestamp": 1715137347000 },
   "error": null
 }
 ```
+
+> **Lưu ý cho Backend**: Khi nhận `orders.created`, thực hiện bulk insert/upsert. Dữ liệu chi tiết nằm trong `items_snapshot` và `payments_snapshot` dưới dạng JSON — backend có thể parse để lưu vào bảng riêng nếu cần.
+
+---
+
+> **Không có Pull endpoint cho Orders.** Server không đẩy ngược đơn hàng xuống client.

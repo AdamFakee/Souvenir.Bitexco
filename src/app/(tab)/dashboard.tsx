@@ -1,9 +1,7 @@
 import { LoadingIndicator } from '@/shared/components/ui'
 import { useAuthStore } from '@/shared/features/auth'
-import { DashboardCharts } from '@/shared/features/order/components/dashboard-charts'
-import { DashboardStatCard } from '@/shared/features/order/components/dashboard-stat-card'
-import { useDashboardStats } from '@/shared/features/order/hooks/use-dashboard-stats'
-import { useObserveActiveShift } from '@/shared/features/shift'
+import { DashboardCharts, DashboardStatCard, useDashboardStats } from '@/shared/features/order'
+
 import { formatCurrency } from '@/shared/utils'
 import {
   CheckCircle2,
@@ -19,7 +17,7 @@ import { ScrollView, Text, View } from 'react-native'
 
 export default function DashboardScreen() {
   const { session, currentStaff } = useAuthStore()
-  const { shift } = useObserveActiveShift(session?.shiftId)
+
   const { stats, isLoading } = useDashboardStats(session?.shiftId)
 
   if (isLoading) {
@@ -51,7 +49,7 @@ export default function DashboardScreen() {
             <View className="flex-row items-center">
               <Text className="text-2xl font-medium text-surface-on-variant">Bắt đầu ca:</Text>
               <Text className="ml-3 text-2xl font-black text-surface-on">
-                {shift ? new Date(shift.startTime).toLocaleString('vi-VN') : '—'}
+                {session?.loginAt ? new Date(session.loginAt).toLocaleString('vi-VN') : '—'}
               </Text>
             </View>
           </View>

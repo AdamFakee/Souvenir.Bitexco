@@ -1,5 +1,5 @@
 import { OrderStatus } from '@/shared/lib/database'
-import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
+import { FeatureRemoteAPI, PushChangesParams } from '@/shared/lib/database/sync'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
 import { IBaseResponse } from '@/shared/types/api'
 
@@ -41,32 +41,9 @@ export interface OrderSyncChanges {
 }
 
 /**
- * Kiểu dữ liệu phản hồi từ Server cho nghiệp vụ Sync Order (bao gồm Envelope)
- */
-export type OrderSyncResponse = IBaseResponse<OrderSyncChanges>
-
-/**
  * OrderRemoteAPI - Xử lý đồng bộ dữ liệu Đơn hàng với Server
  */
 export const OrderRemoteAPI: FeatureRemoteAPI = {
-  fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<OrderSyncChanges> => {
-    console.log('OrderRemoteAPI: Fetching changes (Pull)...', { lastPulledAt })
-
-    // GIẢ LẬP: Trong thực tế, bạn sẽ lấy từ resp.data của OrderSyncResponse
-    const mockResponse: OrderSyncResponse = {
-      success: true,
-      status_code: 200,
-      message: 'Fetch success',
-      data: {
-        orders: { created: [], updated: [], deleted: [] },
-      },
-      meta: { timestamp: Date.now() },
-      error: null,
-    }
-
-    return mockResponse.data!
-  },
-
   pushChanges: async ({ changes }: PushChangesParams) => {
     // Ép kiểu để có gợi ý code
     const { orders } = changes as unknown as OrderSyncChanges

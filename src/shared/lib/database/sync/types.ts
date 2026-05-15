@@ -17,7 +17,7 @@ export interface FeatureRemoteAPI {
   /**
    * Lấy các thay đổi từ server kể từ thời điểm lastPulledAt
    */
-  fetchChanges: (params: PullChangesParams) => Promise<any>
+  fetchChanges?: (params: PullChangesParams) => Promise<any>
 
   /**
    * Đẩy các thay đổi từ local lên server

@@ -1,6 +1,6 @@
 import type { CartItem } from '@/shared/features/pos/types/cart.types'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
-import { ShiftLocalAPI } from '@/shared/features/shift/api/local/shift.local.api'
+
 import {
   database,
   OrderModel,
@@ -108,8 +108,6 @@ export const OrderLocalAPI = {
    * Chỉ tạo bản ghi OrderModel với đầy đủ Snapshots.
    */
   checkout: async (payload: CheckoutPayload): Promise<OrderModel> => {
-    const shift = await ShiftLocalAPI.getShiftById(payload.shiftId)
-
     // Xây snapshot items
     const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => {
       const taxRate = i.product.taxRate || 0
@@ -142,7 +140,7 @@ export const OrderLocalAPI = {
 
     // 1. Prepare Order
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
-      o.shiftId = shift.id
+      o.shiftId = payload.shiftId
       o.staffId = payload.staffId
       o.status = OrderStatus.COMPLETED
       o.subtotal = payload.subtotal
@@ -160,16 +158,9 @@ export const OrderLocalAPI = {
     // 2. Prepare Stock Updates
     const preparedStockUpdates = await ProductLocalAPI.prepareDeductStock(payload.items)
 
-    // 3. Prepare Shift Update
-    const preparedShiftUpdate = ShiftLocalAPI.prepareUpdateStats(shift, {
-      cashAmount: payload.payment.method === PaymentMethod.CASH ? payload.total : 0,
-      qrAmount: payload.payment.method === PaymentMethod.BANK_TRANSFER ? payload.total : 0,
-      incrementOrderCount: true,
-    })
-
     // 4. Batch transaction
     await database.write(async () => {
-      await database.batch(preparedOrder, ...preparedStockUpdates, preparedShiftUpdate)
+      await database.batch(preparedOrder, ...preparedStockUpdates)
     })
 
     return preparedOrder
@@ -179,8 +170,6 @@ export const OrderLocalAPI = {
    * Tạo đơn hàng local ở trạng thái PENDING cho QR payment.
    */
   createOrderByQr: async (payload: CheckoutPayload): Promise<OrderModel> => {
-    const shift = await ShiftLocalAPI.getShiftById(payload.shiftId)
-
     const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => {
       const taxRate = i.product.taxRate || 0
       const taxAmount = i.price * i.quantity * (taxRate / 100)
@@ -200,7 +189,7 @@ export const OrderLocalAPI = {
     const totalTax = itemsSnapshot.reduce((sum, item) => sum + item.taxAmount, 0)
 
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
-      o.shiftId = shift.id
+      o.shiftId = payload.shiftId
       o.staffId = payload.staffId
       o.status = OrderStatus.PENDING
       o.subtotal = payload.subtotal
@@ -230,8 +219,6 @@ export const OrderLocalAPI = {
     payment: CheckoutPaymentPayload,
   ): Promise<OrderModel> => {
     const order = await database.get<OrderModel>('orders').find(orderId)
-    const shift = await ShiftLocalAPI.getShiftById(order.shiftId)
-
     // 1. Prepare Order update
     const preparedOrderUpdate = order.prepareUpdate((o) => {
       o.status = OrderStatus.COMPLETED
@@ -245,16 +232,9 @@ export const OrderLocalAPI = {
     }))
     const preparedStockUpdates = await ProductLocalAPI.prepareDeductStock(deductStockItems)
 
-    // 3. Prepare Shift Update
-    const preparedShiftUpdate = ShiftLocalAPI.prepareUpdateStats(shift, {
-      cashAmount: payment.method === PaymentMethod.CASH ? order.total : 0,
-      qrAmount: payment.method === PaymentMethod.BANK_TRANSFER ? order.total : 0,
-      incrementOrderCount: true,
-    })
-
     // 4. Batch execution
     await database.write(async () => {
-      await database.batch(preparedOrderUpdate, ...preparedStockUpdates, preparedShiftUpdate)
+      await database.batch(preparedOrderUpdate, ...preparedStockUpdates)
     })
 
     return order

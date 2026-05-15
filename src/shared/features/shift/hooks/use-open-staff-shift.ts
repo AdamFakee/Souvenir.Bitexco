@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { useAuthStore } from '@/shared/features/auth'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
-import { StaffLocalAPI } from '../api'
+import { useState } from 'react'
+import { ShiftRemoteAPI } from '../api/remote/shift.remote.api'
 
 export const useOpenStaffShift = () => {
   const { authenticate, setShiftOpen } = useAuthStore()
@@ -10,13 +10,19 @@ export const useOpenStaffShift = () => {
   const openStaffShift = async (variables: { staffId: string; openingBalance: number }) => {
     setIsLoading(true)
     try {
-      // 1. Mở ca local
-      const shift = await StaffLocalAPI.openStaffShift({
+      // 1. Mở ca online trên Server trước để lấy Shift ID chính chủ
+      const response = await ShiftRemoteAPI.openShift({
         staffId: variables.staffId,
-        openingBalance: variables.openingBalance,
+        startingCash: variables.openingBalance,
       })
 
-      // 2. Kích hoạt đồng bộ dữ liệu ngay sau khi mở ca thành công
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Không thể mở ca trực tuyến')
+      }
+
+      const shiftId = response.data.shiftId
+
+      // 2. Kích hoạt đồng bộ dữ liệu (Pull các thay đổi khác nếu có)
       try {
         await SyncService.performSync()
       } catch (error) {
@@ -25,7 +31,7 @@ export const useOpenStaffShift = () => {
 
       const session = {
         staffId: variables.staffId,
-        shiftId: shift.id,
+        shiftId,
         loginAt: Date.now(),
       }
 

@@ -1,70 +1,78 @@
-import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
-import { ShiftStatus } from '@/shared/lib/database/models/shift'
+import { IBaseResponse } from '@/shared/types/api'
 
-/**
- * ShiftRaw - Cấu trúc dữ liệu Ca làm việc khớp với Backend/Database
- */
-export interface ShiftRaw {
-  id: string
-  staff_id: string
-  device_id: string
-  start_time: number
-  end_time?: number
-  starting_cash: number
-  expected_ending_cash: number
-  actual_ending_cash?: number
-  difference_cash?: number
-  discrepancy_reason?: string
-  cash_revenue: number
-  qr_revenue: number
-  total_orders: number
-  status: ShiftStatus
-  is_deleted: boolean
-  created_at?: number
-  updated_at?: number
+export interface OpenShiftPayload {
+  staffId: string
+  startingCash: number
+  deviceId?: string
+}
+
+export interface OpenShiftResponse {
+  shiftId: string
+}
+
+export interface CloseShiftPayload {
+  shiftId: string
+  actualEndingCash: number
+  discrepancyReason?: string
+}
+
+export interface ShiftStatistics {
+  expectedEndingCash: number
 }
 
 /**
- * ShiftSyncChanges - Cấu trúc các thay đổi của Ca làm việc
+ * ShiftRemoteAPI - Quản lý Ca làm việc với Server (Remote-Only)
  */
-export interface ShiftSyncChanges {
-  shifts: {
-    created: ShiftRaw[]
-    updated: ShiftRaw[]
-    deleted: string[]
-  }
-}
+export const ShiftRemoteAPI = {
+  /**
+   * Mở ca làm việc — nhận về shiftId để lưu vào session
+   */
+  openShift: async (payload: OpenShiftPayload): Promise<IBaseResponse<OpenShiftResponse>> => {
+    console.log('ShiftRemoteAPI: Opening shift online...', payload)
 
-/**
- * ShiftRemoteAPI - Xử lý đồng bộ dữ liệu Ca làm việc với Server
- */
-export const ShiftRemoteAPI: FeatureRemoteAPI = {
-  fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<ShiftSyncChanges> => {
-    console.log('ShiftRemoteAPI: Fetching changes (Pull)...', { lastPulledAt })
-
-    // GIẢ LẬP: Trả về rỗng (Ca làm việc thường được tạo từ Client và Push lên Server)
     return {
-      shifts: { created: [], updated: [], deleted: [] },
+      success: true,
+      status_code: 200,
+      message: 'Mở ca thành công',
+      data: {
+        shiftId: 'mock_shift_' + Date.now(),
+      },
+      meta: { timestamp: Date.now() },
+      error: null,
     }
   },
 
-  pushChanges: async ({ changes }: PushChangesParams) => {
-    // Ép kiểu 'changes' về ShiftSyncChanges để code có gợi ý (Intellisense)
-    const { shifts } = changes as unknown as ShiftSyncChanges
+  /**
+   * Lấy số tiền mặt dự kiến trong ca để đối soát trước khi đóng
+   */
+  getShiftStatistics: async (shiftId: string): Promise<IBaseResponse<ShiftStatistics>> => {
+    console.log('ShiftRemoteAPI: Getting expected cash for shift...', { shiftId })
 
-    if (!shifts) return
+    return {
+      success: true,
+      status_code: 200,
+      message: 'Lấy số tiền dự kiến thành công',
+      data: {
+        expectedEndingCash: 1750000,
+      },
+      meta: { timestamp: Date.now() },
+      error: null,
+    }
+  },
 
-    const { created, updated, deleted } = shifts
+  /**
+   * Đóng ca làm việc
+   */
+  closeShift: async (payload: CloseShiftPayload): Promise<IBaseResponse<null>> => {
+    console.log('ShiftRemoteAPI: Closing shift online...', payload)
 
-    console.log('ShiftRemoteAPI: Pushing changes to server...', {
-      createdCount: created.length,
-      updatedCount: updated.length,
-      deletedCount: deleted.length,
-    })
-
-    // THỰC TẾ: Bạn sẽ gọi API ở đây
-    // if (created.length > 0 || updated.length > 0 || deleted.length > 0) {
-    //   await apiClient.post('/sync/shifts', { created, updated, deleted })
-    // }
+    return {
+      success: true,
+      status_code: 200,
+      message: 'Đóng ca thành công',
+      data: null,
+      meta: { timestamp: Date.now() },
+      error: null,
+    }
   },
 }

@@ -1,42 +1,8 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const schema = appSchema({
-  version: 5,
+  version: 6,
   tables: [
-    tableSchema({
-      name: 'staff',
-      columns: [
-        { name: 'username', type: 'string' },
-        { name: 'fullname', type: 'string' },
-        { name: 'role', type: 'string' },
-        { name: 'password', type: 'string' },
-        { name: 'is_active', type: 'boolean' },
-        { name: 'is_deleted', type: 'boolean' },
-        { name: 'created_at', type: 'number' },
-        { name: 'updated_at', type: 'number' },
-      ],
-    }),
-    tableSchema({
-      name: 'shifts',
-      columns: [
-        { name: 'staff_id', type: 'string', isIndexed: true },
-        { name: 'device_id', type: 'string' },
-        { name: 'start_time', type: 'number' },
-        { name: 'end_time', type: 'number', isOptional: true },
-        { name: 'starting_cash', type: 'number' },
-        { name: 'expected_ending_cash', type: 'number' },
-        { name: 'actual_ending_cash', type: 'number', isOptional: true },
-        { name: 'difference_cash', type: 'number', isOptional: true },
-        { name: 'discrepancy_reason', type: 'string', isOptional: true },
-        { name: 'cash_revenue', type: 'number' },
-        { name: 'qr_revenue', type: 'number' },
-        { name: 'total_orders', type: 'number' },
-        { name: 'status', type: 'string' },
-        { name: 'is_deleted', type: 'boolean' },
-        { name: 'created_at', type: 'number' },
-        { name: 'updated_at', type: 'number' },
-      ],
-    }),
     tableSchema({
       name: 'categories',
       columns: [

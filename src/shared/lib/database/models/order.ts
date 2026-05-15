@@ -1,5 +1,5 @@
-import { Model, Relation } from '@nozbe/watermelondb'
-import { date, field, json, readonly, relation } from '@nozbe/watermelondb/decorators'
+import { Model } from '@nozbe/watermelondb'
+import { date, field, json, readonly } from '@nozbe/watermelondb/decorators'
 import {
   ItemSnapshot,
   PaymentSnapshot,
@@ -8,8 +8,6 @@ import {
   sanitizePaymentsSnapshot,
   sanitizeTaxInfo,
 } from '../types'
-import ShiftModel from './shift'
-import StaffModel from './staff'
 
 export enum OrderStatus {
   /** Đơn hàng đang chờ thanh toán/xử lý */
@@ -24,10 +22,6 @@ export enum OrderStatus {
 
 export default class OrderModel extends Model {
   static table = 'orders'
-  static associations = {
-    shifts: { type: 'belongs_to', key: 'shift_id' },
-    staff: { type: 'belongs_to', key: 'staff_id' },
-  } as const
 
   @field('shift_id') shiftId!: string
   @field('staff_id') staffId!: string
@@ -45,9 +39,6 @@ export default class OrderModel extends Model {
   @json('items_snapshot', sanitizeItemsSnapshot) itemsSnapshot!: ItemSnapshot[]
   @json('payments_snapshot', sanitizePaymentsSnapshot) paymentsSnapshot!: PaymentSnapshot[]
   @field('is_deleted') isDeleted!: boolean
-
-  @relation('shifts', 'shift_id') shift!: Relation<ShiftModel>
-  @relation('staff', 'staff_id') staff!: Relation<StaffModel>
 
   @readonly @date('created_at') createdAt!: Date
   @readonly @date('updated_at') updatedAt!: Date

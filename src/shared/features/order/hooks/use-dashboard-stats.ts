@@ -1,4 +1,10 @@
-import { database, OrderModel, OrderStatus, ProductModel, ShiftModel } from '@/shared/lib/database'
+import {
+  database,
+  OrderModel,
+  OrderStatus,
+  PaymentMethod,
+  ProductModel,
+} from '@/shared/lib/database'
 import { Q } from '@nozbe/watermelondb'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -35,9 +41,8 @@ export const useDashboardStats = (shiftId?: string) => {
     queryFn: async () => {
       if (!shiftId) return INITIAL_STATS
 
-      // 1. Fetch Shift, Orders and Products concurrently
-      const [shift, orders, products] = await Promise.all([
-        database.get<ShiftModel>('shifts').find(shiftId),
+      // 1. Fetch Orders and Products concurrently
+      const [orders, products] = await Promise.all([
         database.get<OrderModel>('orders').query(Q.where('shift_id', shiftId)).fetch(),
         database.get<ProductModel>('products').query().fetch(),
       ])
@@ -48,10 +53,9 @@ export const useDashboardStats = (shiftId?: string) => {
         stockMap[p.id] = p.stock || 0
       })
 
-      // 3. Revenue from Shift (Fast & Accurate)
-      const revCash = shift.cashRevenue || 0
-      const revQr = shift.qrRevenue || 0
-      const totalRevenue = revCash + revQr
+      // 3. Revenue from Orders
+      let revCash = 0
+      let revQr = 0
 
       // 4. Calculate Other Stats from Orders
       const completed = orders.filter((o) => o.status === OrderStatus.COMPLETED)
@@ -66,6 +70,12 @@ export const useDashboardStats = (shiftId?: string) => {
       > = {}
 
       completed.forEach((order) => {
+        // Aggregate revenue
+        order.paymentsSnapshot.forEach((payment) => {
+          if (payment.method === PaymentMethod.CASH) revCash += payment.amount
+          if (payment.method === PaymentMethod.BANK_TRANSFER) revQr += payment.amount
+        })
+
         // Aggregate products from snapshot
         order.itemsSnapshot.forEach((item) => {
           totalProducts += item.quantity
@@ -80,6 +90,8 @@ export const useDashboardStats = (shiftId?: string) => {
           productCounts[item.productId].qty += item.quantity
         })
       })
+
+      const totalRevenue = revCash + revQr
 
       const topProducts = Object.values(productCounts)
         .sort((a, b) => b.qty - a.qty)
@@ -109,12 +121,10 @@ export const useDashboardStats = (shiftId?: string) => {
   useEffect(() => {
     if (!shiftId) return
 
-    // Listen to orders, products, and shifts tables
-    const subscription = database
-      .withChangesForTables(['orders', 'products', 'shifts'])
-      .subscribe(() => {
-        queryClient.invalidateQueries({ queryKey: ['dashboard-stats', shiftId] })
-      })
+    // Listen to orders and products tables
+    const subscription = database.withChangesForTables(['orders', 'products']).subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats', shiftId] })
+    })
 
     return () => subscription.unsubscribe()
   }, [shiftId, queryClient])

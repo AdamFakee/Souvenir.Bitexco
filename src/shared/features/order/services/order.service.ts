@@ -1,7 +1,6 @@
 import { database } from '@/shared/lib/database/database'
 import OrderModel, { OrderStatus } from '@/shared/lib/database/models/order'
 import ProductModel from '@/shared/lib/database/models/product'
-import ShiftModel from '@/shared/lib/database/models/shift'
 import { PaymentMethod } from '@/shared/lib/database/models'
 
 export const OrderService = {
@@ -44,20 +43,6 @@ export const OrderService = {
           p.stock = (p.stock || 0) + item.quantity
         })
       }
-
-      // 3. Cập nhật doanh thu của ca làm việc HIỆN TẠI (Chỉ trừ vào Cash Revenue)
-      const shift = await database.get<ShiftModel>('shifts').find(currentShiftId)
-      if (!shift) {
-        throw new Error(
-          `Không tìm thấy thông tin ca làm việc hiện tại (ID: ${currentShiftId}) để thực hiện hoàn tiền.`,
-        )
-      }
-      await shift.update((s) => {
-        const refundAmount = order.total
-        s.cashRevenue = (s.cashRevenue || 0) - refundAmount
-        s.expectedEndingCash = (s.expectedEndingCash || 0) - refundAmount
-        s.totalOrders = Math.max(0, (s.totalOrders || 0) - 1)
-      })
     })
   },
 }

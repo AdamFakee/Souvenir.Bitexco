@@ -3,7 +3,7 @@ import { toast } from '@/shared/store'
 
 import { ControlledInput } from '@/shared/components/ui/form'
 import { COLORS } from '@/shared/constants'
-import { ShiftModel } from '@/shared/lib'
+
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { History, X } from 'lucide-react-native'
@@ -25,6 +25,8 @@ import {
 } from 'valibot'
 import { useCloseStaffShift } from '../hooks'
 
+import { ShiftRemoteAPI } from '../api/remote/shift.remote.api'
+
 const closeShiftSchema = object({
   actualEndingCash: pipe(
     union([string(), number()]),
@@ -44,7 +46,7 @@ export interface CloseShiftModalRef {
 }
 
 interface CloseShiftModalProps {
-  shift: ShiftModel
+  shiftId?: string
   ref?: React.Ref<CloseShiftModalRef>
 }
 
@@ -58,9 +60,12 @@ const DISCREPANCY_REASONS = [
   'Khác',
 ]
 
-export const CloseShiftModal = ({ shift, ref }: CloseShiftModalProps) => {
+export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
   const [visible, setVisible] = useState(false)
   const [showManualInput, setShowManualInput] = useState(false)
+  const [expectedEndingCash, setExpectedEndingCash] = useState(0)
+  const [isLoadingStats, setIsLoadingStats] = useState(false)
+
   const { closeStaffShift, isLoading: isClosing } = useCloseStaffShift()
   const { height: screenHeight } = useWindowDimensions()
 
@@ -73,30 +78,46 @@ export const CloseShiftModal = ({ shift, ref }: CloseShiftModalProps) => {
   })
 
   useImperativeHandle(ref, () => ({
-    open: () => {
+    open: async () => {
+      if (!shiftId) return
+
       setVisible(true)
       setShowManualInput(false)
       reset({
         actualEndingCash: '',
         discrepancyReason: '',
       })
+
+      // Lấy thông tin thống kê từ Server
+      setIsLoadingStats(true)
+      try {
+        const res = await ShiftRemoteAPI.getShiftStatistics(shiftId)
+        if (res.success && res.data) {
+          setExpectedEndingCash(res.data.expectedEndingCash)
+        }
+      } catch (error) {
+        console.error('Error fetching shift stats:', error)
+        toast.error('Không thể lấy thống kê ca làm việc từ máy chủ')
+      } finally {
+        setIsLoadingStats(false)
+      }
     },
     close: () => setVisible(false),
   }))
 
   const actualValue = watch('actualEndingCash')
   const actualEndingCashNum = Number(actualValue) || 0
-  const expectedEndingCash = shift?.expectedEndingCash ?? 0
   const isDiscrepancy = actualEndingCashNum !== expectedEndingCash
   const currentReason = watch('discrepancyReason')
 
   const onConfirmClose = async (values: CloseShiftInput) => {
+    if (!shiftId) return
     toast.confirm({
       title: 'Xác nhận đóng ca',
       message: 'Bạn có chắc chắn muốn kết thúc ca làm việc không?',
       onConfirm: async () => {
         const data = values as unknown as CloseShiftOutput
-        const success = await closeStaffShift(shift, {
+        const success = await closeStaffShift(shiftId, {
           actualEndingCash: data.actualEndingCash,
           discrepancyReason: data.discrepancyReason,
         })
@@ -107,7 +128,7 @@ export const CloseShiftModal = ({ shift, ref }: CloseShiftModalProps) => {
     })
   }
 
-  if (!shift) return null
+  if (!shiftId) return null
 
   return (
     <ModalBase
@@ -136,17 +157,20 @@ export const CloseShiftModal = ({ shift, ref }: CloseShiftModalProps) => {
         >
           {/* Thông tin ca */}
           <View className="mb-12 space-y-8 rounded-[32px] bg-surface-100 p-10">
-            <Row label="Tiền mặt đầu ca" value={formatCurrency(shift.startingCash)} />
-            <Row label="Doanh thu tiền mặt" value={formatCurrency(shift.cashRevenue)} />
-            <Row label="Doanh thu QRCode" value={formatCurrency(shift.qrRevenue)} />
-            <View className="mt-8 flex-row items-center justify-between border-t-2 border-dashed border-outline-variant pt-10">
-              <Text className="text-3xl font-black uppercase tracking-widest text-primary">
-                Tiền mặt dự kiến:
+            {isLoadingStats ? (
+              <Text className="my-8 text-center text-2xl text-surface-on-variant">
+                Đang tải dữ liệu ca làm việc...
               </Text>
-              <Text className="text-6xl font-black text-primary">
-                {formatCurrency(shift.expectedEndingCash)}
-              </Text>
-            </View>
+            ) : (
+              <View className="flex-row items-center justify-between pt-4">
+                <Text className="text-3xl font-black uppercase tracking-widest text-primary">
+                  Tiền mặt dự kiến:
+                </Text>
+                <Text className="text-6xl font-black text-primary">
+                  {formatCurrency(expectedEndingCash)}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Nhập tiền thực tế */}

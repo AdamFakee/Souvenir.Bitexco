@@ -1,6 +1,5 @@
 export { default as CategoryModel } from './category'
 export { default as OrderModel, OrderStatus } from './order'
 export { default as ProductModel } from './product'
-export { default as StaffModel } from './staff'
-export { default as ShiftModel } from './shift'
+
 export { PaymentMethod } from '../types'

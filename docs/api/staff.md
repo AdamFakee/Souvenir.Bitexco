@@ -1,95 +1,103 @@
 # Staff API
 
-Tài liệu chi tiết về cấu trúc dữ liệu và các Endpoint đồng bộ cho Nhân viên.
+Tài liệu về các Endpoint xác thực và quản lý Nhân viên.
 
-## 1. Data Interface (Schema)
+> **Lưu ý kiến trúc**: Nhân viên hoạt động theo mô hình **Remote-Only** — không lưu local, không sync qua WatermelonDB.  
+> Thông tin nhân viên sau khi đăng nhập được giữ trong bộ nhớ tạm (Zustand Store) cho đến khi đăng xuất.
 
-### Staff (Bảng staff)
+---
 
-Cấu trúc dữ liệu Nhân viên khớp chính xác với `StaffModel` và Schema.
+## 1. Data Interface
 
-| Trường       | Kiểu dữ liệu | Bắt buộc | Mô tả                         |
-| :----------- | :----------- | :------: | :---------------------------- |
-| `id`         | string       |    Có    | UUID nhân viên                |
-| `username`   | string       |    Có    | Tên đăng nhập                 |
-| `fullname`   | string       |    Có    | Họ và tên                     |
-| `role`       | StaffRole    |    Có    | `ADMIN`, `MANAGER`, `CASHIER` |
-| `password`   | string       |    Có    | Mật khẩu (đã hash)            |
-| `is_active`  | boolean      |    Có    | Trạng thái hoạt động          |
-| `is_deleted` | boolean      |    Có    | Cờ xóa                        |
-| `created_at` | number       |    Có    | Unix timestamp                |
-| `updated_at` | number       |    Có    | Unix timestamp                |
+### Staff
+
+| Trường      | Kiểu dữ liệu | Bắt buộc | Mô tả                         |
+| :---------- | :----------- | :------: | :---------------------------- |
+| `id`        | string       |    Có    | UUID nhân viên                |
+| `username`  | string       |    Có    | Tên đăng nhập                 |
+| `fullname`  | string       |    Có    | Họ và tên                     |
+| `role`      | StaffRole    |    Có    | `ADMIN`, `MANAGER`, `CASHIER` |
+| `password`  | string       |    Có    | Mật khẩu (đã hash)            |
+| `isActive`  | boolean      |    Có    | Trạng thái hoạt động          |
+| `isDeleted` | boolean      |    Có    | Cờ xóa                        |
+
+### AuthTokens
+
+| Trường         | Kiểu dữ liệu | Mô tả                                  |
+| :------------- | :----------- | :------------------------------------- |
+| `accessToken`  | string       | JWT dùng cho các request sau đăng nhập |
+| `refreshToken` | string       | Token dùng để làm mới accessToken      |
 
 ---
 
 ## 2. API Endpoints
 
-### 2.1 Fetch Changes (Pull)
+### 2.1 Đăng nhập — Login
 
-Lấy danh sách nhân viên mới hoặc có thay đổi từ Server về Local.
+- **Method**: `POST`
+- **Path**: `/api/v1/auth/login`
 
-- **Method**: `GET`
-- **Path**: `/api/v1/sync/staff`
+#### Request Body (`LoginPayload`)
 
-#### Request Query Parameters
+| Trường     | Kiểu dữ liệu | Bắt buộc | Mô tả         |
+| :--------- | :----------- | :------: | :------------ |
+| `username` | string       |    Có    | Tên đăng nhập |
+| `password` | string       |    Có    | Mật khẩu      |
 
-| Tham số          | Kiểu dữ liệu | Bắt buộc | Mô tả                                            |
-| :--------------- | :----------- | :------: | :----------------------------------------------- |
-| `last_pulled_at` | number       |  Không   | Unix timestamp (ms) lần cuối đồng bộ thành công. |
-
-#### Response Data (`IBaseResponse<StaffSyncChanges>`)
-
-Dữ liệu nằm trong trường `data`:
-
-| Trường  | Kiểu dữ liệu                                                      | Mô tả                       |
-| :------ | :---------------------------------------------------------------- | :-------------------------- |
-| `staff` | `{ created: StaffRaw[], updated: StaffRaw[], deleted: string[] }` | Các thay đổi của bảng staff |
-
-**Ví dụ Response:**
+#### Response (`IBaseResponse<LoginResponse>`)
 
 ```json
 {
   "success": true,
   "status_code": 200,
-  "message": "Fetch success",
+  "message": "Đăng nhập thành công",
   "data": {
+    "tokens": {
+      "accessToken": "eyJ...",
+      "refreshToken": "eyJ..."
+    },
     "staff": {
-      "created": [
-        { "id": "u1", "username": "admin", "fullname": "Admin", "role": "ADMIN", "is_active": true }
-      ],
-      "updated": [],
-      "deleted": []
-    }
+      "id": "staff-uuid",
+      "username": "cashier01",
+      "fullname": "Nguyễn Văn A",
+      "role": "CASHIER",
+      "isActive": true,
+      "isDeleted": false
+    },
+    "currentShiftId": null
   },
-  "meta": { "timestamp": 1715137347 },
+  "meta": { "timestamp": 1715137347000 },
   "error": null
 }
 ```
 
-### 2.2 Push Changes (Push)
+> `currentShiftId` sẽ có giá trị nếu backend xác nhận nhân viên đang trong ca còn mở.
 
-Đẩy dữ liệu nhân viên thay đổi từ Local lên Server (Thường là Read-only trên Client).
+---
+
+### 2.2 Làm mới Token — Refresh Token
 
 - **Method**: `POST`
-- **Path**: `/api/v1/sync/staff`
+- **Path**: `/api/v1/auth/refresh`
 
-#### Request Body (`PushChangesParams`)
+#### Request Body (`RefreshTokenPayload`)
 
-| Trường           | Kiểu dữ liệu                                                      | Bắt buộc | Mô tả                                            |
-| :--------------- | :---------------------------------------------------------------- | :------: | :----------------------------------------------- |
-| `changes`        | object                                                            |    Có    | Đối tượng chứa các thay đổi (`StaffSyncChanges`) |
-| `changes.staff`  | `{ created: StaffRaw[], updated: StaffRaw[], deleted: string[] }` |    Có    | Các thay đổi của bảng staff                      |
-| `last_pulled_at` | number                                                            |    Có    | Thời điểm Client thực hiện Pull trước khi Push   |
+| Trường         | Kiểu dữ liệu | Bắt buộc | Mô tả         |
+| :------------- | :----------- | :------: | :------------ |
+| `refreshToken` | string       |    Có    | Token làm mới |
 
-### 2.3 Get All Staffs
+#### Response (`IBaseResponse<AuthTokens>`)
 
-Lấy toàn bộ danh sách nhân viên (thường dùng cho lần đầu khởi tạo ứng dụng).
-
-- **Method**: `GET`
-- **Path**: `/api/v1/staffs/all`
-
-#### Response Structure (`IBaseResponse<StaffRaw[]>`)
-
-| Trường | Kiểu dữ liệu | Mô tả                       |
-| :----- | :----------- | :-------------------------- |
-| `data` | `StaffRaw[]` | Danh sách toàn bộ nhân viên |
+```json
+{
+  "success": true,
+  "status_code": 200,
+  "message": "Làm mới token thành công",
+  "data": {
+    "accessToken": "eyJ...",
+    "refreshToken": "eyJ..."
+  },
+  "meta": { "timestamp": 1715137347000 },
+  "error": null
+}
+```
