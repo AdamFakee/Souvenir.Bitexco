@@ -4,9 +4,11 @@ import { OrderStatus } from '@/shared/lib/database/models/order'
 import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
-import { Clock, CreditCard, Printer, ShieldCheck, Tag, Trash2, User, X } from 'lucide-react-native'
+import { FlashList } from '@shopify/flash-list'
+import { Printer, Trash2, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { IOrder } from '../types'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { RefundConfirmModal, RefundConfirmModalRef } from './refund-confirm-modal'
@@ -88,268 +90,221 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
       <ModalBase
         visible={visible}
         onClose={() => setVisible(false)}
-        className="h-[80vh] w-[90vw] max-w-[1100px] overflow-hidden rounded-[40px] bg-white shadow-2xl"
+        className="h-full w-full max-w-none rounded-none bg-background"
       >
-        <View className="flex-1 p-10">
-          {/* Custom Header */}
-          <View className="mb-8 flex-row items-center justify-between border-b-2 border-outline-variant pb-6">
+        <SafeAreaView className="flex-1">
+          {/* Header - Simple & Clean */}
+          <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-10 py-6">
             <View className="flex-row items-center gap-4">
-              <Text className="text-4xl font-black tracking-tight text-surface-on">
-                Chi tiết đơn hàng <Text className="text-primary">#{order.id}</Text>
+              <Text className="text-3xl font-black tracking-tight text-surface-on">
+                Chi tiết đơn hàng
               </Text>
             </View>
             <IconButton
               icon={X}
-              size={36}
+              size={32}
               color={COLORS.surface.onVariant}
-              className="rounded-full bg-surface-100 p-2"
               onPress={() => setVisible(false)}
             />
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-            {/* Summary Info Grid */}
-            <View className="mb-8 flex-row flex-wrap gap-4 rounded-[24px] border border-outline-variant bg-[#f8fafc] p-8">
-              <View className="w-[48%] flex-row items-center gap-4">
-                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                  <Clock size={20} color={COLORS.outline.default} />
-                </View>
-                <View>
-                  <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
-                    Thời gian
-                  </Text>
-                  <Text className="text-base font-black text-surface-on">
-                    {order.createdAt.toLocaleString('vi-VN')}
-                  </Text>
-                </View>
-              </View>
-
-              <View className="w-[48%] flex-row items-center gap-4">
-                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                  <User size={20} color={COLORS.outline.default} />
-                </View>
-                <View>
-                  <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
-                    Nhân viên / Ca làm việc
-                  </Text>
-                  <Text className="text-base font-black text-surface-on">
-                    ID: {order.staffId} | Shift: {order.shiftId}
-                  </Text>
-                </View>
-              </View>
-
-              <View className="mt-4 w-[48%] flex-row items-center gap-4">
-                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                  <ShieldCheck size={20} color={COLORS.outline.default} />
-                </View>
-                <View>
-                  <Text className="mb-1 text-xs font-bold uppercase tracking-wider text-muted">
-                    Trạng thái
-                  </Text>
-                  <View
-                    className="self-start rounded-full px-3 py-1"
-                    style={{ backgroundColor: statusBgColors[order.status] }}
-                  >
-                    <Text
-                      className="text-xs font-bold uppercase tracking-wider"
-                      style={{ color: statusColors[order.status] }}
-                    >
-                      {statusLabels[order.status]}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View className="mt-4 w-[48%] flex-row items-center gap-4">
-                <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                  <CreditCard size={20} color={COLORS.outline.default} />
-                </View>
-                <View className="flex-1">
-                  <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
-                    Phương thức thanh toán
-                  </Text>
-                  <View className="mt-1 flex-row flex-wrap gap-2">
-                    {payments.map((p, i) => (
-                      <View key={i} className="rounded-lg bg-primary/10 px-3 py-1">
-                        <Text className="text-sm font-bold text-primary">
-                          {paymentMethodLabels[p.method] || p.method}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
-
-              {order.voucherCode && (
-                <View className="mt-4 w-[48%] flex-row items-center gap-4">
-                  <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                    <Tag size={20} color={COLORS.primary.default} />
-                  </View>
-                  <View>
-                    <Text
-                      className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted"
-                      numberOfLines={1}
-                    >
-                      Voucher
-                    </Text>
-                    <Text className="text-base font-black text-primary" numberOfLines={1}>
-                      {order.voucherCode}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {order.note && (
-                <View className="mt-4 w-full flex-row items-center gap-4 border-t border-dashed border-outline-variant pt-6">
-                  <View className="h-12 w-12 items-center justify-center rounded-full border border-outline-variant bg-white">
-                    <Printer size={20} color={COLORS.outline.default} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-muted">
-                      Ghi chú đơn hàng
-                    </Text>
-                    <Text className="mt-1 text-base font-medium italic text-surface-on">
-                      {order.note}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Calculations Summary - Receipt Style */}
-            <View className="mb-8 rounded-[32px] border border-outline-variant/50 bg-[#f8fafc] p-8">
-              <View className="gap-4">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-medium text-muted">Tạm tính</Text>
-                  <Text className="text-lg font-bold text-surface-on">
-                    {formatCurrency(order.subtotal)}
-                  </Text>
-                </View>
-
-                {order.discount > 0 && (
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-2">
-                      <Text className="text-lg font-medium text-error">Giảm giá</Text>
-                    </View>
-                    <Text className="text-lg font-bold text-error">
-                      -{formatCurrency(order.discount)}
-                    </Text>
-                  </View>
-                )}
-
-                {order.totalTax > 0 && (
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-lg font-medium text-muted">Thuế VAT</Text>
-                    <Text className="text-lg font-bold text-surface-on">
-                      {formatCurrency(order.totalTax)}
-                    </Text>
-                  </View>
-                )}
-
-                <View className="mt-4 flex-row items-center justify-between border-t border-outline-variant pt-6">
-                  <Text className="text-2xl font-black uppercase tracking-tighter text-surface-on">
-                    Tổng thanh toán
-                  </Text>
-                  <Text className="text-4xl font-black text-primary">
-                    {formatCurrency(order.total)}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Items Table - Redesigned for Readability */}
-            <View className="mb-8 overflow-hidden rounded-[32px] border border-outline-variant bg-white">
-              <View className="flex-row bg-[#f1f5f9] px-8 py-5">
-                <Text className="flex-1 text-xs font-black uppercase tracking-widest text-muted">
-                  Chi tiết sản phẩm
+          <View className="flex-1 flex-row">
+            {/* Left Side: Product List (Similar to OrderListSession) */}
+            <View className="flex-[1.6] bg-white">
+              {/* Sticky Table Header */}
+              <View className="flex-row border-b border-outline-variant bg-[#f8fafc] px-10 py-5">
+                <Text className="flex-1 text-sm font-black uppercase tracking-wider text-muted">
+                  Sản phẩm
                 </Text>
-                <Text className="w-20 text-center text-xs font-black uppercase tracking-widest text-muted">
+                <Text className="w-24 text-center text-sm font-black uppercase tracking-wider text-muted">
                   Số lượng
                 </Text>
-                <Text className="w-24 text-center text-xs font-black uppercase tracking-widest text-muted">
-                  Thuế
+                <Text className="w-40 text-center text-sm font-black uppercase tracking-wider text-muted">
+                  Đơn giá
                 </Text>
-                <Text className="w-40 text-right text-xs font-black uppercase tracking-widest text-muted">
+                <Text className="w-48 text-right text-sm font-black uppercase tracking-wider text-muted">
                   Thành tiền
                 </Text>
               </View>
 
-              {items.map((item, index) => (
-                <View
-                  key={index}
-                  className="flex-row border-b border-outline-variant/50 px-8 py-6 last:border-b-0"
-                >
-                  {/* 1. Product Info */}
-                  <View className="flex-1">
-                    <Text className="text-lg font-black text-surface-on">{item.name}</Text>
-                    <Text className="mt-1 text-xs font-bold text-muted">{item.sku}</Text>
-                  </View>
-
-                  {/* 2. Quantity */}
-                  <View className="w-20 items-center justify-center">
-                    <Text className="text-xl font-black text-surface-on">{item.quantity}</Text>
-                  </View>
-
-                  {/* 3. Tax Column */}
-                  <View className="w-24 items-center justify-center">
-                    {item.taxRate > 0 ? (
-                      <View className="rounded-lg bg-surface-100 px-2 py-1">
-                        <Text className="text-sm font-bold text-muted">{item.taxRate}%</Text>
-                      </View>
-                    ) : (
-                      <Text className="text-sm font-bold text-muted/30">—</Text>
-                    )}
-                  </View>
-
-                  {/* 4. Price & Subtotal */}
-                  <View className="w-40 items-end justify-center">
-                    <Text className="text-xl font-black text-primary" numberOfLines={1}>
-                      {formatCurrency(item.subtotal)}
-                    </Text>
-                    <View className="mt-1 flex-row items-center gap-2">
-                      <Text className="text-xs font-medium text-muted" numberOfLines={1}>
-                        {formatCurrency(item.price)}/món
+              <FlashList
+                data={items}
+                keyExtractor={(_, index) => index.toString()}
+                renderItem={({ item, index }) => (
+                  <View
+                    key={index}
+                    className="flex-row items-center border-b border-outline-variant px-10 py-8 active:bg-surface-100"
+                  >
+                    <View className="flex-1">
+                      <Text className="text-2xl font-black text-surface-on">{item.name}</Text>
+                      <Text className="mt-1 text-sm font-bold text-muted/60">{item.sku}</Text>
+                    </View>
+                    <View className="w-24 items-center">
+                      <Text className="text-3xl font-black text-surface-on">{item.quantity}</Text>
+                    </View>
+                    <View className="w-40 items-center">
+                      <Text className="text-xl font-bold text-muted" numberOfLines={1}>
+                        {formatCurrency(item.price)}
+                      </Text>
+                    </View>
+                    <View className="w-48 items-end">
+                      <Text className="text-2xl font-black text-primary" numberOfLines={1}>
+                        {formatCurrency(item.subtotal)}
                       </Text>
                       {item.discountAmount > 0 && (
-                        <Text className="text-xs font-bold text-error" numberOfLines={1}>
-                          (-{formatCurrency(item.discountAmount)})
+                        <Text className="mt-1 text-xs font-bold text-error" numberOfLines={1}>
+                          -{formatCurrency(item.discountAmount)}
                         </Text>
                       )}
                     </View>
                   </View>
-                </View>
-              ))}
+                )}
+              />
             </View>
-          </ScrollView>
-        </View>
 
-        <View className="flex-row items-center justify-between rounded-b-[40px] border-t border-outline-variant bg-[#f8fafc] p-8">
-          <Button
-            label={order.status === OrderStatus.REFUNDED ? 'Đã hoàn tiền' : 'Trả hàng'}
-            variant="outline"
-            leftIcon={Trash2}
-            className="rounded-2xl border-error/30 bg-white"
-            textClassName="text-error font-bold"
-            disabled={!order.canReturn && order.status !== OrderStatus.COMPLETED}
-            onPress={() => {
-              refundModalRef.current?.open(order)
-              setVisible(false)
-            }}
-          />
-          <Button
-            label="In lại hóa đơn"
-            leftIcon={Printer}
-            className="h-16 rounded-2xl px-10"
-            textClassName="text-xl font-black"
-            onPress={handlePrint}
-          />
-        </View>
+            {/* Right Side: Order Summary (Similar to CheckoutPanel) */}
+            <View className="flex-1 border-l border-outline-variant bg-surface-50 p-10">
+              <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+                <Text className="mb-8 text-2xl font-black uppercase tracking-widest text-surface-on">
+                  Thông tin đơn hàng
+                </Text>
+
+                {/* Summary Grid - Simple Rows */}
+                <View className="gap-5">
+                  <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
+                    <Text className="text-lg font-bold text-muted">Mã đơn hàng</Text>
+                    <Text className="text-lg font-black text-primary">#{order.id}</Text>
+                  </View>
+                  <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
+                    <Text className="text-lg font-bold text-muted">Trạng thái</Text>
+                    <View
+                      className="rounded-full px-4 py-1"
+                      style={{ backgroundColor: statusBgColors[order.status] }}
+                    >
+                      <Text
+                        className="text-base font-black uppercase tracking-widest"
+                        style={{ color: statusColors[order.status] }}
+                      >
+                        {statusLabels[order.status]}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
+                    <Text className="text-lg font-bold text-muted">Thời gian</Text>
+                    <Text className="text-lg font-black text-surface-on">
+                      {order.createdAt.toLocaleString('vi-VN')}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
+                    <Text className="text-lg font-bold text-muted">Mã nhân viên</Text>
+                    <Text className="text-lg font-black text-surface-on">{order.staffId}</Text>
+                  </View>
+
+                  <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
+                    <Text className="text-lg font-bold text-muted">Mã ca làm việc</Text>
+                    <Text className="text-lg font-black text-surface-on">{order.shiftId}</Text>
+                  </View>
+
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-lg font-bold text-muted">Phương thức</Text>
+                    <View className="flex-row gap-2">
+                      {payments.map((p, i) => (
+                        <Text key={i} className="text-lg font-black text-primary">
+                          {paymentMethodLabels[p.method] || p.method}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+
+                  {order.voucherCode && (
+                    <View className="mt-5 flex-row items-center justify-between">
+                      <Text className="text-lg font-bold text-muted">Voucher</Text>
+                      <Text className="text-lg font-black uppercase text-primary">
+                        {order.voucherCode}
+                      </Text>
+                    </View>
+                  )}
+
+                  {order.note && (
+                    <View className="mt-2">
+                      <Text className="text-lg font-bold text-muted">Ghi chú</Text>
+                      <Text className="mt-2 text-lg italic leading-relaxed text-surface-on">
+                        {order.note}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Totals Section - Similar to CheckoutPanel summary */}
+                <View className="mt-12 gap-5 border-t-2 border-outline-variant pt-8">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-xl font-bold text-muted">Tạm tính</Text>
+                    <Text className="text-2xl font-black text-surface-on" numberOfLines={1}>
+                      {formatCurrency(order.subtotal)}
+                    </Text>
+                  </View>
+
+                  {order.discount > 0 && (
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-xl font-bold text-error">Giảm giá</Text>
+                      <Text className="text-2xl font-black text-error" numberOfLines={1}>
+                        -{formatCurrency(order.discount)}
+                      </Text>
+                    </View>
+                  )}
+
+                  {order.totalTax > 0 && (
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-xl font-bold text-muted">Thuế VAT</Text>
+                      <Text className="text-2xl font-black text-surface-on" numberOfLines={1}>
+                        {formatCurrency(order.totalTax)}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View className="mt-4 flex-row items-center justify-between border-t-2 border-outline-variant pt-6">
+                    <Text className="text-2xl font-black uppercase tracking-tighter text-surface-on">
+                      Tổng thanh toán
+                    </Text>
+                    <Text className="text-6xl font-black text-primary">
+                      {formatCurrency(order.total)}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Action Buttons - POS Style */}
+              <View className="mt-10 flex-row justify-end gap-6">
+                <Button
+                  label={order.status === OrderStatus.REFUNDED ? 'Đã hoàn tiền' : 'Trả hàng'}
+                  variant="outline"
+                  leftIcon={Trash2}
+                  className="h-16 rounded-2xl border-error/30 bg-white px-8"
+                  textClassName="text-xl text-error font-black"
+                  disabled={!order.canReturn && order.status !== OrderStatus.COMPLETED}
+                  onPress={() => {
+                    refundModalRef.current?.open(order)
+                    setVisible(false)
+                  }}
+                />
+                <Button
+                  label="In hóa đơn"
+                  leftIcon={Printer}
+                  className="h-16 rounded-2xl px-12"
+                  textClassName="text-xl font-black"
+                  onPress={handlePrint}
+                />
+              </View>
+            </View>
+          </View>
+        </SafeAreaView>
       </ModalBase>
 
       <RefundConfirmModal
         ref={refundModalRef}
         onSuccess={() => {
-          // Khi hoàn tiền thành công, đóng modal chi tiết hoặc load lại data nếu cần
           setVisible(false)
         }}
       />
