@@ -1,15 +1,14 @@
 import { Button, Chip, IconButton, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { useAuthStore } from '@/shared/features/auth/store/use-auth-store'
-import { OrderModel } from '@/shared/lib'
-import { IOrder } from '../types'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
+import { useMachine } from '@xstate/react'
 import { AlertCircle, X } from 'lucide-react-native'
-import React, { useImperativeHandle, useState } from 'react'
+import React, { useEffect, useImperativeHandle, useState } from 'react'
 import { ScrollView, Text, TextInput, View } from 'react-native'
-import { OrderService } from '../services/order.service'
-import { database } from '@/shared/lib/database'
+import { refundOrderMachine } from '../machines/refund-order.machine'
+import { IOrder } from '../types'
 
 export interface RefundConfirmModalRef {
   open: (order: IOrder) => void
@@ -24,25 +23,39 @@ interface RefundConfirmModalProps {
 
 export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, RefundConfirmModalProps>(
   ({ onSuccess }, ref) => {
+    const [state, send] = useMachine(refundOrderMachine)
     const [visible, setVisible] = useState(false)
-    const [order, setOrder] = useState<IOrder | null>(null)
-    const [reason, setReason] = useState('')
-    const [loading, setLoading] = useState(false)
+
+    const { order, reason } = state.context
+    const isLoading = state.matches('refunding')
 
     useImperativeHandle(ref, () => ({
       open: (o: IOrder) => {
-        setOrder(o)
-        setReason('')
+        const shiftId = useAuthStore.getState().session?.shiftId || ''
+        send({ type: 'START', order: o, shiftId })
         setVisible(true)
       },
-      close: () => setVisible(false),
+      close: () => {
+        if (isLoading) return
+        setVisible(false)
+        send({ type: 'RESET' })
+      },
     }))
 
-    const currentShiftId = useAuthStore.getState().session?.shiftId
+    // Close modal on success
+    useEffect(() => {
+      if (state.matches('success')) {
+        setVisible(false)
+        onSuccess?.()
+        // Đợi modal đóng hẳn rồi mới reset machine để tránh UI giật (nếu có dùng data từ context)
+        const timer = setTimeout(() => send({ type: 'RESET' }), 300)
+        return () => clearTimeout(timer)
+      }
+    }, [state.value, onSuccess, send])
 
-    const handleConfirm = async () => {
+    const handleConfirm = () => {
       if (!order) return
-      if (!currentShiftId) {
+      if (!state.context.shiftId) {
         toast.error('Không tìm thấy ca làm việc hiện tại. Vui lòng kiểm tra lại trạng thái ca.')
         return
       }
@@ -50,20 +63,8 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
       toast.confirm({
         title: 'Xác nhận hoàn tiền',
         message: `Bạn có chắc chắn muốn hoàn tiền ${formatCurrency(order.total)} cho đơn hàng #${order.id} không?`,
-        onConfirm: async () => {
-          setLoading(true)
-          try {
-            const localOrder = await database.get<OrderModel>('orders').find(order.id)
-            await OrderService.refundOrder(localOrder, reason, currentShiftId)
-            toast.success(`Đã hoàn tiền ${formatCurrency(order.total)} cho đơn hàng #${order.id}`)
-            setVisible(false)
-            onSuccess?.()
-          } catch (error: any) {
-            toast.error(error.message || 'Có lỗi xảy ra khi thực hiện hoàn tiền.')
-          } finally {
-            setLoading(true)
-            setLoading(false)
-          }
+        onConfirm: () => {
+          send({ type: 'SUBMIT' })
         },
       })
     }
@@ -73,10 +74,17 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
     // Tính tổng số lượng món hàng trong snapshot
     const itemCount = order.itemsSnapshot?.reduce((acc, item) => acc + item.quantity, 0) || 0
 
+    const handleClose = () => {
+      if (isLoading) return
+      setVisible(false)
+      send({ type: 'RESET' })
+    }
+
     return (
       <ModalBase
         visible={visible}
-        onClose={() => setVisible(false)}
+        onClose={handleClose}
+        dismissible={!isLoading}
         className="w-[850px] rounded-[40px] bg-white shadow-2xl"
       >
         <View className="p-12">
@@ -90,7 +98,8 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
               size={40}
               color={COLORS.surface.onVariant}
               className="rounded-full bg-surface-100 p-3"
-              onPress={() => setVisible(false)}
+              onPress={handleClose}
+              disabled={isLoading}
             />
           </View>
 
@@ -165,7 +174,7 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
                   key={r}
                   label={r}
                   active={reason === r}
-                  onPress={() => setReason(r)}
+                  onPress={() => send({ type: 'SET_REASON', reason: r })}
                   className="h-16 px-8 py-4"
                 />
               ))}
@@ -176,10 +185,11 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
               numberOfLines={2}
               placeholder="Hoặc nhập lý do khác..."
               value={reason}
-              onChangeText={setReason}
+              onChangeText={(text) => send({ type: 'SET_REASON', reason: text })}
               className="h-24 rounded-[24px] border-2 border-outline-variant bg-white px-6 py-4 text-2xl font-medium text-surface-on"
               textAlignVertical="top"
               placeholderTextColor={COLORS.muted}
+              editable={!isLoading}
             />
           </View>
 
@@ -189,14 +199,15 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
               label="Hủy bỏ"
               variant="outline"
               className="flex-1"
-              onPress={() => setVisible(false)}
+              onPress={handleClose}
+              disabled={isLoading}
             />
             <Button
               label="XÁC NHẬN HOÀN TIỀN"
               variant="error"
               className="flex-1"
               onPress={handleConfirm}
-              loading={loading}
+              loading={isLoading}
             />
           </View>
         </View>

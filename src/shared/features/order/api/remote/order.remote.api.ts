@@ -47,6 +47,15 @@ export interface GetRemoteOrdersParams {
 }
 
 /**
+ * Tham số hoàn tiền đơn hàng
+ */
+export interface RefundOrderParams {
+  orderId: string
+  reason: string
+  shiftId: string
+}
+
+/**
  * OrderSyncChanges
  */
 export interface OrderSyncChanges {
@@ -154,6 +163,35 @@ export const OrderRemoteAPI = {
         hasNextPage: page < totalPages,
         timestamp: Date.now(),
       },
+      error: null,
+    }
+  },
+
+  /**
+   * Hoàn tiền đơn hàng (Remote API)
+   * Thao tác này sẽ thực hiện trực tiếp trên Server.
+   */
+  refundOrder: async (params: RefundOrderParams): Promise<IBaseResponse<null>> => {
+    const { orderId, reason, shiftId } = params
+
+    // Giả lập độ trễ mạng
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    console.log('OrderRemoteAPI: Refunding order...', { orderId, reason, shiftId })
+
+    // GIẢ LẬP GỌI API THẬT:
+    // const response = await apiClient.post<IBaseResponse<null>>(`/orders/${orderId}/refund`, {
+    //   reason,
+    //   shift_id: shiftId
+    // })
+    // return response
+
+    return {
+      success: true,
+      status_code: 200,
+      message: 'Hoàn tiền đơn hàng thành công',
+      data: null,
+      meta: null,
       error: null,
     }
   },
