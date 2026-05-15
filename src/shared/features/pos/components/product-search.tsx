@@ -1,11 +1,12 @@
-import { EmptyState, LoadMore, Shimmer } from '@/shared/components/ui'
+import { EmptyState, IconButton, LoadMore, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { ProductModel } from '@/shared/lib/database/models'
 import { formatCurrency } from '@/shared/utils'
-import { Search, SearchX } from 'lucide-react-native'
+import { Search, SearchX, X } from 'lucide-react-native'
 import React, { useState } from 'react'
-import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import { useActiveCart, usePosActor, useProductSearch } from '../hooks'
+import { Keyboard, Pressable, Text, TextInput, View } from 'react-native'
+import { FlatList } from 'react-native-gesture-handler'
+import { usePosActor, useProductSearch } from '../hooks'
 
 export function ProductSearch() {
   const posActor = usePosActor()
@@ -18,12 +19,38 @@ export function ProductSearch() {
     Keyboard.dismiss()
   }
 
+  const handleClear = () => {
+    setSearchText('')
+    Keyboard.dismiss()
+  }
+
+  const renderProductItem = ({ item: p }: { item: ProductModel }) => (
+    <Pressable
+      key={p.id}
+      onPress={() => handleSelectItem(p)}
+      className="flex-row items-center justify-between border-b border-surface-200 px-10 py-8 active:bg-surface-100"
+    >
+      <View className="flex-1">
+        <Text className="text-2xl font-black text-surface-on">{p.nameVi}</Text>
+        <Text className="mt-1 text-lg font-bold text-surface-on-variant">{p.sku}</Text>
+      </View>
+      <View className="items-end">
+        <Text className="text-2xl font-black text-primary" numberOfLines={1}>
+          {formatCurrency(p.price)}
+        </Text>
+        <Text className="mt-1 text-base font-bold text-surface-on-variant">
+          Kho: {p.stock} {p.unit}
+        </Text>
+      </View>
+    </Pressable>
+  )
+
   return (
     <View className="relative z-20 flex-1">
-      <View className="h-18 flex-row items-center rounded-full border border-outline-variant bg-[#f1f5f9] px-8 focus:border-primary">
-        <Search size={28} color={COLORS.outline.variant} />
+      <View className="h-22 flex-row items-center rounded-3xl border border-outline-variant bg-[#f1f5f9] px-10 focus:border-primary">
+        <Search size={32} color={COLORS.outline.variant} />
         <TextInput
-          className="ml-5 flex-1 text-xl font-bold text-surface-on"
+          className="ml-6 flex-1 text-2xl font-bold text-surface-on"
           placeholder="Tìm tên sản phẩm hoặc SKU..."
           placeholderTextColor="#94a3b8"
           value={searchText}
@@ -31,65 +58,74 @@ export function ProductSearch() {
           autoCorrect={false}
           autoCapitalize="none"
         />
+        {searchText.length > 0 && (
+          <IconButton
+            icon={X}
+            size={28}
+            onPress={handleClear}
+            className="ml-4 h-14 w-14 rounded-2xl"
+            color={COLORS.error.default}
+          />
+        )}
       </View>
 
       {/* Search Autocomplete / Loading */}
       {searchText.trim().length > 0 && (
-        <View
-          className="absolute left-0 right-0 top-full z-[999] mt-2 rounded-2xl border border-outline-variant bg-surface-50 shadow-2xl "
-          style={{ maxHeight: 400, elevation: 10 }}
-        >
-          {isLoading ? (
-            <View className="p-2">
-              {[1, 2, 3].map((i) => (
-                <View key={i} className="flex-row items-center justify-between p-4">
-                  <View className="flex-1">
-                    <Shimmer className="h-6 w-48 rounded-lg" />
-                    <Shimmer className="mt-2 h-4 w-32 rounded-lg" />
+        <>
+          {/* Backdrop to close when clicking outside */}
+          <Pressable
+            style={{
+              position: 'absolute',
+              top: -500,
+              left: -500,
+              right: -1500,
+              bottom: -1500,
+            }}
+            onPress={() => {
+              setSearchText('')
+              Keyboard.dismiss()
+            }}
+          />
+
+          <View
+            className="absolute left-0 right-0 top-full z-[999] mt-2 overflow-hidden rounded-[32px] border border-outline-variant bg-surface-50 shadow-2xl"
+            style={{ maxHeight: 650, elevation: 25 }}
+          >
+            {isLoading ? (
+              <View className="p-2">
+                {[1, 2, 3].map((i) => (
+                  <View key={i} className="flex-row items-center justify-between p-4">
+                    <View className="flex-1">
+                      <Shimmer className="h-6 w-48 rounded-lg" />
+                      <Shimmer className="mt-2 h-4 w-32 rounded-lg" />
+                    </View>
+                    <Shimmer className="h-6 w-24 rounded-lg" />
                   </View>
-                  <Shimmer className="h-6 w-24 rounded-lg" />
-                </View>
-              ))}
-            </View>
-          ) : products.length === 0 ? (
-            <EmptyState
-              title="Không tìm thấy sản phẩm"
-              description={`Không tìm thấy kết quả cho "${searchText}"`}
-              icon={SearchX}
-              className="py-10"
-            />
-          ) : (
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled={true}
-              onScrollEndDrag={loadMore} // hoặc bỏ nếu không cần load more
-            >
-              {products.map((p) => (
-                <Pressable
-                  key={p.id}
-                  onPress={() => handleSelectItem(p)}
-                  className="flex-row items-center justify-between border-b border-surface-200 px-8 py-6 active:bg-surface-100"
-                >
-                  <View className="flex-1">
-                    <Text className="text-xl font-black text-surface-on">{p.nameVi}</Text>
-                    <Text className="mt-1 text-base font-bold text-surface-on-variant">
-                      {p.sku}
-                    </Text>
-                  </View>
-                  <View className="items-end">
-                    <Text className="text-xl font-black text-primary">
-                      {formatCurrency(p.price)}
-                    </Text>
-                    <Text className="mt-1 text-sm font-bold text-surface-on-variant">
-                      Kho: {p.stock} {p.unit}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-              {isFetchingNextPage && <LoadMore isLoading />}
-            </ScrollView>
-          )}
-        </View>
+                ))}
+              </View>
+            ) : products.length === 0 ? (
+              <EmptyState
+                title="Không tìm thấy sản phẩm"
+                description={`Không tìm thấy kết quả cho "${searchText}"`}
+                icon={SearchX}
+                className="py-10"
+              />
+            ) : (
+              <FlatList
+                data={products}
+                renderItem={renderProductItem}
+                keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+                onEndReached={loadMore}
+                onEndReachedThreshold={0.3}
+                ListFooterComponent={isFetchingNextPage ? <LoadMore isLoading /> : null}
+                contentContainerStyle={{ flexGrow: 1 }}
+                showsVerticalScrollIndicator={true}
+              />
+            )}
+          </View>
+        </>
       )}
     </View>
   )

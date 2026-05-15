@@ -1,8 +1,6 @@
-import { StaffRemoteAPI } from '@/shared/features/auth'
 import { CategoryRemoteAPI } from '@/shared/features/category'
 import { OrderRemoteAPI } from '@/shared/features/order'
 import { ProductRemoteAPI } from '@/shared/features/product'
-import { ShiftRemoteAPI } from '@/shared/features/shift'
 import { SyncDatabaseChangeSet, synchronize } from '@nozbe/watermelondb/sync'
 import { database } from '../database'
 
@@ -19,20 +17,15 @@ export const SyncService = {
           const timestamp = lastPulledAt ?? null
 
           // Luôn luôn lấy đầy đủ thay đổi của tất cả feature
-          const [product, category, order, shift, staff] = await Promise.all([
-            ProductRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
-            CategoryRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
-            OrderRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
-            ShiftRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
-            StaffRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
+          const [product, category] = await Promise.all([
+            ProductRemoteAPI.fetchChanges!({ lastPulledAt: timestamp }),
+            CategoryRemoteAPI.fetchChanges!({ lastPulledAt: timestamp }),
+            // Orders chỉ push, không pull
           ])
 
           const changes: SyncDatabaseChangeSet = {
             ...product,
             ...category,
-            ...order,
-            ...shift,
-            ...staff,
           }
 
           return { changes, timestamp: Date.now() }
@@ -40,14 +33,8 @@ export const SyncService = {
         pushChanges: async ({ changes, lastPulledAt }) => {
           const timestamp = lastPulledAt ?? null
 
-          // Đẩy tất cả thay đổi local lên server
-          await Promise.all([
-            ProductRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp }),
-            CategoryRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp }),
-            OrderRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp }),
-            ShiftRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp }),
-            StaffRemoteAPI.pushChanges(),
-          ])
+          // Product & Category: Backend tự xử lý, chỉ cần push Orders
+          await OrderRemoteAPI.pushChanges({ changes, lastPulledAt: timestamp })
         },
       })
     } catch (error) {

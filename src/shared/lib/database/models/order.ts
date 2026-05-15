@@ -1,5 +1,5 @@
-import { Model, Relation, Query } from '@nozbe/watermelondb'
-import { date, field, readonly, relation, children, json } from '@nozbe/watermelondb/decorators'
+import { Model } from '@nozbe/watermelondb'
+import { date, field, json, readonly } from '@nozbe/watermelondb/decorators'
 import {
   ItemSnapshot,
   PaymentSnapshot,
@@ -8,12 +8,10 @@ import {
   sanitizePaymentsSnapshot,
   sanitizeTaxInfo,
 } from '../types'
-import StaffModel from './staff'
-import ShiftModel from './shift'
-import OrderItemModel from './order_item'
-import PaymentModel from './payment'
 
 export enum OrderStatus {
+  /** Đơn hàng đang chờ thanh toán/xử lý */
+  PENDING = 'PENDING',
   /** Đơn hàng bán mới thành công (Doanh thu Dương) */
   COMPLETED = 'COMPLETED',
   /** Đơn hàng đổi trả/hoàn tiền (Bút toán Doanh thu Âm) */
@@ -24,12 +22,6 @@ export enum OrderStatus {
 
 export default class OrderModel extends Model {
   static table = 'orders'
-  static associations = {
-    shifts: { type: 'belongs_to', key: 'shift_id' },
-    staff: { type: 'belongs_to', key: 'staff_id' },
-    order_items: { type: 'has_many', foreignKey: 'order_id' },
-    payments: { type: 'has_many', foreignKey: 'order_id' },
-  } as const
 
   @field('shift_id') shiftId!: string
   @field('staff_id') staffId!: string
@@ -47,11 +39,6 @@ export default class OrderModel extends Model {
   @json('items_snapshot', sanitizeItemsSnapshot) itemsSnapshot!: ItemSnapshot[]
   @json('payments_snapshot', sanitizePaymentsSnapshot) paymentsSnapshot!: PaymentSnapshot[]
   @field('is_deleted') isDeleted!: boolean
-
-  @relation('shifts', 'shift_id') shift!: Relation<ShiftModel>
-  @relation('staff', 'staff_id') staff!: Relation<StaffModel>
-  @children('order_items') orderItems!: Query<OrderItemModel>
-  @children('payments') payments!: Query<PaymentModel>
 
   @readonly @date('created_at') createdAt!: Date
   @readonly @date('updated_at') updatedAt!: Date

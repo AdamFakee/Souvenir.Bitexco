@@ -1,10 +1,11 @@
-import { OrderStatus } from '@/shared/lib/database/models/order'
-import { PaymentMethod } from '@/shared/lib/database/models/payment'
-import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
+import { OrderStatus } from '@/shared/lib/database'
+import { FeatureRemoteAPI, PushChangesParams } from '@/shared/lib/database/sync'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
+import { IBaseResponse } from '@/shared/types/api'
 
 /**
- * OrderRaw - Cấu trúc dữ liệu Đơn hàng khớp với Backend/Database
+ * OrderRaw - Cấu trúc dữ liệu Đơn hàng khớp với Backend/Database.
+ * Bao gồm cả items và payments snapshots.
  */
 export interface OrderRaw {
   id: string
@@ -29,59 +30,12 @@ export interface OrderRaw {
 }
 
 /**
- * OrderItemRaw - Cấu trúc dữ liệu Chi tiết đơn hàng
- */
-export interface OrderItemRaw {
-  id: string
-  order_id: string
-  product_id: string
-  product_name_snapshot: string
-  price_snapshot: number
-  quantity: number
-  refunded_quantity: number
-  subtotal: number
-  tax_rate_snapshot: number
-  tax_amount: number
-  discount_amount: number
-  is_deleted: boolean
-  created_at?: number
-  updated_at?: number
-}
-
-/**
- * PaymentRaw - Cấu trúc dữ liệu Thanh toán
- */
-export interface PaymentRaw {
-  id: string
-  order_id: string
-  method: PaymentMethod
-  amount: number
-  cash_tendered?: number
-  cash_change?: number
-  reference_code?: string
-  card_type?: string
-  is_deleted: boolean
-  created_at?: number
-  updated_at?: number
-}
-
-/**
- * OrderSyncChanges - Cấu trúc các thay đổi của Đơn hàng và các bảng liên quan
+ * OrderSyncChanges - Chỉ còn duy nhất bảng orders vì items/payments đã được gộp vào snapshot.
  */
 export interface OrderSyncChanges {
   orders: {
     created: OrderRaw[]
     updated: OrderRaw[]
-    deleted: string[]
-  }
-  order_items: {
-    created: OrderItemRaw[]
-    updated: OrderItemRaw[]
-    deleted: string[]
-  }
-  payments: {
-    created: PaymentRaw[]
-    updated: PaymentRaw[]
     deleted: string[]
   }
 }
@@ -90,49 +44,36 @@ export interface OrderSyncChanges {
  * OrderRemoteAPI - Xử lý đồng bộ dữ liệu Đơn hàng với Server
  */
 export const OrderRemoteAPI: FeatureRemoteAPI = {
-  fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<OrderSyncChanges> => {
-    console.log('OrderRemoteAPI: Fetching changes (Pull)...', { lastPulledAt })
-
-    // GIẢ LẬP: Trả về rỗng (Đơn hàng thường được tạo từ Client và Push lên Server)
-    return {
-      orders: { created: [], updated: [], deleted: [] },
-      order_items: { created: [], updated: [], deleted: [] },
-      payments: { created: [], updated: [], deleted: [] },
-    }
-  },
-
   pushChanges: async ({ changes }: PushChangesParams) => {
-    // Ép kiểu 'changes' về OrderSyncChanges để code có gợi ý (Intellisense)
-    const { orders, order_items, payments } = changes as unknown as OrderSyncChanges
+    // Ép kiểu để có gợi ý code
+    const { orders } = changes as unknown as OrderSyncChanges
 
     if (orders) {
-      console.log('OrderRemoteAPI: Pushing orders...', {
+      console.log('OrderRemoteAPI: Pushing orders (with nested snapshots)...', {
         created: orders.created.length,
         updated: orders.updated.length,
         deleted: orders.deleted.length,
       })
-      console.log('--- Orders Detail ---', orders)
-    }
 
-    if (order_items) {
-      console.log('OrderRemoteAPI: Pushing order items...', {
-        created: order_items.created.length,
-        updated: order_items.updated.length,
-        deleted: order_items.deleted.length,
-      })
-      console.log('--- Order Items Detail ---', order_items)
-    }
+      /**
+       * LƯU Ý CHO BACKEND:
+       * 1. Nhận mảng 'orders.created' và thực hiện bulk insert/upsert.
+       * 2. Dữ liệu chi tiết nằm trong 'items_snapshot' và 'payments_snapshot' (JSON).
+       * 3. Backend có thể chủ động parse JSON này để lưu vào bảng riêng ở Server nếu cần,
+       *    hoặc lưu nguyên JSON nếu DB Server hỗ trợ (như PostgreSQL/MongoDB).
+       */
 
-    if (payments) {
-      console.log('OrderRemoteAPI: Pushing payments...', {
-        created: payments.created.length,
-        updated: payments.updated.length,
-        deleted: payments.deleted.length,
-      })
-      console.log('--- Payments Detail ---', payments)
-    }
+      // GIẢ LẬP GỌI API:
+      // const response = await apiClient.post<IBaseResponse<null>>('/sync/orders', { orders })
 
-    // THỰC TẾ: Bạn sẽ gọi API ở đây để lưu các thay đổi này vào Backend
-    // await apiClient.post('/sync/orders', { orders, order_items, payments })
+      // LOGIC CHECK LỖI:
+      // if (!response.success) {
+      //   // BẮT BUỘC: Throw lỗi để WatermelonDB không đánh dấu bản ghi là "đã push".
+      //   // Việc throw này giúp hệ thống tự động retry ở lần sync kế tiếp.
+      //   throw new Error(response.message || 'Push sync orders failed')
+      // }
+
+      console.log('--- Orders Detail Pushed ---', orders)
+    }
   },
 }

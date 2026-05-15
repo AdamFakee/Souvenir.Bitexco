@@ -2,13 +2,14 @@ import { ViceService } from '@/screens/vice-service'
 import { Button, ModalBase, Numpad } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
+import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
 import { Banknote } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
-import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { PaymentMethod } from '@/shared/lib/database'
 import { cashPaymentMachine } from '../machines/cash-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax, getCashSuggestions, roundCashAmount } from '../utils'
@@ -38,18 +39,30 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const roundedTotal = roundCashAmount(total)
 
     // Khởi tạo actor với toàn bộ context
-    const actorRef = useActorRef(cashPaymentMachine, {
-      input: {
-        total: roundedTotal,
-        discount,
-        items,
-        staffId,
-        shiftId,
-        sessionId: activeSessionId || 'unknown',
-        appliedVoucher: appliedVoucher || null,
-        printRef,
+    const actorRef = useActorRef(
+      cashPaymentMachine.provide({
+        actions: {
+          notifyError: () => {
+            toast.error('Thanh toán tiền mặt thất bại. Vui lòng thử lại!')
+          },
+          notifyCancel: () => {
+            toast.info('Giao dịch đã bị hủy')
+          },
+        },
+      }),
+      {
+        input: {
+          total: roundedTotal,
+          discount,
+          items,
+          staffId,
+          shiftId,
+          sessionId: activeSessionId || 'unknown',
+          appliedVoucher: appliedVoucher || null,
+          printRef,
+        },
       },
-    })
+    )
 
     // Selector cho các trạng thái cần reactive
     const machineState = useSelector(actorRef, (s) => s.value)
@@ -72,7 +85,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     useEffect(() => {
       if (!isSuccess) return
 
-      const paid = Number(cashTendered) || 0
+      const paid = Number(cashTendered)
       const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
       const subtotal = calculateSubtotal(items)
       const tax = calculateTotalTax(items)

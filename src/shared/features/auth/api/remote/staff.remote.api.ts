@@ -1,6 +1,13 @@
-import { StaffRole } from '@/shared/lib/database/models/staff'
 import { PullChangesParams } from '@/shared/lib/database/sync'
-import { Staff } from '../../types'
+import { IBaseResponse } from '@/shared/types/api'
+import {
+  AuthTokens,
+  LoginPayload,
+  LoginResponse,
+  RefreshTokenPayload,
+  Staff,
+  StaffRole,
+} from '../../types'
 import mockStaffData from './mock-staff.json'
 
 /**
@@ -30,16 +37,81 @@ export interface StaffSyncChanges {
 }
 
 /**
- * StaffRemoteAPI - Xử lý đồng bộ dữ liệu Nhân viên với Server
+ * StaffRemoteAPI - Xử lý đồng bộ và Authentication nhân viên với Server
  */
 export const StaffRemoteAPI = {
   /**
-   * Lấy toàn bộ danh sách nhân viên từ Server
+   * Đăng nhập từ xa bằng Username & Password
+   */
+  login: async (payload: LoginPayload): Promise<IBaseResponse<LoginResponse>> => {
+    console.log('StaffRemoteAPI: Logging in...', payload.username)
+
+    // GIẢ LẬP: Tìm nhân viên trong mock data
+    const foundStaff = mockStaffData.staffs.find(
+      (s: any) => s.username === payload.username && s.password === payload.password,
+    )
+
+    if (!foundStaff) {
+      return {
+        success: false,
+        status_code: 401,
+        message: 'Tên đăng nhập hoặc mật khẩu không chính xác',
+        data: null,
+        meta: null,
+        error: { code: 'UNAUTHORIZED' },
+      }
+    }
+
+    return {
+      success: true,
+      status_code: 200,
+      message: 'Đăng nhập thành công',
+      data: {
+        tokens: {
+          accessToken: 'mock_access_token_' + Date.now(),
+          refreshToken: 'mock_refresh_token_' + Date.now(),
+        },
+        staff: {
+          id: foundStaff.id,
+          username: foundStaff.username,
+          fullname: foundStaff.fullname,
+          role: foundStaff.role as StaffRole,
+          password: foundStaff.password,
+          isActive: foundStaff.isActive,
+          isDeleted: false,
+        },
+        currentShiftId: null, // Sẽ có ID nếu Backend báo nhân viên đang trong ca
+      },
+      meta: { timestamp: Date.now() },
+      error: null,
+    }
+  },
+
+  /**
+   * Làm mới Access Token
+   */
+  refreshToken: async (payload: RefreshTokenPayload): Promise<IBaseResponse<AuthTokens>> => {
+    console.log('StaffRemoteAPI: Refreshing token...')
+
+    return {
+      success: true,
+      status_code: 200,
+      message: 'Làm mới token thành công',
+      data: {
+        accessToken: 'mock_access_token_refreshed_' + Date.now(),
+        refreshToken: payload.refreshToken, // Thường sẽ trả về refresh token mới hoặc giữ nguyên
+      },
+      meta: { timestamp: Date.now() },
+      error: null,
+    }
+  },
+
+  /**
+   * Lấy toàn bộ danh sách nhân viên từ Server (Dùng cho sync initial)
    */
   getAllStaffs: async (): Promise<Staff[]> => {
     console.log('StaffRemoteAPI: Loading staffs from mock-staff.json...')
 
-    // Map dữ liệu từ JSON sang cấu trúc mà Local API mong đợi (CamelCase)
     return mockStaffData.staffs.map((s: any) => ({
       id: s.id,
       username: s.username,

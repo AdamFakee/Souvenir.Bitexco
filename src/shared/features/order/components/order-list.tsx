@@ -25,6 +25,7 @@ const getPaymentMethodInfo = (order: OrderModel) => {
     case 'CARD':
       return { label: 'Thẻ POS', color: COLORS.warning.onContainer, bg: COLORS.warning.container }
     case 'QR':
+    case 'BANK_TRANSFER':
       return {
         label: 'Chuyển khoản',
         color: COLORS.primary.onFixedVariant,

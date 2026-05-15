@@ -1,8 +1,10 @@
 import { Button, IconButton } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { useAuthStore } from '@/shared/features/auth'
-import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import {
+  calculateSubtotal,
+  calculateTotalQuantity,
+  calculateTotalTax,
   calculateVoucherDiscount,
   PAYMENT_REGISTRY,
   PaymentContext,
@@ -39,24 +41,15 @@ export default function CheckoutPanel() {
     return Object.values(items) as CartItem[]
   }, [items])
 
-  const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
-  }, [cart])
+  const subtotal = useMemo(() => calculateSubtotal(cart), [cart])
 
-  const totalQty = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.quantity, 0)
-  }, [cart])
+  const totalQty = useMemo(() => calculateTotalQuantity(cart), [cart])
 
   const discount = useMemo(() => {
     return calculateVoucherDiscount(cart, appliedVoucher)
   }, [cart, appliedVoucher])
 
-  const tax = useMemo(() => {
-    return cart.reduce(
-      (sum, item) => sum + item.product.price * (item.product.taxRate / 100) * item.quantity,
-      0,
-    )
-  }, [cart])
+  const tax = useMemo(() => calculateTotalTax(cart), [cart])
 
   const total = useMemo(() => {
     return Math.max(0, subtotal - discount) + tax

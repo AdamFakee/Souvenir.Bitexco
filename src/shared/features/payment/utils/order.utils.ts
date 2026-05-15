@@ -16,3 +16,9 @@ export const calculateTotalTax = (items: CartItem[]): number => {
     0,
   )
 }
+/**
+ * Tính tổng số lượng sản phẩm trong giỏ hàng
+ */
+export const calculateTotalQuantity = (items: CartItem[]): number => {
+  return items.reduce((sum, item) => sum + item.quantity, 0)
+}

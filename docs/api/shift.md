@@ -1,88 +1,96 @@
 # Shift API
 
-Tài liệu chi tiết về cấu trúc dữ liệu và các Endpoint đồng bộ cho Ca làm việc.
+Tài liệu về các Endpoint quản lý Ca làm việc.
 
-## 1. Data Interface (Schema)
-
-### ShiftRaw (Bảng shifts)
-
-Cấu trúc dữ liệu Ca làm việc khớp chính xác với `ShiftRaw` interface.
-
-| Trường                 | Kiểu dữ liệu | Bắt buộc | Mô tả                           |
-| :--------------------- | :----------- | :------: | :------------------------------ |
-| `id`                   | string       |    Có    | UUID ca làm việc                |
-| `staff_id`             | string       |    Có    | UUID nhân viên                  |
-| `device_id`            | string       |    Có    | UUID thiết bị                   |
-| `start_time`           | number       |    Có    | Thời gian mở (Unix timestamp)   |
-| `end_time`             | number       |  Không   | Thời gian đóng (Unix timestamp) |
-| `starting_cash`        | number       |    Có    | Tiền mặt đầu ca                 |
-| `expected_ending_cash` | number       |    Có    | Tiền mặt dự kiến                |
-| `actual_ending_cash`   | number       |  Không   | Tiền mặt thực tế                |
-| `difference_cash`      | number       |  Không   | Tiền chênh lệch                 |
-| `discrepancy_reason`   | string       |  Không   | Lý do chênh lệch                |
-| `cash_revenue`         | number       |    Có    | Doanh thu tiền mặt              |
-| `qr_revenue`           | number       |    Có    | Doanh thu QR                    |
-| `total_orders`         | number       |    Có    | Tổng số đơn hàng                |
-| `status`               | ShiftStatus  |    Có    | `OPEN`, `CLOSED`                |
-| `is_deleted`           | boolean      |    Có    | Cờ xóa                          |
-| `created_at`           | number       |  Không   | Unix timestamp                  |
-| `updated_at`           | number       |  Không   | Unix timestamp                  |
+> **Lưu ý kiến trúc**: Ca làm việc hoạt động theo mô hình **Remote-Only** — không lưu local, không sync qua WatermelonDB.  
+> Thông tin phiên làm việc sau khi mở ca được giữ trong bộ nhớ tạm (Zustand Store) cho đến khi đóng ca.
 
 ---
 
 ## 2. API Endpoints
 
-### 2.1 Fetch Changes (Pull)
+### 2.1 Mở ca — Open Shift
 
-Lấy danh sách các ca làm việc mới hoặc có thay đổi từ Server về Local.
+- **Method**: `POST`
+- **Path**: `/api/v1/shifts/open`
 
-- **Method**: `GET`
-- **Path**: `/api/v1/sync/shifts`
+#### Request Body
 
-#### Request Query Parameters
+| Trường         | Kiểu dữ liệu | Bắt buộc | Mô tả                    |
+| :------------- | :----------- | :------: | :----------------------- |
+| `staffId`      | string       |    Có    | UUID nhân viên đăng nhập |
+| `startingCash` | number       |    Có    | Số tiền mặt đầu ca       |
+| `deviceId`     | string       |  Không   | UUID thiết bị (gắn sau)  |
 
-| Tham số          | Kiểu dữ liệu | Bắt buộc | Mô tả                                            |
-| :--------------- | :----------- | :------: | :----------------------------------------------- |
-| `last_pulled_at` | number       |  Không   | Unix timestamp (ms) lần cuối đồng bộ thành công. |
-
-#### Response Data (`IBaseResponse<ShiftSyncChanges>`)
-
-Dữ liệu nằm trong trường `data`:
-
-| Trường   | Kiểu dữ liệu                                                      | Mô tả                        |
-| :------- | :---------------------------------------------------------------- | :--------------------------- |
-| `shifts` | `{ created: ShiftRaw[], updated: ShiftRaw[], deleted: string[] }` | Các thay đổi của bảng shifts |
-
-**Ví dụ Response:**
+#### Response (`IBaseResponse<{ shiftId: string }>`)
 
 ```json
 {
   "success": true,
   "status_code": 200,
-  "message": "Fetch success",
+  "message": "Mở ca thành công",
   "data": {
-    "shifts": {
-      "created": [{ "id": "s1", "staff_id": "u1", "status": "OPEN", "start_time": 1715137347 }],
-      "updated": [],
-      "deleted": []
-    }
+    "shiftId": "shift-uuid"
   },
-  "meta": { "timestamp": 1715137347 },
+  "meta": { "timestamp": 1715137347000 },
   "error": null
 }
 ```
 
-### 2.2 Push Changes (Push)
+> Client chỉ cần lưu `shiftId` vào session store. Không cần thông tin nào khác.
 
-Đẩy dữ liệu ca làm việc (mở ca, đóng ca) từ Local lên Server.
+---
+
+### 2.2 Lấy thống kê ca — Get Shift Statistics
+
+Dùng để lấy số tiền mặt dự kiến trước khi đóng ca (để thu ngân đối soát).
+
+- **Method**: `GET`
+- **Path**: `/api/v1/shifts/:shiftId/statistics`
+
+#### Response (`IBaseResponse<ShiftStatistics>`)
+
+| Trường               | Kiểu dữ liệu | Mô tả                                          |
+| :------------------- | :----------- | :--------------------------------------------- |
+| `expectedEndingCash` | number       | Tổng tiền mặt dự kiến cuối ca (tính từ server) |
+
+```json
+{
+  "success": true,
+  "status_code": 200,
+  "message": "Lấy số tiền dự kiến thành công",
+  "data": {
+    "expectedEndingCash": 1750000
+  },
+  "meta": { "timestamp": 1715137347000 },
+  "error": null
+}
+```
+
+---
+
+### 2.3 Đóng ca — Close Shift
 
 - **Method**: `POST`
-- **Path**: `/api/v1/sync/shifts`
+- **Path**: `/api/v1/shifts/close`
 
-#### Request Body (`PushChangesParams`)
+#### Request Body
 
-| Trường           | Kiểu dữ liệu                                                      | Bắt buộc | Mô tả                                            |
-| :--------------- | :---------------------------------------------------------------- | :------: | :----------------------------------------------- |
-| `changes`        | object                                                            |    Có    | Đối tượng chứa các thay đổi (`ShiftSyncChanges`) |
-| `changes.shifts` | `{ created: ShiftRaw[], updated: ShiftRaw[], deleted: string[] }` |    Có    | Các thay đổi của bảng shifts                     |
-| `last_pulled_at` | number                                                            |    Có    | Thời điểm Client thực hiện Pull trước khi Push   |
+| Trường              | Kiểu dữ liệu | Bắt buộc | Mô tả                         |
+| :------------------ | :----------- | :------: | :---------------------------- |
+| `shiftId`           | string       |    Có    | UUID ca cần đóng              |
+| `actualEndingCash`  | number       |    Có    | Tiền mặt thực tế thu ngân đếm |
+| `discrepancyReason` | string       |  Không   | Lý do nếu có chênh lệch       |
+
+#### Response (`IBaseResponse<null>`)
+
+```json
+{
+  "success": true,
+  "status_code": 200,
+  "message": "Đóng ca thành công",
+  "data": null,
+  "meta": { "timestamp": 1715180000000 },
+  "error": null
+}
+```

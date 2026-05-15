@@ -50,18 +50,21 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
   const payments = order.paymentsSnapshot || []
 
   const statusColors: Record<string, string> = {
+    PENDING: '#3b82f6',
     COMPLETED: '#10b981',
     REFUNDED: '#f59e0b',
     FAILED: '#ef4444',
   }
 
   const statusBgColors: Record<string, string> = {
+    PENDING: '#dbeafe',
     COMPLETED: '#d1fae5',
     REFUNDED: '#fef3c7',
     FAILED: '#fee2e2',
   }
 
   const statusLabels: Record<string, string> = {
+    PENDING: 'Chờ thanh toán',
     COMPLETED: 'Hoàn thành',
     REFUNDED: 'Hoàn tiền',
     FAILED: 'Thất bại',

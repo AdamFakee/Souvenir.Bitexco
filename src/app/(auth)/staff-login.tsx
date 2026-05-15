@@ -1,12 +1,6 @@
 import { Button, ControlledInput } from '@/shared/components/ui'
 import { ROUTES } from '@/shared/constants'
-import {
-  LoginFormData,
-  loginSchema,
-  Staff,
-  StaffLocalAPI,
-  useAuthStore,
-} from '@/shared/features/auth'
+import { LoginFormData, loginSchema, StaffRemoteAPI, useAuthStore } from '@/shared/features/auth'
 import { toast } from '@/shared/store'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -19,7 +13,7 @@ export default function StaffLogin() {
   const router = useRouter()
 
   const [loading, setLoading] = useState(false)
-  const { authenticate, setStaff } = useAuthStore()
+  const { authenticate } = useAuthStore()
 
   const { control, handleSubmit, setError } = useForm<LoginFormData>({
     resolver: valibotResolver(loginSchema),
@@ -32,35 +26,43 @@ export default function StaffLogin() {
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true)
     try {
-      const staff = await StaffLocalAPI.login({
+      // Gọi API Login Remote
+      const response = await StaffRemoteAPI.login({
         username: data.username,
         password: data.password,
       })
 
-      if (staff) {
-        const plainStaff: Staff = {
-          id: staff.id,
-          username: staff.username,
-          fullname: staff.fullname,
-          role: staff.role,
-          password: staff.password,
-          isActive: staff.isActive,
-          isDeleted: staff.isDeleted,
+      if (response.success && response.data) {
+        const { staff, tokens, currentShiftId } = response.data
+
+        // Lưu thông tin vào Zustand Store
+        authenticate(
+          {
+            staffId: staff.id,
+            shiftId: currentShiftId || '', // Nếu chưa có ca thì để trống
+            loginAt: Date.now(),
+          },
+          staff,
+          tokens,
+        )
+
+        toast.success('Đăng nhập thành công')
+
+        // Nếu đã có ca thì vào thẳng Tab chính, ngược lại vào màn mở ca
+        if (currentShiftId) {
+          router.replace(ROUTES.POS.path())
+        } else {
+          router.replace(ROUTES.OPEN_SHIFT.path())
         }
-        setStaff(plainStaff)
-        router.push(ROUTES.OPEN_SHIFT.path())
-        return
       } else {
-        setError('username', {
-          type: 'manual',
-          message: 'Tên đăng nhập hoặc mật khẩu không đúng',
-        })
-        setError('password', {
-          type: 'manual',
-          message: 'Tên đăng nhập hoặc mật khẩu không đúng',
-        })
+        // Hiển thị lỗi từ Backend trả về
+        const errorMessage = response.message || 'Tên đăng nhập hoặc mật khẩu không đúng'
+        setError('username', { type: 'manual', message: errorMessage })
+        setError('password', { type: 'manual', message: errorMessage })
+        toast.error(errorMessage)
       }
-    } catch {
+    } catch (error) {
+      console.error('Login error:', error)
       toast.error('Đã có lỗi xảy ra trong quá trình đăng nhập')
     } finally {
       setLoading(false)

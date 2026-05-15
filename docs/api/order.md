@@ -1,184 +1,90 @@
 # Order & Payment API
 
-Tài liệu chi tiết về cấu trúc dữ liệu và các Endpoint đồng bộ cho Đơn hàng, Chi tiết đơn hàng và Thanh toán.
+Tài liệu về cấu trúc dữ liệu và Endpoint đồng bộ Đơn hàng.
+
+> **Lưu ý kiến trúc**: Order hoạt động theo mô hình **Push-Only** — Client tạo đơn offline, lưu WatermelonDB, rồi **đẩy lên server** khi có mạng.  
+> Server **không đẩy ngược** dữ liệu đơn hàng xuống client (không có Pull).
+
+---
 
 ## 1. Data Interfaces (Schema)
 
 ### 1.1 OrderRaw (Bảng orders)
-
-Cấu trúc dữ liệu Đơn hàng khớp chính xác với `OrderRaw` interface.
 
 | Trường              | Kiểu dữ liệu      | Bắt buộc | Mô tả                                                            |
 | :------------------ | :---------------- | :------: | :--------------------------------------------------------------- |
 | `id`                | string            |    Có    | UUID của đơn hàng                                                |
 | `shift_id`          | string            |    Có    | UUID của ca làm việc                                             |
 | `staff_id`          | string            |    Có    | UUID của nhân viên                                               |
-| `status`            | OrderStatus       |    Có    | Trạng thái: `COMPLETED`, `REFUNDED`, `FAILED`                    |
+| `status`            | OrderStatus       |    Có    | Trạng thái: `PENDING`, `COMPLETED`, `REFUNDED`, `FAILED`         |
 | `subtotal`          | number            |    Có    | Tổng tiền trước thuế/chiết khấu                                  |
-| `discount`          | number            |    Có    | Số tiền chiết khấu                                               |
+| `discount`          | number            |    Có    | Số tiền chiết khấu tổng                                          |
 | `voucher_code`      | string            |  Không   | Mã voucher áp dụng                                               |
 | `voucher_discount`  | number            |    Có    | Tiền giảm giá từ voucher                                         |
 | `total`             | number            |    Có    | Tổng tiền cuối cùng                                              |
 | `total_tax`         | number            |    Có    | Tổng thuế                                                        |
-| `note`              | string            |  Không   | Ghi chú                                                          |
+| `note`              | string            |  Không   | Ghi chú đơn hàng                                                 |
 | `refund_reason`     | string            |  Không   | Lý do hoàn tiền                                                  |
 | `original_order_id` | string            |  Không   | ID đơn gốc (nếu là đơn hoàn)                                     |
-| `customer_tax_info` | TaxInfo \| null   |    Có    | Thông tin thuế (xem chi tiết TaxInfo bên dưới)                   |
-| `items_snapshot`    | ItemSnapshot[]    |    Có    | Mảng snapshot sản phẩm (xem chi tiết ItemSnapshot bên dưới)      |
-| `payments_snapshot` | PaymentSnapshot[] |    Có    | Mảng snapshot thanh toán (xem chi tiết PaymentSnapshot bên dưới) |
+| `customer_tax_info` | TaxInfo \| null   |    Có    | Thông tin thuế                                                   |
+| `items_snapshot`    | ItemSnapshot[]    |    Có    | Mảng snapshot sản phẩm chi tiết                                  |
+| `payments_snapshot` | PaymentSnapshot[] |    Có    | Mảng snapshot thanh toán (có thể chứa nhiều đợt thanh toán/hoàn) |
 | `is_deleted`        | boolean           |    Có    | Trạng thái xóa                                                   |
 | `created_at`        | number            |  Không   | Unix timestamp (ms)                                              |
 | `updated_at`        | number            |  Không   | Unix timestamp (ms)                                              |
 
-### 1.2 OrderItemRaw (Bảng order_items)
+### 1.2 Supporting Types (JSON Snapshots)
 
-Dữ liệu chi tiết sản phẩm.
+#### A. ItemSnapshot (Chi tiết sản phẩm)
 
-| Trường                  | Kiểu dữ liệu | Bắt buộc | Mô tả                          |
-| :---------------------- | :----------- | :------: | :----------------------------- |
-| `id`                    | string       |    Có    | UUID chi tiết                  |
-| `order_id`              | string       |    Có    | UUID đơn hàng                  |
-| `product_id`            | string       |    Có    | UUID sản phẩm                  |
-| `product_name_snapshot` | string       |    Có    | Tên sản phẩm tại thời điểm bán |
-| `price_snapshot`        | number       |    Có    | Giá tại thời điểm bán          |
-| `quantity`              | number       |    Có    | Số lượng                       |
-| `refunded_quantity`     | number       |    Có    | Số lượng đã hoàn               |
-| `subtotal`              | number       |    Có    | Thành tiền của dòng            |
-| `tax_rate_snapshot`     | number       |    Có    | Thuế suất snapshot             |
-| `tax_amount`            | number       |    Có    | Tiền thuế                      |
-| `discount_amount`       | number       |    Có    | Tiền chiết khấu                |
-| `is_deleted`            | boolean      |    Có    | Trạng thái xóa                 |
-| `created_at`            | number       |  Không   | Unix timestamp                 |
-| `updated_at`            | number       |  Không   | Unix timestamp                 |
+Lưu trữ thông tin sản phẩm tại thời điểm bán để đảm bảo tính toàn vẹn của hóa đơn lịch sử.
 
-### 1.3 PaymentRaw (Bảng payments)
+| Trường           | Kiểu dữ liệu | Bắt buộc | Mô tả                                     |
+| :--------------- | :----------- | :------: | :---------------------------------------- |
+| `productId`      | string       |    Có    | ID của sản phẩm gốc                       |
+| `sku`            | string       |    Có    | Mã SKU của sản phẩm                       |
+| `barcode`        | string       |  Không   | Mã vạch sản phẩm                          |
+| `name`           | string       |    Có    | Tên sản phẩm hiển thị trên hóa đơn        |
+| `price`          | number       |    Có    | Đơn giá tại thời điểm bán                 |
+| `quantity`       | number       |    Có    | Số lượng mua                              |
+| `subtotal`       | number       |    Có    | Thành tiền (price \* quantity)            |
+| `taxRate`        | number       |    Có    | Mức thuế (%)                              |
+| `taxAmount`      | number       |    Có    | Số tiền thuế                              |
+| `discountAmount` | number       |    Có    | Tiền giảm giá riêng cho món này           |
+| `note`           | string       |  Không   | Ghi chú riêng cho món (ví dụ: "ít đường") |
 
-Dữ liệu thanh toán.
+#### B. PaymentSnapshot (Chi tiết thanh toán)
 
-| Trường           | Kiểu dữ liệu  | Bắt buộc | Mô tả                                        |
-| :--------------- | :------------ | :------: | :------------------------------------------- |
-| `id`             | string        |    Có    | UUID giao dịch                               |
-| `order_id`       | string        |    Có    | UUID đơn hàng                                |
-| `method`         | PaymentMethod |    Có    | Phương thức: `CASH`, `CARD`, `BANK_TRANSFER` |
-| `amount`         | number        |    Có    | Số tiền                                      |
-| `cash_tendered`  | number        |  Không   | Tiền khách đưa                               |
-| `cash_change`    | number        |  Không   | Tiền thối lại                                |
-| `reference_code` | string        |  Không   | Mã tham chiếu                                |
-| `card_type`      | string        |  Không   | Loại thẻ                                     |
-| `is_deleted`     | boolean       |    Có    | Trạng thái xóa                               |
-| `created_at`     | number        |  Không   | Unix timestamp                               |
-| `updated_at`     | number        |  Không   | Unix timestamp                               |
+Hỗ trợ thanh toán một phần hoặc hoàn tiền.
 
-### 1.4 Supporting Types
-
-#### TaxInfo
-
-```json
-{
-  "companyName": "string",
-  "taxCode": "string",
-  "email": "string"
-}
-```
-
-#### ItemSnapshot
-
-```json
-{
-  "productId": "string",
-  "sku": "string",
-  "barcode": "string (optional)",
-  "name": "string",
-  "price": "number",
-  "quantity": "number",
-  "subtotal": "number",
-  "taxRate": "number",
-  "taxAmount": "number",
-  "discountAmount": "number"
-}
-```
-
-#### PaymentSnapshot
-
-```json
-{
-  "method": "string",
-  "amount": "number"
-}
-```
+| Trường          | Kiểu dữ liệu  | Bắt buộc | Mô tả                                                      |
+| :-------------- | :------------ | :------: | :--------------------------------------------------------- |
+| `method`        | PaymentMethod |    Có    | `CASH`, `CARD`, `BANK_TRANSFER`                            |
+| `amount`        | number        |    Có    | Số tiền (Số dương: Thanh toán, **Số âm: Hoàn tiền**)       |
+| `cashTendered`  | number        |  Không   | Tiền khách đưa (Dành cho CASH)                             |
+| `cashChange`    | number        |  Không   | Tiền thối lại (Dành cho CASH)                              |
+| `referenceCode` | string        |  Không   | Mã tham chiếu giao dịch (QR/Card)                          |
+| `cardType`      | string        |  Không   | Loại thẻ (Dành cho CARD)                                   |
+| `createdAt`     | number        |  Không   | Unix timestamp ghi nhận giao dịch (để phân biệt đợt thanh) |
 
 ---
 
 ## 2. API Endpoints
 
-### 2.1 Fetch Changes (Pull)
+### 2.1 Push Changes (Push) — Đồng bộ đơn hàng lên server
 
-Lấy danh sách các thay đổi của Đơn hàng, Chi tiết đơn và Thanh toán từ Server.
-
-- **Method**: `GET`
-- **Path**: `/api/v1/sync/orders`
-
-#### Request Query Parameters
-
-| Tham số          | Kiểu dữ liệu | Bắt buộc | Mô tả                                            |
-| :--------------- | :----------- | :------: | :----------------------------------------------- |
-| `last_pulled_at` | number       |  Không   | Unix timestamp (ms) lần cuối đồng bộ thành công. |
-
-#### Response Data (`IBaseResponse<OrderSyncChanges>`)
-
-Dữ liệu nằm trong trường `data`:
-
-| Trường        | Kiểu dữ liệu                                                              | Mô tả                             |
-| :------------ | :------------------------------------------------------------------------ | :-------------------------------- |
-| `orders`      | `{ created: OrderRaw[], updated: OrderRaw[], deleted: string[] }`         | Các thay đổi của bảng orders      |
-| `order_items` | `{ created: OrderItemRaw[], updated: OrderItemRaw[], deleted: string[] }` | Các thay đổi của bảng order_items |
-| `payments`    | `{ created: PaymentRaw[], updated: PaymentRaw[], deleted: string[] }`     | Các thay đổi của bảng payments    |
-
-**Ví dụ Response:**
-
-```json
-{
-  "success": true,
-  "status_code": 200,
-  "message": "Fetch success",
-  "data": {
-    "orders": {
-      "created": [], // Mảng OrderRaw
-      "updated": [],
-      "deleted": []
-    },
-    "order_items": {
-      "created": [],
-      "updated": [],
-      "deleted": []
-    },
-    "payments": {
-      "created": [],
-      "updated": [],
-      "deleted": []
-    }
-  },
-  "meta": { "timestamp": 1715137347 },
-  "error": null
-}
-```
-
-### 2.2 Push Changes (Push)
-
-Đẩy dữ liệu thay đổi của Đơn hàng và các bảng liên quan từ Local lên Server.
+Đẩy các đơn hàng mới/cập nhật từ client lên server sau khi thu ngân bán hàng offline.
 
 - **Method**: `POST`
 - **Path**: `/api/v1/sync/orders`
 
-#### Request Body (`PushChangesParams`)
+#### Request Body
 
-| Trường                | Kiểu dữ liệu                                                              | Bắt buộc | Mô tả                                                 |
-| :-------------------- | :------------------------------------------------------------------------ | :------: | :---------------------------------------------------- |
-| `changes`             | object                                                                    |    Có    | Đối tượng chứa các bảng thay đổi (`OrderSyncChanges`) |
-| `changes.orders`      | `{ created: OrderRaw[], updated: OrderRaw[], deleted: string[] }`         |    Có    | Các thay đổi của bảng orders                          |
-| `changes.order_items` | `{ created: OrderItemRaw[], updated: OrderItemRaw[], deleted: string[] }` |    Có    | Các thay đổi của bảng order_items                     |
-| `changes.payments`    | `{ created: PaymentRaw[], updated: PaymentRaw[], deleted: string[] }`     |    Có    | Các thay đổi của bảng payments                        |
-| `last_pulled_at`      | number                                                                    |    Có    | Thời điểm Client thực hiện Pull trước khi Push        |
+| Trường           | Kiểu dữ liệu                                                      | Bắt buộc | Mô tả                                               |
+| :--------------- | :---------------------------------------------------------------- | :------: | :-------------------------------------------------- |
+| `changes`        | object                                                            |    Có    | Đối tượng chứa các thay đổi                         |
+| `changes.orders` | `{ created: OrderRaw[], updated: OrderRaw[], deleted: string[] }` |    Có    | Các thay đổi của bảng orders                        |
+| `last_pulled_at` | number                                                            |    Có    | Thời điểm Client thực hiện Pull trước khi Push (ms) |
 
 **Ví dụ Request Body:**
 
@@ -186,34 +92,42 @@ Dữ liệu nằm trong trường `data`:
 {
   "changes": {
     "orders": {
-      "created": [{ "id": "uuid-1", "status": "COMPLETED", "...": "..." }],
-      "updated": [],
-      "deleted": []
-    },
-    "order_items": {
-      "created": [{ "id": "item-1", "order_id": "uuid-1", "...": "..." }],
-      "updated": [],
-      "deleted": []
-    },
-    "payments": {
-      "created": [{ "id": "pay-1", "order_id": "uuid-1", "...": "..." }],
+      "created": [
+        {
+          "id": "uuid-pos-001",
+          "shift_id": "shift-uuid",
+          "staff_id": "staff-uuid",
+          "status": "COMPLETED",
+          "total": 150000,
+          "items_snapshot": [
+            { "productId": "p1", "name": "Cà phê sữa", "quantity": 1, "price": 150000 }
+          ],
+          "payments_snapshot": [{ "method": "CASH", "amount": 150000 }]
+        }
+      ],
       "updated": [],
       "deleted": []
     }
   },
-  "last_pulled_at": 1715137347
+  "last_pulled_at": 1715137347000
 }
 ```
 
-**Response Structure:**
+**Response:**
 
 ```json
 {
   "success": true,
   "status_code": 200,
-  "message": "Push success",
+  "message": "Sync success",
   "data": null,
-  "meta": { "timestamp": 1715137347 },
+  "meta": { "timestamp": 1715137347000 },
   "error": null
 }
 ```
+
+> **Lưu ý cho Backend**: Khi nhận `orders.created`, thực hiện bulk insert/upsert. Dữ liệu chi tiết nằm trong `items_snapshot` và `payments_snapshot` dưới dạng JSON — backend có thể parse để lưu vào bảng riêng nếu cần.
+
+---
+
+> **Không có Pull endpoint cho Orders.** Server không đẩy ngược đơn hàng xuống client.

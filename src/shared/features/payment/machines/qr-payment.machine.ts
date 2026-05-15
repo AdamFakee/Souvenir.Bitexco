@@ -1,7 +1,8 @@
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { OrderModel } from '@/shared/lib/database/models'
-import { PaymentMethod } from '@/shared/lib/database/models/payment'
+import { OrderModel, OrderStatus } from '@/shared/lib/database/models'
+import { PaymentMethod } from '@/shared/lib/database'
+import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
@@ -46,7 +47,8 @@ export type QRPaymentInput = {
 }
 
 const MAX_RETRIES = 3
-const POLL_INTERVAL_MS = 5000
+const POLL_INTERVAL_MS = 2000 // 2 giây
+const TOTAL_TIMEOUT_MS = 10 * 60 * 1000 // 10 phút total for QR scanning
 
 export const qrPaymentMachine = setup({
   types: {
@@ -56,18 +58,26 @@ export const qrPaymentMachine = setup({
   },
   actors: {
     /**
-     * Tạo đơn hàng trên Backend.
+     * Tạo đơn hàng Local ở trạng thái PENDING.
      */
     createOrder: fromPromise(async ({ input }: { input: QRPaymentContext }) => {
-      const { orderId } = await PaymentRemoteAPI.createOrder({
+      const order = await OrderLocalAPI.createOrderByQr({
         items: input.items,
+        subtotal: input.total + input.discount,
         total: input.total,
         discount: input.discount,
         voucherCode: input.appliedVoucher?.code,
+        voucherDiscount: input.appliedVoucher
+          ? calculateVoucherDiscount(input.items, input.appliedVoucher)
+          : 0,
         staffId: input.staffId,
         shiftId: input.shiftId,
+        payment: {
+          method: PaymentMethod.BANK_TRANSFER,
+          amount: input.total,
+        },
       })
-      return orderId
+      return order.id
     }),
 
     /**
@@ -89,49 +99,30 @@ export const qrPaymentMachine = setup({
     }),
 
     /**
-     * Lưu đơn hàng vào Local DB.
+     * Hoàn tất đơn hàng local (PENDING -> COMPLETED).
      */
     saveOrder: fromPromise(async ({ input }: { input: QRPaymentContext }): Promise<OrderModel> => {
       if (!input.orderId) throw new Error('Thanh toán thất bại!')
 
-      const checkoutPayload = {
-        staffId: input.staffId,
-        shiftId: input.shiftId,
-        items: input.items,
-        subtotal: input.total + input.discount,
-        discount: input.discount,
-        voucherCode: input.appliedVoucher?.code,
-        voucherDiscount: input.appliedVoucher
-          ? calculateVoucherDiscount(input.items, input.appliedVoucher)
-          : 0,
-        total: input.total,
-        note: undefined,
-        payment: {
-          method: PaymentMethod.BANK_TRANSFER,
-          amount: input.total,
-          cashTendered: 0,
-          cashChange: 0,
-          referenceCode: input.billNumber ?? input.orderId,
-        },
+      const paymentPayload = {
+        method: PaymentMethod.BANK_TRANSFER,
+        amount: input.total,
+        cashTendered: 0,
+        cashChange: 0,
+        referenceCode: input.billNumber ?? input.orderId,
       }
 
-      // Ghi nhận thành công online (trừ tồn kho, cập nhật shift)
-      await OrderLocalAPI.recordOnlineOrderSuccess(checkoutPayload)
+      // Cập nhật trạng thái COMPLETED, trừ kho, cộng shift stats và trigger sync
+      const order = await OrderLocalAPI.completeOrderByQr(input.orderId, paymentPayload)
+      return order
+    }),
 
-      // Đồng bộ dữ liệu chi tiết đơn hàng từ server về local để có OrderModel chuẩn cho việc in ấn
-      try {
-        const syncData = await PaymentRemoteAPI.getOrderSyncData(input.orderId)
-        await OrderLocalAPI.saveOrderSyncData(syncData)
-
-        // Lấy lại order vừa lưu để trả về
-        const order = await OrderLocalAPI.getOrderById(input.orderId)
-        if (order) return order
-      } catch (err) {
-        console.error('[QR Checkout] Lỗi đồng bộ đơn hàng:', err)
-      }
-
-      // Fallback nếu đồng bộ lỗi
-      return { id: input.orderId, total: input.total, itemsSnapshot: [] } as any
+    /**
+     * Đánh dấu đơn hàng thất bại khi Hủy hoặc Timeout.
+     */
+    failOrder: fromPromise(async ({ input }: { input: { orderId: string | null } }) => {
+      if (!input.orderId) return
+      await OrderLocalAPI.updateOrderStatus(input.orderId, OrderStatus.FAILED)
     }),
 
     /**
@@ -205,9 +196,15 @@ export const qrPaymentMachine = setup({
         referenceCode: context.billNumber ?? context.orderId ?? undefined,
       }),
     }),
+    triggerSync: () => {
+      SyncService.performSync().catch((err) => console.error('Sync after QR failed:', err))
+    },
+    notifyTimeout: () => {}, // Sẽ được override từ UI
+    notifyCancel: () => {}, // Sẽ được override từ UI
   },
   delays: {
     POLL_INTERVAL: POLL_INTERVAL_MS,
+    TOTAL_TIMEOUT: TOTAL_TIMEOUT_MS,
   },
 }).createMachine({
   id: 'qrPayment',
@@ -269,17 +266,24 @@ export const qrPaymentMachine = setup({
           actions: 'recordError',
         },
       },
+      on: {
+        CANCEL: { target: 'cancelled', actions: 'notifyCancel' },
+      },
     },
 
     waitingForPayment: {
       on: {
-        CANCEL: { target: 'cancelled' },
+        CANCEL: { target: 'cancelled', actions: 'notifyCancel' },
       },
       initial: 'idle',
       states: {
         idle: {
           after: {
             POLL_INTERVAL: 'checking',
+            TOTAL_TIMEOUT: {
+              target: '#qrPayment.cancelled',
+              actions: 'notifyTimeout',
+            },
           },
         },
         checking: {
@@ -307,7 +311,7 @@ export const qrPaymentMachine = setup({
         input: ({ context }) => context,
         onDone: {
           target: 'preparingReceipt',
-          actions: ['assignSavedOrder', 'assignPaymentResult'],
+          actions: ['assignSavedOrder', 'assignPaymentResult', 'triggerSync'],
         },
         onError: {
           target: 'error',
@@ -341,11 +345,13 @@ export const qrPaymentMachine = setup({
     error: {
       on: {
         RETRY: [
+          // TH1: Đã có đơn hàng local => Chỉ thử lại bước lấy mã QR
           {
             target: 'fetchingQR',
             guard: ({ context }) => context.orderId !== null && context.retryCount < MAX_RETRIES,
             actions: 'clearError',
           },
+          // TH2: Chưa có đơn hàng => Thử lại từ bước tạo đơn
           {
             target: 'creatingOrder',
             guard: 'canRetry',
@@ -363,6 +369,13 @@ export const qrPaymentMachine = setup({
     },
 
     cancelled: {
+      invoke: {
+        id: 'failOrder',
+        src: 'failOrder',
+        input: ({ context }) => ({
+          orderId: context.orderId,
+        }),
+      },
       on: {
         START: { target: 'creatingOrder', actions: 'resetContext' },
       },
@@ -378,10 +391,7 @@ export function getQrPaymentStatusLabel(state: SnapshotFrom<typeof qrPaymentMach
   if (state.matches('idle')) return 'Sẵn sàng thanh toán'
   if (state.matches('creatingOrder')) return 'Đang khởi tạo đơn hàng...'
   if (state.matches('fetchingQR')) return 'Đang lấy mã QR...'
-  if (state.matches('waitingForPayment')) {
-    if (state.matches({ waitingForPayment: 'checking' })) return 'Đang kiểm tra thanh toán...'
-    return 'Đang chờ khách quét mã thanh toán'
-  }
+  if (state.matches('waitingForPayment')) return 'Đang chờ khách quét mã thanh toán'
   if (state.matches('savingOrder')) return 'Đang lưu giao dịch...'
   if (state.matches('printingReceipt')) return 'Đang in hóa đơn...'
   if (state.matches('success')) return 'Thanh toán thành công!'

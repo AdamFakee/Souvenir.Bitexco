@@ -1,9 +1,10 @@
-import { StaffLocalAPI } from '@/shared/features/auth/api/local/staff.local.api'
 import { OrderModel } from '@/shared/lib/database/models'
 import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
 import { formatDateTime } from '@/shared/utils'
 import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
+
+import { useAuthStore } from '@/shared/features/auth'
 
 interface BitexcoReceiptTemplateProps {
   order: OrderModel
@@ -27,17 +28,16 @@ export const BitexcoReceiptTemplate = ({
   staffName,
   copyNumber = 1,
 }: BitexcoReceiptTemplateProps) => {
+  const { currentStaff } = useAuthStore()
   const [resolvedStaffName, setResolvedStaffName] = useState(staffName)
 
   useEffect(() => {
-    if (order.staffId && !staffName) {
-      StaffLocalAPI.getStaffById(order.staffId).then((s) => {
-        if (s) setResolvedStaffName(s.fullname)
-      })
-    } else if (staffName) {
+    if (staffName) {
       setResolvedStaffName(staffName)
+    } else if (order.staffId === currentStaff?.username) {
+      setResolvedStaffName(currentStaff.fullname)
     }
-  }, [order.staffId, staffName])
+  }, [order.staffId, staffName, currentStaff])
 
   const {
     id: orderId,

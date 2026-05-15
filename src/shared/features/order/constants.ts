@@ -10,6 +10,11 @@ export const ORDER_STATUS_CONFIG: Record<
     color: COLORS.primary.onFixedVariant,
     bgColor: COLORS.primary.fixed,
   },
+  [OrderStatus.PENDING]: {
+    label: 'Chờ thanh toán',
+    color: COLORS.primary.default,
+    bgColor: COLORS.primary.on,
+  },
   [OrderStatus.COMPLETED]: {
     label: 'Hoàn thành',
     color: COLORS.success.default,
