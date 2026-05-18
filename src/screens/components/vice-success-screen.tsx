@@ -1,43 +1,36 @@
-import { COLORS } from '@/shared/constants'
 import React, { memo, useEffect } from 'react'
 import { Text, View } from 'react-native'
 import Svg, { Circle, Path } from 'react-native-svg'
 import { useViceStore } from '../vice-store'
 
 function ViceSuccessScreen() {
-  const { setCurrentScreen } = useViceStore()
+  const { setCurrentScreen, clearCart } = useViceStore()
 
   useEffect(() => {
-    // Màn hình chờ 10s sau đó tự động quay lại màn hình home
+    // Clear cart and go to home screen after 5 seconds
     const timeout = setTimeout(() => {
+      clearCart()
       setCurrentScreen('Home')
-    }, 10000)
+    }, 5000)
 
     return () => clearTimeout(timeout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [setCurrentScreen, clearCart])
 
   return (
-    <View
-      className="flex-1 items-center justify-center p-12"
-      style={{ backgroundColor: COLORS.surface[50] }}
-    >
-      <View className="items-center justify-center">
-        {/* SVG Success Icon */}
-        <View className="mb-12">
-          <Svg height="240" width="240" viewBox="0 0 100 100">
-            <Circle
-              cx="50"
-              cy="50"
-              r="48"
-              fill={COLORS.primary.fixed}
-              stroke={COLORS.primary.default}
-              strokeWidth="1"
-            />
+    <View className="flex-1 items-center justify-center bg-white p-6">
+      {/* Khung Success Card căn giữa dạng Dọc siêu sang trọng */}
+      <View
+        style={{ width: 360 }}
+        className="items-center rounded-[28px] border border-surface-200 bg-white p-8 shadow-xl"
+      >
+        {/* SVG Checkmark tròn xanh lá nhẹ nhàng, tinh tế */}
+        <View className="mb-6">
+          <Svg height="120" width="120" viewBox="0 0 100 100">
+            <Circle cx="50" cy="50" r="48" fill="#e6f4ea" stroke="#34a853" strokeWidth="1" />
             <Path
               d="M30 50L45 65L70 35"
               fill="none"
-              stroke={COLORS.primary.default}
+              stroke="#34a853"
               strokeWidth="8"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -45,19 +38,12 @@ function ViceSuccessScreen() {
           </Svg>
         </View>
 
-        {/* Success Message */}
-        <Text
-          className="mb-6 text-center font-sans text-6xl font-black uppercase tracking-tighter"
-          style={{ color: COLORS.primary.default }}
-        >
+        {/* Thông điệp thành công */}
+        <Text className="text-center font-sans text-2xl font-black uppercase tracking-wider text-surface-on">
           Thanh toán thành công
         </Text>
-
-        <Text
-          className="text-center font-sans text-3xl font-medium"
-          style={{ color: COLORS.surface.onVariant }}
-        >
-          Cảm ơn và hẹn gặp lại quý khách
+        <Text className="mt-2 text-center font-sans text-xl font-semibold text-surface-on-variant">
+          Cảm ơn và hẹn gặp lại quý khách!
         </Text>
       </View>
     </View>

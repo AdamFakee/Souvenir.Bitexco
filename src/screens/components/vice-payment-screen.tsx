@@ -1,80 +1,45 @@
-import { Container } from '@/shared/components/ui'
+import { Shimmer } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
 import { Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useViceStore } from '../vice-store'
 
+const QRCODE_SIZE = 300
+
 function VicePaymentScreen() {
   const qrCodeUrl = useViceStore((state) => state.qrCodeUrl)
-  const subtotal = useViceStore((state) => state.subtotal)
-  const discount = useViceStore((state) => state.discount)
-  const tax = useViceStore((state) => state.tax)
   const total = useViceStore((state) => state.total)
 
   return (
-    <View className="flex-1 items-center justify-center bg-background p-12">
-      <Container centered className="rounded-[32px] border-surface-300 p-3">
-        <View className="flex-row items-center gap-12">
-          {/* Left: QR Code */}
-          <View className="rounded-[24px] bg-white p-6 shadow-sm">
-            {qrCodeUrl ? (
-              <QRCode value={qrCodeUrl} size={320} color="black" backgroundColor="white" />
-            ) : (
-              <View className="h-[320px] w-[320px] items-center justify-center rounded-xl bg-surface-100">
-                <Text className="font-sans text-sm font-bold text-surface-on-variant">
-                  Đang chuẩn bị mã QR...
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Right: Info */}
-          <View className="min-w-[400px]">
-            {/* Breakdown */}
-            <View className="mb-8 gap-3 border-b border-surface-200 pb-8">
-              <View className="flex-row items-center justify-between">
-                <Text className="font-sans text-xl font-bold text-surface-on-variant">
-                  Tạm tính
-                </Text>
-                <Text className="font-sans text-2xl font-black text-surface-on">
-                  {formatCurrency(subtotal)}
-                </Text>
-              </View>
-              {discount > 0 && (
-                <View className="flex-row items-center justify-between">
-                  <Text className="font-sans text-xl font-bold text-primary">Giảm giá</Text>
-                  <Text className="font-sans text-2xl font-black text-primary">
-                    -{formatCurrency(discount)}
-                  </Text>
-                </View>
-              )}
-              <View className="flex-row items-center justify-between">
-                <Text className="font-sans text-xl font-bold text-surface-on-variant">Thuế</Text>
-                <Text className="font-sans text-2xl font-black text-surface-on">
-                  {formatCurrency(tax)}
-                </Text>
-              </View>
-            </View>
-
-            {/* Total */}
-            <View>
-              <Text className="mb-2 font-sans text-2xl font-bold uppercase tracking-widest text-surface-on-variant">
-                Tổng thanh toán
-              </Text>
-              <Text className="font-sans text-7xl font-black text-primary">
-                {formatCurrency(total)}
-              </Text>
-            </View>
-
-            <View className="mt-8 rounded-full bg-primary/10 px-6 py-3">
-              <Text className="text-center font-sans text-xl font-bold uppercase tracking-[0.2em] text-primary">
-                Quét mã để thanh toán
-              </Text>
-            </View>
-          </View>
+    <View className="flex-1 items-center justify-center bg-background p-6">
+      {/* Pop-up Card căn giữa dạng Dọc siêu tinh tế & gọn gàng */}
+      <View
+        style={{ width: 400 }}
+        className="items-center rounded-[28px] border border-surface-200 bg-white p-6 shadow-xl"
+      >
+        {/* Phần 1: Khung QR Code đặt ở trên cùng */}
+        <View className="mb-4 items-center justify-center rounded-[20px] border border-surface-200 bg-white p-4 shadow-sm">
+          {qrCodeUrl ? (
+            <QRCode value={qrCodeUrl} size={QRCODE_SIZE} color="black" backgroundColor="white" />
+          ) : (
+            <Shimmer className={`h-[${QRCODE_SIZE}px] w-[${QRCODE_SIZE}px] rounded-[12px]`} />
+          )}
         </View>
-      </Container>
+
+        {/* Đường gạch phân cách mỏng */}
+        <View className="my-4 w-full border-b border-surface-100" />
+
+        {/* Phần 2: Số tiền cần thanh toán */}
+        <View className="flex-row items-center" style={{ width: QRCODE_SIZE }}>
+          <Text className="h-6 w-1/2 text-start font-sans text-3xl font-bold text-surface-on-variant">
+            Tổng thanh toán:
+          </Text>
+          <Text className={`h-6 w-1/2 text-right font-sans text-3xl  font-black text-primary`}>
+            {formatCurrency(total)}
+          </Text>
+        </View>
+      </View>
     </View>
   )
 }

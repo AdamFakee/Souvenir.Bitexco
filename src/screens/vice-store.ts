@@ -61,6 +61,7 @@ interface ViceState {
     isSuccess?: boolean
   }) => void
   setCurrentScreen: (screen: 'Home' | 'Payment' | 'CashPayment' | 'Success') => void
+  clearCart: () => void
 }
 
 export const useViceStore = create<ViceState>((set) => ({
@@ -107,4 +108,18 @@ export const useViceStore = create<ViceState>((set) => ({
       currentScreen: payload.isSuccess ? 'Success' : 'CashPayment',
     }),
   setCurrentScreen: (currentScreen) => set({ currentScreen }),
+  clearCart: () =>
+    set({
+      items: [],
+      subtotal: 0,
+      discount: 0,
+      tax: 0,
+      total: 0,
+      customerName: '',
+      orderId: '',
+      qrCodeUrl: '',
+      customerPaid: 0,
+      change: 0,
+      isSuccess: false,
+    }),
 }))

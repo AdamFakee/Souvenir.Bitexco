@@ -1,7 +1,74 @@
+import { COLORS } from '@/shared/constants'
 import { formatCurrency } from '@/shared/utils'
+import { Banknote } from 'lucide-react-native'
 import React, { memo } from 'react'
 import { Text, View } from 'react-native'
 import { useViceStore } from '../vice-store'
+
+const CashCard = memo(function CashCard({
+  label,
+  value,
+  isHighlight = false,
+}: {
+  label: string
+  value: number
+  isHighlight?: boolean
+}) {
+  return (
+    <View
+      className={`flex-1 items-center justify-center rounded-[20px] border p-6 shadow-sm ${
+        isHighlight ? 'border-outline-variant bg-surface-100' : 'border-surface-200 bg-surface-50'
+      }`}
+    >
+      <Text
+        className={`text-center font-sans text-xl font-black uppercase tracking-wider ${
+          isHighlight ? 'text-primary' : 'text-surface-on-variant'
+        }`}
+      >
+        {label}
+      </Text>
+      <Text
+        className={`text-center font-sans font-black ${
+          isHighlight ? 'text-4xl text-primary' : 'text-3xl text-surface-on'
+        }`}
+      >
+        {formatCurrency(value)}
+      </Text>
+    </View>
+  )
+})
+
+const Row = memo(function Row({
+  label,
+  value,
+  isHighlight = false,
+  prefix = '',
+}: {
+  label: string
+  value: number
+  isHighlight?: boolean
+  prefix?: string
+}) {
+  return (
+    <View className="flex-row items-center justify-between">
+      <Text
+        className={`font-sans text-2xl font-bold ${
+          isHighlight ? 'text-primary' : 'text-surface-on-variant'
+        }`}
+      >
+        {label}
+      </Text>
+      <Text
+        className={`font-sans text-2xl font-black ${
+          isHighlight ? 'text-primary' : 'text-surface-on'
+        }`}
+      >
+        {prefix}
+        {formatCurrency(value)}
+      </Text>
+    </View>
+  )
+})
 
 function ViceCashPaymentScreen() {
   const subtotal = useViceStore((state) => state.subtotal)
@@ -12,84 +79,35 @@ function ViceCashPaymentScreen() {
   const change = useViceStore((state) => state.change)
 
   return (
-    <View className="flex-1 items-center justify-center bg-white p-6">
-      <View className="w-full max-w-4xl">
-        {/* Header */}
-        <View className="mb-10 items-center">
-          <Text className="text-center font-sans text-2xl font-bold uppercase tracking-[0.4em] text-surface-on-variant">
-            Thanh toán bằng tiền mặt
+    <View className="flex-1 items-center justify-center bg-background">
+      <View className="w-full rounded-[32px] border border-surface-200 bg-white p-10 shadow-xl">
+        {/* Header: Cực kỳ to và rõ ràng */}
+        <View className="mb-8 items-center">
+          <View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+            <Banknote size={44} color={COLORS?.primary?.default || '#4f46e5'} />
+          </View>
+          <Text className="text-center font-sans text-3xl font-black uppercase tracking-wider text-surface-on">
+            Thanh toán tiền mặt
+          </Text>
+          <Text className="mt-2 text-center font-sans text-base font-semibold text-surface-on-variant">
+            Quý khách vui lòng kiểm tra thông tin giao dịch bên dưới
           </Text>
         </View>
 
-        {/* Bảng thông tin */}
-        <View className="w-full">
-          {/* Breakdown */}
-          <View className="mb-4 gap-2 rounded-2xl bg-surface-50 p-6">
-            <View className="flex-row items-center justify-between">
-              <Text className="font-sans text-xl font-medium text-surface-on-variant">
-                Tạm tính
-              </Text>
-              <Text className="font-sans text-2xl font-bold text-surface-on">
-                {formatCurrency(subtotal)}
-              </Text>
-            </View>
-            {discount > 0 && (
-              <View className="flex-row items-center justify-between">
-                <Text className="font-sans text-xl font-medium text-primary">Giảm giá</Text>
-                <Text className="font-sans text-2xl font-bold text-primary">
-                  -{formatCurrency(discount)}
-                </Text>
-              </View>
-            )}
-            <View className="flex-row items-center justify-between">
-              <Text className="font-sans text-xl font-medium text-surface-on-variant">Thuế</Text>
-              <Text className="font-sans text-2xl font-bold text-surface-on">
-                {formatCurrency(tax)}
-              </Text>
-            </View>
-          </View>
+        <View className="mb-8 border-b-2 border-surface-200 pb-2" />
 
-          {/* Tổng tiền */}
-          <View className="flex-row items-center border-b border-surface-100 px-8 py-6">
-            <View className="flex-1">
-              <Text className="font-sans text-3xl font-medium text-surface-on-variant">
-                Tổng hóa đơn
-              </Text>
-            </View>
-            <View className="flex-1 justify-center">
-              <Text className="text-center font-sans text-5xl font-black text-primary">
-                {formatCurrency(total)}
-              </Text>
-            </View>
-          </View>
+        {/* Dashboard Tiền: Cực kỳ lớn và căn giữa hoàn hảo */}
+        <View className="mb-8 flex-row gap-5">
+          <CashCard label="Tổng hóa đơn" value={total} />
+          <CashCard label="Khách hàng đưa" value={customerPaid} />
+          <CashCard label="Tiền thối dự kiến" value={change} isHighlight />
+        </View>
 
-          {/* Khách đưa */}
-          <View className="flex-row items-center px-8 py-6">
-            <View className="flex-1">
-              <Text className="font-sans text-3xl font-medium text-surface-on-variant">
-                Khách hàng đưa
-              </Text>
-            </View>
-            <View className="flex-1 justify-center">
-              <Text className="text-center font-sans text-7xl font-black text-surface-on">
-                {formatCurrency(customerPaid)}
-              </Text>
-            </View>
-          </View>
-
-          {/* Tiền thối */}
-          <View className="flex-row items-center border-t border-primary px-8 py-6">
-            <View className="flex-1 justify-center">
-              <Text className="font-sans text-3xl font-medium text-surface-on-variant">
-                Tiền thối lại
-              </Text>
-            </View>
-            <View className="flex-1 justify-center">
-              <Text className="justify-cente text-center font-sans text-7xl font-black text-primary">
-                {formatCurrency(change)}
-              </Text>
-            </View>
-          </View>
+        {/* Chi tiết breakdown hóa đơn: Chữ to rõ nét */}
+        <View className="gap-4 rounded-[20px] border border-dashed border-outline-variant bg-surface-100 p-6">
+          <Row label="Tạm tính" value={subtotal} />
+          {discount > 0 && <Row label="Giảm giá" value={discount} prefix="-" isHighlight />}
+          <Row label="Thuế" value={tax} />
         </View>
       </View>
     </View>
