@@ -32,7 +32,7 @@ interface ViceState {
   /** Trạng thái thanh toán thành công */
   isSuccess: boolean
   /** Màn hình đang hiển thị hiện tại */
-  currentScreen: 'Home' | 'Payment' | 'CashPayment' | 'Success'
+  currentScreen: 'Home' | 'Payment' | 'CashPayment' | 'Success' | 'PortablePayment'
 
   // Actions
   updateCart: (payload: {
@@ -51,6 +51,7 @@ interface ViceState {
     tax: number
     total: number
   }) => void
+  showPortablePayment: () => void
   showCashPayment: (payload: {
     subtotal: number
     discount: number
@@ -60,7 +61,9 @@ interface ViceState {
     change: number
     isSuccess?: boolean
   }) => void
-  setCurrentScreen: (screen: 'Home' | 'Payment' | 'CashPayment' | 'Success') => void
+  setCurrentScreen: (
+    screen: 'Home' | 'Payment' | 'CashPayment' | 'Success' | 'PortablePayment',
+  ) => void
   clearCart: () => void
 }
 
@@ -99,6 +102,11 @@ export const useViceStore = create<ViceState>((set) => ({
     set({
       ...payload,
       currentScreen: 'Payment',
+      isSuccess: false,
+    }),
+  showPortablePayment: () =>
+    set({
+      currentScreen: 'PortablePayment',
       isSuccess: false,
     }),
   showCashPayment: (payload) =>

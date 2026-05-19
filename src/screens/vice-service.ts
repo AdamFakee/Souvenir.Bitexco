@@ -50,6 +50,13 @@ export const ViceService = {
   },
 
   /**
+   * Hiển thị màn hình quẹt thẻ POS di động
+   */
+  showPortablePayment: () => {
+    IminViceScreen.sendMsgToViceScreen('showPortablePayment', {})
+  },
+
+  /**
    * Hiển thị thông tin thối tiền mặt
    */
   showCashPayment: (payload: ShowCashPaymentPayload) => {

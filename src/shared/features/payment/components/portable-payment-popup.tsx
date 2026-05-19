@@ -135,13 +135,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
         })
       } else {
         // Hiển thị trạng thái đang xử lý quẹt thẻ trên màn phụ
-        ViceService.showPayment({
-          qrCodeUrl: '', // Quẹt thẻ không cần mã QR
-          subtotal,
-          discount,
-          tax,
-          total,
-        })
+        ViceService.showPortablePayment()
       }
     }, [visible, isSuccess, items, discount, total])
 
