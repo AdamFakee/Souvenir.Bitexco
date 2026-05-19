@@ -1,8 +1,8 @@
 import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
-import { IOrder } from '../types'
 import { formatDateTime } from '@/shared/utils'
 import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
+import { IOrder } from '../types'
 
 import { useAuthStore } from '@/shared/features/auth'
 

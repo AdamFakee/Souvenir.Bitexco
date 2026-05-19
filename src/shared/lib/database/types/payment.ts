@@ -1,3 +1,5 @@
+import type { PortablePaymentCommandResult } from '../../../features/payment/types/portable-payment.type'
+
 /**
  * Các phương thức thanh toán được hỗ trợ
  */
@@ -26,6 +28,8 @@ export interface PaymentSnapshot {
   referenceCode?: string
   /** Loại thẻ (Dùng cho Card) */
   cardType?: string
+  /** Lưu toàn bộ đối tượng kết quả thanh toán từ máy POS di động */
+  portablePaymentResult?: PortablePaymentCommandResult
 }
 
 /**
@@ -40,5 +44,6 @@ export const sanitizePaymentsSnapshot = (rawPayments: any): PaymentSnapshot[] =>
     cashChange: payment.cashChange !== undefined ? Number(payment.cashChange) : undefined,
     referenceCode: payment.referenceCode ? String(payment.referenceCode) : undefined,
     cardType: payment.cardType ? String(payment.cardType) : undefined,
+    portablePaymentResult: payment.portablePaymentResult || undefined,
   }))
 }
