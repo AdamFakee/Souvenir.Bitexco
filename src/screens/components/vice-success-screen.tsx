@@ -1,7 +1,9 @@
+import LottieView from 'lottie-react-native'
 import React, { memo, useEffect } from 'react'
 import { Text, View } from 'react-native'
-import Svg, { Circle, Path } from 'react-native-svg'
 import { useViceStore } from '../vice-store'
+
+const paymentSuccessLottie = require('../../assets/animation/payment-success.json')
 
 function ViceSuccessScreen() {
   const { setCurrentScreen, clearCart } = useViceStore()
@@ -23,19 +25,14 @@ function ViceSuccessScreen() {
         style={{ width: 360 }}
         className="items-center rounded-[28px] border border-surface-200 bg-white p-8 shadow-xl"
       >
-        {/* SVG Checkmark tròn xanh lá nhẹ nhàng, tinh tế */}
+        {/* Animated Lottie Checkmark siêu đẹp, sinh động */}
         <View className="mb-6">
-          <Svg height="120" width="120" viewBox="0 0 100 100">
-            <Circle cx="50" cy="50" r="48" fill="#e6f4ea" stroke="#34a853" strokeWidth="1" />
-            <Path
-              d="M30 50L45 65L70 35"
-              fill="none"
-              stroke="#34a853"
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
+          <LottieView
+            source={paymentSuccessLottie}
+            autoPlay
+            loop={false}
+            style={{ width: 180, height: 180 }}
+          />
         </View>
 
         {/* Thông điệp thành công */}
