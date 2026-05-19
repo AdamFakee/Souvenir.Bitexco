@@ -1,12 +1,11 @@
 import { Button, Numpad } from '@/shared/components/ui'
 import { COLORS, ROUTES } from '@/shared/constants'
 import { useAuthStore } from '@/shared/features/auth'
-import { useIsOnline } from '@/shared/hooks'
 import { toast, useAlertStore } from '@/shared/store'
 import { formatVND } from '@/shared/utils'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
-import { Coins, Monitor, Printer, User, Wifi } from 'lucide-react-native'
+import { Coins, User } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { useOpenStaffShift } from '../../shared/features/shift'
@@ -15,9 +14,6 @@ export default function OpenShift() {
   const router = useRouter()
   const { currentStaff } = useAuthStore()
   const [amountStr, setAmountStr] = useState('')
-  const isOnline = useIsOnline()
-  const [isPrinterReady, setIsPrinterReady] = useState(true)
-  const [isViceScreenReady, setIsViceScreenReady] = useState(true)
 
   const { openStaffShift, isLoading } = useOpenStaffShift()
   const { confirm } = useAlertStore()
@@ -135,40 +131,6 @@ export default function OpenShift() {
             loading={isLoading}
             disabled={!amountStr || amountStr === '0'}
           />
-
-          {/* Footer Status Bar */}
-          <View className="mt-6 flex-row items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
-            <View className="flex-row items-center gap-2">
-              <Printer
-                size={16}
-                color={isPrinterReady ? COLORS.primary.default : COLORS.error.default}
-              />
-              <Text
-                className={`text-xs font-medium ${isPrinterReady ? 'text-primary' : 'text-error'}`}
-              >
-                Máy in
-              </Text>
-            </View>
-
-            <View className="flex-row items-center gap-2">
-              <Monitor
-                size={16}
-                color={isViceScreenReady ? COLORS.primary.default : COLORS.error.default}
-              />
-              <Text
-                className={`text-xs font-medium ${isViceScreenReady ? 'text-primary' : 'text-error'}`}
-              >
-                Màn phụ
-              </Text>
-            </View>
-
-            <View className="flex-row items-center gap-2">
-              <Wifi size={16} color={isOnline ? COLORS.primary.default : COLORS.error.default} />
-              <Text className={`text-xs font-medium ${isOnline ? 'text-primary' : 'text-error'}`}>
-                Mạng
-              </Text>
-            </View>
-          </View>
         </View>
       </ScrollView>
     </View>

@@ -31,12 +31,12 @@ export default function OrderListSession() {
       <View className="flex-row items-center border-b border-[#e2e8f0] bg-[#f1f5f9] px-6">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1">
           <View className="flex-row gap-2 pt-3">
-            {Object.entries(carts).map(([id, actor]) => {
+            {Object.entries(carts).map(([id, actor], index) => {
               const isActive = id === activeCartId
               const cartActor = actor as ActorRefFrom<typeof cartMachine>
               const snapshot = cartActor?.getSnapshot()
               if (!snapshot) return null
-              const label = snapshot.context.label
+              const label = `Phiên #${index + 1}`
 
               return (
                 <Pressable
@@ -146,12 +146,7 @@ export default function OrderListSession() {
                   {formatCurrency(item.price)}
                 </Text>
                 <View className="w-48 items-center justify-center">
-                  <Text className="text-base font-bold text-surface-on-variant">
-                    {item.product.taxRate}%
-                  </Text>
-                  <Text className="mt-0.5 text-xs text-muted">
-                    {formatCurrency(((item.price * item.product.taxRate) / 100) * item.quantity)}
-                  </Text>
+                  <Text className="text-xl font-bold text-surface-on">{item.product.taxRate}%</Text>
                 </View>
                 <View className="w-56 items-center">
                   <View className="flex-row items-center self-center rounded-[20px] border border-outline-variant bg-surface-200">
