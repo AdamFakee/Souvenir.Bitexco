@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
 import NetInfo from '@react-native-community/netinfo'
+import { useEffect, useState } from 'react'
 
 export const useIsOnline = () => {
   const [isOnline, setIsOnline] = useState<boolean>(true)

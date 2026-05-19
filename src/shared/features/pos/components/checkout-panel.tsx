@@ -11,6 +11,8 @@ import {
   PaymentPopupRef,
 } from '@/shared/features/payment'
 import { remoteVoucherApi } from '@/shared/features/payment/api/remote/voucher.remote.api'
+import { PaymentMethod } from '@/shared/lib/database'
+import { useConnectionStore } from '@/shared/store'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { useSelector } from '@xstate/react'
@@ -24,6 +26,8 @@ import { CartItem } from '../types/cart.types'
 export default function CheckoutPanel() {
   const cartActor = useActiveCart()
   const { currentStaff, session } = useAuthStore()
+  const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
+  const isPosConnected = useConnectionStore((s) => s.isPosConnected)
 
   // Get data from Actor
   const items = useSelector(cartActor!, (s) => s?.context?.items || {})
@@ -257,8 +261,8 @@ export default function CheckoutPanel() {
 
           <View className="h-[96px] flex-row items-end gap-6">
             {PAYMENT_REGISTRY.map((method) => {
-              // isAvailable check từ strategy
-              const isAvailable = method.isAvailable(paymentContext, false)
+              // isAvailable check từ strategy (được truyền thực tế trạng thái offline/online)
+              const isAvailable = method.isAvailable(paymentContext, !isNetworkConnected)
               return (
                 <Button
                   key={method.type}
@@ -269,8 +273,13 @@ export default function CheckoutPanel() {
                   className="flex-1 rounded-[24px]"
                   textClassName="text-xl font-black"
                   onPress={() => handleStartPayment(String(method.type))}
-                  // Disabled khi giỏ trống HOẶC strategy không available
-                  disabled={cart.length === 0 || !isAvailable}
+                  // Disabled khi giỏ trống HOẶC strategy không available HOẶC POS không kết nối được HOẶC QRCode mất kết nối mạng
+                  disabled={
+                    cart.length === 0 ||
+                    !isAvailable ||
+                    (method.type === PaymentMethod.CARD && isPosConnected === false) ||
+                    (method.type === PaymentMethod.BANK_TRANSFER && !isNetworkConnected)
+                  }
                 />
               )
             })}

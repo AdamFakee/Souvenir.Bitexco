@@ -1,5 +1,6 @@
 import { PaymentMethod } from '@/shared/lib/database'
 import { CreditCard } from 'lucide-react-native'
+import { useConnectionStore } from '@/shared/store'
 import { PortablePaymentPopup } from '../components'
 import { PaymentStrategy } from '../types/payment-strategy.type'
 
@@ -12,6 +13,6 @@ export const PortableCardStrategy: PaymentStrategy = {
   type: PaymentMethod.CARD,
   label: 'Thẻ (POS)',
   icon: CreditCard,
-  isAvailable: () => true,
+  isAvailable: () => useConnectionStore.getState().isPosConnected !== false,
   PopupComponent: PortablePaymentPopup,
 }
