@@ -6,12 +6,20 @@ import {
   ViceHomeScreen,
   VicePaymentScreen,
   ViceSuccessScreen,
+  VicePortablePaymentScreen,
 } from './components'
 import { useViceStore } from './vice-store'
 
 export default function ViceApp() {
   const currentScreen = useViceStore((state) => state.currentScreen)
-  const { updateCart, setCustomerName, setOrderId, showPayment, showCashPayment } = useViceStore()
+  const {
+    updateCart,
+    setCustomerName,
+    setOrderId,
+    showPayment,
+    showPortablePayment,
+    showCashPayment,
+  } = useViceStore()
 
   useEffect(() => {
     // Lắng nghe sự kiện từ màn hình chính gửi sang
@@ -43,6 +51,9 @@ export default function ViceApp() {
             total: params.total || 0,
           })
           break
+        case 'showPortablePayment':
+          showPortablePayment()
+          break
         case 'showCashPayment':
           showCashPayment({
             subtotal: params.subtotal || 0,
@@ -69,6 +80,7 @@ export default function ViceApp() {
         {currentScreen === 'Home' && <ViceHomeScreen />}
         {currentScreen === 'Payment' && <VicePaymentScreen />}
         {currentScreen === 'CashPayment' && <ViceCashPaymentScreen />}
+        {currentScreen === 'PortablePayment' && <VicePortablePaymentScreen />}
         {currentScreen === 'Success' && <ViceSuccessScreen />}
       </SafeAreaView>
     </SafeAreaProvider>

@@ -1,0 +1,42 @@
+import PaymentPortable from '../../../../../modules/payment-portable'
+
+// const POS_URL = 'https://tung-vm.appspot.com/'
+const POS_URL = 'http://192.168.1.142:8080'
+
+const MERCHANT_NAME = 'TGDD'
+const CASHIER_ID = 'cashier01'
+const LICENSE =
+  'name=TGDD;bank=BIDV;copyright=Use for TGDD only;signature=F9725778F943ABFD16EF0DB9026A2465E3F7BA5ABE1E6E3532CB8483447A6716;expiryDate=2037-12-31;encryption=yes;encoding=base64;userConfirmation=yes;version=20;LCV=4A5995'
+
+/**
+ * Service tương tác trực tiếp với máy POS Ingenico di động qua Expo Native Module.
+ */
+export const PortablePaymentService = {
+  /**
+   * Thực hiện kết nối socket trực tiếp tới thiết bị POS Sandbox.
+   */
+  connect: async (): Promise<string> => {
+    console.log(`[PortablePOS] Connecting socket directly to ${POS_URL}...`)
+    if (!PaymentPortable || typeof PaymentPortable.doConnect !== 'function') {
+      throw new Error('NATIVE_MODULE_UNAVAILABLE: Expo module PaymentPortable is not loaded!')
+    }
+
+    const res = await PaymentPortable.doConnect(POS_URL, MERCHANT_NAME, CASHIER_ID, LICENSE)
+    console.log('[PortablePOS] Direct Connection Response:', res)
+    return res
+  },
+
+  /**
+   * Gửi gói lệnh giao dịch trực tiếp tới máy POS.
+   */
+  executeCommand: async (command: string): Promise<string> => {
+    console.log('[PortablePOS] Executing direct transaction command:', command)
+    if (!PaymentPortable || typeof PaymentPortable.doCommand !== 'function') {
+      throw new Error('NATIVE_MODULE_UNAVAILABLE: Expo module PaymentPortable is not loaded!')
+    }
+
+    const res = await PaymentPortable.doCommand(command)
+    console.log('[PortablePOS] Direct Command Response:', res)
+    return res
+  },
+}

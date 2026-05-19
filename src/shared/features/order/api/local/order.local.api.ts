@@ -1,5 +1,6 @@
 import type { CartItem } from '@/shared/features/pos/types/cart.types'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
+import type { PortablePaymentCommandResult } from '@/shared/features/payment/types/portable-payment.type'
 
 import {
   database,
@@ -18,6 +19,7 @@ export interface CheckoutPaymentPayload {
   cashTendered?: number
   cashChange?: number
   referenceCode?: string
+  portablePaymentResult?: PortablePaymentCommandResult
 }
 
 export interface CheckoutPayload {
@@ -135,6 +137,7 @@ export const OrderLocalAPI = {
         cashTendered: payload.payment.cashTendered,
         cashChange: payload.payment.cashChange,
         referenceCode: payload.payment.referenceCode,
+        portablePaymentResult: payload.payment.portablePaymentResult,
       },
     ]
 
@@ -212,6 +215,51 @@ export const OrderLocalAPI = {
   },
 
   /**
+   * Tạo đơn hàng local ở trạng thái PENDING cho thanh toán qua máy POS.
+   */
+  createOrderByPos: async (payload: CheckoutPayload): Promise<OrderModel> => {
+    const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => {
+      const taxRate = i.product.taxRate || 0
+      const taxAmount = i.price * i.quantity * (taxRate / 100)
+      return {
+        productId: i.product.id,
+        sku: i.product.sku,
+        name: i.product.nameEn,
+        price: i.price,
+        quantity: i.quantity,
+        subtotal: i.price * i.quantity,
+        taxRate,
+        taxAmount,
+        discountAmount: i.discountAmount || 0,
+      }
+    })
+
+    const totalTax = itemsSnapshot.reduce((sum, item) => sum + item.taxAmount, 0)
+
+    const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
+      o.shiftId = payload.shiftId
+      o.staffId = payload.staffId
+      o.status = OrderStatus.PENDING
+      o.subtotal = payload.subtotal
+      o.discount = payload.discount
+      o.voucherCode = payload.voucherCode
+      o.voucherDiscount = payload.voucherDiscount
+      o.total = payload.total
+      o.totalTax = totalTax
+      o.note = payload.note
+      o.itemsSnapshot = itemsSnapshot
+      o.paymentsSnapshot = [payload.payment]
+      o.isDeleted = false
+    })
+
+    await database.write(async () => {
+      await database.batch(preparedOrder)
+    })
+
+    return preparedOrder
+  },
+
+  /**
    * Hoàn tất đơn hàng thanh toán QR (PENDING -> COMPLETED).
    */
   completeOrderByQr: async (
@@ -233,6 +281,36 @@ export const OrderLocalAPI = {
     const preparedStockUpdates = await ProductLocalAPI.prepareDeductStock(deductStockItems)
 
     // 4. Batch execution
+    await database.write(async () => {
+      await database.batch(preparedOrderUpdate, ...preparedStockUpdates)
+    })
+
+    return order
+  },
+
+  /**
+   * Hoàn tất đơn hàng thanh toán qua máy POS di động (PENDING -> COMPLETED).
+   */
+  completeOrderByPos: async (
+    orderId: string,
+    payment: CheckoutPaymentPayload,
+  ): Promise<OrderModel> => {
+    const order = await database.get<OrderModel>('orders').find(orderId)
+
+    // 1. Prepare Order update
+    const preparedOrderUpdate = order.prepareUpdate((o) => {
+      o.status = OrderStatus.COMPLETED
+      o.paymentsSnapshot = [payment]
+    })
+
+    // 2. Prepare Stock Updates
+    const deductStockItems = order.itemsSnapshot.map((item) => ({
+      product: { id: item.productId },
+      quantity: item.quantity,
+    }))
+    const preparedStockUpdates = await ProductLocalAPI.prepareDeductStock(deductStockItems)
+
+    // 3. Batch execution
     await database.write(async () => {
       await database.batch(preparedOrderUpdate, ...preparedStockUpdates)
     })
