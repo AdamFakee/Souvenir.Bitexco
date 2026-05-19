@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import NetInfo from '@react-native-community/netinfo'
 import { PortablePaymentService } from '@/shared/features/payment/utils/portable-payment.service'
+import { toast } from '@/shared/store/use-alert-store'
 
 interface ConnectionState {
   isNetworkConnected: boolean
@@ -25,19 +26,66 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       const parsed = JSON.parse(resStr)
       const statusCode = parsed?.statusCode ?? -1
       const connected = statusCode === 0
+
+      const prevConnected = get().isPosConnected
       set({ isPosConnected: connected, isCheckingPosConnection: false })
+
+      if (prevConnected !== connected) {
+        if (prevConnected === null) {
+          // Lần kiểm tra đầu tiên khi khởi chạy ứng dụng
+          if (!connected) {
+            toast.error('Không tìm thấy máy POS thanh toán. Vui lòng kiểm tra lại!', 'Lỗi thiết bị')
+          }
+        } else {
+          // Các lần thay đổi trạng thái tiếp theo
+          if (!connected) {
+            toast.error('Mất kết nối máy POS thanh toán!', 'Lỗi kết nối')
+          } else {
+            toast.success('Đã kết nối máy POS thanh toán thành công!', 'Kết nối thành công')
+          }
+        }
+      }
       return connected
     } catch (err) {
       console.log('[ConnectionStore] checkPosConnection failed:', err)
+      const prevConnected = get().isPosConnected
       set({ isPosConnected: false, isCheckingPosConnection: false })
+
+      if (prevConnected !== false) {
+        if (prevConnected === null) {
+          toast.error('Không tìm thấy máy POS thanh toán. Vui lòng kiểm tra lại!', 'Lỗi thiết bị')
+        } else {
+          toast.error('Mất kết nối máy POS thanh toán!', 'Lỗi kết nối')
+        }
+      }
       return false
     }
   },
 
   initListeners: () => {
+    let initialNetworkCheck = true
+
     // 1. Lắng nghe thay đổi kết nối mạng internet
     const unsubscribeNet = NetInfo.addEventListener((state) => {
-      set({ isNetworkConnected: !!state.isConnected })
+      const isConnected = !!state.isConnected
+      const prevConnected = get().isNetworkConnected
+
+      if (isConnected !== prevConnected || initialNetworkCheck) {
+        set({ isNetworkConnected: isConnected })
+
+        if (initialNetworkCheck) {
+          initialNetworkCheck = false
+          if (!isConnected) {
+            toast.error('Không có mạng internet. Vui lòng kiểm tra lại kết nối!', 'Lỗi kết nối')
+          }
+        } else {
+          if (!isConnected) {
+            toast.error('Mất kết nối mạng internet!', 'Lỗi kết nối')
+          } else {
+            toast.success('Đã khôi phục kết nối mạng internet!', 'Kết nối thành công')
+          }
+        }
+      }
     })
 
     // 2. Chạy check kết nối POS ban đầu
