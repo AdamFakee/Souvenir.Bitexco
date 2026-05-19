@@ -120,22 +120,40 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
 
     // --- Đồng bộ Vice Screen (Màn hình phụ khách hàng) ---
     useEffect(() => {
-      if (!visible) return
       const subtotal = calculateSubtotal(items)
       const tax = calculateTotalTax(items)
 
-      if (isSuccess) {
-        ViceService.paymentSuccess({
-          subtotal,
-          discount,
-          tax,
-          total,
-          customerPaid: total,
-          change: 0,
-        })
+      if (visible) {
+        if (isSuccess) {
+          ViceService.paymentSuccess({
+            subtotal,
+            discount,
+            tax,
+            total,
+            customerPaid: total,
+            change: 0,
+          })
+        } else {
+          // Hiển thị trạng thái đang xử lý quẹt thẻ trên màn phụ
+          ViceService.showPortablePayment()
+        }
       } else {
-        // Hiển thị trạng thái đang xử lý quẹt thẻ trên màn phụ
-        ViceService.showPortablePayment()
+        // Khi đóng popup (hủy giao dịch / tắt popup), chuyển màn hình phụ về Home
+        if (!isSuccess) {
+          ViceService.updateCart({
+            items: items.map((i) => ({
+              id: i.id,
+              name: i.product.nameEn,
+              price: i.price,
+              quantity: i.quantity,
+              image: i.product.image ?? undefined,
+            })),
+            subtotal,
+            discount,
+            tax,
+            total,
+          })
+        }
       }
     }, [visible, isSuccess, items, discount, total])
 

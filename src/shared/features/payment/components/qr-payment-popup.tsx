@@ -98,6 +98,27 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [qrContent, visible])
 
+    // Trả màn hình phụ về Home khi đóng popup QR (hủy giao dịch)
+    useEffect(() => {
+      if (!visible && !isSuccess) {
+        const subtotal = calculateSubtotal(items)
+        const tax = calculateTotalTax(items)
+        ViceService.updateCart({
+          items: items.map((i) => ({
+            id: i.id,
+            name: i.product.nameEn,
+            price: i.price,
+            quantity: i.quantity,
+            image: i.product.image ?? undefined,
+          })),
+          subtotal,
+          discount,
+          tax,
+          total,
+        })
+      }
+    }, [visible, isSuccess, items, discount, total])
+
     // Khi machine thành công → trigger onSuccess và đóng popup
     useEffect(() => {
       if (!isSuccess) return

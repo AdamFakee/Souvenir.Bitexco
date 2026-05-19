@@ -170,6 +170,27 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cashTendered, roundedTotal, visible])
 
+    // Trả màn hình phụ về Home khi đóng popup tiền mặt (hủy giao dịch)
+    useEffect(() => {
+      if (!visible && !isSuccess) {
+        const subtotal = calculateSubtotal(items)
+        const tax = calculateTotalTax(items)
+        ViceService.updateCart({
+          items: items.map((i) => ({
+            id: i.id,
+            name: i.product.nameEn,
+            price: i.price,
+            quantity: i.quantity,
+            image: i.product.image ?? undefined,
+          })),
+          subtotal,
+          discount,
+          tax,
+          total: roundedTotal,
+        })
+      }
+    }, [visible, isSuccess, items, discount, roundedTotal])
+
     const handleNumpadPress = (digit: string) => {
       if (cashTendered.length < 12) {
         setCashTendered((prev) => prev + digit)
