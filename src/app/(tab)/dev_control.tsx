@@ -3,6 +3,7 @@ import { Button } from '@/shared/components/ui/button'
 import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
+import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { database } from '@/shared/lib/database'
 import CategoryModel from '@/shared/lib/database/models/category'
 import ProductModel from '@/shared/lib/database/models/product'
@@ -109,6 +110,22 @@ export default function DevControlScreen() {
     return products.filter((p) => p.categoryId === catId).length
   }
 
+  const handleTestActivateDevice = async () => {
+    try {
+      toast.info('Đang gửi request Activate Device...')
+      const response = await AxiosService.getInstance().post('/v1/pos-devices/activate', {
+        deviceCode: 'TEST 1',
+        activationToken: '500107', // Sửa lại token nếu admin cấp token khác
+      })
+      console.log('✅ Activate Device Success:', JSON.stringify(response.data))
+      toast.success('Kích hoạt thành công! Xem log console.')
+    } catch (error: any) {
+      const errData = error.response?.data
+      console.error('❌ Activate Device Error:', errData || error.message)
+      toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message))
+    }
+  }
+
   return (
     <ScrollView className="flex-1 bg-surface-200 p-6">
       <Text className="mb-6 text-headline-md font-bold text-primary">Dev Control Panel</Text>
@@ -164,6 +181,13 @@ export default function DevControlScreen() {
             className="flex-1 border-error"
             textClassName="text-error"
             onPress={handleClearData}
+          />
+        </View>
+        <View className="mt-4">
+          <Button
+            label="Test API: Kích hoạt máy POS (/v1/pos-devices/activate)"
+            className="bg-blue-600"
+            onPress={handleTestActivateDevice}
           />
         </View>
       </Container>
