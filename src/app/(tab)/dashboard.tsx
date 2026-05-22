@@ -1,5 +1,5 @@
 import { LoadingIndicator } from '@/shared/components/ui'
-import { useAuthStore } from '@/shared/features/auth'
+import { useAppContext } from '@/shared/features/app'
 import { DashboardCharts, DashboardStatCard, useDashboardStats } from '@/shared/features/order'
 
 import { formatCurrency } from '@/shared/utils'
@@ -16,9 +16,9 @@ import React from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
 export default function DashboardScreen() {
-  const { session, currentStaff } = useAuthStore()
+  const { cashSessionId, employee } = useAppContext()
 
-  const { stats, isLoading } = useDashboardStats(session?.shiftId)
+  const { stats, isLoading } = useDashboardStats(cashSessionId ?? undefined)
 
   if (isLoading) {
     return (
@@ -43,14 +43,12 @@ export default function DashboardScreen() {
             <View className="flex-row items-center">
               <Text className="text-2xl font-medium text-surface-on-variant">Nhân viên:</Text>
               <Text className="ml-3 text-2xl font-black text-primary">
-                {currentStaff?.fullname || '—'}
+                {employee?.displayName || '—'}
               </Text>
             </View>
             <View className="flex-row items-center">
-              <Text className="text-2xl font-medium text-surface-on-variant">Bắt đầu ca:</Text>
-              <Text className="ml-3 text-2xl font-black text-surface-on">
-                {session?.loginAt ? new Date(session.loginAt).toLocaleString('vi-VN') : '—'}
-              </Text>
+              <Text className="text-2xl font-medium text-surface-on-variant">Ca làm việc:</Text>
+              <Text className="ml-3 text-2xl font-black text-surface-on">Đang hoạt động</Text>
             </View>
           </View>
 

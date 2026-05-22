@@ -1,6 +1,6 @@
 import { Button, Container } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { getRoleLabel, useAuthStore } from '@/shared/features/auth'
+import { useAppContext } from '@/shared/features/app'
 import { CloseShiftModal, CloseShiftModalRef } from '@/shared/features/shift'
 import { useSync } from '@/shared/lib/database/sync'
 import { MaterialIcons } from '@expo/vector-icons'
@@ -25,7 +25,7 @@ const MENU_ITEMS: MenuItem[] = [
 
 const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () => void }) => {
   const insets = useSafeAreaInsets()
-  const { currentStaff } = useAuthStore()
+  const { employee } = useAppContext()
   const router = useRouter()
   const segments = useSegments()
   const { syncNow, isSyncing } = useSync()
@@ -110,10 +110,10 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
             </View>
             <View className="flex-1">
               <Text className="text-sm font-black text-surface-on" numberOfLines={1}>
-                {currentStaff?.fullname || 'Nhân viên'}
+                {employee?.displayName || 'Nhân viên'}
               </Text>
               <Text className="text-surface-onVariant text-xs font-medium" numberOfLines={1}>
-                {currentStaff?.role ? getRoleLabel(currentStaff.role) : 'Role: N/A'}
+                {employee?.roles?.length ? `Role: ${employee.roles.join(', ')}` : 'Role: N/A'}
               </Text>
             </View>
           </View>
@@ -126,7 +126,7 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
 CustomSidebar.displayName = 'CustomSidebar'
 
 export default function TabLayout() {
-  const { session } = useAuthStore()
+  const { cashSessionId } = useAppContext()
 
   const closeShiftModalRef = useRef<CloseShiftModalRef>(null)
 
@@ -148,7 +148,7 @@ export default function TabLayout() {
         </Tabs>
       </View>
 
-      <CloseShiftModal ref={closeShiftModalRef} shiftId={session?.shiftId} />
+      <CloseShiftModal ref={closeShiftModalRef} shiftId={cashSessionId ?? undefined} />
     </View>
   )
 }

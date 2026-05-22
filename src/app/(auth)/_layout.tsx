@@ -8,6 +8,7 @@ export default function AuthLayout() {
         headerShown: false,
       }}
     >
+      <Stack.Screen name="device-activation" />
       <Stack.Screen name="staff-login" />
     </Stack>
   )

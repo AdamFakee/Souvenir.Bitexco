@@ -10,10 +10,15 @@ import ProductModel from '@/shared/lib/database/models/product'
 import { toast } from '@/shared/store'
 import React, { useEffect, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
+import { storage } from '@/shared/lib/storage'
+import { useAppStore } from '@/shared/features/app'
 
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
   const [products, setProducts] = useState<ProductModel[]>([])
+  const [mockHasOpenShift, setMockHasOpenShift] = useState(
+    storage.getBoolean('mock-has-open-shift') ?? false,
+  )
 
   const loadData = async () => {
     try {
@@ -126,6 +131,38 @@ export default function DevControlScreen() {
     }
   }
 
+  const handleToggleOpenShiftMock = (enabled: boolean) => {
+    storage.set('mock-has-open-shift', enabled)
+    setMockHasOpenShift(enabled)
+    toast.success(`Mock: ${enabled ? 'Đã bật' : 'Đã tắt'} trạng thái Có Ca Đang Mở`, 'Thành công')
+  }
+
+  const handleSimulateTokenExpired = () => {
+    const appService = useAppStore.getState().appService
+    if (appService) {
+      appService.send({ type: 'TOKEN_EXPIRED' })
+      toast.warning('Đã gửi sự kiện TOKEN_EXPIRED! Máy sẽ yêu cầu đăng nhập lại.', 'Simulated')
+    } else {
+      toast.error('App Service chưa sẵn sàng')
+    }
+  }
+
+  const handleForceLogout = () => {
+    toast.confirm({
+      title: 'Xác nhận Logout & Reset?',
+      message: 'Hành động này sẽ xóa sạch MMKV auth state và đưa máy về trạng thái chưa đăng nhập.',
+      onConfirm: () => {
+        const appService = useAppStore.getState().appService
+        if (appService) {
+          appService.send({ type: 'LOGGED_OUT' })
+          toast.success('Đã force LOGOUT!')
+        } else {
+          toast.error('App Service chưa sẵn sàng')
+        }
+      },
+    })
+  }
+
   return (
     <ScrollView className="flex-1 bg-surface-200 p-6">
       <Text className="mb-6 text-headline-md font-bold text-primary">Dev Control Panel</Text>
@@ -167,6 +204,52 @@ export default function DevControlScreen() {
               })
             }
           />
+        </View>
+      </Container>
+
+      {/* Mock v1.8 Auth & Shift Controls */}
+      <Container className="mb-6 border border-primary/20 bg-primary/5 p-4">
+        <Text className="text-title-md mb-1 font-black uppercase tracking-wider text-primary">
+          Mock v1.8 Auth & Shift
+        </Text>
+        <Text className="text-body-xs mb-4 text-muted">
+          Thay đổi trạng thái API mock & giả lập các sự kiện State Machine của hệ thống
+        </Text>
+
+        <View className="gap-4">
+          <View className="flex-row gap-3">
+            <Button
+              label="Mock: CHƯA MỞ CA"
+              variant={!mockHasOpenShift ? 'primary' : 'outline'}
+              className={`flex-1 ${!mockHasOpenShift ? 'bg-primary' : 'border-primary'}`}
+              textClassName={!mockHasOpenShift ? 'text-white' : 'text-primary'}
+              onPress={() => handleToggleOpenShiftMock(false)}
+            />
+            <Button
+              label="Mock: CÓ CA ĐANG MỞ"
+              variant={mockHasOpenShift ? 'primary' : 'outline'}
+              className={`flex-1 ${mockHasOpenShift ? 'bg-primary' : 'border-primary'}`}
+              textClassName={mockHasOpenShift ? 'text-white' : 'text-primary'}
+              onPress={() => handleToggleOpenShiftMock(true)}
+            />
+          </View>
+
+          <View className="flex-row gap-3">
+            <Button
+              label="Simulate: Hết hạn Token (401)"
+              variant="outline"
+              className="flex-1 border-amber-600"
+              textClassName="text-amber-600"
+              onPress={handleSimulateTokenExpired}
+            />
+            <Button
+              label="Force LOGOUT (Reset)"
+              variant="outline"
+              className="flex-1 border-error"
+              textClassName="text-error"
+              onPress={handleForceLogout}
+            />
+          </View>
         </View>
       </Container>
 

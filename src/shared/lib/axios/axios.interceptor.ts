@@ -1,5 +1,5 @@
 import { API_CONSTANT } from '@/shared/constants'
-import { useAuthStore } from '@/shared/features/auth'
+import { useAppStore } from '@/shared/features/app'
 import { toast } from '@/shared/store'
 import {
   AxiosError,
@@ -14,10 +14,10 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 }
 
 const onRequest = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-  const { tokens } = useAuthStore.getState()
+  const accessToken = useAppStore.getState().appService?.getSnapshot().context.accessToken
   config.headers = new AxiosHeaders({
     ...config.headers,
-    Authorization: tokens?.accessToken ? `Bearer ${tokens.accessToken}` : '',
+    Authorization: accessToken ? `Bearer ${accessToken}` : '',
     'Content-Type': 'application/json',
   })
 
@@ -45,38 +45,39 @@ const onResponseError = async (error: AxiosError): Promise<any> => {
   ) {
     originalRequest._retry = true
 
-    // try {
-    //   const { tokens, setTokens, logout } = useAuthStore.getState()
+    try {
+      // const { tokens, setTokens, logout } = useAuthStore.getState()
 
-    //   if (tokens?.refreshToken) {
-    //     const response = await AuthApi.refreshToken({ refreshToken: tokens.refreshToken })
+      // if (tokens?.refreshToken) {
+      // const response = await AuthApi.refreshToken({ refreshToken: tokens.refreshToken })
 
-    //     if (response.success && response.tokens) {
-    //       setTokens(response.tokens)
+      // if (response.success && response.tokens) {
+      // setTokens(response.tokens)
 
-    //       // Update authorization header with new token
-    //       originalRequest.headers.Authorization = `Bearer ${response.tokens.accessToken}`
+      // Update authorization header with new token
+      // originalRequest.headers.Authorization = `Bearer ${response.tokens.accessToken}`
 
-    //       // Retry original request
-    //       return axios(originalRequest)
-    //     } else {
-    //       // Refresh failed
-    //       logout()
-    //       return Promise.reject(error)
-    //     }
-    //   } else {
-    //     // No refresh token available
-    //     logout()
-    //     return Promise.reject(error)
-    //   }
-    // } catch (refreshError) {
-    //   // Refresh token API failed
-    //   useAuthStore.getState().logout()
-    //   return Promise.reject(refreshError)
-    // }
+      // Retry original request
+      // return axios(originalRequest)
+      // } else {
+      // Refresh failed
+      // logout()
+      // return Promise.reject(error)
+      // }
+      // } else {
+      // No refresh token available
+      // logout()
+      // return Promise.reject(error)
+      // }
+      return Promise.reject(error)
+    } catch (refreshError) {
+      // Refresh token API failed
+      // useAuthStore.getState().logout()
+      return Promise.reject(refreshError)
+    }
 
     toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
-    useAuthStore.getState().logout()
+    useAppStore.getState().appService?.send({ type: 'TOKEN_EXPIRED' })
   }
 
   // Handle other errors (Show Toast)

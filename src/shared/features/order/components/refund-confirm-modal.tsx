@@ -1,6 +1,6 @@
 import { Button, Chip, IconButton, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAuthStore } from '@/shared/features/auth/store/use-auth-store'
+import { useAppStore } from '@/shared/features/app'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
@@ -34,7 +34,7 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
 
     useImperativeHandle(ref, () => ({
       open: (o: IOrder) => {
-        const shiftId = useAuthStore.getState().session?.shiftId || ''
+        const shiftId = useAppStore.getState().appService?.getSnapshot().context.cashSessionId || ''
         send({ type: 'START', order: o, shiftId })
         setVisible(true)
       },

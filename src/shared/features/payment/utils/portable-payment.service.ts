@@ -16,13 +16,13 @@ export const PortablePaymentService = {
    * Thực hiện kết nối socket trực tiếp tới thiết bị POS Sandbox.
    */
   connect: async (): Promise<string> => {
-    console.log(`[PortablePOS] Connecting socket directly to ${POS_URL}...`)
+    // console.log(`[PortablePOS] Connecting socket directly to ${POS_URL}...`)
     if (!PaymentPortable || typeof PaymentPortable.doConnect !== 'function') {
       throw new Error('NATIVE_MODULE_UNAVAILABLE: Expo module PaymentPortable is not loaded!')
     }
 
     const res = await PaymentPortable.doConnect(POS_URL, MERCHANT_NAME, CASHIER_ID, LICENSE)
-    console.log('[PortablePOS] Direct Connection Response:', res)
+    // console.log('[PortablePOS] Direct Connection Response:', res)
     return res
   },
 
@@ -30,13 +30,13 @@ export const PortablePaymentService = {
    * Gửi gói lệnh giao dịch trực tiếp tới máy POS.
    */
   executeCommand: async (command: string): Promise<string> => {
-    console.log('[PortablePOS] Executing direct transaction command:', command)
+    // console.log('[PortablePOS] Executing direct transaction command:', command)
     if (!PaymentPortable || typeof PaymentPortable.doCommand !== 'function') {
       throw new Error('NATIVE_MODULE_UNAVAILABLE: Expo module PaymentPortable is not loaded!')
     }
 
     const res = await PaymentPortable.doCommand(command)
-    console.log('[PortablePOS] Direct Command Response:', res)
+    // console.log('[PortablePOS] Direct Command Response:', res)
     return res
   },
 }

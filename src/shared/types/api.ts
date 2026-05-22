@@ -41,3 +41,33 @@ export interface IBaseResponse<T> {
   meta: IMeta | null // Thông tin bổ sung
   error: IErrorDetail | null // Chi tiết lỗi
 }
+
+/**
+ * API v1.8 — Paged list response
+ * Dùng cho GET /v1/cash-sessions, GET /v1/product-lookup, v.v.
+ */
+export interface PagedResponse<T> {
+  items: T[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+/**
+ * API v1.8 — State machine transition response
+ * Dùng cho POST .../transitions
+ */
+export interface StateResponse<T> {
+  data: T
+  currentState: string
+  allowedActions: string[]
+}
+
+/**
+ * API v1.8 — Error response body
+ * error là error code dạng "module.reason", FE tự translate
+ */
+export interface ApiError {
+  error: string
+  traceId?: string
+}

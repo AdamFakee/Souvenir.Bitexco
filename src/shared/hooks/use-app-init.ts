@@ -1,31 +1,26 @@
-import { useEffect } from 'react'
-import { AppState, AppStateStatus } from 'react-native'
-import { usePosStore } from '../features/pos/store'
+import { useAppStore } from '../features/app'
+import { usePosStore } from '../features/pos'
 import { useConnectionStore } from '../store'
+import { useEffect } from 'react'
 
 /**
- * Hook khởi tạo ứng dụng (Background Services, Listeners, v.v.)
+ * Hook khởi tạo ứng dụng.
+ * - Start appMachine (đọc MMKV → quyết định state ban đầu).
+ * - Khởi tạo listeners mạng/POS.
  */
 export const useAppInit = () => {
   useEffect(() => {
-    // Lắng nghe trạng thái App (Foreground/Background)
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      // Khi người dùng quay lại App (Active)
-      if (nextAppState === 'active') {
-        // Handle active state
-      }
-    }
+    // 1. Start appMachine (singleton)
+    useAppStore.getState().initApp()
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange)
-
-    // 3. Khởi tạo POS Machine
+    // 2. Start posMachine (singleton)
     usePosStore.getState().initPos()
 
-    // 4. Khởi tạo listeners cho mạng và kết nối POS
+    // 3. Khởi tạo listeners cho mạng và kết nối POS
     const cleanupConnection = useConnectionStore.getState().initListeners()
 
     return () => {
-      subscription.remove()
+      useAppStore.getState().destroyApp()
       usePosStore.getState().destroyPos()
       cleanupConnection()
     }

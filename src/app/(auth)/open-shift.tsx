@@ -1,18 +1,18 @@
 import { Button, Numpad } from '@/shared/components/ui'
 import { COLORS, ROUTES } from '@/shared/constants'
-import { useAuthStore } from '@/shared/features/auth'
+import { useAppContext, useAppStore } from '@/shared/features/app'
 import { toast, useAlertStore } from '@/shared/store'
 import { formatVND } from '@/shared/utils'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
-import { Coins, User } from 'lucide-react-native'
+import { Coins, User, LogOut } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { useOpenStaffShift } from '../../shared/features/shift'
 
 export default function OpenShift() {
   const router = useRouter()
-  const { currentStaff } = useAuthStore()
+  const { employee, device } = useAppContext()
   const [amountStr, setAmountStr] = useState('')
 
   const { openStaffShift, isLoading } = useOpenStaffShift()
@@ -40,7 +40,13 @@ export default function OpenShift() {
   }, [])
 
   const handleOpenShift = async () => {
-    if (!currentStaff?.id) {
+    const deviceId = device?.id
+    if (!deviceId) {
+      toast.error('Không tìm thấy thông tin thiết bị')
+      return
+    }
+
+    if (!employee?.id) {
       toast.error('Không tìm thấy thông tin nhân viên')
       router.replace(ROUTES.STAFF_LOGIN.path())
       return
@@ -57,13 +63,32 @@ export default function OpenShift() {
       onConfirm: async () => {
         try {
           await openStaffShift({
-            staffId: currentStaff.id,
+            posDeviceId: deviceId,
             openingBalance: Number(amountStr || '0'),
           })
           toast.success('Mở ca làm việc thành công')
         } catch {
           toast.error('Có lỗi xảy ra khi mở ca làm việc')
         }
+      },
+    })
+  }
+
+  const handleLogout = () => {
+    confirm({
+      title: 'Đăng xuất tài khoản',
+      message: 'Bạn có chắc chắn muốn đăng xuất và đổi nhân viên khác không?',
+      onConfirm: () => {
+        // Tránh lỗi native crash trên Android khi unmount screen khi Modal Alert chưa kịp đóng hoàn toàn
+        setTimeout(() => {
+          const appService = useAppStore.getState().appService
+          if (appService) {
+            appService.send({ type: 'LOGGED_OUT' })
+            toast.success('Đã đăng xuất nhân viên')
+          } else {
+            toast.error('App Service chưa sẵn sàng')
+          }
+        }, 150)
       },
     })
   }
@@ -89,11 +114,22 @@ export default function OpenShift() {
               </View>
               <View>
                 <Text className="text-lg font-bold text-slate-900">
-                  {currentStaff?.fullname || 'Nhân viên'}
+                  {employee?.displayName || 'Nhân viên'}
                 </Text>
-                <Text className="text-sm text-slate-500">Mã NV: {currentStaff?.id || 'N/A'}</Text>
+                <Text className="text-sm text-slate-500">
+                  Mã NV: {employee?.employeeCode || 'N/A'}
+                </Text>
               </View>
             </View>
+
+            <Button
+              label="Đổi tài khoản"
+              variant="outline"
+              leftIcon={LogOut}
+              className="h-10 rounded-xl border-slate-200 px-4"
+              textClassName="text-slate-600 text-xs font-semibold"
+              onPress={handleLogout}
+            />
           </View>
 
           {/* Main Open Shift Box */}

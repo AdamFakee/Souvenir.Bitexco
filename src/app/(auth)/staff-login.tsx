@@ -1,79 +1,84 @@
 import { Button, ControlledInput } from '@/shared/components/ui'
-import { ROUTES } from '@/shared/constants'
-import { LoginFormData, loginSchema, StaffRemoteAPI, useAuthStore } from '@/shared/features/auth'
+import { useAppStore } from '@/shared/features/app'
+import { EmployeePermission, EmployeeRole } from '@/shared/features/app/types/app.types'
 import { toast } from '@/shared/store'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { LinearGradient } from 'expo-linear-gradient'
-import { useRouter } from 'expo-router'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
+import * as v from 'valibot'
+import { AuthAPI } from '@/shared/features/auth'
+
+const loginSchema = v.object({
+  employeeCode: v.pipe(v.string(), v.minLength(1, 'Mã nhân viên là bắt buộc')),
+  pin: v.pipe(v.string(), v.length(4, 'PIN phải có đúng 4 chữ số')),
+})
+
+type LoginFormData = v.InferOutput<typeof loginSchema>
 
 export default function StaffLogin() {
-  const router = useRouter()
-
   const [loading, setLoading] = useState(false)
-  const { authenticate } = useAuthStore()
+  const appService = useAppStore((s) => s.appService)
 
   const { control, handleSubmit, setError } = useForm<LoginFormData>({
     resolver: valibotResolver(loginSchema),
     defaultValues: {
-      username: '',
-      password: '',
+      employeeCode: '',
+      pin: '',
     },
   })
 
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true)
     try {
-      // Gọi API Login Remote
-      const response = await StaffRemoteAPI.login({
-        username: data.username,
-        password: data.password,
+      // Lấy deviceId từ machine context
+      const deviceId = appService?.getSnapshot().context.device?.id
+      if (!deviceId) {
+        toast.error('Thiết bị chưa được kích hoạt')
+        return
+      }
+
+      // Gọi API POST /v1/device/auth/login
+      console.log('[StaffLogin] Calling API login with', {
+        deviceId,
+        employeeCode: data.employeeCode,
+        pin: data.pin,
       })
 
-      if (response.success && response.data) {
-        const { staff, tokens, currentShiftId } = response.data
+      const response = await AuthAPI.login({
+        deviceId,
+        employeeCode: data.employeeCode,
+        pin: data.pin,
+      })
 
-        // Lưu thông tin vào Zustand Store
-        authenticate(
-          {
-            staffId: staff.id,
-            shiftId: currentShiftId || '', // Nếu chưa có ca thì để trống
-            loginAt: Date.now(),
-          },
-          staff,
-          tokens,
-        )
+      console.log('[StaffLogin] API response:', response)
 
-        toast.success('Đăng nhập thành công')
-
-        // Nếu đã có ca thì vào thẳng Tab chính, ngược lại vào màn mở ca
-        if (currentShiftId) {
-          router.replace(ROUTES.POS.path())
-        } else {
-          router.replace(ROUTES.OPEN_SHIFT.path())
-        }
-      } else {
-        // Hiển thị lỗi từ Backend trả về
-        const errorMessage = response.message || 'Tên đăng nhập hoặc mật khẩu không đúng'
-        setError('username', { type: 'manual', message: errorMessage })
-        setError('password', { type: 'manual', message: errorMessage })
-        toast.error(errorMessage)
-      }
-    } catch (error) {
+      // response ở đây đã là LoginResponseData trực tiếp (API v1.8)
+      appService?.send({
+        type: 'LOGIN_SUCCESS',
+        accessToken: response.accessToken,
+        employee: response.employee,
+        device: appService.getSnapshot().context.device!,
+      })
+      toast.success('Đăng nhập thành công')
+      // Navigation tự động qua useAppGate
+    } catch (error: any) {
       console.error('Login error:', error)
-      toast.error('Đã có lỗi xảy ra trong quá trình đăng nhập')
+
+      const serverData = error.response?.data
+      // API v1.8 format: { "error": "auth.employee_not_found" } hoặc tương tự
+      const message =
+        serverData?.message ||
+        (typeof serverData?.error === 'string' ? serverData.error : null) ||
+        error.message ||
+        'Mã nhân viên hoặc PIN không đúng'
+
+      setError('pin', { type: 'manual', message })
+      toast.error(message)
     } finally {
       setLoading(false)
     }
-  }
-
-  const handlePinLogin = () => {
-    toast.info(
-      'Tính năng đang được phát triển và sẽ sớm ra mắt trong các phiên bản tới.',
-      'Tính năng sắp ra mắt',
-    )
   }
 
   return (
@@ -98,43 +103,33 @@ export default function StaffLogin() {
       {/* Right Side - Login Form */}
       <View className="flex-[7] items-center justify-center px-16">
         <View className="w-full max-w-[460px]">
-          <Text className="text-3xl font-bold text-surface-on">Đăng nhập hệ thống</Text>
+          <Text className="text-3xl font-bold text-surface-on">Đăng nhập nhân viên</Text>
           <Text className="mt-2 text-base text-surface-on-variant">
-            Vui lòng nhập thông tin hoặc mã PIN
+            Nhập mã nhân viên và mã PIN để bắt đầu ca làm việc
           </Text>
 
           <View className="mt-8">
             <ControlledInput
               control={control}
-              name="username"
-              label="Tên đăng nhập"
-              placeholder="Tài khoản"
+              name="employeeCode"
+              label="Mã nhân viên"
+              placeholder="Ví dụ: NV001"
               required
             />
-
             <ControlledInput
               control={control}
-              name="password"
-              label="Mật khẩu"
-              placeholder="••••••••"
+              name="pin"
+              label="Mã PIN"
+              placeholder="••••"
               secureTextEntry
               required
             />
-
             <Button
               label="Đăng nhập"
               onPress={handleSubmit(onSubmit)}
               loading={loading}
               className="mt-4"
             />
-
-            <View className="my-4 flex-row items-center gap-4">
-              <View className="h-[1px] flex-1 bg-outline-variant" />
-              <Text className="text-xs text-surface-on-variant">hoặc</Text>
-              <View className="h-[1px] flex-1 bg-outline-variant" />
-            </View>
-
-            <Button label="Đăng nhập bằng mã PIN" variant="outline" onPress={handlePinLogin} />
           </View>
         </View>
       </View>

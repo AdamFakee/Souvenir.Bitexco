@@ -1,6 +1,6 @@
 import { Button, IconButton } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAuthStore } from '@/shared/features/auth'
+import { useAppContext } from '@/shared/features/app'
 import {
   calculateSubtotal,
   calculateTotalQuantity,
@@ -25,7 +25,7 @@ import { CartItem } from '../types/cart.types'
 
 export default function CheckoutPanel() {
   const cartActor = useActiveCart()
-  const { currentStaff, session } = useAuthStore()
+  const { employee, cashSessionId } = useAppContext()
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
   const isPosConnected = useConnectionStore((s) => s.isPosConnected)
 
@@ -297,11 +297,11 @@ export default function CheckoutPanel() {
             discount={discount}
             appliedVoucher={appliedVoucher}
             items={cart}
-            staffId={session?.staffId ?? ''}
-            shiftId={session?.shiftId ?? ''}
+            staffId={employee?.id ?? ''}
+            shiftId={cashSessionId ?? ''}
             activeSessionId={activeSessionId}
             printRef={printRef}
-            staffName={currentStaff?.fullname}
+            staffName={employee?.displayName}
             onSuccess={handleCheckoutSuccess}
           />
         ))}

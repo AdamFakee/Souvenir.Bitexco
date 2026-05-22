@@ -4,7 +4,7 @@ import { Text, View } from 'react-native'
 
 import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { COLORS } from '@/shared/constants'
-import { useAuthStore } from '@/shared/features/auth'
+import { useAppContext } from '@/shared/features/app'
 import { CheckoutPanel, OrderListSession, usePosActor } from '@/shared/features/pos'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { toast } from '@/shared/store'
@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function PosScreen() {
   const posActor = usePosActor()
-  const { isShiftOpen } = useAuthStore()
+  const { cashSessionId } = useAppContext()
+  const isShiftOpen = cashSessionId !== null
 
   const handleScan = async (codes: string[]) => {
     for (const code of codes) {

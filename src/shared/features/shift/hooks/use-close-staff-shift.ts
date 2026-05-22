@@ -1,11 +1,10 @@
-import { useAuthStore } from '@/shared/features/auth'
+import { useAppStore } from '@/shared/features/app'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { toast } from '@/shared/store'
 import { useState } from 'react'
 import { ShiftRemoteAPI } from '../api/remote/shift.remote.api'
 
 export const useCloseStaffShift = () => {
-  const { logout } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
 
   const closeStaffShift = async (
@@ -23,19 +22,19 @@ export const useCloseStaffShift = () => {
         throw new Error('Đồng bộ dữ liệu thất bại. Vui lòng kiểm tra mạng và thử lại.')
       }
 
-      // 2. Đóng ca online
-      const response = await ShiftRemoteAPI.closeShift({
-        shiftId: shiftId,
-        actualEndingCash: variables.actualEndingCash,
-        discrepancyReason: variables.discrepancyReason,
+      // 2. Đóng ca online (gọi transition đóng ca nhanh)
+      await ShiftRemoteAPI.closeShift(shiftId, {
+        action: 'close',
+        expectedVersion: 1, // Mock hoặc dynamic version
+        countedCash: variables.actualEndingCash,
+        notes: variables.discrepancyReason,
       })
 
-      if (!response.success) {
-        throw new Error(response.message || 'Lỗi khi đóng ca trực tuyến')
+      // Update machine state
+      const appService = useAppStore.getState().appService
+      if (appService) {
+        appService.send({ type: 'SHIFT_CLOSED' })
       }
-
-      // Đăng xuất và xóa session
-      logout()
 
       return true
     } catch (error: any) {

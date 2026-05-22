@@ -1,7 +1,7 @@
-import { create } from 'zustand'
-import NetInfo from '@react-native-community/netinfo'
 import { PortablePaymentService } from '@/shared/features/payment/utils/portable-payment.service'
 import { toast } from '@/shared/store/use-alert-store'
+import NetInfo from '@react-native-community/netinfo'
+import { create } from 'zustand'
 
 interface ConnectionState {
   isNetworkConnected: boolean
@@ -46,8 +46,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         }
       }
       return connected
-    } catch (err) {
-      console.log('[ConnectionStore] checkPosConnection failed:', err)
+    } catch {
       const prevConnected = get().isPosConnected
       set({ isPosConnected: false, isCheckingPosConnection: false })
 

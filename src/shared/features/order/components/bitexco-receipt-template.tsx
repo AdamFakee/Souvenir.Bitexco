@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 import { IOrder } from '../types'
 
-import { useAuthStore } from '@/shared/features/auth'
+import { useAppContext } from '@/shared/features/app'
 
 interface BitexcoReceiptTemplateProps {
   order: IOrder
@@ -28,16 +28,16 @@ export const BitexcoReceiptTemplate = ({
   staffName,
   copyNumber = 1,
 }: BitexcoReceiptTemplateProps) => {
-  const { currentStaff } = useAuthStore()
+  const { employee } = useAppContext()
   const [resolvedStaffName, setResolvedStaffName] = useState(staffName)
 
   useEffect(() => {
     if (staffName) {
       setResolvedStaffName(staffName)
-    } else if (order.staffId === currentStaff?.username) {
-      setResolvedStaffName(currentStaff.fullname)
+    } else if (order.staffId === employee?.employeeCode) {
+      setResolvedStaffName(employee.displayName)
     }
-  }, [order.staffId, staffName, currentStaff])
+  }, [order.staffId, staffName, employee])
 
   const {
     id: orderId,

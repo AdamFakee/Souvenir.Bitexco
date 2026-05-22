@@ -1,26 +1,22 @@
-import { useAuthStore } from '@/shared/features/auth'
+import { useAppStore } from '@/shared/features/app'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { useState } from 'react'
 import { ShiftRemoteAPI } from '../api/remote/shift.remote.api'
 
 export const useOpenStaffShift = () => {
-  const { authenticate, setShiftOpen } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
 
-  const openStaffShift = async (variables: { staffId: string; openingBalance: number }) => {
+  const openStaffShift = async (variables: { posDeviceId: string; openingBalance: number }) => {
     setIsLoading(true)
     try {
       // 1. Mở ca online trên Server trước để lấy Shift ID chính chủ
       const response = await ShiftRemoteAPI.openShift({
-        staffId: variables.staffId,
-        startingCash: variables.openingBalance,
+        posDeviceId: variables.posDeviceId,
+        openingCash: variables.openingBalance,
       })
 
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Không thể mở ca trực tuyến')
-      }
-
-      const shiftId = response.data.shiftId
+      // API v1.8 returns CashSession directly. If it didn't throw, it's successful.
+      const shiftId = response.id
 
       // 2. Kích hoạt đồng bộ dữ liệu (Pull các thay đổi khác nếu có)
       try {
@@ -29,17 +25,13 @@ export const useOpenStaffShift = () => {
         console.error('Sync after shift opening failed:', error)
       }
 
-      const session = {
-        staffId: variables.staffId,
-        shiftId,
-        loginAt: Date.now(),
+      // Update machine state
+      const appService = useAppStore.getState().appService
+      if (appService) {
+        appService.send({ type: 'SHIFT_OPENED', cashSessionId: shiftId })
       }
 
-      // Lưu session vào store
-      authenticate(session)
-      setShiftOpen(true)
-
-      return session
+      return shiftId
     } catch (error) {
       console.error('Open shift error:', error)
       throw error

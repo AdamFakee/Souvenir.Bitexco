@@ -71,9 +71,7 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
       setIsLoadingStats(true)
       try {
         const res = await ShiftRemoteAPI.getShiftStatistics(shiftId)
-        if (res.success && res.data) {
-          setExpectedEndingCash(res.data.expectedEndingCash)
-        }
+        setExpectedEndingCash(res.expectedEndingCash)
       } catch (error) {
         console.error('Error fetching shift stats:', error)
         toast.error('Không thể lấy thống kê ca làm việc từ máy chủ')

@@ -1,6 +1,7 @@
 import { Href } from 'expo-router'
 
 export const ROUTES = {
+  DEVICE_ACTIVATION: { path: () => '/(auth)/device-activation' as Href, params: {} as never },
   STAFF_LOGIN: { path: () => '/(auth)/staff-login' as Href, params: {} as never },
   OPEN_SHIFT: { path: () => '/(auth)/open-shift' as Href, params: {} as never },
   POS: { path: () => '/(tab)/pos' as Href, params: {} as never },
