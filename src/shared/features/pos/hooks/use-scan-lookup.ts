@@ -1,0 +1,75 @@
+import { useCallback, useState } from 'react'
+import { useConnectionStore, toast } from '@/shared/store'
+import { ProductLocalAPI } from '@/shared/features/product'
+import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
+import { usePosActor } from './use-pos-actor'
+
+export function useScanLookup() {
+  const posActor = usePosActor()
+  const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleScan = useCallback(
+    async (codes: string[]) => {
+      if (codes.length === 0) return
+      setIsProcessing(true)
+
+      try {
+        for (const code of codes) {
+          let product = null
+
+          // 1. Luồng Online First
+          if (isNetworkConnected) {
+            try {
+              const remoteResult = await ProductRemoteAPI.lookupProduct({ barcode: code })
+              if (remoteResult) {
+                product = {
+                  id: remoteResult.variantId,
+                  name: remoteResult.productName,
+                  sku: remoteResult.sku,
+                  price: remoteResult.price,
+                  stock: remoteResult.available,
+                  barcode: remoteResult.barcode,
+                } as any
+              }
+            } catch (error) {
+              console.warn('[useScanLookup] Online lookup failed, trying local DB:', error)
+            }
+          }
+
+          // 2. Luồng Offline Fallback
+          if (!product) {
+            const localProduct = await ProductLocalAPI.getProductByCode(code)
+            if (localProduct) {
+              product = {
+                id: localProduct.id,
+                name: localProduct.name,
+                sku: localProduct.sku,
+                price: localProduct.price || 0,
+                stock: localProduct.stock || 0,
+                barcode: localProduct.barcode,
+              } as any
+            }
+          }
+
+          // 3. Xử lý kết quả vào giỏ hàng
+          if (product) {
+            posActor?.send({ type: 'ADD_ITEM', product })
+            toast.success(`Đã thêm: ${product.name}`)
+          } else {
+            toast.error(`Không tìm thấy sản phẩm cho mã: ${code}`, 'Thông báo')
+          }
+        }
+      } finally {
+        setIsProcessing(false)
+      }
+    },
+    [isNetworkConnected, posActor],
+  )
+
+  return {
+    handleScan,
+    isProcessing,
+  }
+}
+export default useScanLookup

@@ -1,7 +1,6 @@
 export type CartProduct = {
   id: string
-  nameEn: string
-  nameVi: string
+  name: string
   price: number
   sku: string
   unit: string

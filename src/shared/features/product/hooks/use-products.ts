@@ -9,7 +9,6 @@ export const useProducts = (params: { categoryId?: string | null; searchQuery?: 
     queryKey: ['products', categoryId, searchQuery],
     queryFn: async ({ pageParam = 0 }) => {
       return await ProductLocalAPI.getProducts({
-        categoryId,
         searchQuery,
         page: pageParam as number,
         limit: 21,

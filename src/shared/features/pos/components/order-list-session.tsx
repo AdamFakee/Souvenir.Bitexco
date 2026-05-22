@@ -139,7 +139,7 @@ export default function OrderListSession() {
               >
                 <Text className="w-20 text-xl font-bold text-surface-on-variant">{index + 1}</Text>
                 <View className="flex-1">
-                  <Text className="text-2xl font-black text-surface-on">{item.product.nameVi}</Text>
+                  <Text className="text-2xl font-black text-surface-on">{item.product.name}</Text>
                   <Text className="mt-1 text-sm font-bold text-muted">{item.product.sku}</Text>
                 </View>
                 <Text className="w-48 text-center text-xl font-bold text-surface-on">

@@ -12,7 +12,7 @@ export interface CartContext {
 }
 
 export type CartEvent =
-  | { type: 'ADD_ITEM'; product: CartProduct; quantity?: number }
+  | { type: 'ADD_ITEM'; product: any; quantity?: number }
   | { type: 'REMOVE_ITEM'; productId: string }
   | { type: 'UPDATE_QUANTITY'; productId: string; quantity: number }
   | { type: 'SET_DISCOUNT'; discount: number }
@@ -50,12 +50,19 @@ export const cartMachine = setup({
               // Normalize product to plain object to avoid cyclical structure issues with WatermelonDB models
               const product: CartProduct = {
                 id: productInput.id,
-                nameEn: productInput.nameEn || '',
-                nameVi: productInput.nameVi || '',
+                name: productInput.name || '',
                 price: productInput.price,
                 sku: productInput.sku || '',
-                unit: productInput.unit || '',
-                taxRate: (productInput.taxRate as any) || 0,
+                unit:
+                  productInput.unit ||
+                  ('unitCode' in productInput
+                    ? (productInput.unitCode as string)
+                    : 'unit_code' in productInput
+                      ? (productInput as any).unit_code
+                      : ''),
+                taxRate:
+                  (productInput.taxRate as any) ||
+                  ('tax_rate' in productInput ? (productInput as any).tax_rate : 0),
                 image: productInput.image || null,
                 stock: (productInput.stock as any) || null,
               }
@@ -65,12 +72,12 @@ export const cartMachine = setup({
 
               if (product.stock !== undefined && product.stock !== null) {
                 if (product.stock <= 0) {
-                  toast.warning(`Sản phẩm [${product.nameEn}] đã hết hàng!`, 'Hết hàng')
+                  toast.warning(`Sản phẩm [${product.name}] đã hết hàng!`, 'Hết hàng')
                   return {}
                 }
                 if (currentQty + quantity > product.stock) {
                   toast.warning(
-                    `Sản phẩm [${product.nameEn}] chỉ còn ${product.stock} sản phẩm trong kho!`,
+                    `Sản phẩm [${product.name}] chỉ còn ${product.stock} sản phẩm trong kho!`,
                     'Vượt quá tồn kho',
                   )
                   return {}
@@ -118,7 +125,7 @@ export const cartMachine = setup({
               const stock = item.product.stock
               if (stock !== undefined && stock !== null && quantity > stock) {
                 toast.warning(
-                  `Sản phẩm [${item.product.nameEn}] chỉ còn ${stock} sản phẩm trong kho!`,
+                  `Sản phẩm [${item.product.name}] chỉ còn ${stock} sản phẩm trong kho!`,
                   'Vượt quá tồn kho',
                 )
                 return {}

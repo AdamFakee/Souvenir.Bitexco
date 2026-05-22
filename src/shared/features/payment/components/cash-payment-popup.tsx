@@ -178,10 +178,9 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         ViceService.updateCart({
           items: items.map((i) => ({
             id: i.id,
-            name: i.product.nameEn,
+            name: i.product.name,
             price: i.price,
             quantity: i.quantity,
-            image: i.product.image ?? undefined,
           })),
           subtotal,
           discount,
@@ -365,7 +364,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                     totalTax: calculateTotalTax(items),
                     itemsSnapshot: items.map((i) => ({
                       sku: i.product.sku,
-                      name: i.product.nameEn,
+                      name: i.product.name,
                       price: i.product.price,
                       quantity: i.quantity,
                       subtotal: i.product.price * i.quantity,

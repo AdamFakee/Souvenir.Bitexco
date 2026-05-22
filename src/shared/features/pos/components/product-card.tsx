@@ -5,7 +5,7 @@ import { formatCurrency } from '@/shared/utils'
 import withObservables from '@nozbe/with-observables'
 import { ShoppingBasket } from 'lucide-react-native'
 import React, { memo } from 'react'
-import { Image, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 interface ProductCardProps {
   item: ProductModel
@@ -23,11 +23,7 @@ function ProductCard({ item, addToCart }: ProductCardProps) {
     >
       <Container className="flex-1 overflow-hidden rounded-2xl border-outline-variant p-0" shadow>
         <View className="relative aspect-square w-full items-center justify-center overflow-hidden bg-surface-300">
-          {item.image ? (
-            <Image source={{ uri: item.image }} className="h-full w-full" resizeMode="cover" />
-          ) : (
-            <ShoppingBasket size={36} color={COLORS.outline.default} />
-          )}
+          <ShoppingBasket size={36} color={COLORS.outline.default} />
           {isOutOfStock && (
             <View className="absolute inset-0 items-center justify-center bg-black/60">
               <View className="rounded-xl bg-error/90 px-3 py-1">
@@ -41,7 +37,7 @@ function ProductCard({ item, addToCart }: ProductCardProps) {
             className="mb-2 text-body-base font-bold leading-tight text-surface-on"
             numberOfLines={2}
           >
-            {item.nameVi}
+            {item.name}
           </Text>
           <View className="mt-2 flex-row items-end justify-between">
             <Text
@@ -63,8 +59,7 @@ const MemoizedProductCard = memo(ProductCard, (prevProps, nextProps) => {
   return (
     prevProps.item.id === nextProps.item.id &&
     prevProps.item.price === nextProps.item.price &&
-    prevProps.item.nameVi === nextProps.item.nameVi &&
-    prevProps.item.image === nextProps.item.image &&
+    prevProps.item.name === nextProps.item.name &&
     prevProps.item.isActive === nextProps.item.isActive &&
     prevProps.item.sku === nextProps.item.sku &&
     prevProps.item.stock === nextProps.item.stock

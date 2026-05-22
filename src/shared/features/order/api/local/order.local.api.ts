@@ -117,7 +117,7 @@ export const OrderLocalAPI = {
       return {
         productId: i.product.id,
         sku: i.product.sku,
-        name: i.product.nameEn,
+        name: i.product.name,
         price: i.price,
         quantity: i.quantity,
         subtotal: i.price * i.quantity,
@@ -179,7 +179,7 @@ export const OrderLocalAPI = {
       return {
         productId: i.product.id,
         sku: i.product.sku,
-        name: i.product.nameEn,
+        name: i.product.name,
         price: i.price,
         quantity: i.quantity,
         subtotal: i.price * i.quantity,
@@ -224,7 +224,7 @@ export const OrderLocalAPI = {
       return {
         productId: i.product.id,
         sku: i.product.sku,
-        name: i.product.nameEn,
+        name: i.product.name,
         price: i.price,
         quantity: i.quantity,
         subtotal: i.price * i.quantity,

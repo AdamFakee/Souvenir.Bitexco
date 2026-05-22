@@ -1,12 +1,23 @@
 import { ProductLocalAPI } from '@/shared/features/product'
+import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { database } from '@/shared/lib/database'
 import { ProductModel } from '@/shared/lib/database/models'
-import { toast } from '@/shared/store'
+import { toast, useConnectionStore } from '@/shared/store'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import { useDebounce } from 'use-debounce'
 
 const LIMIT = 15
+
+export interface UnifiedProduct {
+  id: string
+  name: string
+  sku: string
+  price: number
+  stock: number
+  unitCode: string
+  barcode?: string
+}
 
 export function useProductSearch(searchText: string) {
   const [debouncedSearch] = useDebounce(searchText, 300)
@@ -14,14 +25,51 @@ export function useProductSearch(searchText: string) {
 
   const query = useInfiniteQuery({
     queryKey: ['products', 'search', debouncedSearch],
-    queryFn: async ({ pageParam = 0 }) => {
+    queryFn: async ({ pageParam = 0 }): Promise<UnifiedProduct[]> => {
       try {
         if (!debouncedSearch.trim()) return []
-        return await ProductLocalAPI.getProducts({
+        const isNetworkConnected = useConnectionStore.getState().isNetworkConnected
+
+        // 1. Luồng Online First
+        if (isNetworkConnected) {
+          try {
+            const remoteResults = await ProductRemoteAPI.searchProducts({
+              q: debouncedSearch,
+              limit: LIMIT,
+            })
+            return remoteResults.map((r) => ({
+              id: r.variantId,
+              name: r.productName,
+              sku: r.sku,
+              price: r.price,
+              stock: r.available,
+              unitCode: r.unitCode,
+              barcode: r.barcode,
+            }))
+          } catch (error) {
+            console.warn(
+              '[useProductSearch] Online search failed, trying offline local database...',
+              error,
+            )
+          }
+        }
+
+        // 2. Luồng Offline Fallback
+        const localResults = await ProductLocalAPI.getProducts({
           searchQuery: debouncedSearch,
           page: pageParam as number,
           limit: LIMIT,
         })
+
+        return localResults.map((p) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          price: p.price,
+          stock: p.stock,
+          unitCode: p.unitCode,
+          barcode: p.barcode,
+        }))
       } catch (error) {
         console.error('Search error:', error)
         toast.error('Không thể tìm kiếm sản phẩm. Vui lòng thử lại!', 'Lỗi tìm kiếm')
@@ -33,14 +81,12 @@ export function useProductSearch(searchText: string) {
     },
     initialPageParam: 0,
     enabled: debouncedSearch.trim().length > 0,
-    // Set staleTime to 0 to ensure it always checks the DB
-    // when the search query changes or component remounts
     staleTime: 0,
+    gcTime: 0, // Garbage collect instantly to prevent React Query from serving stale cached search results
     networkMode: 'always',
   })
 
-  // Reactive: Listen to ANY changes in the products table and invalidate the query
-  // This ensures that if stock or price changes in DB, the UI updates instantly
+  // Reactive: Lắng nghe mọi thay đổi trong SQLite bảng products để cập nhật UI ngay lập tức
   useEffect(() => {
     const subscription = database.get<ProductModel>('products').changes.subscribe(() => {
       queryClient.invalidateQueries({ queryKey: ['products'] })

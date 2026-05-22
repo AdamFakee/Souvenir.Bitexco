@@ -5,7 +5,6 @@ export interface Item {
   name: string
   price: number
   quantity: number
-  image?: string
 }
 
 interface ViceState {

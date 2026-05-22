@@ -39,7 +39,13 @@ export const ViceService = {
    * Cập nhật danh sách giỏ hàng
    */
   updateCart: (payload: UpdateCartPayload) => {
-    IminViceScreen.sendMsgToViceScreen('updateCart', payload)
+    // Android Kotlin presentation module cannot automatically convert list of JS objects in Map<String, Any>.
+    // We safely stringify it to itemsJson.
+    const { items, ...rest } = payload
+    IminViceScreen.sendMsgToViceScreen('updateCart', {
+      ...rest,
+      itemsJson: JSON.stringify(items || []),
+    })
   },
 
   /**

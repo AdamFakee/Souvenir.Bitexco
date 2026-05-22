@@ -1,30 +1,17 @@
 import { Store } from 'lucide-react-native'
 import React from 'react'
 import { Text, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { COLORS } from '@/shared/constants'
 import { useAppContext } from '@/shared/features/app'
-import { CheckoutPanel, OrderListSession, usePosActor } from '@/shared/features/pos'
-import { ProductLocalAPI } from '@/shared/features/product'
-import { toast } from '@/shared/store'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { CheckoutPanel, OrderListSession, useScanLookup } from '@/shared/features/pos'
 
 export default function PosScreen() {
-  const posActor = usePosActor()
   const { cashSessionId } = useAppContext()
   const isShiftOpen = cashSessionId !== null
-
-  const handleScan = async (codes: string[]) => {
-    for (const code of codes) {
-      const product = await ProductLocalAPI.getProductByCode(code)
-      if (product) {
-        posActor?.send({ type: 'ADD_ITEM', product })
-      } else {
-        toast.error(`Không tìm thấy sản phẩm cho mã: ${code}`, 'Thông báo')
-      }
-    }
-  }
+  const { handleScan } = useScanLookup()
 
   if (!isShiftOpen) {
     return (

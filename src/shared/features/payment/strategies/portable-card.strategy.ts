@@ -1,6 +1,6 @@
 import { PaymentMethod } from '@/shared/lib/database'
-import { CreditCard } from 'lucide-react-native'
 import { useConnectionStore } from '@/shared/store'
+import { CreditCard } from 'lucide-react-native'
 import { PortablePaymentPopup } from '../components'
 import { PaymentStrategy } from '../types/payment-strategy.type'
 

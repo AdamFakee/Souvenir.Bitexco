@@ -28,8 +28,18 @@ export default function ViceApp() {
 
       switch (method) {
         case 'updateCart':
+          let parsedItems = []
+          try {
+            if (params.itemsJson) {
+              parsedItems = JSON.parse(params.itemsJson)
+            } else {
+              parsedItems = params.items || []
+            }
+          } catch (e) {
+            console.error('[ViceApp] Failed to parse itemsJson:', e)
+          }
           updateCart({
-            items: params.items || [],
+            items: parsedItems,
             subtotal: params.subtotal || 0,
             discount: params.discount || 0,
             tax: params.tax || 0,

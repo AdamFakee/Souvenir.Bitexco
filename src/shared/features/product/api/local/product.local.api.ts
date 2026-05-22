@@ -10,28 +10,23 @@ export const ProductLocalAPI = {
   },
 
   /**
-   * Lấy danh sách sản phẩm có lọc và phân trang
+   * Lấy danh sách sản phẩm có lọc và phân trang (Tìm kiếm offline)
    */
   getProducts: async (params: {
-    categoryId?: string | null
     searchQuery?: string
     page?: number
     limit?: number
   }): Promise<ProductModel[]> => {
-    const { categoryId, searchQuery, page = 0, limit = 21 } = params // 21 items per page (divisible by 3 columns)
+    const { searchQuery, page = 0, limit = 21 } = params
     const clauses: any[] = [Q.where('is_deleted', Q.notEq(true)), Q.where('is_active', true)]
-
-    if (categoryId) {
-      clauses.push(Q.where('category_id', categoryId))
-    }
 
     if (searchQuery) {
       const sanitized = Q.sanitizeLikeString(searchQuery)
       clauses.push(
         Q.or(
-          Q.where('name_en', Q.like(`%${sanitized}%`)),
-          Q.where('name_vi', Q.like(`%${sanitized}%`)),
+          Q.where('name', Q.like(`%${sanitized}%`)),
           Q.where('sku', Q.like(`%${sanitized}%`)),
+          Q.where('barcode', Q.like(`%${sanitized}%`)),
         ),
       )
     }
@@ -46,12 +41,16 @@ export const ProductLocalAPI = {
   },
 
   /**
-   * Tìm sản phẩm bằng mã SKU hoặc Barcode (chính xác 100%)
+   * Tìm sản phẩm bằng mã SKU hoặc Barcode (chính xác 100% - Offline Lookup)
    */
   getProductByCode: async (code: string): Promise<ProductModel | null> => {
     const products = await database
       .get<ProductModel>('products')
-      .query(Q.where('is_deleted', Q.notEq(true)), Q.where('is_active', true), Q.where('sku', code))
+      .query(
+        Q.where('is_deleted', Q.notEq(true)),
+        Q.where('is_active', true),
+        Q.or(Q.where('sku', code), Q.where('barcode', code)),
+      )
       .fetch()
     return products.length > 0 ? products[0] : null
   },

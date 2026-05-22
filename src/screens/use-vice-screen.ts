@@ -1,7 +1,6 @@
-import { usePosStore } from '@/shared/features/pos'
 import { calculateVoucherDiscount } from '@/shared/features/payment'
+import { usePosStore } from '@/shared/features/pos'
 import { CartItem } from '@/shared/features/pos/types/cart.types'
-import { useSelector } from '@xstate/react'
 import { toast } from '@/shared/store'
 import { useEffect } from 'react'
 import { InteractionManager } from 'react-native'
@@ -65,10 +64,9 @@ export const useViceScreen = () => {
       // Chuyển đổi dữ liệu sang định dạng màn hình phụ mong đợi
       const items = cartItems.map((cartItem: CartItem) => ({
         id: cartItem.id,
-        name: cartItem.product.nameEn,
+        name: cartItem.product.name,
         price: cartItem.price,
         quantity: cartItem.quantity,
-        image: cartItem.product.image ?? undefined,
       }))
 
       const subtotal = cartItems.reduce(

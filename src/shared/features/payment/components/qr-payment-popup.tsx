@@ -2,8 +2,8 @@ import { ViceService } from '@/screens/vice-service'
 import { Button, LoadingIndicator, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
-import { formatCurrency } from '@/shared/utils'
 import { toast } from '@/shared/store/use-alert-store'
+import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle, QrCode } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
@@ -106,10 +106,9 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         ViceService.updateCart({
           items: items.map((i) => ({
             id: i.id,
-            name: i.product.nameEn,
+            name: i.product.name,
             price: i.price,
             quantity: i.quantity,
-            image: i.product.image ?? undefined,
           })),
           subtotal,
           discount,
@@ -307,7 +306,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                     totalTax: calculateTotalTax(items),
                     itemsSnapshot: items.map((i) => ({
                       sku: i.product.sku,
-                      name: i.product.nameEn,
+                      name: i.product.name,
                       price: i.product.price,
                       quantity: i.quantity,
                       subtotal: i.product.price * i.quantity,

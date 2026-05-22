@@ -15,7 +15,7 @@ export type PosEvent =
   | { type: 'SWITCH_TAB'; id: string }
   | { type: 'PRINT_RECEIPT' }
   | { type: 'CART_UPDATED' }
-  | { type: 'ADD_ITEM'; product: CartProduct }
+  | { type: 'ADD_ITEM'; product: any }
 
 const createCartMeta = (num: number) => ({
   id: `cart-${num}`,

@@ -60,19 +60,16 @@ export default function DevControlScreen() {
         for (const prod of mockProducts) {
           await database.collections.get<ProductModel>('products').create((record: any) => {
             record._raw.id = prod.id
-            record.categoryId = prod.category_id
             record.sku = prod.sku
-            record.nameEn = prod.name_en
-            record.nameVi = prod.name_vi
-            record.unit = prod.unit
-            record.taxRate = prod.tax_rate
+            record.barcode = prod.barcodes?.[0] || prod.sku
+            record.name = prod.name
+            record.unitId = prod.unitId
+            record.unitCode = prod.unitCode
+            record.taxRate = 8
             record.price = prod.price
-            record.costPrice = prod.cost_price
             record.stock = prod.stock
-            record.image = prod.image
-            record.supplier = prod.supplier
-            record.isActive = prod.is_active
-            record.isDeleted = prod.is_deleted
+            record.isActive = true
+            record.isDeleted = false
           })
         }
       })
@@ -112,7 +109,7 @@ export default function DevControlScreen() {
   }
 
   const getProductCountByCat = (catId: string) => {
-    return products.filter((p) => p.categoryId === catId).length
+    return 0
   }
 
   const handleTestActivateDevice = async () => {

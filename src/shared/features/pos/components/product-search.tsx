@@ -1,20 +1,20 @@
 import { EmptyState, IconButton, LoadMore, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { ProductModel } from '@/shared/lib/database/models'
 import { formatCurrency } from '@/shared/utils'
 import { Search, SearchX, X } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { Keyboard, Pressable, Text, TextInput, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { usePosActor, useProductSearch } from '../hooks'
+import { UnifiedProduct } from '../hooks/use-product-search'
 
 export function ProductSearch() {
   const posActor = usePosActor()
   const [searchText, setSearchText] = useState('')
   const { products, isLoading, isFetchingNextPage, loadMore } = useProductSearch(searchText)
 
-  const handleSelectItem = (product: ProductModel) => {
-    posActor?.send({ type: 'ADD_ITEM', product })
+  const handleSelectItem = (product: UnifiedProduct) => {
+    posActor?.send({ type: 'ADD_ITEM', product: product as any })
     setSearchText('')
     Keyboard.dismiss()
   }
@@ -24,14 +24,14 @@ export function ProductSearch() {
     Keyboard.dismiss()
   }
 
-  const renderProductItem = ({ item: p }: { item: ProductModel }) => (
+  const renderProductItem = ({ item: p }: { item: UnifiedProduct }) => (
     <Pressable
       key={p.id}
       onPress={() => handleSelectItem(p)}
       className="flex-row items-center justify-between border-b border-surface-200 px-10 py-8 active:bg-surface-100"
     >
       <View className="flex-1">
-        <Text className="text-2xl font-black text-surface-on">{p.nameVi}</Text>
+        <Text className="text-2xl font-black text-surface-on">{p.name}</Text>
         <Text className="mt-1 text-lg font-bold text-surface-on-variant">{p.sku}</Text>
       </View>
       <View className="items-end">
@@ -39,7 +39,7 @@ export function ProductSearch() {
           {formatCurrency(p.price)}
         </Text>
         <Text className="mt-1 text-base font-bold text-surface-on-variant">
-          Kho: {p.stock} {p.unit}
+          Kho: {p.stock} {p.unitCode}
         </Text>
       </View>
     </Pressable>
