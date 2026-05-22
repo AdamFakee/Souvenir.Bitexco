@@ -71,9 +71,9 @@ export const appMachine = setup({
       // 2. Get Employee Me — lấy permissions fresh (có thể thay đổi khi app offline)
       const employee = await AuthAPI.getMe()
 
-      // 3. Check ca đang mở — PagedResponse<CashSession>
-      const sessionsRes = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
-      const cashSessionId = sessionsRes.items.length > 0 ? sessionsRes.items[0].id : null
+      // 3. Check ca đang mở — CashSession[]
+      const sessions = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
+      const cashSessionId = sessions.length > 0 ? sessions[0].id : null
 
       // 4. Lấy các phương thức thanh toán khả dụng
       let paymentMethods = null
@@ -98,8 +98,8 @@ export const appMachine = setup({
      */
     revalidateShiftFlow: fromPromise(async ({ input }: { input: { deviceId: string } }) => {
       console.log('[appMachine] Revalidating shift after login...')
-      const sessionsRes = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
-      const cashSessionId = sessionsRes.items.length > 0 ? sessionsRes.items[0].id : null
+      const sessions = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
+      const cashSessionId = sessions.length > 0 ? sessions[0].id : null
 
       let paymentMethods = null
       try {
