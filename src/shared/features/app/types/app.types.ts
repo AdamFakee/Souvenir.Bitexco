@@ -50,12 +50,14 @@ export interface Employee {
   permissions: EmployeePermission[] // dùng để kiểm soát quyền UI
 }
 
+export type PaymentMethodCode = 'cash' | 'qr_bidv' | 'card_bidv'
+
 /**
  * Cấu hình phương thức thanh toán.
  * Persist → MMKV.
  */
 export interface PaymentMethodConfig {
-  code: string
+  code: PaymentMethodCode
   name: string
   icon: string
   enabled: boolean

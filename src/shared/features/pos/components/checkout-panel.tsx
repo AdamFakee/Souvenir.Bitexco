@@ -25,9 +25,50 @@ import { CartItem } from '../types/cart.types'
 
 export default function CheckoutPanel() {
   const cartActor = useActiveCart()
-  const { employee, cashSessionId } = useAppContext()
+  const { employee, cashSessionId, paymentMethods } = useAppContext()
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
   const isPosConnected = useConnectionStore((s) => s.isPosConnected)
+
+  // Lọc và ánh xạ động các nút thanh toán từ XState context.paymentMethods
+  const activeStrategies = useMemo(() => {
+    if (!paymentMethods || paymentMethods.length === 0) {
+      return PAYMENT_REGISTRY
+    }
+
+    return paymentMethods
+      .filter((method) => method.enabled)
+      .map((method) => {
+        // Ánh xạ API code -> PaymentMethod enum
+        let mappedType = PaymentMethod.CASH
+        if (method.code === 'qr_bidv') {
+          mappedType = PaymentMethod.BANK_TRANSFER
+        } else if (method.code === 'card_bidv') {
+          mappedType = PaymentMethod.CARD
+        }
+
+        // Tìm strategy tương ứng trong registry gốc
+        const originalStrategy = PAYMENT_REGISTRY.find((s) => s.type === mappedType)
+        if (!originalStrategy) return null
+
+        // Trả về strategy được tùy chỉnh nhãn và cấu hình hiển thị động
+        return {
+          ...originalStrategy,
+          label: method.name, // Đổi tên nút theo cấu hình API động!
+          displayOrder: method.displayOrder || 99,
+        }
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+  }, [paymentMethods])
+
+  // Phân bổ tối đa 2 nút trên 1 dòng để tự động full width nút thứ 3
+  const chunkedStrategies = useMemo(() => {
+    const chunks = []
+    for (let i = 0; i < activeStrategies.length; i += 2) {
+      chunks.push(activeStrategies.slice(i, i + 2))
+    }
+    return chunks
+  }, [activeStrategies])
 
   // Get data from Actor
   const items = useSelector(cartActor!, (s) => s?.context?.items || {})
@@ -259,35 +300,37 @@ export default function CheckoutPanel() {
             </Text>
           </View>
 
-          <View className="h-[96px] flex-row items-end gap-6">
-            {PAYMENT_REGISTRY.map((method) => {
-              // isAvailable check từ strategy (được truyền thực tế trạng thái offline/online)
-              const isAvailable = method.isAvailable(paymentContext, !isNetworkConnected)
-              return (
-                <Button
-                  key={method.type}
-                  label={method.label}
-                  leftIcon={method.icon}
-                  iconSize={32}
-                  variant="outline"
-                  className="flex-1 rounded-[24px]"
-                  textClassName="text-xl font-black"
-                  onPress={() => handleStartPayment(String(method.type))}
-                  // Disabled khi giỏ trống HOẶC strategy không available HOẶC POS không kết nối được HOẶC QRCode mất kết nối mạng
-                  disabled={
-                    cart.length === 0 ||
-                    !isAvailable ||
-                    (method.type === PaymentMethod.CARD && isPosConnected === false) ||
-                    (method.type === PaymentMethod.BANK_TRANSFER && !isNetworkConnected)
-                  }
-                />
-              )
-            })}
+          <View className="mt-6 flex-col gap-4">
+            {chunkedStrategies.map((chunk, rowIndex) => (
+              <View key={rowIndex} className="h-[72px] flex-row gap-4">
+                {chunk.map((method) => {
+                  const isAvailable = method.isAvailable(paymentContext, !isNetworkConnected)
+                  return (
+                    <Button
+                      key={method.type}
+                      label={method.label}
+                      leftIcon={method.icon}
+                      iconSize={32}
+                      variant="outline"
+                      className="flex-1 rounded-[24px]"
+                      textClassName="text-xl font-black"
+                      onPress={() => handleStartPayment(String(method.type))}
+                      disabled={
+                        cart.length === 0 ||
+                        !isAvailable ||
+                        (method.type === PaymentMethod.CARD && isPosConnected === false) ||
+                        (method.type === PaymentMethod.BANK_TRANSFER && !isNetworkConnected)
+                      }
+                    />
+                  )
+                })}
+              </View>
+            ))}
           </View>
         </View>
 
         {/* Render Popups động từ Registry */}
-        {PAYMENT_REGISTRY.map((method) => (
+        {activeStrategies.map((method) => (
           <method.PopupComponent
             key={method.type}
             ref={(r) => {

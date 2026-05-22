@@ -1,3 +1,5 @@
+import { PaymentMethodConfig } from '@/shared/features/app'
+
 export interface GetQrResponse {
   /** Số hóa đơn do Backend sinh ra (dùng cho đối soát) */
   billNumber: string
@@ -14,6 +16,46 @@ export interface VerifyPaymentResponse {
  * Remote API cho luồng thanh toán QR Code.
  */
 export const PaymentRemoteAPI = {
+  /**
+   * Lấy cấu hình các phương thức thanh toán khả dụng từ server (hoặc mock v1.8).
+   */
+  getPaymentMethods: async (): Promise<PaymentMethodConfig[]> => {
+    // --- MOCK: Giả lập delay mạng 0.3 giây ---
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    return [
+      {
+        code: 'cash',
+        name: 'Tiền mặt',
+        icon: 'banknote',
+        enabled: true,
+        provider: null,
+        settlementDays: 0,
+        displayOrder: 1,
+        isDefault: true,
+      },
+      {
+        code: 'qr_bidv',
+        name: 'VietQR BIDV',
+        icon: 'qr-code',
+        enabled: true,
+        provider: 'bidv',
+        settlementDays: 1,
+        displayOrder: 2,
+        isDefault: true,
+      },
+      {
+        code: 'card_bidv',
+        name: 'Thẻ BIDV',
+        icon: 'credit-card',
+        enabled: true,
+        provider: 'card-bidv',
+        settlementDays: 1,
+        displayOrder: 4,
+        isDefault: true,
+      },
+    ]
+  },
+
   /**
    * Lấy nội dung mã QR dựa vào orderId.
    */

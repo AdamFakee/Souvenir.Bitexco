@@ -2,6 +2,7 @@ import { assign, setup, fromPromise } from 'xstate'
 import type { AppContext, AppEvent } from '../types/app.types'
 import { AuthAPI } from '../../auth/api/auth.api'
 import { ShiftRemoteAPI } from '../../shift/api/remote/shift.remote.api'
+import { PaymentRemoteAPI } from '../../payment/api/remote/payment.remote.api'
 
 const DEFAULT_CONTEXT: AppContext = {
   device: null,
@@ -74,12 +75,21 @@ export const appMachine = setup({
       const sessionsRes = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
       const cashSessionId = sessionsRes.items.length > 0 ? sessionsRes.items[0].id : null
 
+      // 4. Lấy các phương thức thanh toán khả dụng
+      let paymentMethods = null
+      try {
+        paymentMethods = await PaymentRemoteAPI.getPaymentMethods()
+      } catch (e) {
+        console.error('[appMachine] Failed to fetch payment methods during startup:', e)
+      }
+
       console.log('[appMachine] Refresh flow completed:', {
         accessToken: '***',
         employee: employee.displayName,
         cashSessionId,
+        paymentMethodsCount: paymentMethods?.length || 0,
       })
-      return { accessToken, employee, cashSessionId }
+      return { accessToken, employee, cashSessionId, paymentMethods }
     }),
 
     /**
@@ -90,8 +100,19 @@ export const appMachine = setup({
       console.log('[appMachine] Revalidating shift after login...')
       const sessionsRes = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
       const cashSessionId = sessionsRes.items.length > 0 ? sessionsRes.items[0].id : null
-      console.log('[appMachine] Revalidate shift result:', { cashSessionId })
-      return { cashSessionId }
+
+      let paymentMethods = null
+      try {
+        paymentMethods = await PaymentRemoteAPI.getPaymentMethods()
+      } catch (e) {
+        console.error('[appMachine] Failed to fetch payment methods during revalidation:', e)
+      }
+
+      console.log('[appMachine] Revalidate shift result:', {
+        cashSessionId,
+        paymentMethodsCount: paymentMethods?.length || 0,
+      })
+      return { cashSessionId, paymentMethods }
     }),
   },
   guards: {
@@ -142,6 +163,8 @@ export const appMachine = setup({
               accessToken: ({ event }) => event.output.accessToken,
               employee: ({ event }) => event.output.employee,
               cashSessionId: ({ event }) => event.output.cashSessionId,
+              paymentMethods: ({ event, context }) =>
+                event.output.paymentMethods ?? context.paymentMethods,
             }),
           },
           {
@@ -150,6 +173,8 @@ export const appMachine = setup({
               accessToken: ({ event }) => event.output.accessToken,
               employee: ({ event }) => event.output.employee,
               cashSessionId: null,
+              paymentMethods: ({ event, context }) =>
+                event.output.paymentMethods ?? context.paymentMethods,
             }),
           },
         ],
@@ -206,11 +231,17 @@ export const appMachine = setup({
             target: 'shiftOpen',
             actions: assign({
               cashSessionId: ({ event }) => event.output.cashSessionId,
+              paymentMethods: ({ event, context }) =>
+                event.output.paymentMethods ?? context.paymentMethods,
             }),
           },
           {
             target: 'noShift',
-            actions: assign({ cashSessionId: null }),
+            actions: assign({
+              cashSessionId: null,
+              paymentMethods: ({ event, context }) =>
+                event.output.paymentMethods ?? context.paymentMethods,
+            }),
           },
         ],
         onError: {
