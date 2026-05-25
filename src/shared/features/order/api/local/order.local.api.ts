@@ -327,4 +327,20 @@ export const OrderLocalAPI = {
       .query(Q.where('is_deleted', Q.notEq(true)), Q.where('shift_id', shiftId))
       .observe()
   },
+
+  /**
+   * Lấy số lượng đơn hàng chưa đồng bộ lên server.
+   */
+  getUnsyncedOrdersCount: async (): Promise<number> => {
+    try {
+      const unsyncedOrders = await database
+        .get<OrderModel>('orders')
+        .query(Q.unsafeSqlQuery("select * from orders where _status in ('created', 'updated')"))
+        .fetch()
+      return unsyncedOrders.length
+    } catch (error) {
+      console.error('Failed to count unsynced orders:', error)
+      return 0
+    }
+  },
 }

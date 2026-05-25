@@ -1,6 +1,6 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { type ShiftStatistics } from '@/shared/mocks/mock-data'
-import { PagedResponse, StateResponse } from '@/shared/types/api'
+import { StateResponse } from '@/shared/types/api'
 
 export interface OpenShiftPayload {
   posDeviceId: string
@@ -31,18 +31,56 @@ export interface CloseShiftPayload {
   notes?: string | null
 }
 
+export interface ZReportResponse {
+  session: CashSession
+  cashierName: string
+  cashierEmail: string
+  posDeviceName: string
+  posDeviceCode: string
+  warehouseName: string
+  warehouseCode: string
+  orderCount: number
+  refundCount: number
+  paymentBreakdown: {
+    method: string
+    amount: number
+  }[]
+}
+
 export const ShiftRemoteAPI = {
-  /**
-   * Kiểm tra ca đang mở của một thiết bị POS
-   * GET /v1/cash-sessions?state=OPEN&posDeviceId={guid}
-   */
   getOpenSessions: async (posDeviceId: string): Promise<CashSession[]> => {
-    console.log('[ShiftRemoteAPI] Checking open sessions...', { posDeviceId })
+    console.log('[ShiftRemoteAPI] Checking active sessions...', { posDeviceId })
     const axios = AxiosService.getInstance()
-    const response = await axios.get<CashSession[]>('/v1/cash-sessions', {
-      params: { state: 'OPEN', posDeviceId },
-    })
-    return response.data
+
+    try {
+      // 1. Kiểm tra ca ở trạng thái OPEN
+      const openRes = await axios.get<CashSession[]>('/v1/cash-sessions', {
+        params: { state: 'OPEN', posDeviceId },
+      })
+      if (openRes.data && openRes.data.length > 0) {
+        return openRes.data
+      }
+
+      // 2. Kiểm tra ca ở trạng thái CLOSING
+      const closingRes = await axios.get<CashSession[]>('/v1/cash-sessions', {
+        params: { state: 'CLOSING', posDeviceId },
+      })
+      if (closingRes.data && closingRes.data.length > 0) {
+        return closingRes.data
+      }
+
+      // 3. Kiểm tra ca ở trạng thái RECONCILING
+      const reconcilingRes = await axios.get<CashSession[]>('/v1/cash-sessions', {
+        params: { state: 'RECONCILING', posDeviceId },
+      })
+      if (reconcilingRes.data && reconcilingRes.data.length > 0) {
+        return reconcilingRes.data
+      }
+    } catch (error) {
+      console.error('[ShiftRemoteAPI] Error checking active sessions:', error)
+    }
+
+    return []
   },
 
   /**
@@ -54,6 +92,17 @@ export const ShiftRemoteAPI = {
     const axios = AxiosService.getInstance()
     const response = await axios.post<CashSession>('/v1/cash-sessions', payload)
     return response.data
+  },
+
+  /**
+   * Lấy chi tiết ca làm việc (để lấy version mới nhất)
+   * GET /v1/cash-sessions/{id}
+   */
+  getShiftById: async (shiftId: string): Promise<CashSession> => {
+    console.log('[ShiftRemoteAPI] Getting shift detail...', { shiftId })
+    const axios = AxiosService.getInstance()
+    const response = await axios.get<{ session: CashSession }>(`/v1/cash-sessions/${shiftId}`)
+    return response.data.session
   },
 
   /**
@@ -73,17 +122,28 @@ export const ShiftRemoteAPI = {
   /**
    * Chuyển trạng thái ca (đóng ca)
    * POST /v1/cash-sessions/{id}/transitions
+   * Server trả về StateResponse<CashSession> — unwrap .data để lấy inner CashSession với .state đúng
    */
-  closeShift: async (
-    shiftId: string,
-    payload: CloseShiftPayload,
-  ): Promise<StateResponse<CashSession>> => {
+  closeShift: async (shiftId: string, payload: CloseShiftPayload): Promise<CashSession> => {
     console.log('[ShiftRemoteAPI] Transitioning shift...', { shiftId, payload })
     const axios = AxiosService.getInstance()
     const response = await axios.post<StateResponse<CashSession>>(
       `/v1/cash-sessions/${shiftId}/transitions`,
       payload,
     )
+    // StateResponse = { data: CashSession, currentState: string, allowedActions: string[] }
+    // Trả về inner CashSession (có .state) thay vì toàn bộ StateResponse
+    return response.data.data
+  },
+
+  /**
+   * Lấy báo cáo Z-report
+   * GET /v1/cash-sessions/{id}/z-report
+   */
+  getZReport: async (shiftId: string): Promise<ZReportResponse> => {
+    console.log('[ShiftRemoteAPI] Fetching Z-report...', { shiftId })
+    const axios = AxiosService.getInstance()
+    const response = await axios.get<ZReportResponse>(`/v1/cash-sessions/${shiftId}/z-report`)
     return response.data
   },
 }
