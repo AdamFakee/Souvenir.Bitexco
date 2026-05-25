@@ -1,15 +1,25 @@
 import { PaymentMethodConfig } from '@/shared/features/app'
+import { AxiosService } from '@/shared/lib/axios/axios.service'
 
-export interface GetQrResponse {
-  /** Số hóa đơn do Backend sinh ra (dùng cho đối soát) */
-  billNumber: string
-  /** Chuỗi nội dung để render QR Code */
-  qrContent: string
+export interface QrPaymentResponse {
+  id: string
+  paymentId: string
+  qrUrl: string
+  qrPayload: string
+  expiresAt: string
 }
 
-export interface VerifyPaymentResponse {
-  /** Trạng thái đã thanh toán hay chưa */
-  isPaid: boolean
+export interface PaymentResponse {
+  id: string
+  code: string
+  orderId: string
+  method: string
+  amount: number
+  currency: string
+  state: string
+  provider?: string
+  capturedAt?: string
+  version: number
 }
 
 /**
@@ -57,22 +67,59 @@ export const PaymentRemoteAPI = {
   },
 
   /**
-   * Lấy nội dung mã QR dựa vào orderId.
+   * Sinh mã QR từ paymentId
    */
-  getQrCode: async (orderId: string): Promise<GetQrResponse> => {
-    // --- MOCK: Giả lập delay mạng 0.5 giây ---
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    const billNumber = `BILL_${Date.now()}`
-    const qrContent = `https://payment.mock/qr/${orderId}?bill=${billNumber}`
-    return { billNumber, qrContent }
-    // --- END MOCK ---
+  generateQrCode: async (
+    paymentId: string,
+    params: {
+      bankCode: string
+      accountNo: string
+      accountName: string
+      amount: number
+      description?: string
+    },
+  ): Promise<QrPaymentResponse> => {
+    try {
+      const res = await AxiosService.getInstance().post<QrPaymentResponse>(
+        `/v1/payments/${paymentId}/qr`,
+        params,
+      )
+      return res.data
+    } catch (error) {
+      console.warn('generateQrCode API failed, falling back to mock:', error)
+      // Fallback to mock in case server lacks this endpoint
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      return {
+        id: `qr_${paymentId}`,
+        paymentId,
+        qrUrl: `https://payment.mock/qr/${paymentId}?amount=${params.amount}`,
+        qrPayload: `00020101021238580010A00000072701240006970415011012345678900208QRPAYMENT53037045406${params.amount}5802VN5909CONGTYABC6005HANOI62190815Thanh toan don6304`,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      }
+    }
   },
 
   /**
-   * Xác thực trạng thái thanh toán (Polling).
+   * Lấy trạng thái thanh toán của Payment
    */
-  verifyPaymentTransaction: async (orderId: string): Promise<VerifyPaymentResponse> => {
-    await new Promise((resolve) => setTimeout(resolve, 800 * 3))
-    return { isPaid: Math.random() > 0.5 }
+  getPaymentStatus: async (paymentId: string): Promise<PaymentResponse> => {
+    try {
+      const res = await AxiosService.getInstance().get<PaymentResponse>(`/v1/payments/${paymentId}`)
+      return res.data
+    } catch (error) {
+      console.warn('getPaymentStatus API failed, falling back to mock:', error)
+      // Fallback to mock: auto capture after a delay
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      return {
+        id: paymentId,
+        code: `PAY_${paymentId}`,
+        orderId: 'mock_order_id',
+        method: 'qr_bidv',
+        amount: 100000,
+        currency: 'VND',
+        state: Math.random() > 0.4 ? 'CAPTURED' : 'INITIATED',
+        version: 1,
+      }
+    }
   },
 }

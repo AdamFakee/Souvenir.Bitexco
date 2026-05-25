@@ -4,6 +4,7 @@ import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
+import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle, QrCode } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
@@ -11,6 +12,7 @@ import { Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
 import { PaymentMethod } from '@/shared/lib/database'
+import { useAppContext } from '@/shared/features/app'
 import { getQrPaymentStatusLabel, qrPaymentMachine } from '../machines/qr-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
@@ -35,32 +37,22 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     ref,
   ) => {
     const [visible, setVisible] = useState(false)
+    const { tenantConfig } = useAppContext()
 
-    // Khởi tạo machine với toàn bộ input cần thiết
-    const actorRef = useActorRef(
-      qrPaymentMachine.provide({
-        actions: {
-          notifyTimeout: () => {
-            toast.error('Giao dịch đã hết hạn thanh toán (10 phút)')
-          },
-          notifyCancel: () => {
-            toast.info('Giao dịch đã bị hủy')
-          },
-        },
-      }),
-      {
-        input: {
-          total,
-          discount,
-          items,
-          staffId,
-          shiftId,
-          sessionId: activeSessionId ?? 'unknown',
-          appliedVoucher: appliedVoucher || null,
-          printRef,
-        },
+    // Khởi động lại machine với toàn bộ input cần thiết
+    const actorRef = useActorRef(qrPaymentMachine, {
+      input: {
+        total,
+        discount,
+        items,
+        staffId,
+        shiftId,
+        sessionId: activeSessionId ?? 'unknown',
+        appliedVoucher: appliedVoucher || null,
+        printRef,
+        tenantConfig,
       },
-    )
+    })
 
     // --- Selectors ---
     const machineState = useSelector(actorRef, (s) => s.value)
@@ -155,7 +147,13 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     }, [isCancelled])
 
     useImperativeHandle(ref, () => ({
-      open: () => {
+      open: async () => {
+        const netState = await NetInfo.fetch()
+        if (!netState.isConnected) {
+          toast.error('Thanh toán QR yêu cầu kết nối mạng!')
+          return
+        }
+
         setVisible(true)
 
         const freshInput = {
@@ -167,6 +165,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           sessionId: activeSessionId ?? 'unknown',
           appliedVoucher: appliedVoucher || null,
           printRef,
+          tenantConfig,
         }
 
         // Khởi động lại machine với dữ liệu mới nhất

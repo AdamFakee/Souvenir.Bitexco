@@ -20,7 +20,7 @@ export interface PosCartLine {
   notes?: string
 }
 
-export type PosPaymentMethod = 'cash' | 'qr' | 'card'
+export type PosPaymentMethod = 'cash' | 'qr' | 'card' | 'qr_bidv' | 'card_bidv'
 
 export interface PosPaymentRequest {
   method: PosPaymentMethod
@@ -54,6 +54,12 @@ export interface PosCheckoutResult {
   paidTotal: number
   change: number
   status: OrderStatus
+  payments?: {
+    paymentId: string
+    method: string
+    amount: number
+    state: string
+  }[]
 }
 
 /**
