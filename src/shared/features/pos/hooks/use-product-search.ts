@@ -15,6 +15,7 @@ export interface UnifiedProduct {
   sku: string
   price: number
   stock: number
+  unitId: string
   unitCode: string
   barcode?: string
 }
@@ -43,6 +44,7 @@ export function useProductSearch(searchText: string) {
               sku: r.sku,
               price: r.price,
               stock: r.available,
+              unitId: r.unitId,
               unitCode: r.unitCode,
               barcode: r.barcode,
             }))
@@ -67,6 +69,7 @@ export function useProductSearch(searchText: string) {
           sku: p.sku,
           price: p.price,
           stock: p.stock,
+          unitId: p.unitId,
           unitCode: p.unitCode,
           barcode: p.barcode,
         }))

@@ -1,10 +1,60 @@
+import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { OrderStatus } from '@/shared/lib/database'
 import { PushChangesParams } from '@/shared/lib/database/sync'
 import { IBaseResponse } from '@/shared/types/api'
 import ordersJson from './order.mock.json'
 
-import { IOrder } from '../../types'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
+import { IOrder } from '../../types'
+
+// ─── POS Atomic Checkout ──────────────────────────────────────────────────────
+
+export interface PosCartLine {
+  variantId: string
+  unitId: string
+  qty: number
+  unitPrice: number
+  discountAmount: number
+  /** Tỷ lệ thuế dạng thập phân: 0.1 = 10% */
+  taxRate: number
+  notes?: string
+}
+
+export type PosPaymentMethod = 'cash' | 'qr' | 'card'
+
+export interface PosPaymentRequest {
+  method: PosPaymentMethod
+  amount: number
+  provider: string | null
+  cardTerminalId: string | null
+}
+
+export interface PosCheckoutRequest {
+  cashSessionId: string
+  customerId: string | null
+  currency: string
+  notes: string | null
+  lines: PosCartLine[]
+  payments: PosPaymentRequest[]
+  voucherCode: string | null
+  issueInvoice: boolean
+  customerName: string | null
+  customerTaxId: string | null
+  customerAddress: string | null
+}
+
+export interface PosCheckoutResult {
+  orderCode: string
+  orderId: string
+  subTotal: number
+  discountTotal: number
+  voucherDiscount: number
+  taxTotal: number
+  grandTotal: number
+  paidTotal: number
+  change: number
+  status: OrderStatus
+}
 
 /**
  * OrderRaw - Cấu trúc dữ liệu Đơn hàng khớp 100% với Backend/Database (Wire format).
@@ -194,5 +244,16 @@ export const OrderRemoteAPI = {
       meta: null,
       error: null,
     }
+  },
+
+  /**
+   * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
+   */
+  checkout: async (payload: PosCheckoutRequest): Promise<IBaseResponse<PosCheckoutResult>> => {
+    const res = await AxiosService.getInstance().post<IBaseResponse<PosCheckoutResult>>(
+      '/v1/pos/checkout',
+      payload,
+    )
+    return res.data
   },
 }

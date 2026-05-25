@@ -103,15 +103,21 @@ export const useCartStore = create<CartState>()(
             'unitCode' in productInput
               ? (productInput.unitCode as string)
               : 'unit_code' in productInput
-                ? (productInput as any).unit_code
+                ? (productInput as { unit_code: string }).unit_code
+                : '',
+          unitId:
+            'unitId' in productInput
+              ? (productInput.unitId as string)
+              : 'unit_id' in productInput
+                ? (productInput as { unit_id: string }).unit_id
                 : '',
           taxRate:
             'taxRate' in productInput
               ? (productInput.taxRate as number)
               : 'tax_rate' in productInput
-                ? (productInput as any).tax_rate
+                ? (productInput as { tax_rate: number }).tax_rate
                 : 0,
-          image: 'image' in productInput ? (productInput as any).image : null,
+          image: 'image' in productInput ? (productInput as { image?: string | null }).image : null,
           stock: 'stock' in productInput ? (productInput.stock as number) : null,
         }
 

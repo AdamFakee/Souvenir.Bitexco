@@ -1,18 +1,77 @@
 import { ViceService } from '@/screens/vice-service'
 import { Button, ModalBase, Numpad } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
+import { IOrder } from '@/shared/features/order/types'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
 import { Banknote } from 'lucide-react-native'
-import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
-import { PaymentMethod } from '@/shared/lib/database'
-import { cashPaymentMachine } from '../machines/cash-payment.machine'
+import { OrderStatus, PaymentMethod } from '@/shared/lib/database'
+import { cashPaymentMachine, SavedOrder } from '../machines/cash-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax, getCashSuggestions, roundCashAmount } from '../utils'
+import type { CartItem } from '@/shared/features/pos'
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+/**
+ * Xây dựng IOrder đầy đủ để truyền vào BitexcoReceiptTemplate.
+ * Snapshot items/payments luôn lấy từ cart UI hiện tại (source of truth cho in bill).
+ */
+function buildReceiptOrder(
+  savedOrder: SavedOrder,
+  items: CartItem[],
+  cashTendered: string,
+  roundedTotal: number,
+  staffId: string,
+  shiftId: string,
+): IOrder {
+  const orderId = savedOrder.source === 'online' ? savedOrder.orderCode : savedOrder.id
+  const totalTax = items.reduce(
+    (sum, i) => sum + i.price * i.quantity * ((i.product.taxRate ?? 0) / 100),
+    0,
+  )
+
+  return {
+    id: orderId,
+    shiftId,
+    staffId,
+    status: OrderStatus.COMPLETED,
+    subtotal: roundedTotal,
+    discount: 0,
+    voucherDiscount: 0,
+    total: roundedTotal,
+    totalTax,
+    customerTaxInfo: null,
+    isDeleted: false,
+    canReturn: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    itemsSnapshot: items.map((i) => ({
+      productId: i.product.id,
+      sku: i.product.sku,
+      name: i.product.name,
+      price: i.price,
+      quantity: i.quantity,
+      subtotal: i.price * i.quantity,
+      taxRate: i.product.taxRate ?? 0,
+      taxAmount: i.price * i.quantity * ((i.product.taxRate ?? 0) / 100),
+      discountAmount: i.discountAmount ?? 0,
+    })),
+    paymentsSnapshot: [
+      {
+        method: PaymentMethod.CASH,
+        amount: Number(cashTendered) || roundedTotal,
+        cashTendered: Number(cashTendered) || roundedTotal,
+        cashChange: Number(cashTendered) >= roundedTotal ? Number(cashTendered) - roundedTotal : 0,
+      },
+    ],
+  }
+}
 
 /**
  * Popup thanh toán tiền mặt — driven by `cashPaymentMachine`.
@@ -42,8 +101,8 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const actorRef = useActorRef(
       cashPaymentMachine.provide({
         actions: {
-          notifyError: () => {
-            toast.error('Thanh toán tiền mặt thất bại. Vui lòng thử lại!')
+          notifyError: ({ context }) => {
+            toast.error(context.error || 'Thanh toán tiền mặt thất bại. Vui lòng thử lại!')
           },
           notifyCancel: () => {
             toast.info('Giao dịch đã bị hủy')
@@ -57,7 +116,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           items,
           staffId,
           shiftId,
-          sessionId: activeSessionId || 'unknown',
+          sessionId: shiftId || 'unknown', // shiftId = cashSessionId UUID từ server
           appliedVoucher: appliedVoucher || null,
           printRef,
         },
@@ -105,7 +164,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         method: PaymentMethod.CASH,
         paidAmount: paid,
         change: changeAmt,
-        isOnline: false,
+        isOnline: savedOrder?.source === 'online',
       })
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSuccess])
@@ -121,7 +180,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           items,
           staffId,
           shiftId,
-          sessionId: activeSessionId || 'unknown',
+          sessionId: shiftId || 'unknown',
           appliedVoucher: appliedVoucher || null,
           printRef,
         }
@@ -356,29 +415,14 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           {savedOrder && (
             <View collapsable={false} ref={printRef}>
               <BitexcoReceiptTemplate
-                order={
-                  {
-                    ...savedOrder,
-                    id: savedOrder.id,
-                    total: roundedTotal,
-                    totalTax: calculateTotalTax(items),
-                    itemsSnapshot: items.map((i) => ({
-                      sku: i.product.sku,
-                      name: i.product.name,
-                      price: i.product.price,
-                      quantity: i.quantity,
-                      subtotal: i.product.price * i.quantity,
-                      taxRate: i.product.taxRate || 0,
-                      taxAmount: i.product.price * i.quantity * ((i.product.taxRate || 0) / 100),
-                    })),
-                    paymentsSnapshot: [
-                      {
-                        method: 'CASH',
-                        amount: Number(cashTendered),
-                      },
-                    ],
-                  } as any
-                }
+                order={buildReceiptOrder(
+                  savedOrder,
+                  items,
+                  cashTendered,
+                  roundedTotal,
+                  staffId,
+                  shiftId,
+                )}
                 staffName={staffName}
               />
             </View>

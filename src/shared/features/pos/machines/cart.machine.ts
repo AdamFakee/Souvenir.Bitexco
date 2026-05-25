@@ -58,13 +58,18 @@ export const cartMachine = setup({
                   ('unitCode' in productInput
                     ? (productInput.unitCode as string)
                     : 'unit_code' in productInput
-                      ? (productInput as any).unit_code
+                      ? (productInput as { unit_code: string }).unit_code
                       : ''),
+                unitId:
+                  productInput.unitId ||
+                  ('unit_id' in productInput ? (productInput as { unit_id: string }).unit_id : ''),
                 taxRate:
-                  (productInput.taxRate as any) ||
-                  ('tax_rate' in productInput ? (productInput as any).tax_rate : 0),
+                  (productInput.taxRate as number) ||
+                  ('tax_rate' in productInput
+                    ? (productInput as { tax_rate: number }).tax_rate
+                    : 0),
                 image: productInput.image || null,
-                stock: (productInput.stock as any) || null,
+                stock: (productInput.stock as number) || null,
               }
 
               const existingItem = context.items[product.id]

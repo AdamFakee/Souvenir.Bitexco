@@ -16,10 +16,10 @@ export const calculateVoucherDiscount = (
     // Tính tổng tiền của các sản phẩm được áp dụng voucher
     const applicableTotal = items
       .filter((item) => {
-        if (!voucher.applicableProductIds || voucher.applicableProductIds.length === 0) {
+        if (!voucher.applicableVariantIds || voucher.applicableVariantIds.length === 0) {
           return true // Áp dụng cho tất cả nếu không chỉ định ID
         }
-        return voucher.applicableProductIds.includes(item.product.id)
+        return voucher.applicableVariantIds.includes(item.product.id)
       })
       .reduce((sum, item) => sum + item.price * item.quantity, 0)
 

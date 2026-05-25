@@ -137,7 +137,6 @@ export default function CheckoutPanel() {
     try {
       const response = await remoteVoucherApi.verify({
         code: voucherInput,
-        subtotal,
       })
       cartActor?.send({ type: 'APPLY_VOUCHER', voucher: response })
       setVoucherInput(response.code)
@@ -178,7 +177,7 @@ export default function CheckoutPanel() {
                   {appliedVoucher.maxDiscountAmount && (
                     <View className="flex-row items-center justify-between">
                       <Text className="text-surface-onVariant text-lg font-bold">Giảm tối đa</Text>
-                      <Text className="text-xl font-black text-surface-on">
+                      <Text className="text-xl font-black text-surface-on" numberOfLines={1}>
                         {formatCurrency(appliedVoucher.maxDiscountAmount)}
                       </Text>
                     </View>
@@ -189,8 +188,8 @@ export default function CheckoutPanel() {
                       Phạm vi áp dụng
                     </Text>
                     <Text className="text-base font-black text-primary">
-                      {appliedVoucher.applicableProductIds &&
-                      appliedVoucher.applicableProductIds.length > 0
+                      {appliedVoucher.applicableVariantIds &&
+                      appliedVoucher.applicableVariantIds.length > 0
                         ? 'Sản phẩm chỉ định'
                         : 'Tất cả sản phẩm'}
                     </Text>

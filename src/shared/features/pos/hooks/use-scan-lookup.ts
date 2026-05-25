@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react'
-import { useConnectionStore, toast } from '@/shared/store'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
+import { toast, useConnectionStore } from '@/shared/store'
+import { useCallback, useState } from 'react'
 import { usePosActor } from './use-pos-actor'
 
 export function useScanLookup() {

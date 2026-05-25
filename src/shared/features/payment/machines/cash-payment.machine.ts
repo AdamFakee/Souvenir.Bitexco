@@ -1,12 +1,38 @@
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
+import {
+  OrderRemoteAPI,
+  PosCartLine,
+  PosCheckoutRequest,
+  PosCheckoutResult,
+} from '@/shared/features/order/api/remote/order.remote.api'
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { OrderModel } from '@/shared/lib/database/models'
 import { PaymentMethod } from '@/shared/lib/database'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services'
+import { useConnectionStore } from '@/shared/store/use-connection-store'
 import { assign, fromPromise, setup } from 'xstate'
 import { PaymentResult } from '../types'
 import { calculateVoucherDiscount, roundCashAmount } from '../utils'
+
+// ─── Saved Order Types ────────────────────────────────────────────────────────
+
+/** Kết quả online checkout từ server — không ghi SQLite */
+export type OnlineOrderResult = {
+  source: 'online'
+  orderId: string
+  orderCode: string
+}
+
+/** Kết quả offline checkout từ SQLite — chờ WatermelonDB sync lên */
+export type OfflineOrderResult = {
+  source: 'offline'
+  id: string
+  createdAt: Date
+}
+
+export type SavedOrder = OnlineOrderResult | OfflineOrderResult
+
+// ─── Machine Types ────────────────────────────────────────────────────────────
 
 export interface CashPaymentContext {
   /** Input Data */
@@ -17,14 +43,14 @@ export interface CashPaymentContext {
   shiftId: string
   sessionId: string
   appliedVoucher: AppliedVoucher | null
-  printRef?: React.RefObject<any>
+  printRef?: React.RefObject<unknown>
 
   /** Processing Data */
   amountTendered: number
   change: number
   error: string | null
   retryCount: number
-  savedOrder: OrderModel | null
+  savedOrder: SavedOrder | null
   paymentResult: PaymentResult | null
 }
 
@@ -43,8 +69,10 @@ export type CashPaymentInput = {
   shiftId: string
   sessionId: string
   appliedVoucher: AppliedVoucher | null
-  printRef?: React.RefObject<any>
+  printRef?: React.RefObject<unknown>
 }
+
+// ─── Machine ──────────────────────────────────────────────────────────────────
 
 const MAX_RETRIES = 3
 
@@ -56,13 +84,73 @@ export const cashPaymentMachine = setup({
   },
   actors: {
     /**
-     * Ghi nhận giao dịch tiền mặt vào DB local (Save Order)
+     * Lưu đơn hàng:
+     * - Online  → gọi API atomic checkout (POST /v1/pos/checkout), không ghi SQLite
+     * - Offline → ghi WatermelonDB SQLite local, WatermelonDB tự sync lên sau
      */
     saveOrder: fromPromise(
-      async ({ input }: { input: CashPaymentContext }): Promise<OrderModel> => {
+      async ({ input }: { input: CashPaymentContext }): Promise<SavedOrder> => {
         const finalTotal = roundCashAmount(input.total)
+        const isOnline = useConnectionStore.getState().isNetworkConnected
 
-        const checkoutPayload = {
+        if (isOnline) {
+          // ── ONLINE ─────────────────────────────────────────────────────────
+
+          const lines: PosCartLine[] = input.items.map((item) => {
+            const variantId = item.product.id || ''
+            const unitId = item.product.unitId || (item.product as any).unit_id || '---'
+            const qty = item.quantity
+            const unitPrice = item.price || item.product.price
+            const discountAmount = item.discountAmount ?? 0
+            const taxRate = (item.product.taxRate ?? 8) / 100
+
+            return {
+              variantId,
+              unitId,
+              qty,
+              unitPrice,
+              discountAmount,
+              taxRate,
+            }
+          })
+
+          const payload: PosCheckoutRequest = {
+            cashSessionId: input.sessionId || '---',
+            customerId: null,
+            currency: 'VND',
+            notes: null,
+            lines,
+            payments: [
+              {
+                method: 'cash',
+                amount: finalTotal || 0,
+                provider: null,
+                cardTerminalId: null,
+              },
+            ],
+            voucherCode: input.appliedVoucher?.code ?? null,
+            issueInvoice: false,
+            customerName: null,
+            customerTaxId: null,
+            customerAddress: null,
+          }
+
+          const response = await OrderRemoteAPI.checkout(payload)
+
+          if (!response.success || !response.data) {
+            throw new Error(response.message ?? 'Lỗi thanh toán trực tuyến từ server!')
+          }
+
+          const result: PosCheckoutResult = response.data
+          return {
+            source: 'online',
+            orderId: result.orderId,
+            orderCode: result.orderCode,
+          }
+        }
+
+        // ── OFFLINE ────────────────────────────────────────────────────────────
+        const savedOrder = await OrderLocalAPI.checkout({
           staffId: input.staffId,
           shiftId: input.shiftId,
           items: input.items,
@@ -73,7 +161,7 @@ export const cashPaymentMachine = setup({
             ? calculateVoucherDiscount(input.items, input.appliedVoucher)
             : 0,
           total: finalTotal,
-          note: undefined, // Add if needed
+          note: undefined,
           payment: {
             method: PaymentMethod.CASH,
             amount: input.amountTendered,
@@ -81,24 +169,29 @@ export const cashPaymentMachine = setup({
             cashChange: input.change,
             referenceCode: undefined,
           },
-        }
+        })
 
-        const savedOrder = await OrderLocalAPI.checkout(checkoutPayload)
-        return savedOrder
+        return {
+          source: 'offline',
+          id: savedOrder.id,
+          createdAt: savedOrder.createdAt,
+        }
       },
     ),
 
     /**
      * In hóa đơn.
      */
-    printReceipt: fromPromise(async ({ input }: { input: { printRef?: React.RefObject<any> } }) => {
-      if (!input.printRef?.current) {
-        throw new Error('Có lỗi xảy ra khi in hóa đơn, vui lòng thử lại')
-      }
+    printReceipt: fromPromise(
+      async ({ input }: { input: { printRef?: React.RefObject<unknown> } }) => {
+        if (!input.printRef?.current) {
+          throw new Error('Có lỗi xảy ra khi in hóa đơn, vui lòng thử lại')
+        }
 
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      await PrinterService.printComponent(input.printRef)
-    }),
+        await new Promise((resolve) => setTimeout(resolve, 800))
+        await PrinterService.printComponent(input.printRef)
+      },
+    ),
   },
   guards: {
     canConfirm: ({ context }) => context.amountTendered >= roundCashAmount(context.total),
@@ -109,18 +202,33 @@ export const cashPaymentMachine = setup({
       amountTendered: ({ event }) => (event.type === 'SET_AMOUNT' ? event.amount : 0),
       change: ({ context, event }) => {
         if (event.type !== 'SET_AMOUNT') return context.change
-        const roundedTotal = roundCashAmount(context.total)
-        const diff = event.amount - roundedTotal
+        const diff = event.amount - roundCashAmount(context.total)
         return diff > 0 ? diff : 0
       },
     }),
     recordError: assign({
-      error: ({ event }) => (event as any).error?.message ?? 'Lỗi không xác định',
+      error: ({ event }) => {
+        const err = (event as { error?: unknown }).error
+        let errMsg = 'Lỗi không xác định'
+        if (err && typeof err === 'object') {
+          const axiosErr = err as any
+          if (axiosErr.response) {
+            const serverData = axiosErr.response.data
+            if (serverData && typeof serverData === 'object') {
+              errMsg = serverData.error || serverData.message || errMsg
+            }
+          }
+        }
+        if (errMsg === 'Lỗi không xác định' && err instanceof Error) {
+          errMsg = err.message
+        }
+        return errMsg
+      },
       retryCount: ({ context }) => context.retryCount + 1,
     }),
     clearError: assign({ error: null }),
     resetContext: assign(({ event }) => {
-      const baseContext = {
+      const base = {
         amountTendered: 0,
         change: 0,
         error: null,
@@ -131,7 +239,7 @@ export const cashPaymentMachine = setup({
 
       if (event.type === 'START' && event.input) {
         return {
-          ...baseContext,
+          ...base,
           total: event.input.total,
           discount: event.input.discount,
           items: event.input.items,
@@ -143,10 +251,14 @@ export const cashPaymentMachine = setup({
         }
       }
 
-      return baseContext
+      return base
     }),
     assignSavedOrder: assign({
-      savedOrder: ({ event }) => (event as any).output ?? null,
+      // XState truyền output qua event.output — dùng unknown rồi cast
+      savedOrder: ({ event }) => {
+        const output = (event as { output?: unknown }).output
+        return (output as SavedOrder) ?? null
+      },
     }),
     assignPaymentResult: assign({
       paymentResult: ({ context }) => ({
@@ -154,15 +266,19 @@ export const cashPaymentMachine = setup({
         method: PaymentMethod.CASH,
         paidAmount: context.amountTendered,
         change: context.change,
-        isOnline: false,
-        orderId: context.savedOrder?.id ?? undefined,
+        isOnline: context.savedOrder?.source === 'online',
+        orderId:
+          context.savedOrder?.source === 'online'
+            ? context.savedOrder.orderCode
+            : context.savedOrder?.id,
       }),
     }),
     triggerSync: () => {
-      SyncService.performSync().catch((err) => console.error('Sync after Cash failed:', err))
+      // Chỉ có ý nghĩa khi offline — WatermelonDB push bản ghi SQLite lên server
+      SyncService.performSync().catch(() => {})
     },
-    notifyError: () => {}, // Sẽ được override từ UI (Popup)
-    notifyCancel: () => {}, // Sẽ được override từ UI (Popup)
+    notifyError: () => {}, // override từ UI
+    notifyCancel: () => {}, // override từ UI
   },
 }).createMachine({
   id: 'cashPayment',
@@ -187,9 +303,7 @@ export const cashPaymentMachine = setup({
     idle: {
       on: {
         START: { actions: 'resetContext' },
-        SET_AMOUNT: {
-          actions: 'setAmount',
-        },
+        SET_AMOUNT: { actions: 'setAmount' },
         CONFIRM: {
           target: 'savingOrder',
           guard: 'canConfirm',
@@ -225,15 +339,9 @@ export const cashPaymentMachine = setup({
       invoke: {
         id: 'printReceipt',
         src: 'printReceipt',
-        input: ({ context }) => ({
-          printRef: context.printRef,
-        }),
-        onDone: {
-          target: 'success',
-        },
-        onError: {
-          target: 'success', // Lỗi in không cản trở flow thành công
-        },
+        input: ({ context }) => ({ printRef: context.printRef }),
+        onDone: { target: 'success' },
+        onError: { target: 'success' }, // lỗi in không cản trở flow
       },
     },
 

@@ -4,6 +4,7 @@ export type CartProduct = {
   price: number
   sku: string
   unit: string
+  unitId: string
   taxRate: number
   image?: string | null
   stock?: number | null
@@ -21,5 +22,5 @@ export type AppliedVoucher = {
   code: string
   percent: number
   maxDiscountAmount?: number
-  applicableProductIds?: string[] // Danh sách ID sản phẩm được áp dụng
+  applicableVariantIds?: string[] // Danh sách ID biến thể sản phẩm được áp dụng
 }
