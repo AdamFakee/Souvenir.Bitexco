@@ -1,13 +1,14 @@
 import { Button, Container } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { useAppContext } from '@/shared/features/app'
+import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/shared/features/note'
 import { CloseShiftModal, CloseShiftModalRef } from '@/shared/features/shift'
 import { useSync } from '@/shared/lib/database/sync'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
-import { LogOut, RefreshCw } from 'lucide-react-native'
-import React, { useRef } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { ClipboardList, LogOut, RefreshCw } from 'lucide-react-native'
+import React, { useEffect, useMemo, useRef } from 'react'
+import { Pressable, Text, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type MenuItem = {
@@ -32,6 +33,15 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
 
   // Determine active route based on segments
   const activeTab = segments[1] || 'pos'
+
+  // Handover Notes store integration and ref
+  const handoverNotesModalRef = useRef<HandoverNotesModalRef>(null)
+  const { notes, loadNotes } = useNoteStore()
+  const pendingNotesCount = useMemo(() => notes.filter((n) => !n.isCompleted).length, [notes])
+
+  useEffect(() => {
+    loadNotes()
+  }, [])
 
   return (
     <View
@@ -89,6 +99,22 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
 
       {/* Sidebar Bottom Info */}
       <View className="gap-4">
+        <View className="relative">
+          <Button
+            label="Note"
+            variant="outline"
+            leftIcon={ClipboardList}
+            onPress={() => handoverNotesModalRef.current?.open()}
+            className="h-20 w-full rounded-2xl"
+            textClassName="text-lg font-bold text-primary"
+          />
+          {pendingNotesCount > 0 && (
+            <View className="absolute right-6 top-1/2 -mt-3.5 h-7 min-w-[28px] items-center justify-center rounded-full bg-error px-2">
+              <Text className="text-xs font-black text-white">{pendingNotesCount}</Text>
+            </View>
+          )}
+        </View>
+
         <Button
           label="Đồng bộ dữ liệu"
           variant="outline"
@@ -102,6 +128,8 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
           onPress={onOpenCloseShift}
           leftIcon={LogOut}
         />
+
+        <HandoverNotesModal ref={handoverNotesModalRef} />
 
         <Container className="flex-row items-center justify-between rounded-2xl bg-surface-100 p-4 shadow-sm">
           <View className="mr-2 flex-1 flex-row items-center gap-3">

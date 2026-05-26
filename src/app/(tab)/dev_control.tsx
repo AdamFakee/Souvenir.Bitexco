@@ -12,6 +12,7 @@ import React, { useEffect, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { storage } from '@/shared/lib/storage'
 import { useAppStore } from '@/shared/features/app'
+import { useNoteStore } from '@/shared/features/note'
 
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
@@ -160,6 +161,77 @@ export default function DevControlScreen() {
     })
   }
 
+  const handleClearNotes = () => {
+    const notes = useNoteStore.getState().notes
+    notes.forEach((n) => useNoteStore.getState().deleteNote(n.id))
+    toast.success('Đã xóa sạch danh sách ghi chú bàn giao!')
+  }
+
+  const handleSeedNotes = () => {
+    const { addNote } = useNoteStore.getState()
+
+    // 1. Overdue Note
+    const overdueTarget = new Date()
+    overdueTarget.setHours(overdueTarget.getHours() - 2)
+    addNote({
+      title: 'Kiểm hàng tồn kho bia & nước ngọt',
+      content:
+        'Kiểm đếm toàn bộ các két bia Tiger, Heineken và nước ngọt tại kho phụ phía sau quầy bar.',
+      targetTime: overdueTarget.toISOString(),
+      reminderTime: new Date(overdueTarget.getTime() - 10 * 60 * 1000).toISOString(),
+      isReminderActive: true,
+    })
+
+    // 2. Upcoming Note (Due in 3 hours)
+    const upcomingTarget = new Date()
+    upcomingTarget.setHours(upcomingTarget.getHours() + 3)
+    addNote({
+      title: 'Bàn giao két tiền mặt cuối ca',
+      content: 'Đếm tiền mặt trong két thu ngân, lập hóa đơn bàn giao ca cho nhân viên ca sau.',
+      targetTime: upcomingTarget.toISOString(),
+      reminderTime: new Date(upcomingTarget.getTime() - 15 * 60 * 1000).toISOString(),
+      isReminderActive: true,
+    })
+
+    // 3. Completed Note
+    const completedTarget = new Date()
+    completedTarget.setHours(completedTarget.getHours() - 1)
+    addNote({
+      title: 'Vệ sinh máy pha cafe & khu vực quầy',
+      content: 'Lau chùi máy pha cafe sạch sẽ, tắt nguồn và dọn dẹp các ly tách đã sử dụng.',
+      targetTime: completedTarget.toISOString(),
+      reminderTime: new Date(completedTarget.getTime()).toISOString(),
+      isReminderActive: false,
+    })
+
+    // Set the first one to completed as sample
+    setTimeout(() => {
+      const notes = useNoteStore.getState().notes
+      if (notes.length > 0) {
+        useNoteStore.getState().toggleComplete(notes[0].id)
+      }
+    }, 50)
+
+    toast.success('Đã nạp 3 ghi chú bàn giao mẫu!')
+  }
+
+  const handleTriggerInstantAlarm = () => {
+    const { addNote } = useNoteStore.getState()
+    const target = new Date(Date.now() + 15000) // target time: 15s from now
+    const reminder = new Date(Date.now() + 3000) // reminder time: 3s from now
+
+    addNote({
+      title: '🔔 CẢNH BÁO BÀN GIAO MOCK',
+      content:
+        'Đây là ghi chú giả lập để kiểm tra âm thanh chuông báo và giao diện hiển thị đè màn hình.',
+      targetTime: target.toISOString(),
+      reminderTime: reminder.toISOString(),
+      isReminderActive: true,
+    })
+
+    toast.info('Báo thức sẽ nổ chuông sau đúng 3 giây nữa!')
+  }
+
   return (
     <ScrollView className="flex-1 bg-surface-200 p-6">
       <Text className="mb-6 text-headline-md font-bold text-primary">Dev Control Panel</Text>
@@ -247,6 +319,42 @@ export default function DevControlScreen() {
               onPress={handleForceLogout}
             />
           </View>
+        </View>
+      </Container>
+
+      {/* Dev Handover Note & Alarm Controls */}
+      <Container className="mb-6 border border-emerald-600/20 bg-emerald-600/5 p-4">
+        <Text className="text-title-md mb-1 font-black uppercase tracking-wider text-emerald-700">
+          Mock Handover Notes & Alarms
+        </Text>
+        <Text className="text-body-xs mb-4 text-muted">
+          Quản lý nhanh danh sách note bàn giao & giả lập chuông báo thức tức thì
+        </Text>
+
+        <View className="gap-4">
+          <View className="flex-row gap-3">
+            <Button
+              label="Nạp Notes mẫu Tiger/Cafe/Két"
+              variant="outline"
+              className="flex-1 border-emerald-600"
+              textClassName="text-emerald-700 font-bold"
+              onPress={handleSeedNotes}
+            />
+            <Button
+              label="Xóa sạch Notes"
+              variant="outline"
+              className="flex-1 border-error"
+              textClassName="text-error font-bold"
+              onPress={handleClearNotes}
+            />
+          </View>
+
+          <Button
+            label="🔔 Kích hoạt Báo thức tức thì (Sau 3 giây)"
+            className="bg-emerald-600"
+            textClassName="text-white font-black"
+            onPress={handleTriggerInstantAlarm}
+          />
         </View>
       </Container>
 
