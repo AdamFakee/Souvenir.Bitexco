@@ -255,8 +255,8 @@ export const OrderRemoteAPI = {
   /**
    * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
    */
-  checkout: async (payload: PosCheckoutRequest): Promise<IBaseResponse<PosCheckoutResult>> => {
-    const res = await AxiosService.getInstance().post<IBaseResponse<PosCheckoutResult>>(
+  checkout: async (payload: PosCheckoutRequest): Promise<PosCheckoutResult> => {
+    const res = await AxiosService.getInstance().post<PosCheckoutResult>(
       '/v1/pos/checkout',
       payload,
     )

@@ -109,11 +109,11 @@ export const qrPaymentMachine = setup({
 
       const response = await OrderRemoteAPI.checkout(payload)
 
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Khởi tạo đơn hàng QR thất bại!')
+      if (!response || (response as any).error) {
+        throw new Error((response as any).error || 'Khởi tạo đơn hàng QR thất bại!')
       }
 
-      const result = response.data
+      const result = response
       const paymentId = result.payments?.[0]?.paymentId || `pay_${result.orderId}`
 
       return {
