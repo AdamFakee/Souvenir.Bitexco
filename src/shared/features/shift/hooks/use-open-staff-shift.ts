@@ -20,7 +20,7 @@ export const useOpenStaffShift = () => {
 
       // 2. Kích hoạt đồng bộ dữ liệu (Pull các thay đổi khác nếu có)
       try {
-        await SyncService.performSync()
+        await SyncService.pullMasterData()
       } catch (error) {
         console.error('Sync after shift opening failed:', error)
       }

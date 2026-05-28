@@ -76,7 +76,7 @@ export const closeShiftMachine = setup({
      * Kích hoạt đồng bộ hóa dữ liệu SQLite local
      */
     syncData: fromPromise(async () => {
-      await SyncService.performSync()
+      await SyncService.drainOutbox()
     }),
 
     /**

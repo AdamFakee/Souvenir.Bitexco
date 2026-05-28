@@ -50,6 +50,7 @@ export const schema = appSchema({
         { name: 'items_snapshot', type: 'string' },
         { name: 'payments_snapshot', type: 'string' },
         { name: 'is_deleted', type: 'boolean' },
+        { name: 'is_synced', type: 'boolean' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

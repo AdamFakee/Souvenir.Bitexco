@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
-import { SyncService } from '../sync.service'
 import { useIsOnline } from '@/shared/hooks'
+import { useCallback, useState } from 'react'
+import { SyncService } from '../sync.service'
 
 /**
  * useSync - Hook để quản lý trạng thái đồng bộ
@@ -20,7 +20,8 @@ export const useSync = () => {
 
     setIsSyncing(true)
     try {
-      await SyncService.performSync()
+      await SyncService.drainOutbox()
+      await SyncService.pullMasterData()
     } catch (error) {
       setLastSyncError(error as Error)
     } finally {

@@ -156,6 +156,7 @@ export const OrderLocalAPI = {
       o.itemsSnapshot = itemsSnapshot
       o.paymentsSnapshot = paymentsSnapshot
       o.isDeleted = false
+      o.isSynced = false
     })
 
     // 2. Prepare Stock Updates
@@ -205,6 +206,7 @@ export const OrderLocalAPI = {
       o.itemsSnapshot = itemsSnapshot
       o.paymentsSnapshot = [payload.payment]
       o.isDeleted = false
+      o.isSynced = false
     })
 
     await database.write(async () => {
@@ -250,6 +252,7 @@ export const OrderLocalAPI = {
       o.itemsSnapshot = itemsSnapshot
       o.paymentsSnapshot = [payload.payment]
       o.isDeleted = false
+      o.isSynced = false
     })
 
     await database.write(async () => {
@@ -335,12 +338,41 @@ export const OrderLocalAPI = {
     try {
       const unsyncedOrders = await database
         .get<OrderModel>('orders')
-        .query(Q.unsafeSqlQuery("select * from orders where _status in ('created', 'updated')"))
+        .query(Q.where('is_synced', false))
         .fetch()
       return unsyncedOrders.length
     } catch (error) {
       console.error('Failed to count unsynced orders:', error)
       return 0
     }
+  },
+
+  /**
+   * Lấy danh sách đơn hàng chưa đồng bộ
+   */
+  getUnsyncedOrders: async (): Promise<OrderModel[]> => {
+    return await database.get<OrderModel>('orders').query(Q.where('is_synced', false)).fetch()
+  },
+
+  /**
+   * Đánh dấu các đơn hàng đã đồng bộ thành công
+   */
+  markOrdersAsSynced: async (orderIds: string[]): Promise<void> => {
+    if (!orderIds.length) return
+
+    await database.write(async () => {
+      const orders = await database
+        .get<OrderModel>('orders')
+        .query(Q.where('id', Q.oneOf(orderIds)))
+        .fetch()
+
+      const updates = orders.map((order) =>
+        order.prepareUpdate((o) => {
+          o.isSynced = true
+        }),
+      )
+
+      await database.batch(...updates)
+    })
   },
 }

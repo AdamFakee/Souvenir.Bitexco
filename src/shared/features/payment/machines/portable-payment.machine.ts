@@ -2,7 +2,6 @@ import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PaymentMethod } from '@/shared/lib/database'
 import { OrderModel, OrderStatus } from '@/shared/lib/database/models'
-import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import { PaymentResult, PortablePaymentCommandResult } from '../types'
@@ -293,9 +292,9 @@ export const portablePaymentMachine = setup({
       }),
     }),
     triggerSync: () => {
-      SyncService.performSync().catch((err) =>
-        console.error('Đồng bộ dữ liệu sau quẹt thẻ thất bại:', err),
-      )
+      // SyncService.performSync().catch((err) =>
+      //   console.error('Đồng bộ dữ liệu sau quẹt thẻ thất bại:', err),
+      // )
     },
   },
   delays: {

@@ -7,7 +7,6 @@ import {
 } from '@/shared/features/order/api/remote/order.remote.api'
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PaymentMethod } from '@/shared/lib/database'
-import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
 import { assign, fromPromise, setup } from 'xstate'
@@ -276,7 +275,7 @@ export const cashPaymentMachine = setup({
     }),
     triggerSync: () => {
       // Chỉ có ý nghĩa khi offline — WatermelonDB push bản ghi SQLite lên server
-      SyncService.performSync().catch(() => {})
+      // SyncService.performSync().catch(() => {})
     },
     notifyError: () => {}, // override từ UI
     notifyCancel: () => {}, // override từ UI

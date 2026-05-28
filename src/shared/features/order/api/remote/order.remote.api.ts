@@ -126,36 +126,22 @@ export interface OrderSyncChanges {
  * OrderRemoteAPI - Xử lý đồng bộ dữ liệu Đơn hàng với Server
  */
 export const OrderRemoteAPI = {
-  pushChanges: async ({ changes }: PushChangesParams) => {
-    // Ép kiểu để có gợi ý code
-    const { orders } = changes as unknown as OrderSyncChanges
+  /**
+   * Đồng bộ hàng loạt đơn hàng offline lên server (Bulk Sync)
+   */
+  syncOfflineOrders: async (orders: OrderRaw[]): Promise<void> => {
+    if (!orders || orders.length === 0) {
+      return
+    }
 
-    if (orders) {
-      console.log('OrderRemoteAPI: Pushing orders (with nested snapshots)...', {
-        created: orders.created.length,
-        updated: orders.updated.length,
-        deleted: orders.deleted.length,
-      })
+    console.log(`OrderRemoteAPI: Syncing ${orders.length} offline orders to server...`)
 
-      /**
-       * LƯU Ý CHO BACKEND:
-       * 1. Nhận mảng 'orders.created' và thực hiện bulk insert/upsert.
-       * 2. Dữ liệu chi tiết nằm trong 'items_snapshot' và 'payments_snapshot' (JSON).
-       * 3. Backend có thể chủ động parse JSON này để lưu vào bảng riêng ở Server nếu cần,
-       *    hoặc lưu nguyên JSON nếu DB Server hỗ trợ (như PostgreSQL/MongoDB).
-       */
-
-      // GIẢ LẬP GỌI API:
-      // const response = await apiClient.post<IBaseResponse<null>>('/sync/orders', { orders })
-
-      // LOGIC CHECK LỖI:
-      // if (!response.success) {
-      //   // BẮT BUỘC: Throw lỗi để WatermelonDB không đánh dấu bản ghi là "đã push".
-      //   // Việc throw này giúp hệ thống tự động retry ở lần sync kế tiếp.
-      //   throw new Error(response.message || 'Push sync orders failed')
-      // }
-
-      console.log('--- Orders Detail Pushed ---', orders)
+    try {
+      const payload = { orders }
+      await AxiosService.getInstance().post('/v1/pos/sync/orders', payload)
+    } catch (error) {
+      console.error('OrderRemoteAPI: Failed to sync offline orders', error)
+      throw error
     }
   },
 

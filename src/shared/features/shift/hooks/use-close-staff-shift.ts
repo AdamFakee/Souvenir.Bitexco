@@ -1,9 +1,9 @@
+import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
+import { useIsOnline } from '@/shared/hooks'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { toast } from '@/shared/store'
 import { useState } from 'react'
 import { ShiftRemoteAPI, ZReportResponse } from '../api/remote/shift.remote.api'
-import { useIsOnline } from '@/shared/hooks'
-import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 
 export const useCloseStaffShift = () => {
   const [isLoading, setIsLoading] = useState(false)
@@ -30,7 +30,7 @@ export const useCloseStaffShift = () => {
 
       // 3. Kích hoạt đồng bộ dữ liệu (Push) lần cuối trước khi đóng ca
       try {
-        await SyncService.performSync()
+        await SyncService.drainOutbox()
       } catch (error) {
         console.error('Final sync before shift closing failed:', error)
         throw new Error('Đồng bộ dữ liệu thất bại. Vui lòng thử lại.')

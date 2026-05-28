@@ -39,6 +39,7 @@ export default class OrderModel extends Model {
   @json('items_snapshot', sanitizeItemsSnapshot) itemsSnapshot!: ItemSnapshot[]
   @json('payments_snapshot', sanitizePaymentsSnapshot) paymentsSnapshot!: PaymentSnapshot[]
   @field('is_deleted') isDeleted!: boolean
+  @field('is_synced') isSynced!: boolean
 
   @readonly @date('created_at') createdAt!: Date
   @readonly @date('updated_at') updatedAt!: Date
