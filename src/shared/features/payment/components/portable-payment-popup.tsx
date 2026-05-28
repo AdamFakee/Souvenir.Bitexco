@@ -55,7 +55,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
         items,
         staffId,
         shiftId,
-        sessionId: activeSessionId ?? 'unknown',
+        sessionId: shiftId ?? 'unknown',
         appliedVoucher: appliedVoucher || null,
         printRef,
       },
@@ -65,32 +65,37 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     const machineState = useSelector(actorRef, (s) => s.value)
     const error = useSelector(actorRef, (s) => s.context.error)
     const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
-    const savedOrder = useSelector(actorRef, (s) => s.context.savedOrder)
-    const orderId = useSelector(actorRef, (s) => s.context.orderId)
-    const referenceCode = useSelector(actorRef, (s) => s.context.referenceCode)
+    const checkoutResult = useSelector(actorRef, (s) => s.context.checkoutResult)
+    const paymentId = useSelector(actorRef, (s) => s.context.paymentId)
 
     // Trạng thái cụ thể để điều khiển UI
     const isIdle = machineState === 'idle'
-    const isCreatingPending = machineState === 'creatingPendingOrder'
+    const isCreatingOrder = machineState === 'creatingOrder'
+    const isProcessingPayment = machineState === 'processingPayment'
     const isConnecting = machineState === 'connecting'
     const isConnectionFailed = machineState === 'connectionFailed'
     const isSendingCommand = machineState === 'sendingCommand'
     const isVerifyingUnknown = machineState === 'verifyingUnknown'
+    const isCapturingCard = machineState === 'capturingCard'
+    const isAuthorizingPayment = machineState === 'authorizingPayment'
+    const isCapturingPayment = machineState === 'capturingPayment'
     const isPaymentFailed = machineState === 'paymentFailed'
-    const isCanceling = machineState === 'cancelingOrder'
-    const isUpdatingOrder = machineState === 'updatingOrder'
+    const isCanceling = machineState === 'cancelingPayment'
     const isManualResolution = machineState === 'manualResolution'
     const isPreparingReceipt = machineState === 'preparingReceipt'
     const isPrinting = machineState === 'printingReceipt'
     const isSuccess = machineState === 'success'
 
     const isLoading =
-      isCreatingPending ||
+      isCreatingOrder ||
+      isProcessingPayment ||
       isConnecting ||
       isSendingCommand ||
       isVerifyingUnknown ||
+      isCapturingCard ||
+      isAuthorizingPayment ||
+      isCapturingPayment ||
       isCanceling ||
-      isUpdatingOrder ||
       isPreparingReceipt ||
       isPrinting
 
@@ -104,12 +109,14 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     // --- Phân chia Bước Tiến Trình (Visual Step Indicator) ---
     // Bước 0: Khởi tạo, Bước 1: Kết nối POS, Bước 2: Quẹt thẻ, Bước 3: Hoàn tất & In bill
     let activeStep = 0
-    if (isConnecting || isConnectionFailed) {
+    if (isProcessingPayment || isConnecting || isConnectionFailed) {
       activeStep = 1
-    } else if (isSendingCommand || isPaymentFailed || isVerifyingUnknown) {
+    } else if (isSendingCommand || isVerifyingUnknown || isPaymentFailed) {
       activeStep = 2
     } else if (
-      isUpdatingOrder ||
+      isCapturingCard ||
+      isAuthorizingPayment ||
+      isCapturingPayment ||
       isManualResolution ||
       isPreparingReceipt ||
       isPrinting ||
@@ -166,7 +173,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
           items,
           staffId,
           shiftId,
-          sessionId: activeSessionId ?? 'unknown',
+          sessionId: shiftId ?? 'unknown',
           appliedVoucher: appliedVoucher || null,
           printRef,
         }
@@ -203,9 +210,9 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
           method: PaymentMethod.CARD,
           paidAmount: total,
           change: 0,
-          referenceCode: referenceCode ?? orderId ?? undefined,
+          referenceCode: checkoutResult?.orderId ?? paymentId ?? undefined,
           isOnline: !isManualResolution,
-          orderId: orderId ?? undefined,
+          orderId: checkoutResult?.orderId ?? undefined,
         })
       }, 1800)
       return () => clearTimeout(timer)
@@ -213,19 +220,19 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
 
     const handleCancel = () => {
       actorRef.send({ type: 'CANCEL' })
-      // Nếu không có orderId (tức là chưa lưu đơn PENDING thành công), đóng popup ngay
-      if (!orderId) {
+      // Nếu chưa tạo order thành công, đóng popup ngay
+      if (!checkoutResult) {
         setVisible(false)
       }
     }
 
-    // Đóng hoàn tất khi trạng thái hủy đơn DB hoàn tất (trở về idle sau khi CancelingOrder kết thúc)
+    // Đóng hoàn tất khi trạng thái hủy đơn DB hoàn tất (trở về idle sau khi cancelingPayment kết thúc)
     useEffect(() => {
-      if (isIdle && visible && !isLoading && orderId === null) {
+      if (isIdle && visible && !isLoading && checkoutResult === null) {
         const timer = setTimeout(() => setVisible(false), 500)
         return () => clearTimeout(timer)
       }
-    }, [isIdle, visible, isLoading, orderId])
+    }, [isIdle, visible, isLoading, checkoutResult])
 
     const handleRetry = () => {
       actorRef.send({ type: 'RETRY' })
@@ -238,7 +245,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     console.log(error)
 
     const handleRetryUpdate = () => {
-      actorRef.send({ type: 'RETRY_UPDATE' })
+      actorRef.send({ type: 'RETRY' })
     }
 
     // Render vòng tròn chỉ báo bước
@@ -321,11 +328,19 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
 
               <View className="shadow-inner gap-5 rounded-[20px] border border-outline-variant bg-surface-100 p-6">
                 <View>
-                  <Text className="text-surface-onVariant mb-1 text-2xl">Mã hóa đơn</Text>
+                  <Text className="text-surface-onVariant mb-1 text-2xl">Mã đơn hàng</Text>
                   <Text className="text-xl font-bold text-surface-on">
-                    {orderId ?? 'Đang tạo...'}
+                    {checkoutResult?.orderCode ?? (isCreatingOrder ? 'Đang tạo...' : '—')}
                   </Text>
                 </View>
+                {paymentId && (
+                  <View>
+                    <Text className="text-surface-onVariant mb-1 text-2xl">Payment ID</Text>
+                    <Text className="text-xl font-bold text-surface-on" numberOfLines={1}>
+                      {paymentId}
+                    </Text>
+                  </View>
+                )}
                 {retryCount > 0 && (
                   <View className="flex-row items-center gap-2.5 rounded-xl border border-error/10 bg-error/5 px-4 py-3">
                     <AlertCircle size={20} color={COLORS.error.default} />
@@ -369,11 +384,11 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
                     <Database size={64} color="#d97706" />
                   </View>
                   <Text className="mt-5 text-center text-2xl font-bold text-amber-600">
-                    Lỗi SQLite: Mất đồng bộ cơ sở dữ liệu!
+                    Lỗi Server: Không thể hoàn tất giao dịch!
                   </Text>
                   <Text className="text-surface-onVariant mt-3 text-center text-sm">
-                    Giao dịch đã báo quẹt thành công trên POS nhưng không thể cập nhật DB SQLite.
-                    Vui lòng nhấn Xác nhận tay nếu thấy máy POS báo SALE SUCCESS.
+                    Máy EDC đã báo SALE SUCCESS nhưng server không thể Authorize/Capture. Nhấn Xác
+                    nhận tay nếu xác nhận máy EDC đã thanh toán thành công.
                   </Text>
                 </View>
               ) : (
@@ -465,15 +480,14 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
 
         {/* Hidden Printer Template */}
         <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-          {savedOrder && (
+          {checkoutResult && (
             <View collapsable={false} ref={printRef}>
               <BitexcoReceiptTemplate
                 order={
                   {
-                    ...savedOrder,
-                    id: savedOrder.id,
-                    total: total,
-                    totalTax: calculateTotalTax(items),
+                    id: checkoutResult.orderId,
+                    total: checkoutResult.grandTotal,
+                    totalTax: checkoutResult.taxTotal,
                     itemsSnapshot: items.map((i) => ({
                       sku: i.product.sku,
                       name: i.product.name,
@@ -486,7 +500,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
                     paymentsSnapshot: [
                       {
                         method: PaymentMethod.CARD,
-                        amount: total,
+                        amount: checkoutResult.grandTotal,
                       },
                     ],
                   } as any

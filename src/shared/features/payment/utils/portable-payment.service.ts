@@ -1,7 +1,7 @@
 import PaymentPortable from '../../../../../modules/payment-portable'
 
 // const POS_URL = 'https://tung-vm.appspot.com/'
-const POS_URL = 'http://192.168.1.142:8080'
+const POS_URL = 'http://192.168.1.12:8080'
 
 const MERCHANT_NAME = 'TGDD'
 const CASHIER_ID = 'cashier01'
