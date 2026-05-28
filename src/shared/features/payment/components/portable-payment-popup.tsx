@@ -1,8 +1,9 @@
 import { ViceService } from '@/screens/vice-service'
-import { Button, LoadingIndicator, ModalBase } from '@/shared/components/ui'
+import { Button, ControlledInput, LoadingIndicator, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { formatCurrency } from '@/shared/utils'
+import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useActorRef, useSelector } from '@xstate/react'
 import {
   AlertCircle,
@@ -14,15 +15,15 @@ import {
   Wifi,
 } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { ScrollView, Text, View } from 'react-native'
 
 import { PaymentMethod } from '@/shared/lib/database'
-import {
-  getPortablePaymentStatusLabel,
-  portablePaymentMachine,
-} from '../machines/portable-payment.machine'
+import { toast } from '@/shared/store'
+import { portablePaymentMachine } from '../machines/portable-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
+import { ManualCardDetailsFormData, manualCardDetailsSchema } from '../validation'
 
 const MAX_RETRIES = 3
 
@@ -31,21 +32,21 @@ const MAX_RETRIES = 3
  */
 export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
   (
-    {
-      total,
-      discount,
-      items,
-      staffId,
-      shiftId,
-      staffName,
-      appliedVoucher,
-      activeSessionId,
-      printRef,
-      onSuccess,
-    },
+    { total, discount, items, staffId, shiftId, staffName, appliedVoucher, printRef, onSuccess },
     ref,
   ) => {
     const [visible, setVisible] = useState(false)
+    const [showManualForm, setShowManualForm] = useState(false)
+
+    const { control, handleSubmit, reset } = useForm<ManualCardDetailsFormData>({
+      resolver: valibotResolver(manualCardDetailsSchema),
+      defaultValues: {
+        terminalId: '',
+        merchantId: '',
+        referenceNumber: '',
+        approvalCode: '',
+      },
+    })
 
     // Khởi tạo và thiết lập machine cùng với override actions thông báo cho người dùng
     const actorRef = useActorRef(portablePaymentMachine, {
@@ -63,7 +64,6 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
 
     // --- XState Selectors ---
     const machineState = useSelector(actorRef, (s) => s.value)
-    const error = useSelector(actorRef, (s) => s.context.error)
     const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
     const checkoutResult = useSelector(actorRef, (s) => s.context.checkoutResult)
     const paymentId = useSelector(actorRef, (s) => s.context.paymentId)
@@ -82,6 +82,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     const isPaymentFailed = machineState === 'paymentFailed'
     const isCanceling = machineState === 'cancelingPayment'
     const isManualResolution = machineState === 'manualResolution'
+    const isCapturingCardManual = machineState === 'capturingCardManual'
     const isPreparingReceipt = machineState === 'preparingReceipt'
     const isPrinting = machineState === 'printingReceipt'
     const isSuccess = machineState === 'success'
@@ -93,6 +94,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
       isSendingCommand ||
       isVerifyingUnknown ||
       isCapturingCard ||
+      isCapturingCardManual ||
       isAuthorizingPayment ||
       isCapturingPayment ||
       isCanceling ||
@@ -103,9 +105,6 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
     const canCancel = useSelector(actorRef, (s) => s.can({ type: 'CANCEL' }))
 
-    // Việt hóa trạng thái tiến trình
-    const statusLabel = getPortablePaymentStatusLabel(actorRef.getSnapshot())
-
     // --- Phân chia Bước Tiến Trình (Visual Step Indicator) ---
     // Bước 0: Khởi tạo, Bước 1: Kết nối POS, Bước 2: Quẹt thẻ, Bước 3: Hoàn tất & In bill
     let activeStep = 0
@@ -115,6 +114,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
       activeStep = 2
     } else if (
       isCapturingCard ||
+      isCapturingCardManual ||
       isAuthorizingPayment ||
       isCapturingPayment ||
       isManualResolution ||
@@ -167,6 +167,8 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     useImperativeHandle(ref, () => ({
       open: () => {
         setVisible(true)
+        setShowManualForm(false)
+        reset()
         const freshInput = {
           total,
           discount,
@@ -239,10 +241,33 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     }
 
     const handleForceComplete = () => {
-      actorRef.send({ type: 'FORCE_COMPLETE' })
+      toast.confirm({
+        title: 'Bắt buộc hoàn tất đơn hàng',
+        message:
+          'Thao tác này sẽ bỏ qua lỗi đồng bộ và ghi nhận đơn hàng là đã thanh toán thành công. Bạn đã chắc chắn nhận được tiền từ khách chưa?',
+        onConfirm: () => {
+          actorRef.send({ type: 'FORCE_COMPLETE' })
+        },
+      })
     }
 
-    console.log(error)
+    const handleManualCaptureSubmit = (data: ManualCardDetailsFormData) => {
+      toast.confirm({
+        title: 'Xác nhận thanh toán thủ công',
+        message:
+          'Hãy chắc chắn rằng bạn đã quẹt thẻ thành công trên máy EDC độc lập và đã có hóa đơn (slip) trước khi xác nhận đơn hàng.',
+        onConfirm: () => {
+          actorRef.send({
+            type: 'MANUAL_CAPTURE',
+            terminalId: data.terminalId?.trim() || undefined,
+            merchantId: data.merchantId?.trim() || undefined,
+            referenceNumber: data.referenceNumber?.trim() || undefined,
+            approvalCode: data.approvalCode?.trim() || undefined,
+          })
+          setShowManualForm(false)
+        },
+      })
+    }
 
     const handleRetryUpdate = () => {
       actorRef.send({ type: 'RETRY' })
@@ -354,7 +379,71 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
 
             {/* Right Box: Status Feedback */}
             <View className="min-h-[380px] flex-[6] flex-col items-center justify-center bg-white p-10">
-              {isSuccess ? (
+              {showManualForm ? (
+                <View className="w-full px-4 py-2">
+                  <Text className="mb-2 text-center text-3xl font-black text-surface-on">
+                    Nhập thông tin thẻ thủ công
+                  </Text>
+                  <Text className="text-surface-onVariant mb-8 text-center text-lg leading-relaxed">
+                    Quẹt thẻ độc lập trên máy EDC, sau đó điền thông tin từ hóa đơn (slip) in ra:
+                  </Text>
+
+                  <ControlledInput
+                    control={control}
+                    name="terminalId"
+                    label="Mã thiết bị (TID)"
+                    placeholder="Ví dụ: 01684838"
+                    placeholderTextColor={COLORS.outline.default}
+                    className="h-16 rounded-[16px] px-5 text-2xl font-bold"
+                  />
+
+                  <ControlledInput
+                    control={control}
+                    name="merchantId"
+                    label="Mã cửa hàng (MID)"
+                    placeholder="Ví dụ: 000000925126645"
+                    placeholderTextColor={COLORS.outline.default}
+                    className="h-16 rounded-[16px] px-5 text-2xl font-bold"
+                  />
+
+                  <ControlledInput
+                    control={control}
+                    name="referenceNumber"
+                    label="Mã RRN / Số tham chiếu (Ref No)"
+                    placeholder="Ví dụ: 614801081012"
+                    placeholderTextColor={COLORS.outline.default}
+                    keyboardType="numeric"
+                    className="h-16 rounded-[16px] px-5 text-2xl font-bold"
+                  />
+
+                  <ControlledInput
+                    control={control}
+                    name="approvalCode"
+                    label="Mã Approval / Mã phê duyệt (Auth Code)"
+                    placeholder="Ví dụ: 313963"
+                    placeholderTextColor={COLORS.outline.default}
+                    keyboardType="numeric"
+                    className="h-16 rounded-[16px] px-5 text-2xl font-bold"
+                  />
+
+                  <View className="flex-row justify-end gap-5">
+                    <Button
+                      label="Quay lại"
+                      variant="outline"
+                      onPress={() => setShowManualForm(false)}
+                      className="h-16 flex-1 rounded-[20px]"
+                      textClassName="text-lg font-bold"
+                    />
+                    <Button
+                      label="Xác nhận thanh toán"
+                      variant="primary"
+                      onPress={handleSubmit(handleManualCaptureSubmit)}
+                      className="h-16 flex-1 rounded-[20px]"
+                      textClassName="text-lg font-black"
+                    />
+                  </View>
+                </View>
+              ) : isSuccess ? (
                 <View className="items-center justify-center">
                   <View className="h-28 w-28 items-center justify-center rounded-full bg-green-100 p-2 shadow-lg shadow-green-500/20">
                     <CheckCircle size={80} color="#22c55e" />
@@ -374,9 +463,16 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
                   <Text className="mt-5 text-center text-2xl font-bold text-error">
                     {isConnectionFailed ? 'Lỗi kết nối máy POS!' : 'Giao dịch thất bại!'}
                   </Text>
-                  <Text className="text-surface-onVariant mt-3 text-center text-base">
-                    {error ?? 'Vui lòng kiểm tra cáp socket / thẻ quẹt và thử lại.'}
+                  <Text className="text-surface-onVariant mb-6 mt-3 text-center text-base">
+                    {isConnectionFailed
+                      ? 'Không thể kết nối đến máy POS. Vui lòng kiểm tra cổng mạng/IP hoặc cáp mạng.'
+                      : 'Thiết bị báo giao dịch thất bại. Vui lòng kiểm tra lại thẻ hoặc thao tác quẹt.'}
                   </Text>
+                  <Button
+                    label="Xác nhận thủ công"
+                    variant="outline"
+                    onPress={() => setShowManualForm(true)}
+                  />
                 </View>
               ) : isManualResolution ? (
                 <View className="items-center justify-center px-4">
@@ -387,12 +483,12 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
                     Lỗi Server: Không thể hoàn tất giao dịch!
                   </Text>
                   <Text className="text-surface-onVariant mt-3 text-center text-sm">
-                    Máy EDC đã báo SALE SUCCESS nhưng server không thể Authorize/Capture. Nhấn Xác
+                    Máy EDC đã báo SALE SUCCESS nhưng server không thể xác nhận giao dịch. Nhấn Xác
                     nhận tay nếu xác nhận máy EDC đã thanh toán thành công.
                   </Text>
                 </View>
               ) : (
-                <View className="items-center justify-center">
+                <View className="w-full items-center justify-center px-4">
                   <View className="mb-8 h-28 w-28 items-center justify-center rounded-full border border-primary/10 bg-primary/5 shadow-sm">
                     {isConnecting ? (
                       <Wifi size={56} color={COLORS.primary.default} />
@@ -402,11 +498,8 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
                       <CreditCard size={56} color={COLORS.primary.default} />
                     )}
                   </View>
-                  <View className="flex-row items-center gap-3 rounded-full border border-surface-200 bg-surface-100 px-6 py-3 shadow-sm">
+                  <View className="mb-6 flex-row items-center gap-3 rounded-full border border-surface-200 bg-surface-100 px-6 py-3 shadow-sm">
                     {isLoading && <LoadingIndicator size={20} />}
-                    <Text className="text-surface-onVariant text-sm font-semibold uppercase tracking-wider">
-                      {statusLabel}
-                    </Text>
                   </View>
                 </View>
               )}

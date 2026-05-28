@@ -317,7 +317,6 @@ export default function CheckoutPanel() {
                       disabled={
                         cart.length === 0 ||
                         !isAvailable ||
-                        (method.type === PaymentMethod.CARD && isPosConnected === false) ||
                         (method.type === PaymentMethod.BANK_TRANSFER && !isNetworkConnected)
                       }
                     />

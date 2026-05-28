@@ -28,6 +28,12 @@ export interface PortablePaymentContext {
   paymentId: string | null // payments[0].paymentId từ checkout
   paymentVersion: number // Version để dùng OCC cho transitions
   rawCommandResult: PortablePaymentCommandResult | null // Kết quả từ máy EDC
+  manualCardDetails: {
+    terminalId?: string
+    merchantId?: string
+    referenceNumber?: string
+    approvalCode?: string
+  } | null
   error: string | null
   retryCount: number
   paymentResult: PaymentResult | null
@@ -38,6 +44,13 @@ export type PortablePaymentEvent =
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
   | { type: 'FORCE_COMPLETE' }
+  | {
+      type: 'MANUAL_CAPTURE'
+      terminalId?: string
+      merchantId?: string
+      referenceNumber?: string
+      approvalCode?: string
+    }
   | { type: 'START'; input?: PortablePaymentInput }
 
 export type PortablePaymentInput = {
@@ -266,6 +279,34 @@ export const portablePaymentMachine = setup({
     ),
 
     /**
+     * Ghi nhận thông tin thẻ nhập tay từ máy POS di động khi thiết bị EDC mất kết nối/cấu hình lỗi
+     */
+    cardCaptureManual: fromPromise(
+      async ({
+        input,
+      }: {
+        input: {
+          paymentId: string
+          manualDetails: {
+            terminalId?: string
+            merchantId?: string
+            referenceNumber?: string
+            approvalCode?: string
+          }
+        }
+      }): Promise<void> => {
+        await PaymentRemoteAPI.cardCapture(input.paymentId, {
+          terminalId: input.manualDetails?.terminalId || 'unknown',
+          merchantId: input.manualDetails?.merchantId || 'unknown',
+          maskedPan: 'unknown',
+          authCode: input.manualDetails?.approvalCode || 'unknown',
+          rrn: input.manualDetails?.referenceNumber || 'unknown',
+        })
+        console.log('[PortablePayment] Manual card capture OK')
+      },
+    ),
+
+    /**
      * Bước 5: Chuyển Payment sang AUTHORIZED
      * POST /v1/payments/{id}/transitions { action: "authorize", expectedVersion }
      */
@@ -364,11 +405,12 @@ export const portablePaymentMachine = setup({
         method: PaymentMethod.CARD,
         paidAmount: context.total,
         change: 0,
-        isOnline: true,
+        isOnline: context.manualCardDetails ? false : true,
         orderId: context.checkoutResult?.orderId,
         referenceCode:
           context.rawCommandResult?.transInfo?.refNo ??
           context.rawCommandResult?.transInfo?.transId ??
+          context.manualCardDetails?.referenceNumber ??
           context.paymentId ??
           undefined,
       }),
@@ -384,12 +426,21 @@ export const portablePaymentMachine = setup({
         referenceCode: context.paymentId ?? undefined,
       }),
     }),
+    assignManualCardDetails: assign({
+      manualCardDetails: ({ event }) => ({
+        terminalId: (event as any).terminalId,
+        merchantId: (event as any).merchantId,
+        referenceNumber: (event as any).referenceNumber,
+        approvalCode: (event as any).approvalCode,
+      }),
+    }),
     resetContext: assign(({ event }) => {
       const base = {
         checkoutResult: null,
         paymentId: null,
         paymentVersion: 0,
         rawCommandResult: null,
+        manualCardDetails: null,
         error: null,
         retryCount: 0,
         paymentResult: null,
@@ -429,6 +480,7 @@ export const portablePaymentMachine = setup({
     paymentId: null,
     paymentVersion: 0,
     rawCommandResult: null,
+    manualCardDetails: null,
     error: null,
     retryCount: 0,
     paymentResult: null,
@@ -496,6 +548,12 @@ export const portablePaymentMachine = setup({
           actions: 'recordError',
         },
       },
+      on: {
+        MANUAL_CAPTURE: {
+          target: 'capturingCardManual',
+          actions: 'assignManualCardDetails',
+        },
+      },
     },
 
     connectionFailed: {
@@ -504,6 +562,10 @@ export const portablePaymentMachine = setup({
           target: 'connecting',
           guard: 'canRetry',
           actions: 'clearError',
+        },
+        MANUAL_CAPTURE: {
+          target: 'capturingCardManual',
+          actions: 'assignManualCardDetails',
         },
         CANCEL: { target: 'cancelingPayment' },
       },
@@ -541,6 +603,12 @@ export const portablePaymentMachine = setup({
           actions: 'recordError',
         },
       },
+      on: {
+        MANUAL_CAPTURE: {
+          target: 'capturingCardManual',
+          actions: 'assignManualCardDetails',
+        },
+      },
     },
 
     /**
@@ -562,6 +630,12 @@ export const portablePaymentMachine = setup({
           actions: 'recordError',
         },
       },
+      on: {
+        MANUAL_CAPTURE: {
+          target: 'capturingCardManual',
+          actions: 'assignManualCardDetails',
+        },
+      },
     },
 
     paymentFailed: {
@@ -570,6 +644,10 @@ export const portablePaymentMachine = setup({
           target: 'sendingCommand',
           guard: 'canRetry',
           actions: 'clearError',
+        },
+        MANUAL_CAPTURE: {
+          target: 'capturingCardManual',
+          actions: 'assignManualCardDetails',
         },
         CANCEL: { target: 'cancelingPayment' },
       },
@@ -589,6 +667,25 @@ export const portablePaymentMachine = setup({
         onDone: { target: 'authorizingPayment' },
         onError: {
           // card-capture fail → vẫn thử authorize (thông tin thẻ đã nhận)
+          target: 'authorizingPayment',
+        },
+      },
+    },
+
+    /**
+     * Ghi nhận thông tin thẻ nhập tay của thu ngân
+     */
+    capturingCardManual: {
+      invoke: {
+        id: 'cardCaptureManual',
+        src: 'cardCaptureManual',
+        input: ({ context }) => ({
+          paymentId: context.paymentId!,
+          manualDetails: context.manualCardDetails!,
+        }),
+        onDone: { target: 'authorizingPayment' },
+        onError: {
+          // Thử authorize dù nhập tay fail
           target: 'authorizingPayment',
         },
       },
@@ -649,7 +746,7 @@ export const portablePaymentMachine = setup({
           target: 'preparingReceipt',
           actions: 'assignManualPaymentResult',
         },
-        RETRY_UPDATE: {
+        RETRY: {
           target: 'authorizingPayment',
           actions: 'clearError',
         },
@@ -711,7 +808,8 @@ export function getPortablePaymentStatusLabel(
   if (state.matches('sendingCommand')) return 'Đang chờ quẹt/chạm thẻ trên máy EDC...'
   if (state.matches('verifyingUnknown'))
     return 'Mất tín hiệu! Đang tự động đối soát giao dịch cuối...'
-  if (state.matches('capturingCard')) return 'Đang ghi nhận thông tin thẻ lên hệ thống...'
+  if (state.matches('capturingCard') || state.matches('capturingCardManual'))
+    return 'Đang ghi nhận thông tin thẻ lên hệ thống...'
   if (state.matches('authorizingPayment')) return 'Đang xác thực giao dịch (AUTHORIZED)...'
   if (state.matches('capturingPayment')) return 'Đang hoàn tất thanh toán (CAPTURED)...'
   if (state.matches('paymentFailed')) return error ?? 'Giao dịch quẹt thẻ bị lỗi!'

@@ -13,6 +13,6 @@ export const PortableCardStrategy: PaymentStrategy = {
   type: PaymentMethod.CARD,
   label: 'Thẻ (POS)',
   icon: CreditCard,
-  isAvailable: () => useConnectionStore.getState().isPosConnected !== false,
+  isAvailable: () => true,
   PopupComponent: PortablePaymentPopup,
 }
