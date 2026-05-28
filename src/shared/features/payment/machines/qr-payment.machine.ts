@@ -107,7 +107,9 @@ export const qrPaymentMachine = setup({
         customerAddress: null,
       }
 
+      console.log('[QR Checkout] Sending Checkout Payload:', JSON.stringify(payload, null, 2))
       const response = await OrderRemoteAPI.checkout(payload)
+      console.log('[QR Checkout] Received Response:', JSON.stringify(response, null, 2))
 
       if (!response || (response as any).error) {
         throw new Error((response as any).error || 'Khởi tạo đơn hàng QR thất bại!')
@@ -137,13 +139,16 @@ export const qrPaymentMachine = setup({
           tenantConfig: TenantConfig | null
         }
       }) => {
-        const qrData = await PaymentRemoteAPI.generateQrCode(input.paymentId, {
+        const params = {
           bankCode: input.tenantConfig?.bankCode || '---',
           accountNo: input.tenantConfig?.accountNo || '---',
           accountName: input.tenantConfig?.accountName || '---',
           amount: input.total,
           description: `Thanh toan don ${input.orderCode}`,
-        })
+        }
+        console.log('[QR Fetch] Generating QR with params:', JSON.stringify(params, null, 2))
+        const qrData = await PaymentRemoteAPI.generateQrCode(input.paymentId, params)
+        console.log('[QR Fetch] Received QR Response:', JSON.stringify(qrData, null, 2))
         return qrData
       },
     ),
@@ -152,7 +157,14 @@ export const qrPaymentMachine = setup({
      * Kiểm tra trạng thái thanh toán (Polling từ paymentId).
      */
     checkStatus: fromPromise(async ({ input }: { input: { paymentId: string } }) => {
+      console.log('[QR Poll] Checking payment status for ID:', input.paymentId)
       const payment = await PaymentRemoteAPI.getPaymentStatus(input.paymentId)
+      console.log(
+        '[QR Poll] Current Payment State:',
+        payment.state,
+        'Full Data:',
+        JSON.stringify(payment, null, 2),
+      )
       if (payment.state !== 'CAPTURED') {
         throw new Error('NOT_CAPTURED_YET')
       }
@@ -208,10 +220,15 @@ export const qrPaymentMachine = setup({
     recordError: assign({
       error: ({ event }) => {
         const err = (event as any).error
+        console.error('[QR Payment Machine Error] Captured event error:', err)
         let errMsg = 'Đã xảy ra lỗi trong quá trình thanh toán. Vui lòng thử lại!'
         if (err && typeof err === 'object') {
           const axiosErr = err as any
           if (axiosErr.response?.data) {
+            console.error(
+              '[QR Payment Machine Error] Axios Response Data:',
+              JSON.stringify(axiosErr.response.data, null, 2),
+            )
             errMsg = axiosErr.response.data.error || axiosErr.response.data.message || errMsg
           }
         }
@@ -221,6 +238,7 @@ export const qrPaymentMachine = setup({
         ) {
           errMsg = err.message
         }
+        console.error('[QR Payment Machine Error] Processed message:', errMsg)
         return errMsg
       },
       retryCount: ({ context }) => context.retryCount + 1,
