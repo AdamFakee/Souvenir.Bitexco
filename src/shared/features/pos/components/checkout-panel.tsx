@@ -15,6 +15,7 @@ import { PaymentMethod } from '@/shared/lib/database'
 import { useConnectionStore } from '@/shared/store'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { PenSquare, Ticket, XCircle } from 'lucide-react-native'
 import React, { useMemo, useRef, useState } from 'react'
@@ -112,11 +113,14 @@ export default function CheckoutPanel() {
   )
 
   const posActor = usePosActor()
+  const queryClient = useQueryClient()
 
   const handleCheckoutSuccess = () => {
     if (activeSessionId) {
       posActor?.send({ type: 'REMOVE_TAB', id: activeSessionId })
     }
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    queryClient.invalidateQueries({ queryKey: ['orders'] })
     toast.success('Thanh toán thành công!')
   }
 
