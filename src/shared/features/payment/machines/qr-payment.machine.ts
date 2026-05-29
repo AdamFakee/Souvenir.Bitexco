@@ -39,6 +39,8 @@ export interface QRPaymentContext {
 export type QRPaymentEvent =
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
+  | { type: 'CHECK_STATUS_NOW' }
+  | { type: 'FORCE_COMPLETE' }
   | { type: 'START'; input?: QRPaymentInput }
 
 export type QRPaymentInput = {
@@ -55,7 +57,7 @@ export type QRPaymentInput = {
 
 const MAX_RETRIES = 3
 const POLL_INTERVAL_MS = 3000 // 3 giây (đặc tả API)
-const TOTAL_TIMEOUT_MS = 5 * 60 * 1000 // 10 phút total for QR scanning
+const TOTAL_TIMEOUT_MS = 5 * 60 * 1000 // 5 phút total for QR scanning
 
 export const qrPaymentMachine = setup({
   types: {
@@ -291,7 +293,7 @@ export const qrPaymentMachine = setup({
       // Sync is not required for online-only orders, but we keep the callback signature
     },
     notifyTimeout: () => {
-      toast.error('Giao dịch đã hết hạn thanh toán (10 phút)')
+      toast.error('Giao dịch đã hết hạn thanh toán (5 phút)')
     },
     notifyCancel: () => {
       toast.info('Giao dịch đã bị hủy')
@@ -374,6 +376,8 @@ export const qrPaymentMachine = setup({
     waitingForPayment: {
       on: {
         CANCEL: { target: 'cancelled', actions: 'notifyCancel' },
+        CHECK_STATUS_NOW: { target: '.checking' },
+        FORCE_COMPLETE: { target: '#qrPayment.savingOrder' },
       },
       initial: 'idle',
       states: {
@@ -384,6 +388,9 @@ export const qrPaymentMachine = setup({
               target: '#qrPayment.cancelled',
               actions: 'notifyTimeout',
             },
+          },
+          on: {
+            CHECK_STATUS_NOW: 'checking',
           },
         },
         checking: {
@@ -458,6 +465,12 @@ export const qrPaymentMachine = setup({
             actions: 'clearError',
           },
         ],
+        CHECK_STATUS_NOW: {
+          target: 'waitingForPayment.checking',
+          guard: ({ context }) => context.paymentId !== null,
+          actions: 'clearError',
+        },
+        FORCE_COMPLETE: { target: '#qrPayment.savingOrder' },
         CANCEL: { target: 'cancelled' },
       },
     },

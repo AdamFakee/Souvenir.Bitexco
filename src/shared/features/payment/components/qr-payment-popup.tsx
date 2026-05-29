@@ -1,18 +1,18 @@
 import { ViceService } from '@/screens/vice-service'
-import { Button, LoadingIndicator, ModalBase } from '@/shared/components/ui'
+import { Button, ModalBase, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
+import { useAppContext } from '@/shared/features/app'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
+import { PaymentMethod } from '@/shared/lib/database'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
-import { AlertCircle, CheckCircle, QrCode } from 'lucide-react-native'
+import { AlertCircle, CheckCircle, Clock3, QrCode } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
-import { PaymentMethod } from '@/shared/lib/database'
-import { useAppContext } from '@/shared/features/app'
 import { getQrPaymentStatusLabel, qrPaymentMachine } from '../machines/qr-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
@@ -39,7 +39,9 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const [visible, setVisible] = useState(false)
     const { tenantConfig } = useAppContext()
 
-    // Khởi động lại machine với toàn bộ input cần thiết
+    const subtotal = calculateSubtotal(items)
+    const tax = calculateTotalTax(items)
+
     const actorRef = useActorRef(qrPaymentMachine, {
       input: {
         total,
@@ -54,15 +56,17 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       },
     })
 
-    // --- Selectors ---
     const machineState = useSelector(actorRef, (s) => s.value)
     const qrContent = useSelector(actorRef, (s) => s.context.qrContent)
     const billNumber = useSelector(actorRef, (s) => s.context.billNumber)
     const error = useSelector(actorRef, (s) => s.context.error)
     const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
     const savedOrder = useSelector(actorRef, (s) => s.context.savedOrder)
+    const statusLabel = useSelector(actorRef, getQrPaymentStatusLabel)
 
-    // Trạng thái tổng hợp
+    const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
+    const canCancel = useSelector(actorRef, (s) => s.can({ type: 'CANCEL' }))
+
     const isSuccess = machineState === 'success'
     const isError = machineState === 'error'
     const isCancelled = machineState === 'cancelled'
@@ -74,27 +78,25 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
     const isLoading = isCreatingOrder || isFetchingQR || isWaiting || isSaving || isPrinting
 
-    // guard can()
-    const canRetry = actorRef.getSnapshot().can({ type: 'RETRY' })
-    const canCancel = actorRef.getSnapshot().can({ type: 'CANCEL' })
+    const statusPillClassName = isSuccess
+      ? 'border-success/20 bg-success/10'
+      : isError
+        ? 'border-error/20 bg-error/10'
+        : 'border-outline-variant bg-white'
 
-    // Status label
-    const statusLabel = getQrPaymentStatusLabel(actorRef.getSnapshot())
+    const statusTextClassName = isSuccess
+      ? 'text-success'
+      : isError
+        ? 'text-error'
+        : 'text-neutral-700'
 
-    // Cập nhật Vice Screen khi QR sẵn sàng
     useEffect(() => {
       if (!qrContent || !visible) return
-      const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items)
       ViceService.showPayment({ qrCodeUrl: qrContent, subtotal, discount, tax, total })
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [qrContent, visible])
+    }, [qrContent, visible, subtotal, discount, tax, total])
 
-    // Trả màn hình phụ về Home khi đóng popup QR (hủy giao dịch)
     useEffect(() => {
       if (!visible && !isSuccess) {
-        const subtotal = calculateSubtotal(items)
-        const tax = calculateTotalTax(items)
         ViceService.updateCart({
           items: items.map((i) => ({
             id: i.id,
@@ -108,22 +110,18 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           total,
         })
       }
-    }, [visible, isSuccess, items, discount, total])
+    }, [visible, isSuccess, items, subtotal, discount, tax, total])
 
-    // Khi machine thành công → trigger onSuccess và đóng popup
     useEffect(() => {
       if (!isSuccess) return
 
-      const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items)
       ViceService.paymentSuccess({ subtotal, discount, tax, total, customerPaid: total, change: 0 })
 
       const snap = actorRef.getSnapshot()
       const resolvedOrderId = snap.context.orderId ?? snap.context.sessionId
       const resolvedBillNumber = snap.context.billNumber ?? resolvedOrderId
 
-      // Đợi để khách thấy UI success trước khi đóng
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setVisible(false)
         onSuccess({
           success: true,
@@ -135,10 +133,10 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           orderId: resolvedOrderId,
         })
       }, 1500)
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSuccess])
 
-    // Khi cancelled → đóng popup sau một khoảng trễ ngắn để kịp xử lý DB
+      return () => clearTimeout(timer)
+    }, [actorRef, isSuccess, subtotal, discount, tax, total, onSuccess])
+
     useEffect(() => {
       if (isCancelled) {
         const timer = setTimeout(() => setVisible(false), 800)
@@ -146,43 +144,179 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       }
     }, [isCancelled])
 
-    useImperativeHandle(ref, () => ({
-      open: async () => {
-        const netState = await NetInfo.fetch()
-        if (!netState.isConnected) {
-          toast.error('Thanh toán QR yêu cầu kết nối mạng!')
-          return
-        }
+    useImperativeHandle(
+      ref,
+      () => ({
+        open: async () => {
+          const netState = await NetInfo.fetch()
+          if (!netState.isConnected) {
+            toast.error('Thanh toán QR yêu cầu kết nối mạng!')
+            return
+          }
 
-        setVisible(true)
+          setVisible(true)
 
-        const freshInput = {
-          total,
-          discount,
-          items,
-          staffId,
-          shiftId,
-          sessionId: activeSessionId ?? 'unknown',
-          appliedVoucher: appliedVoucher || null,
-          printRef,
-          tenantConfig,
-        }
+          const freshInput = {
+            total,
+            discount,
+            items,
+            staffId,
+            shiftId,
+            sessionId: activeSessionId ?? 'unknown',
+            appliedVoucher: appliedVoucher || null,
+            printRef,
+            tenantConfig,
+          }
 
-        // Khởi động lại machine với dữ liệu mới nhất
-        actorRef.send({ type: 'START', input: freshInput })
-      },
-      close: () => {
-        actorRef.send({ type: 'CANCEL' })
-      },
-    }))
+          actorRef.send({ type: 'START', input: freshInput })
+        },
+        close: () => {
+          actorRef.send({ type: 'CANCEL' })
+        },
+      }),
+      [
+        activeSessionId,
+        actorRef,
+        appliedVoucher,
+        discount,
+        items,
+        printRef,
+        shiftId,
+        staffId,
+        tenantConfig,
+        total,
+      ],
+    )
 
     const handleCancel = () => {
       actorRef.send({ type: 'CANCEL' })
-      // Không setVisible(false) ở đây, để useEffect xử lý sau khi machine chuyển trạng thái
     }
 
     const handleRetry = () => {
       actorRef.send({ type: 'RETRY' })
+    }
+
+    const handleCheckStatusNow = () => {
+      actorRef.send({ type: 'CHECK_STATUS_NOW' })
+    }
+
+    const handleForceComplete = () => {
+      actorRef.send({ type: 'FORCE_COMPLETE' })
+    }
+
+    const receiptOrder = savedOrder
+      ? ({
+          ...savedOrder,
+          id: savedOrder.id,
+          total,
+          totalTax: tax,
+          itemsSnapshot: items.map((i) => ({
+            sku: i.product.sku,
+            name: i.product.name,
+            price: i.product.price,
+            quantity: i.quantity,
+            subtotal: i.product.price * i.quantity,
+            taxRate: i.product.taxRate || 0,
+            taxAmount: i.product.price * i.quantity * ((i.product.taxRate || 0) / 100),
+          })),
+          paymentsSnapshot: [
+            {
+              method: 'BANK_TRANSFER',
+              amount: total,
+            },
+          ],
+        } as any)
+      : null
+
+    const renderQrStage = () => {
+      if (isSuccess) {
+        return (
+          <View className="items-center justify-center px-4 py-8">
+            <View className="h-20 w-20 items-center justify-center rounded-full bg-success/10">
+              <CheckCircle size={52} color="#00944a" />
+            </View>
+            <Text className="mt-5 text-center text-2xl font-bold text-success">Đã nhận tiền</Text>
+            <Text className="mt-2 max-w-[280px] text-center text-sm leading-6 text-neutral-600">
+              Đang hoàn tất hóa đơn và in biên lai.
+            </Text>
+          </View>
+        )
+      }
+
+      if (isError) {
+        return (
+          <View className="items-center justify-center px-4 py-8">
+            <View className="h-20 w-20 items-center justify-center rounded-full bg-error/10">
+              <AlertCircle size={52} color="#dd2027" />
+            </View>
+            <Text className="mt-5 text-center text-2xl font-bold text-error">
+              Thanh toán chưa hoàn tất
+            </Text>
+            <Text className="mt-2 max-w-[300px] text-center text-sm leading-6 text-neutral-600">
+              {error ?? 'Vui lòng thử lại.'}
+            </Text>
+            {retryCount > 0 && (
+              <Text className="mt-4 text-center text-xs font-semibold uppercase tracking-[0.2em] text-error">
+                Lần thử {retryCount} / 3
+              </Text>
+            )}
+          </View>
+        )
+      }
+
+      if (qrContent) {
+        return (
+          <View className="items-center justify-center px-4 py-6">
+            <View className="rounded-[22px] border border-surface-200 bg-white p-4 shadow-sm">
+              <QRCode value={qrContent} size={240} color="black" backgroundColor="white" />
+            </View>
+            <Text className="mt-4 text-center text-lg font-bold text-neutral-800">
+              Đang chờ thanh toán QR
+            </Text>
+            <View className="mt-3 flex-row items-center gap-2 rounded-full border border-orange-300 bg-white px-4 py-2">
+              <Clock3 size={18} color="#fb8c00" />
+              <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">05:00</Text>
+            </View>
+            <View
+              className={`mt-3 flex-row items-center gap-2 rounded-full border px-4 py-2 ${statusPillClassName}`}
+            >
+              <Text className={`text-sm font-semibold ${statusTextClassName}`}>{statusLabel}</Text>
+            </View>
+            <Text className="mt-4 max-w-[300px] text-center text-sm leading-6 text-neutral-600">
+              {billNumber
+                ? `Mã hóa đơn: ${billNumber}`
+                : 'Mã hóa đơn sẽ hiển thị sau khi khởi tạo đơn.'}
+            </Text>
+            <Text className="mt-2 max-w-[300px] text-center text-sm leading-6 text-neutral-600">
+              Sau khi thanh toán, vui lòng chờ trong giây lát để hệ thống xác nhận.
+            </Text>
+          </View>
+        )
+      }
+
+      return (
+        <View className="items-center justify-center px-4 py-6">
+          <View className="flex h-[220px] w-[220px] items-center justify-center overflow-hidden rounded-[22px] border border-surface-200 bg-surface-100 shadow-sm">
+            {isLoading ? (
+              <Shimmer className="h-[160px] w-[160px] rounded-[18px]" />
+            ) : (
+              <View className="h-[160px] w-[160px] items-center justify-center rounded-[18px] bg-white">
+                <QrCode size={72} color={COLORS.surface.onVariant} />
+              </View>
+            )}
+          </View>
+          <Text className="mt-4 text-center text-lg font-bold text-neutral-800">
+            Đang chờ thanh toán QR
+          </Text>
+          <View className="mt-3 flex-row items-center gap-2 rounded-full border border-orange-300 bg-white px-4 py-2">
+            <Clock3 size={18} color="#fb8c00" />
+            <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">05:00</Text>
+          </View>
+          <Text className="mt-4 max-w-[300px] text-center text-sm leading-6 text-neutral-600">
+            Sau khi thanh toán, vui lòng chờ trong giây lát để hệ thống xác nhận.
+          </Text>
+        </View>
+      )
     }
 
     return (
@@ -190,138 +324,85 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         visible={visible}
         onClose={handleCancel}
         dismissible={!isLoading}
-        className="max-w-[860px]"
+        className="max-w-[600px] overflow-hidden rounded-[28px] bg-surface-50"
       >
-        {/* Header */}
-        <View className="border-b border-outline-variant bg-surface-50 px-6 py-4">
-          <Text className="text-2xl font-bold text-surface-on">Thanh toán QR code</Text>
-        </View>
+        <View className="bg-surface-50 px-6 pb-4 pt-4">
+          <View className="overflow-hidden rounded-[32px] border border-surface-200 bg-white px-6 py-6 shadow-sm">
+            <View className="items-center">{renderQrStage()}</View>
+          </View>
 
-        {/* Content */}
-        <View className="flex-row bg-surface-100">
-          {/* Thông tin đơn */}
-          <View className="flex-[4] justify-center border-r border-outline-variant p-8">
-            <View className="mb-8">
-              <Text className="text-surface-onVariant mb-2 text-sm font-semibold uppercase tracking-wider">
-                Cần thanh toán
+          <View className="mx-auto mt-4 w-full rounded-[24px] border border-surface-200 bg-white px-6 py-5 shadow-sm">
+            <View className="flex-row items-center justify-between py-2">
+              <Text className="text-lg font-semibold text-neutral-600">Tạm tính</Text>
+              <Text className="text-lg font-semibold text-neutral-700" numberOfLines={1}>
+                {formatCurrency(subtotal)}
               </Text>
-              <Text className="text-5xl font-black text-primary">{formatCurrency(total)}</Text>
             </View>
-
-            <View className="gap-6 rounded-2xl border border-outline-variant bg-surface-50 p-6">
-              <View>
-                <Text className="text-surface-onVariant mb-1 text-sm">Mã hóa đơn</Text>
-                <Text className="text-lg font-bold text-surface-on">
-                  {billNumber ?? 'Đang tạo...'}
+            <View className="flex-row items-center justify-between py-2">
+              <Text className="text-lg font-semibold text-neutral-600">Giảm giá</Text>
+              <Text className="text-lg font-semibold text-emerald-600" numberOfLines={1}>
+                {formatCurrency(discount)}
+              </Text>
+            </View>
+            <View className="mt-2 border-t border-surface-200 pt-4">
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xl font-bold text-neutral-900">Tổng cộng</Text>
+                <Text className="text-[30px] font-black tracking-[-0.5px] text-primary">
+                  {formatCurrency(total)}
                 </Text>
               </View>
-              <View>
-                <Text className="text-surface-onVariant mb-1 text-sm">Mã giỏ hàng</Text>
-                <Text className="text-lg font-bold text-surface-on">
-                  {activeSessionId || 'N/A'}
-                </Text>
-              </View>
-              {/* Retry count indicator */}
-              {isError && retryCount > 0 && (
-                <View>
-                  <Text className="text-xs text-error">Lần thử: {retryCount} / 3</Text>
-                </View>
-              )}
             </View>
           </View>
 
-          {/* QR & Trạng thái */}
-          <View className="flex-[6] flex-col items-center justify-center bg-white p-12">
-            <View className="mb-8 rounded-[32px] border-[8px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/20">
-              {isSuccess ? (
-                <View className="h-[240px] w-[240px] items-center justify-center">
-                  <CheckCircle size={80} color="#22c55e" />
-                  <Text className="mt-4 text-center text-xl font-bold text-green-600">
-                    Đã nhận tiền!
-                  </Text>
-                </View>
-              ) : isError ? (
-                <View className="h-[240px] w-[240px] items-center justify-center p-4">
-                  <AlertCircle size={64} color="#ef4444" />
-                  <Text className="mt-4 text-center text-sm text-red-500">{error}</Text>
-                  {!canRetry && (
-                    <Text className="mt-2 text-center text-xs text-error/70">
-                      Đã hết lần thử lại
-                    </Text>
-                  )}
-                </View>
-              ) : qrContent ? (
-                <QRCode value={qrContent} size={240} />
-              ) : (
-                <View className="h-[240px] w-[240px] items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant bg-surface-100">
-                  <QrCode size={64} color={COLORS.surface.onVariant} />
-                  <Text className="mt-4 px-4 text-center font-medium text-surface-on-variant">
-                    {isLoading ? 'Hệ thống đang chuẩn bị mã QR...' : 'Vui lòng thử lại'}
-                  </Text>
-                </View>
-              )}
-            </View>
+          <Text className="mx-auto mt-4 px-2 text-center text-base font-medium leading-6 text-neutral-600">
+            Khách đã thanh toán nhưng chưa nhận được thông tin từ ngân hàng?
+          </Text>
 
-            <View className="flex-row items-center gap-3 rounded-full border border-surface-200 bg-surface-100 px-6 py-3">
-              {isLoading && <LoadingIndicator />}
-              <Text className="text-surface-onVariant font-semibold tracking-wide">
-                {statusLabel}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Footer */}
-        <View className="flex-row-reverse gap-4 border-t border-outline-variant bg-surface-50 px-6 py-4">
-          {/* Thử lại — disabled bằng guard canRetry */}
-          {isError && (
+          <View className="mx-auto mt-4 w-full max-w-[640px] gap-3">
             <Button
-              label="Thử lại"
-              variant="primary"
-              disabled={!canRetry}
-              onPress={handleRetry}
-              className="h-14 flex-1"
+              label="Kiểm tra trạng thái QR với ngân hàng"
+              variant="outline"
+              disabled={!qrContent}
+              onPress={handleCheckStatusNow}
+              className="h-14 rounded-[16px] border-surface-200 bg-white"
+              textClassName="text-sm font-semibold text-neutral-500"
             />
+            <Button
+              label="Xác nhận khách đã chuyển, kiểm tra sau"
+              variant="outline"
+              disabled={!qrContent}
+              onPress={handleForceComplete}
+              className="h-14 rounded-[16px] border-surface-200 bg-white"
+              textClassName="text-sm font-semibold text-neutral-500"
+            />
+            <Button
+              label="Hủy giao dịch"
+              variant="outline"
+              disabled={!canCancel && !isError}
+              onPress={handleCancel}
+              className="h-14 rounded-[16px] border-error/30 bg-error/5"
+              textClassName="text-base font-semibold text-error"
+            />
+          </View>
+
+          {isError && (
+            <View className="mt-4 flex-row gap-3">
+              <Button
+                label="Thử lại"
+                variant="primary"
+                disabled={!canRetry}
+                onPress={handleRetry}
+                className="h-14 flex-1 rounded-[16px]"
+                textClassName="text-base font-semibold"
+              />
+            </View>
           )}
-          <Button
-            label="Hủy giao dịch"
-            variant="outline"
-            disabled={!canCancel && !isError}
-            onPress={handleCancel}
-            className="h-14 px-8"
-          />
         </View>
 
-        {/* Hidden Printer Template — Rendered inside popup using real saved data */}
         <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-          {savedOrder && (
+          {receiptOrder && (
             <View collapsable={false} ref={printRef}>
-              <BitexcoReceiptTemplate
-                order={
-                  {
-                    ...savedOrder,
-                    id: savedOrder.id,
-                    total: total,
-                    totalTax: calculateTotalTax(items),
-                    itemsSnapshot: items.map((i) => ({
-                      sku: i.product.sku,
-                      name: i.product.name,
-                      price: i.product.price,
-                      quantity: i.quantity,
-                      subtotal: i.product.price * i.quantity,
-                      taxRate: i.product.taxRate || 0,
-                      taxAmount: i.product.price * i.quantity * ((i.product.taxRate || 0) / 100),
-                    })),
-                    paymentsSnapshot: [
-                      {
-                        method: 'BANK_TRANSFER',
-                        amount: total,
-                      },
-                    ],
-                  } as any
-                }
-                staffName={staffName}
-              />
+              <BitexcoReceiptTemplate order={receiptOrder} staffName={staffName} />
             </View>
           )}
         </View>
