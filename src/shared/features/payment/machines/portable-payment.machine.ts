@@ -802,7 +802,7 @@ export function getPortablePaymentStatusLabel(
   const { error } = state.context
   if (state.matches('idle')) return 'Sẵn sàng giao dịch quẹt thẻ'
   if (state.matches('creatingOrder')) return 'Đang tạo đơn hàng trên hệ thống...'
-  if (state.matches('processingPayment')) return 'Đang khởi tạo giao dịch thẻ (PROCESSING)...'
+  if (state.matches('processingPayment')) return 'Đang khởi tạo giao dịch thẻ...'
   if (state.matches('connecting')) return 'Đang thiết lập kết nối tới máy POS EDC...'
   if (state.matches('connectionFailed')) return error ?? 'Lỗi kết nối tới thiết bị EDC!'
   if (state.matches('sendingCommand')) return 'Đang chờ quẹt/chạm thẻ trên máy EDC...'
@@ -810,13 +810,13 @@ export function getPortablePaymentStatusLabel(
     return 'Mất tín hiệu! Đang tự động đối soát giao dịch cuối...'
   if (state.matches('capturingCard') || state.matches('capturingCardManual'))
     return 'Đang ghi nhận thông tin thẻ lên hệ thống...'
-  if (state.matches('authorizingPayment')) return 'Đang xác thực giao dịch (AUTHORIZED)...'
-  if (state.matches('capturingPayment')) return 'Đang hoàn tất thanh toán (CAPTURED)...'
+  if (state.matches('authorizingPayment')) return 'Đang xác thực giao dịch...'
+  if (state.matches('capturingPayment')) return 'Đang hoàn tất thanh toán...'
   if (state.matches('paymentFailed')) return error ?? 'Giao dịch quẹt thẻ bị lỗi!'
   if (state.matches('cancelingPayment')) return 'Đang hủy giao dịch...'
   if (state.matches('manualResolution')) return 'Lỗi server! Cần xác nhận thủ công hoặc thử lại.'
   if (state.matches('preparingReceipt') || state.matches('printingReceipt'))
-    return 'Giao dịch thành công! Đang in hóa đơn...'
+    return 'Đang in hóa đơn...'
   if (state.matches('success')) return 'Thanh toán thành công!'
   return 'Đang chuẩn bị...'
 }

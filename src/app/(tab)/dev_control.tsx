@@ -1,18 +1,18 @@
 import { Container } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
+import { useAppStore } from '@/shared/features/app'
 import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
+import { useNoteStore } from '@/shared/features/note'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { database } from '@/shared/lib/database'
 import CategoryModel from '@/shared/lib/database/models/category'
 import ProductModel from '@/shared/lib/database/models/product'
+import { storage } from '@/shared/lib/storage'
 import { toast } from '@/shared/store'
 import React, { useEffect, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
-import { storage } from '@/shared/lib/storage'
-import { useAppStore } from '@/shared/features/app'
-import { useNoteStore } from '@/shared/features/note'
 
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
@@ -281,7 +281,7 @@ export default function DevControlScreen() {
         <Text className="text-title-md mb-1 font-black uppercase tracking-wider text-primary">
           Mock v1.8 Auth & Shift
         </Text>
-        <Text className="text-body-xs mb-4 text-muted">
+        <Text className="mb-4 text-body-xs text-muted">
           Thay đổi trạng thái API mock & giả lập các sự kiện State Machine của hệ thống
         </Text>
 
@@ -327,7 +327,7 @@ export default function DevControlScreen() {
         <Text className="text-title-md mb-1 font-black uppercase tracking-wider text-emerald-700">
           Mock Handover Notes & Alarms
         </Text>
-        <Text className="text-body-xs mb-4 text-muted">
+        <Text className="mb-4 text-body-xs text-muted">
           Quản lý nhanh danh sách note bàn giao & giả lập chuông báo thức tức thì
         </Text>
 

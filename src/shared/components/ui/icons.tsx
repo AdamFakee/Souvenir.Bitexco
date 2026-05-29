@@ -1,5 +1,5 @@
 import React from 'react'
-import Svg, { Path, G, ClipPath, Rect, Defs, Text as SvgText } from 'react-native-svg'
+import Svg, { ClipPath, Defs, G, Path, Rect, Text as SvgText } from 'react-native-svg'
 
 interface IconProps {
   size?: number

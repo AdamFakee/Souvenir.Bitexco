@@ -22,6 +22,13 @@ const variantStyles = {
   error: 'bg-error/10 border-error/30',
 }
 
+const disabledVariantStyles = {
+  primary: 'bg-primary/50 border-primary/50',
+  secondary: 'bg-secondary-container/60 border-secondary-container/60',
+  outline: 'bg-surface-100 border-outline-variant',
+  error: 'bg-error/5 border-error/20',
+}
+
 export const Button = ({
   label,
   variant = 'primary',
@@ -53,7 +60,7 @@ export const Button = ({
         // Variants
         variantStyles[variant],
         // Disabled/Loading state
-        disabled && 'opacity-50',
+        disabled && ['opacity-50', disabledVariantStyles[variant]],
         className,
       )}
       style={(state) =>

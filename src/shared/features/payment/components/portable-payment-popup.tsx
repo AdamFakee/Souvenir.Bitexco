@@ -1,35 +1,27 @@
 import { ViceService } from '@/screens/vice-service'
-import { Button, ControlledInput, LoadingIndicator, ModalBase } from '@/shared/components/ui'
+import { Button, ControlledInput, ModalBase, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
+import { PaymentMethod } from '@/shared/lib/database'
+import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useActorRef, useSelector } from '@xstate/react'
-import {
-  AlertCircle,
-  CheckCircle,
-  ChevronRight,
-  CreditCard,
-  Database,
-  Printer,
-  Wifi,
-} from 'lucide-react-native'
+import { AlertCircle, CheckCircle, CreditCard, Wifi } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { ScrollView, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 
-import { PaymentMethod } from '@/shared/lib/database'
-import { toast } from '@/shared/store'
-import { portablePaymentMachine } from '../machines/portable-payment.machine'
+import {
+  getPortablePaymentStatusLabel,
+  portablePaymentMachine,
+} from '../machines/portable-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
 import { ManualCardDetailsFormData, manualCardDetailsSchema } from '../validation'
 
-const MAX_RETRIES = 3
+const STAGES = ['Khởi tạo', 'Kết nối', 'Quẹt thẻ', 'Hoàn tất']
 
-/**
- * Popup Thanh Toán Thẻ qua máy POS di động Ingenico - Được điều phối bởi `portablePaymentMachine`
- */
 export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
   (
     { total, discount, items, staffId, shiftId, staffName, appliedVoucher, printRef, onSuccess },
@@ -48,7 +40,9 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
       },
     })
 
-    // Khởi tạo và thiết lập machine cùng với override actions thông báo cho người dùng
+    const subtotal = calculateSubtotal(items)
+    const tax = calculateTotalTax(items)
+
     const actorRef = useActorRef(portablePaymentMachine, {
       input: {
         total,
@@ -62,13 +56,13 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
       },
     })
 
-    // --- XState Selectors ---
     const machineState = useSelector(actorRef, (s) => s.value)
-    const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
     const checkoutResult = useSelector(actorRef, (s) => s.context.checkoutResult)
     const paymentId = useSelector(actorRef, (s) => s.context.paymentId)
+    const statusLabel = useSelector(actorRef, getPortablePaymentStatusLabel)
+    const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
+    const canCancel = useSelector(actorRef, (s) => s.can({ type: 'CANCEL' }))
 
-    // Trạng thái cụ thể để điều khiển UI
     const isIdle = machineState === 'idle'
     const isCreatingOrder = machineState === 'creatingOrder'
     const isProcessingPayment = machineState === 'processingPayment'
@@ -87,49 +81,31 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     const isPrinting = machineState === 'printingReceipt'
     const isSuccess = machineState === 'success'
 
+    const isFailure = isConnectionFailed || isPaymentFailed || isManualResolution
+    const isFinalizing =
+      isCapturingCard ||
+      isCapturingCardManual ||
+      isAuthorizingPayment ||
+      isCapturingPayment ||
+      isPreparingReceipt ||
+      isPrinting
     const isLoading =
       isCreatingOrder ||
       isProcessingPayment ||
       isConnecting ||
       isSendingCommand ||
       isVerifyingUnknown ||
-      isCapturingCard ||
-      isCapturingCardManual ||
-      isAuthorizingPayment ||
-      isCapturingPayment ||
-      isCanceling ||
-      isPreparingReceipt ||
-      isPrinting
+      isFinalizing ||
+      isCanceling
 
-    // Kiểm tra khả năng tương tác (Đăng ký bộ lắng nghe Reactive Selector theo đúng chuẩn FSM)
-    const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
-    const canCancel = useSelector(actorRef, (s) => s.can({ type: 'CANCEL' }))
+    const activeStep = (() => {
+      if (isProcessingPayment || isConnecting || isConnectionFailed) return 1
+      if (isSendingCommand || isVerifyingUnknown || isPaymentFailed) return 2
+      if (isFinalizing || isManualResolution || isSuccess) return 3
+      return 0
+    })()
 
-    // --- Phân chia Bước Tiến Trình (Visual Step Indicator) ---
-    // Bước 0: Khởi tạo, Bước 1: Kết nối POS, Bước 2: Quẹt thẻ, Bước 3: Hoàn tất & In bill
-    let activeStep = 0
-    if (isProcessingPayment || isConnecting || isConnectionFailed) {
-      activeStep = 1
-    } else if (isSendingCommand || isVerifyingUnknown || isPaymentFailed) {
-      activeStep = 2
-    } else if (
-      isCapturingCard ||
-      isCapturingCardManual ||
-      isAuthorizingPayment ||
-      isCapturingPayment ||
-      isManualResolution ||
-      isPreparingReceipt ||
-      isPrinting ||
-      isSuccess
-    ) {
-      activeStep = 3
-    }
-
-    // --- Đồng bộ Vice Screen (Màn hình phụ khách hàng) ---
     useEffect(() => {
-      const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items)
-
       if (visible) {
         if (isSuccess) {
           ViceService.paymentSuccess({
@@ -141,69 +117,61 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
             change: 0,
           })
         } else {
-          // Hiển thị trạng thái đang xử lý quẹt thẻ trên màn phụ
           ViceService.showPortablePayment()
         }
-      } else {
-        // Khi đóng popup (hủy giao dịch / tắt popup), chuyển màn hình phụ về Home
-        if (!isSuccess) {
-          ViceService.updateCart({
-            items: items.map((i) => ({
-              id: i.id,
-              name: i.product.name,
-              price: i.price,
-              quantity: i.quantity,
-            })),
-            subtotal,
-            discount,
-            tax,
-            total,
-          })
-        }
-      }
-    }, [visible, isSuccess, items, discount, total])
-
-    // --- Đóng mở Popup & Xử lý vòng đời ---
-    useImperativeHandle(ref, () => ({
-      open: () => {
-        setVisible(true)
-        setShowManualForm(false)
-        reset()
-        const freshInput = {
-          total,
+      } else if (!isSuccess) {
+        ViceService.updateCart({
+          items: items.map((i) => ({
+            id: i.id,
+            name: i.product.name,
+            price: i.price,
+            quantity: i.quantity,
+          })),
+          subtotal,
           discount,
-          items,
-          staffId,
-          shiftId,
-          sessionId: shiftId ?? 'unknown',
-          appliedVoucher: appliedVoucher || null,
-          printRef,
-        }
-        // Khởi động lại machine từ đầu
-        actorRef.send({ type: 'START', input: freshInput })
-        // Tự động kích hoạt luồng thanh toán từ Idle
-        setTimeout(() => {
-          actorRef.send({ type: 'CONFIRM' })
-        }, 300)
-      },
-      close: () => {
-        actorRef.send({ type: 'CANCEL' })
-      },
-    }))
+          tax,
+          total,
+        })
+      }
+    }, [visible, isSuccess, items, subtotal, discount, tax, total])
 
-    // Thành công -> Báo chuông thành công, đóng popup sau 1.8 giây trì hoãn
+    useImperativeHandle(
+      ref,
+      () => ({
+        open: () => {
+          setVisible(true)
+          setShowManualForm(false)
+          reset()
+
+          actorRef.send({
+            type: 'START',
+            input: {
+              total,
+              discount,
+              items,
+              staffId,
+              shiftId,
+              sessionId: shiftId ?? 'unknown',
+              appliedVoucher: appliedVoucher || null,
+              printRef,
+            },
+          })
+
+          setTimeout(() => {
+            actorRef.send({ type: 'CONFIRM' })
+          }, 300)
+        },
+        close: () => {
+          actorRef.send({ type: 'CANCEL' })
+        },
+      }),
+      [actorRef, appliedVoucher, discount, items, printRef, reset, shiftId, staffId, total],
+    )
+
     useEffect(() => {
       if (!isSuccess) return
-      const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items)
-      ViceService.paymentSuccess({
-        subtotal,
-        discount,
-        tax,
-        total,
-        customerPaid: total,
-        change: 0,
-      })
+
+      ViceService.paymentSuccess({ subtotal, discount, tax, total, customerPaid: total, change: 0 })
 
       const timer = setTimeout(() => {
         setVisible(false)
@@ -217,18 +185,20 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
           orderId: checkoutResult?.orderId ?? undefined,
         })
       }, 1800)
+
       return () => clearTimeout(timer)
-    }, [isSuccess])
+    }, [
+      isSuccess,
+      subtotal,
+      discount,
+      tax,
+      total,
+      onSuccess,
+      checkoutResult?.orderId,
+      paymentId,
+      isManualResolution,
+    ])
 
-    const handleCancel = () => {
-      actorRef.send({ type: 'CANCEL' })
-      // Nếu chưa tạo order thành công, đóng popup ngay
-      if (!checkoutResult) {
-        setVisible(false)
-      }
-    }
-
-    // Đóng hoàn tất khi trạng thái hủy đơn DB hoàn tất (trở về idle sau khi cancelingPayment kết thúc)
     useEffect(() => {
       if (isIdle && visible && !isLoading && checkoutResult === null) {
         const timer = setTimeout(() => setVisible(false), 500)
@@ -236,26 +206,31 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
       }
     }, [isIdle, visible, isLoading, checkoutResult])
 
+    const handleCancel = () => {
+      actorRef.send({ type: 'CANCEL' })
+      if (!checkoutResult) setVisible(false)
+    }
+
     const handleRetry = () => {
+      actorRef.send({ type: 'RETRY' })
+    }
+
+    const handleRetryUpdate = () => {
       actorRef.send({ type: 'RETRY' })
     }
 
     const handleForceComplete = () => {
       toast.confirm({
-        title: 'Bắt buộc hoàn tất đơn hàng',
-        message:
-          'Thao tác này sẽ bỏ qua lỗi đồng bộ và ghi nhận đơn hàng là đã thanh toán thành công. Bạn đã chắc chắn nhận được tiền từ khách chưa?',
-        onConfirm: () => {
-          actorRef.send({ type: 'FORCE_COMPLETE' })
-        },
+        title: 'Xác nhận hoàn tất',
+        message: 'Bạn đã chắc chắn khách đã thanh toán thành công trên máy POS chưa?',
+        onConfirm: () => actorRef.send({ type: 'FORCE_COMPLETE' }),
       })
     }
 
     const handleManualCaptureSubmit = (data: ManualCardDetailsFormData) => {
       toast.confirm({
         title: 'Xác nhận thanh toán thủ công',
-        message:
-          'Hãy chắc chắn rằng bạn đã quẹt thẻ thành công trên máy EDC độc lập và đã có hóa đơn (slip) trước khi xác nhận đơn hàng.',
+        message: 'Hãy chắc chắn giao dịch đã thành công trên máy EDC trước khi xác nhận.',
         onConfirm: () => {
           actorRef.send({
             type: 'MANUAL_CAPTURE',
@@ -269,47 +244,164 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
       })
     }
 
-    const handleRetryUpdate = () => {
-      actorRef.send({ type: 'RETRY' })
+    const renderStageBox = (label: string, index: number) => {
+      const isActive = activeStep === index
+      const isDone = activeStep > index
+      const isFailed = (isConnectionFailed && index === 1) || (isPaymentFailed && index === 2)
+
+      return (
+        <View
+          key={label}
+          className={`flex-1 rounded-[16px] border px-3 py-4 ${
+            isFailed
+              ? 'border-error/30 bg-error/10'
+              : isActive
+                ? 'border-primary bg-primary/10'
+                : isDone
+                  ? 'border-success/30 bg-success/10'
+                  : 'border-surface-200 bg-surface-100'
+          }`}
+        >
+          <Text
+            className={`text-center text-base font-bold uppercase tracking-[0.1em] ${
+              isFailed
+                ? 'text-error'
+                : isActive
+                  ? 'text-primary'
+                  : isDone
+                    ? 'text-success'
+                    : 'text-neutral-500'
+            }`}
+            numberOfLines={2}
+          >
+            {label}
+          </Text>
+        </View>
+      )
     }
 
-    // Render vòng tròn chỉ báo bước
-    const renderStepCircle = (stepIdx: number, stepLabel: string) => {
-      const isCompleted = activeStep > stepIdx
-      const isActive = activeStep === stepIdx
-      const isFailed = (isConnectionFailed && stepIdx === 1) || (isPaymentFailed && stepIdx === 2)
+    const renderMainContent = () => {
+      if (showManualForm) {
+        return (
+          <View className="w-full px-2 py-4">
+            <Text className="text-center text-[34px] font-black text-surface-on">
+              Nhập thông tin thẻ thủ công
+            </Text>
+            <Text className="text-surface-onVariant mt-3 text-center text-xl leading-8">
+              Điền thông tin từ hóa đơn máy EDC để ghi nhận thanh toán.
+            </Text>
 
-      let bgClass = 'bg-surface-200 border-surface-300'
-      let textClass = 'text-surface-onVariant'
-      if (isCompleted) {
-        bgClass = 'bg-green-100 border-green-500'
-        textClass = 'text-green-700'
-      } else if (isActive) {
-        bgClass = isFailed ? 'bg-error/10 border-error' : 'bg-primary/10 border-primary'
-        textClass = isFailed ? 'text-error' : 'text-primary'
+            <View className="mt-6 gap-4">
+              <ControlledInput
+                control={control}
+                name="terminalId"
+                label="Mã thiết bị (TID)"
+                placeholder="Ví dụ: 01684838"
+                placeholderTextColor={COLORS.outline.default}
+                className="h-16 rounded-[16px] px-5 text-xl font-bold"
+              />
+              <ControlledInput
+                control={control}
+                name="merchantId"
+                label="Mã cửa hàng (MID)"
+                placeholder="Ví dụ: 000000925126645"
+                placeholderTextColor={COLORS.outline.default}
+                className="h-16 rounded-[16px] px-5 text-xl font-bold"
+              />
+              <ControlledInput
+                control={control}
+                name="referenceNumber"
+                label="Mã RRN / Số tham chiếu"
+                placeholder="Ví dụ: 614801081012"
+                placeholderTextColor={COLORS.outline.default}
+                keyboardType="numeric"
+                className="h-16 rounded-[16px] px-5 text-xl font-bold"
+              />
+              <ControlledInput
+                control={control}
+                name="approvalCode"
+                label="Mã Approval"
+                placeholder="Ví dụ: 313963"
+                placeholderTextColor={COLORS.outline.default}
+                keyboardType="numeric"
+                className="h-16 rounded-[16px] px-5 text-xl font-bold"
+              />
+            </View>
+
+            <View className="mt-6 flex-row gap-4">
+              <Button
+                label="Quay lại"
+                variant="outline"
+                onPress={() => setShowManualForm(false)}
+                className="h-16 flex-1 rounded-[18px]"
+                textClassName="text-xl font-bold"
+              />
+              <Button
+                label="Xác nhận"
+                variant="primary"
+                onPress={handleSubmit(handleManualCaptureSubmit)}
+                className="h-16 flex-1 rounded-[18px]"
+                textClassName="text-xl font-bold"
+              />
+            </View>
+          </View>
+        )
+      }
+
+      if (isSuccess) {
+        return (
+          <View className="items-center justify-center px-4 py-8">
+            <View className="h-20 w-20 items-center justify-center rounded-full bg-success/10">
+              <CheckCircle size={52} color="#22c55e" />
+            </View>
+            <Text className="mt-5 text-center text-[34px] font-black text-success">
+              Đã nhận tiền
+            </Text>
+            <Text className="mt-3 max-w-[520px] text-center text-xl leading-8 text-neutral-600">
+              Đang hoàn tất hóa đơn và in biên lai.
+            </Text>
+          </View>
+        )
+      }
+
+      if (isFailure) {
+        return (
+          <View className="items-center justify-center px-4 py-8">
+            <View className="h-20 w-20 items-center justify-center rounded-full bg-error/10">
+              <AlertCircle size={52} color={COLORS.error.default} />
+            </View>
+            <Text className="mt-5 text-center text-[34px] font-bold text-error" numberOfLines={1}>
+              Giao dịch chưa hoàn tất
+            </Text>
+            <Text className="mt-3 max-w-[520px] text-center text-xl leading-8 text-neutral-600">
+              Vui lòng thử lại hoặc xác nhận thủ công nếu khách đã thanh toán thành công.
+            </Text>
+          </View>
+        )
       }
 
       return (
-        <View className="flex-1 flex-col items-center">
-          <View
-            className={`h-20 w-20 items-center justify-center rounded-full border-2 ${bgClass}`}
-          >
-            {isCompleted ? (
-              <CheckCircle size={36} color="#22c55e" />
-            ) : isActive && isLoading ? (
-              <LoadingIndicator size={36} color={COLORS.primary.default} />
-            ) : isFailed ? (
-              <AlertCircle size={36} color={COLORS.error.default} />
+        <View className="items-center justify-center px-4 py-8">
+          <View className="flex h-[180px] w-[180px] items-center justify-center overflow-hidden rounded-[28px] border border-surface-200 bg-surface-100 shadow-sm">
+            {isConnecting || isProcessingPayment ? (
+              <View className="h-[124px] w-[124px] items-center justify-center rounded-[22px] bg-primary/10">
+                <Wifi size={82} color={COLORS.primary.default} />
+              </View>
+            ) : isLoading ? (
+              <Shimmer className="h-[124px] w-[124px] rounded-[22px]" />
             ) : (
-              <Text className={`text-2xl font-bold ${textClass}`}>{stepIdx + 1}</Text>
+              <CreditCard size={80} color={COLORS.surface.onVariant} />
             )}
           </View>
-          <Text
-            className={`mt-4 text-center text-base font-semibold ${
-              isActive ? 'font-black text-surface-on' : 'text-surface-onVariant'
-            }`}
-          >
-            {stepLabel}
+          <Text className="mt-6 text-center text-[32px] font-bold text-neutral-800">
+            {statusLabel}
+          </Text>
+          <Text className="mt-3 max-w-[520px] text-center text-xl leading-8 text-neutral-600">
+            {isSendingCommand
+              ? 'Khách vui lòng chạm, quẹt hoặc cắm thẻ trên máy POS.'
+              : isVerifyingUnknown
+                ? 'Đang kiểm tra lại trạng thái giao dịch.'
+                : 'Vui lòng chờ trong giây lát.'}
           </Text>
         </View>
       )
@@ -320,258 +412,95 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
         visible={visible}
         onClose={handleCancel}
         dismissible={!isLoading && !isManualResolution}
-        className="max-w-[1100px] overflow-hidden rounded-[32px]"
+        className="max-w-[840px] overflow-hidden rounded-[28px] bg-surface-50"
       >
-        {/* Header */}
-        <View className="flex-row items-center justify-between border-b border-outline-variant bg-surface-50 px-10 py-6">
-          <View className="flex-row items-center gap-3">
-            <CreditCard size={36} color={COLORS.primary.default} />
-            <Text className="text-3xl font-black text-surface-on">Thanh toán qua máy POS</Text>
+        <View className="bg-surface-50 px-5 pb-5 pt-5">
+          <View className="overflow-hidden rounded-[32px] border border-surface-200 bg-white px-8 py-7 shadow-sm">
+            <View className="items-center">{renderMainContent()}</View>
           </View>
-          {isVerifyingUnknown && (
-            <View className="rounded-full border border-amber-500/25 bg-amber-500/10 px-4 py-1.5">
-              <Text className="animate-pulse text-xs font-black uppercase tracking-widest text-amber-600">
-                Reconciliation Mode
-              </Text>
-            </View>
-          )}
-        </View>
 
-        <ScrollView className="bg-surface-100" showsVerticalScrollIndicator={false}>
-          {/* Main Info Row */}
-          <View className="flex-row border-b border-outline-variant">
-            {/* Left Box: Bill Details */}
-            <View className="flex-[4] justify-center border-r border-outline-variant bg-surface-50 p-10">
-              <View className="mb-6">
-                <Text className="text-surface-onVariant mb-1.5 text-2xl font-black uppercase tracking-wider">
-                  Số tiền cần thanh toán
-                </Text>
-                <Text className="text-5xl font-black tracking-tighter text-primary">
-                  {formatCurrency(total)}
-                </Text>
+          {!showManualForm && (
+            <>
+              <View className="mx-auto mt-4 w-full max-w-[700px] flex-row gap-3">
+                {STAGES.map(renderStageBox)}
               </View>
 
-              <View className="shadow-inner gap-5 rounded-[20px] border border-outline-variant bg-surface-100 p-6">
-                <View>
-                  <Text className="text-surface-onVariant mb-1 text-2xl">Mã đơn hàng</Text>
-                  <Text className="text-xl font-bold text-surface-on">
-                    {checkoutResult?.orderCode ?? (isCreatingOrder ? 'Đang tạo...' : '—')}
+              <View className="mx-auto mt-4 w-full max-w-[700px] rounded-[24px] border border-surface-200 bg-white px-6 py-5 shadow-sm">
+                <View className="flex-row items-center justify-between py-2">
+                  <Text className="text-[26px] font-semibold text-neutral-600">Tạm tính</Text>
+                  <Text className="text-[26px] font-semibold text-neutral-700" numberOfLines={1}>
+                    {formatCurrency(subtotal)}
                   </Text>
                 </View>
-                {paymentId && (
-                  <View>
-                    <Text className="text-surface-onVariant mb-1 text-2xl">Payment ID</Text>
-                    <Text className="text-xl font-bold text-surface-on" numberOfLines={1}>
-                      {paymentId}
+                <View className="flex-row items-center justify-between py-2">
+                  <Text className="text-[26px] font-semibold text-neutral-600">Giảm giá</Text>
+                  <Text className="text-[26px] font-semibold text-emerald-600" numberOfLines={1}>
+                    {formatCurrency(discount)}
+                  </Text>
+                </View>
+                <View className="mt-2 border-t border-surface-200 pt-4">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-[30px] font-bold text-neutral-900">Tổng cộng</Text>
+                    <Text className="text-[44px] font-black tracking-[-0.5px] text-primary">
+                      {formatCurrency(total)}
                     </Text>
                   </View>
-                )}
-                {retryCount > 0 && (
-                  <View className="flex-row items-center gap-2.5 rounded-xl border border-error/10 bg-error/5 px-4 py-3">
-                    <AlertCircle size={20} color={COLORS.error.default} />
-                    <Text className="text-xl font-black text-error">
-                      Số lần thử lại: {retryCount} / {MAX_RETRIES}
-                    </Text>
-                  </View>
-                )}
+                </View>
               </View>
-            </View>
 
-            {/* Right Box: Status Feedback */}
-            <View className="min-h-[380px] flex-[6] flex-col items-center justify-center bg-white p-10">
-              {showManualForm ? (
-                <View className="w-full px-4 py-2">
-                  <Text className="mb-2 text-center text-3xl font-black text-surface-on">
-                    Nhập thông tin thẻ thủ công
-                  </Text>
-                  <Text className="text-surface-onVariant mb-8 text-center text-lg leading-relaxed">
-                    Quẹt thẻ độc lập trên máy EDC, sau đó điền thông tin từ hóa đơn (slip) in ra:
-                  </Text>
-
-                  <ControlledInput
-                    control={control}
-                    name="terminalId"
-                    label="Mã thiết bị (TID)"
-                    placeholder="Ví dụ: 01684838"
-                    placeholderTextColor={COLORS.outline.default}
-                    className="h-16 rounded-[16px] px-5 text-2xl font-bold"
+              <View className="mx-auto mt-4 w-full max-w-[700px] gap-3">
+                {(isConnectionFailed || isPaymentFailed) && (
+                  <Button
+                    label={isConnectionFailed ? 'Thử kết nối lại' : 'Quẹt lại thẻ'}
+                    variant="primary"
+                    disabled={!canRetry}
+                    onPress={handleRetry}
+                    className="h-16 rounded-[18px]"
+                    textClassName="text-[26px] font-semibold"
                   />
-
-                  <ControlledInput
-                    control={control}
-                    name="merchantId"
-                    label="Mã cửa hàng (MID)"
-                    placeholder="Ví dụ: 000000925126645"
-                    placeholderTextColor={COLORS.outline.default}
-                    className="h-16 rounded-[16px] px-5 text-2xl font-bold"
-                  />
-
-                  <ControlledInput
-                    control={control}
-                    name="referenceNumber"
-                    label="Mã RRN / Số tham chiếu (Ref No)"
-                    placeholder="Ví dụ: 614801081012"
-                    placeholderTextColor={COLORS.outline.default}
-                    keyboardType="numeric"
-                    className="h-16 rounded-[16px] px-5 text-2xl font-bold"
-                  />
-
-                  <ControlledInput
-                    control={control}
-                    name="approvalCode"
-                    label="Mã Approval / Mã phê duyệt (Auth Code)"
-                    placeholder="Ví dụ: 313963"
-                    placeholderTextColor={COLORS.outline.default}
-                    keyboardType="numeric"
-                    className="h-16 rounded-[16px] px-5 text-2xl font-bold"
-                  />
-
-                  <View className="flex-row justify-end gap-5">
-                    <Button
-                      label="Quay lại"
-                      variant="outline"
-                      onPress={() => setShowManualForm(false)}
-                      className="h-16 flex-1 rounded-[20px]"
-                      textClassName="text-lg font-bold"
-                    />
-                    <Button
-                      label="Xác nhận thanh toán"
-                      variant="primary"
-                      onPress={handleSubmit(handleManualCaptureSubmit)}
-                      className="h-16 flex-1 rounded-[20px]"
-                      textClassName="text-lg font-black"
-                    />
-                  </View>
-                </View>
-              ) : isSuccess ? (
-                <View className="items-center justify-center">
-                  <View className="h-28 w-28 items-center justify-center rounded-full bg-green-100 p-2 shadow-lg shadow-green-500/20">
-                    <CheckCircle size={80} color="#22c55e" />
-                  </View>
-                  <Text className="mt-6 text-center text-3xl font-black text-green-600">
-                    Quẹt thẻ thành công!
-                  </Text>
-                  <Text className="text-surface-onVariant mt-3 text-center text-base">
-                    Đã thanh toán {formatCurrency(total)}
-                  </Text>
-                </View>
-              ) : isConnectionFailed || isPaymentFailed ? (
-                <View className="items-center justify-center px-4">
-                  <View className="shadow-inner h-24 w-24 items-center justify-center rounded-full border border-error/20 bg-error/10 p-2">
-                    <AlertCircle size={64} color={COLORS.error.default} />
-                  </View>
-                  <Text className="mt-5 text-center text-2xl font-bold text-error">
-                    {isConnectionFailed ? 'Lỗi kết nối máy POS!' : 'Giao dịch thất bại!'}
-                  </Text>
-                  <Text className="text-surface-onVariant mb-6 mt-3 text-center text-base">
-                    {isConnectionFailed
-                      ? 'Không thể kết nối đến máy POS. Vui lòng kiểm tra cổng mạng/IP hoặc cáp mạng.'
-                      : 'Thiết bị báo giao dịch thất bại. Vui lòng kiểm tra lại thẻ hoặc thao tác quẹt.'}
-                  </Text>
+                )}
+                {(isConnectionFailed || isPaymentFailed) && (
                   <Button
                     label="Xác nhận thủ công"
                     variant="outline"
                     onPress={() => setShowManualForm(true)}
+                    className="h-16 rounded-[18px] border-surface-200 bg-white"
+                    textClassName="text-[26px] font-semibold text-neutral-500"
                   />
-                </View>
-              ) : isManualResolution ? (
-                <View className="items-center justify-center px-4">
-                  <View className="h-24 w-24 items-center justify-center rounded-full border border-amber-200 bg-amber-100 p-2">
-                    <Database size={64} color="#d97706" />
-                  </View>
-                  <Text className="mt-5 text-center text-2xl font-bold text-amber-600">
-                    Lỗi Server: Không thể hoàn tất giao dịch!
-                  </Text>
-                  <Text className="text-surface-onVariant mt-3 text-center text-sm">
-                    Máy EDC đã báo SALE SUCCESS nhưng server không thể xác nhận giao dịch. Nhấn Xác
-                    nhận tay nếu xác nhận máy EDC đã thanh toán thành công.
-                  </Text>
-                </View>
-              ) : (
-                <View className="w-full items-center justify-center px-4">
-                  <View className="mb-8 h-28 w-28 items-center justify-center rounded-full border border-primary/10 bg-primary/5 shadow-sm">
-                    {isConnecting ? (
-                      <Wifi size={56} color={COLORS.primary.default} />
-                    ) : isPreparingReceipt || isPrinting ? (
-                      <Printer size={56} color={COLORS.primary.default} />
-                    ) : (
-                      <CreditCard size={56} color={COLORS.primary.default} />
-                    )}
-                  </View>
-                  <View className="mb-6 flex-row items-center gap-3 rounded-full border border-surface-200 bg-surface-100 px-6 py-3 shadow-sm">
-                    {isLoading && <LoadingIndicator size={20} />}
-                  </View>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Interactive Steps indicators */}
-          <View className="flex-row items-center justify-between border-b border-outline-variant bg-surface-50 px-10 py-10">
-            {renderStepCircle(0, 'Khởi tạo')}
-            <ChevronRight size={24} color={COLORS.outline.variant} className="mb-10" />
-            {renderStepCircle(1, 'Kết nối POS')}
-            <ChevronRight size={24} color={COLORS.outline.variant} className="mb-10" />
-            {renderStepCircle(2, 'Quẹt thẻ')}
-            <ChevronRight size={24} color={COLORS.outline.variant} className="mb-10" />
-            {renderStepCircle(3, 'Hoàn tất & In')}
-          </View>
-        </ScrollView>
-
-        {/* Footer Actions */}
-        <View className="flex-row-reverse gap-5 border-t border-outline-variant bg-surface-50 px-10 py-6">
-          {isConnectionFailed && (
-            <Button
-              label="Thử kết nối lại"
-              variant="primary"
-              disabled={!canRetry}
-              onPress={handleRetry}
-              className="h-16 flex-1 rounded-[20px]"
-              textClassName="text-lg font-black"
-            />
-          )}
-
-          {isPaymentFailed && (
-            <Button
-              label="Quẹt lại thẻ"
-              variant="primary"
-              disabled={!canRetry}
-              onPress={handleRetry}
-              className="h-16 flex-1 rounded-[20px]"
-              textClassName="text-lg font-black"
-            />
-          )}
-
-          {isManualResolution && (
-            <>
-              <Button
-                label="Xác nhận tay (Force Complete)"
-                variant="primary"
-                onPress={handleForceComplete}
-                className="h-16 flex-1 rounded-[20px]"
-                textClassName="text-lg font-black"
-              />
-              <Button
-                label="Thử lại ghi DB"
-                variant="outline"
-                onPress={handleRetryUpdate}
-                className="h-16 rounded-[20px] px-8"
-                textClassName="text-lg font-black"
-              />
+                )}
+                {isManualResolution && (
+                  <>
+                    <Button
+                      label="Xác nhận tay"
+                      variant="primary"
+                      onPress={handleForceComplete}
+                      className="h-16 rounded-[18px]"
+                      textClassName="text-[26px] font-semibold"
+                    />
+                    <Button
+                      label="Thử lại ghi nhận giao dịch"
+                      variant="outline"
+                      onPress={handleRetryUpdate}
+                      className="h-16 rounded-[18px] border-surface-200 bg-white"
+                      textClassName="text-[26px] font-semibold text-neutral-500"
+                    />
+                  </>
+                )}
+                <Button
+                  label={isManualResolution ? 'Đóng sự cố' : 'Hủy giao dịch'}
+                  variant="outline"
+                  disabled={
+                    !canCancel && !isConnectionFailed && !isPaymentFailed && !isManualResolution
+                  }
+                  onPress={handleCancel}
+                  className="h-16 rounded-[18px] border-error/30 bg-error/5"
+                  textClassName="text-[26px] font-semibold text-error"
+                />
+              </View>
             </>
           )}
-
-          <Button
-            label={isManualResolution ? 'Đóng sự cố' : 'Hủy giao dịch'}
-            variant="outline"
-            disabled={!canCancel && !isConnectionFailed && !isPaymentFailed && !isManualResolution}
-            onPress={handleCancel}
-            className="h-16 rounded-[20px] px-10"
-            textClassName="text-lg font-black"
-          />
         </View>
 
-        {/* Hidden Printer Template */}
         <View style={{ position: 'absolute', left: -2000, top: 0 }}>
           {checkoutResult && (
             <View collapsable={false} ref={printRef}>
