@@ -280,6 +280,11 @@ export const closeShiftMachine = setup({
     },
 
     checkingSyncStatus: {
+      on: {
+        CANCEL: {
+          target: 'cancelled',
+        },
+      },
       invoke: {
         id: 'checkSyncAndStats',
         src: 'checkSyncAndStats',
@@ -403,7 +408,7 @@ export const closeShiftMachine = setup({
       entry: 'triggerLogout',
       on: {
         START: {
-          target: 'idle',
+          target: 'checkingSyncStatus',
           actions: 'resetContext',
         },
       },
@@ -412,7 +417,7 @@ export const closeShiftMachine = setup({
     cancelled: {
       on: {
         START: {
-          target: 'idle',
+          target: 'checkingSyncStatus',
           actions: 'resetContext',
         },
       },
