@@ -9,6 +9,7 @@ export interface ModalBaseProps {
   children: React.ReactNode
   className?: string
   dismissible?: boolean
+  size?: 'default' | '90%' | 'full'
 }
 
 export const ModalBase = ({
@@ -17,11 +18,18 @@ export const ModalBase = ({
   children,
   className,
   dismissible = true,
+  size = 'default',
 }: ModalBaseProps) => {
   const handleDismiss = () => {
     if (dismissible) {
       onClose()
     }
+  }
+
+  const sizeClasses = {
+    default: 'relative w-full overflow-hidden rounded-md bg-surface-50 shadow-2xl',
+    '90%': 'h-[90%] w-[90%] max-w-none overflow-hidden rounded-[32px] bg-[#f8fafc]',
+    full: 'h-full w-full max-w-none rounded-none bg-[#f8fafc]',
   }
 
   return (
@@ -38,10 +46,7 @@ export const ModalBase = ({
         <Animated.View
           entering={FadeIn.duration(300)}
           exiting={FadeOut.duration(200)}
-          className={cn(
-            'relative w-full overflow-hidden rounded-md bg-surface-50 shadow-2xl',
-            className,
-          )}
+          className={cn(sizeClasses[size], className)}
         >
           {children}
         </Animated.View>

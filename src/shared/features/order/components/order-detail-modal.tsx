@@ -32,7 +32,6 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
     try {
       if (!printRef.current) return
       await PrinterService.printComponent(printRef)
-      toast.success('Đang in hóa đơn...')
     } catch (error: any) {
       toast.error(error.message || 'Lỗi khi in hóa đơn')
     }
@@ -87,11 +86,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
         </View>
       </View>
 
-      <ModalBase
-        visible={visible}
-        onClose={() => setVisible(false)}
-        className="h-full w-full max-w-none rounded-none bg-background"
-      >
+      <ModalBase visible={visible} onClose={() => setVisible(false)} size="90%">
         <SafeAreaView className="flex-1">
           {/* Header - Simple & Clean */}
           <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-10 py-6">
