@@ -1,4 +1,12 @@
-import { Button, Container } from '@/shared/components/ui'
+import {
+  Button,
+  CartIcon,
+  Container,
+  DebtIcon,
+  LogoSkydeck,
+  SettingIcon,
+  WorkingIcon,
+} from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { useAppContext } from '@/shared/features/app'
 import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/shared/features/note'
@@ -8,20 +16,20 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw } from 'lucide-react-native'
 import React, { useEffect, useMemo, useRef } from 'react'
-import { Pressable, Text, TouchableOpacity, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type MenuItem = {
   name: string
   label: string
-  icon: React.ComponentProps<typeof MaterialIcons>['name']
+  icon: React.ComponentType<{ size?: number; color?: string }>
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { name: 'pos', label: 'Bán hàng', icon: 'point-of-sale' },
-  { name: 'orders', label: 'Đơn hàng', icon: 'receipt-long' },
-  { name: 'dashboard', label: 'Báo cáo', icon: 'dashboard' },
-  { name: 'dev_control', label: 'Dev Control', icon: 'developer-mode' },
+  { name: 'pos', label: 'Bán hàng', icon: CartIcon },
+  { name: 'orders', label: 'Đơn hàng', icon: DebtIcon },
+  { name: 'dashboard', label: 'Báo cáo', icon: WorkingIcon },
+  { name: 'dev_control', label: 'Dev Control', icon: SettingIcon },
 ]
 
 const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () => void }) => {
@@ -41,22 +49,22 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
 
   useEffect(() => {
     loadNotes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
     <View
-      className="h-full w-[320px] flex-col justify-between border-r border-outline-variant bg-surface-50 px-4"
+      className="h-full w-[260px] flex-col justify-between bg-primary px-0"
       style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 16 }}
     >
       <View>
         {/* Logo */}
-        <View className="mb-6 flex-row items-center gap-3 border-b border-outline-variant px-2 pb-6">
-          <MaterialIcons name="store" size={32} color={COLORS.primary.default} />
-          <Text className="text-2xl font-black tracking-tight text-primary">Bitexco POS</Text>
+        <View className="w-full items-center justify-center pb-6 pt-2">
+          <LogoSkydeck width={180} height={100} color="#ffffff" />
         </View>
 
         {/* Nav Items */}
-        <View className="gap-2.5">
+        <View className="gap-3">
           {MENU_ITEMS.map((item) => {
             const isFocused = activeTab === item.name
             const onPress = () => {
@@ -64,7 +72,7 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
             }
 
             const activeColor = COLORS.primary.on
-            const inactiveColor = COLORS.secondary.default
+            const inactiveColor = COLORS.primary.on
 
             return (
               <Pressable
@@ -72,21 +80,15 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
                 onPress={onPress}
                 className={
                   isFocused
-                    ? 'flex-row items-center gap-4 rounded-2xl bg-primary px-5 py-4'
-                    : 'flex-row items-center gap-4 rounded-2xl bg-transparent px-5 py-4 active:bg-surface-200'
+                    ? 'h-[126px] w-full flex-col items-center justify-center gap-3 bg-primary-deep px-6 py-4'
+                    : 'h-[126px] w-full flex-col items-center justify-center gap-3 bg-transparent px-6 py-4 active:bg-primary-deep/50'
                 }
               >
-                <MaterialIcons
-                  name={item.icon as any}
-                  size={28}
-                  color={isFocused ? activeColor : inactiveColor}
-                />
+                <item.icon size={48} color={isFocused ? activeColor : inactiveColor} />
 
                 <Text
                   className={
-                    isFocused
-                      ? 'text-lg font-bold text-white'
-                      : 'text-lg font-semibold text-secondary'
+                    'text-center font-manrope text-[24px] font-bold leading-[34px] text-white'
                   }
                 >
                   {item.label}
@@ -98,49 +100,54 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
       </View>
 
       {/* Sidebar Bottom Info */}
-      <View className="gap-4">
+      <View className="gap-4 px-4 pb-2">
         <View className="relative">
           <Button
             label="Note"
-            variant="outline"
+            variant="primary"
             leftIcon={ClipboardList}
             onPress={() => handoverNotesModalRef.current?.open()}
-            className="h-20 w-full rounded-2xl"
-            textClassName="text-lg font-bold text-primary"
+            className="h-16 w-full rounded-2xl border-white/20 bg-white/10"
+            textClassName="text-lg font-bold text-white font-manrope"
           />
           {pendingNotesCount > 0 && (
-            <View className="absolute right-6 top-1/2 -mt-3.5 h-7 min-w-[28px] items-center justify-center rounded-full bg-error px-2">
+            <View className="pointer-events-none absolute right-6 top-1/2 -mt-3 h-6 min-w-[24px] items-center justify-center rounded-full bg-error px-1.5 shadow-sm">
               <Text className="text-xs font-black text-white">{pendingNotesCount}</Text>
             </View>
           )}
         </View>
 
         <Button
-          label="Đồng bộ dữ liệu"
-          variant="outline"
+          label={isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
+          variant="primary"
           onPress={syncNow}
           loading={isSyncing}
           leftIcon={RefreshCw}
+          className="h-14 w-full rounded-2xl border-white/10 bg-white/5"
+          textClassName="text-[16px] font-semibold text-white/95 font-manrope"
         />
+
         <Button
-          label="Kết thúc ca làm việc"
-          variant="error"
+          label="Kết ca"
+          variant="primary"
           onPress={onOpenCloseShift}
           leftIcon={LogOut}
+          className="h-14 w-full rounded-2xl border-white/10 bg-white/5"
+          textClassName="text-[16px] font-semibold text-white/95 font-manrope"
         />
 
         <HandoverNotesModal ref={handoverNotesModalRef} />
 
-        <Container className="flex-row items-center justify-between rounded-2xl bg-surface-100 p-4 shadow-sm">
+        <Container className="flex-row items-center justify-between rounded-2xl border border-white/10 bg-white/10 p-4 shadow-sm">
           <View className="mr-2 flex-1 flex-row items-center gap-3">
-            <View className="h-12 w-12 items-center justify-center rounded-full bg-primary shadow-sm">
+            <View className="h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/10 shadow-sm">
               <MaterialIcons name="person" size={24} color={COLORS.primary.on} />
             </View>
             <View className="flex-1">
-              <Text className="text-sm font-black text-surface-on" numberOfLines={1}>
+              <Text className="font-manrope text-sm font-bold text-white" numberOfLines={1}>
                 {employee?.displayName || 'Nhân viên'}
               </Text>
-              <Text className="text-surface-onVariant text-xs font-medium" numberOfLines={1}>
+              <Text className="font-manrope text-xs font-medium text-white/60" numberOfLines={1}>
                 {employee?.roles?.length ? `Role: ${employee.roles.join(', ')}` : 'Role: N/A'}
               </Text>
             </View>

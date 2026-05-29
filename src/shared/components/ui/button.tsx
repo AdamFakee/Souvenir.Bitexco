@@ -16,9 +16,9 @@ interface ButtonProps extends PressableProps {
 }
 
 const variantStyles = {
-  primary: 'bg-primary-container border-primary-container',
+  primary: 'bg-primary border-primary',
   secondary: 'bg-secondary-container border-secondary-container',
-  outline: 'bg-transparent border-primary-container',
+  outline: 'bg-white border-outline',
   error: 'bg-error/10 border-error/30',
 }
 
@@ -37,19 +37,19 @@ export const Button = ({
 }: ButtonProps) => {
   const iconColor =
     variant === 'primary'
-      ? COLORS.primary.on
+      ? '#ffffff'
       : variant === 'secondary'
         ? COLORS.secondary.onContainer
         : variant === 'error'
           ? COLORS.error.default
-          : COLORS.surface.on
+          : COLORS.neutral[500] // #5b5b5c
 
   return (
     <Pressable
       disabled={disabled}
       className={cn(
-        // Base styles
-        'h-20 flex-row items-center justify-center rounded-md border px-12 py-3',
+        // Base styles: rounded-xl matches r=12 Figma
+        'h-20 flex-row items-center justify-center rounded-xl border px-12 py-3',
         // Variants
         variantStyles[variant],
         // Disabled/Loading state
@@ -75,15 +75,19 @@ export const Button = ({
           )}
           <Text
             numberOfLines={1}
+            style={{
+              fontFamily: 'Manrope-Bold',
+              fontSize: 16,
+            }}
             className={cn(
-              'text-center text-title-sm font-semibold',
+              'text-center',
               variant === 'primary'
-                ? 'text-primary-on'
+                ? 'text-white'
                 : variant === 'secondary'
                   ? 'text-secondary-on-container'
                   : variant === 'error'
                     ? 'text-error'
-                    : 'text-primary',
+                    : 'text-neutral-500', // #5b5b5c
               textClassName,
             )}
           >

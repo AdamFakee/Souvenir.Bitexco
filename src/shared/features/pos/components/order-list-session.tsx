@@ -17,18 +17,18 @@ export default function OrderListSession() {
   const posActor = usePosActor()
   const cartActor = useActiveCart()
 
-  // Tab Data from POS Actor
   const carts = useSelector(posActor!, (s) => s.context.carts)
   const activeCartId = useSelector(posActor!, (s) => s.context.activeCartId)
-
-  // Items from Active Cart Actor
   const items = useSelector(cartActor!, (s) => s?.context?.items || {})
   const cart = useMemo(() => Object.values(items || {}) as CartItem[], [items])
 
   return (
-    <View className="flex-1 flex-col bg-surface-50">
+    <View className="flex-1 flex-col bg-background">
       {/* Session Tabs */}
-      <View className="flex-row items-center border-b border-[#e2e8f0] bg-[#f1f5f9] px-6">
+      <View
+        className="flex-row items-center border-b border-outline bg-surface-200 px-6"
+        style={{ borderBottomColor: COLORS.outline.default }}
+      >
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1">
           <View className="flex-row gap-2 pt-3">
             {Object.entries(carts).map(([id, actor], index) => {
@@ -42,30 +42,36 @@ export default function OrderListSession() {
                 <Pressable
                   key={id}
                   onPress={() => posActor?.send({ type: 'SWITCH_TAB', id })}
-                  className={`min-w-[200px] flex-row items-center rounded-t-2xl border-x border-t px-8 py-6 ${
-                    isActive ? 'border-[#e2e8f0] bg-white' : 'border-transparent bg-[#e2e8f0]'
-                  }`}
-                  style={
-                    isActive
-                      ? {
-                          borderBottomWidth: 1,
-                          borderBottomColor: '#ffffff',
-                          marginBottom: -1,
-                          zIndex: 10,
-                        }
-                      : {}
-                  }
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    minWidth: 200,
+                    paddingHorizontal: 24,
+                    paddingVertical: 20,
+                    borderTopLeftRadius: 12,
+                    borderTopRightRadius: 12,
+                    borderWidth: 1,
+                    borderBottomWidth: isActive ? 0 : 1,
+                    marginBottom: isActive ? -1 : 0,
+                    zIndex: isActive ? 10 : 0,
+                    backgroundColor: isActive ? COLORS.surface[50] : COLORS.surface[400],
+                    borderColor: isActive ? COLORS.outline.default : 'transparent',
+                  }}
                 >
                   <Text
-                    className={`flex-1 text-xl font-black ${
-                      isActive ? 'text-surface-on' : 'text-muted'
-                    }`}
+                    style={{
+                      flex: 1,
+                      fontSize: 18,
+                      fontFamily: 'Manrope-Bold',
+                      fontWeight: '700',
+                      color: isActive ? COLORS.surface.on : COLORS.neutral[400],
+                    }}
                     numberOfLines={1}
                   >
                     {label}
                   </Text>
                   <Pressable
-                    className="ml-2 h-7 w-7 items-center justify-center rounded-full active:bg-error/10"
+                    style={{ marginLeft: 8, padding: 4, borderRadius: 20 }}
                     onPress={() => {
                       toast.confirm({
                         title: 'Hủy đơn',
@@ -74,7 +80,7 @@ export default function OrderListSession() {
                       })
                     }}
                   >
-                    <X size={18} color={isActive ? '#94a3b8' : '#64748b'} />
+                    <X size={16} color={isActive ? COLORS.neutral[300] : COLORS.neutral[400]} />
                   </Pressable>
                 </Pressable>
               )
@@ -85,23 +91,23 @@ export default function OrderListSession() {
         <Button
           label="Thêm tab"
           leftIcon={Plus}
-          iconSize={24}
+          iconSize={22}
           variant="outline"
-          className="ml-6 h-16 rounded-2xl border-[#e2e8f0] bg-white px-8"
-          textClassName="text-lg font-black text-[#64748b]"
+          className="ml-6 h-14 rounded-xl border-outline bg-surface-50 px-6"
+          textClassName="text-base font-bold text-neutral-600"
           onPress={() => posActor?.send({ type: 'ADD_TAB' })}
         />
       </View>
 
       {/* POS Header with Search */}
-      <View className="relative z-20 flex-row items-center justify-between border-b border-outline-variant bg-white px-8 py-5">
+      <View className="relative z-20 flex-row items-center justify-between border-b border-outline bg-white px-8 py-5">
         <ProductSearch />
 
         <IconButton
           icon={Trash2}
-          size={24}
+          size={22}
           color={COLORS.error.default}
-          className={`ml-5 h-14 w-14 rounded-2xl bg-error/10 ${cart.length === 0 ? 'hidden' : ''}`}
+          className={`ml-5 h-12 w-12 rounded-xl bg-error-container ${cart.length === 0 ? 'hidden' : ''}`}
           onPress={() => {
             toast.confirm({
               title: 'Xóa giỏ hàng',
@@ -115,16 +121,21 @@ export default function OrderListSession() {
       {/* Cart Table */}
       <View className="flex-1 overflow-hidden bg-white">
         {/* Table Header */}
-        <View className="flex-row items-center border-b-2 border-outline-variant bg-[#f1f5f9] px-8 py-6">
-          <Text className="w-20 text-lg font-black uppercase text-muted">STT</Text>
-          <Text className="flex-1 text-lg font-black uppercase text-muted">Tên sản phẩm</Text>
-          <Text className="w-48 text-center text-lg font-black uppercase text-muted">Đơn giá</Text>
-          <Text className="w-48 text-center text-lg font-black uppercase text-muted">Thuế</Text>
-          <Text className="w-56 text-center text-lg font-black uppercase text-muted">SL</Text>
-          <Text className="w-48 pr-8 text-right text-lg font-black uppercase text-muted">
+        <View
+          className="flex-row items-center border-b-2 px-8 py-5"
+          style={{ backgroundColor: COLORS.neutral[50], borderBottomColor: COLORS.outline.default }}
+        >
+          <Text className="w-20 text-base font-black uppercase text-muted">STT</Text>
+          <Text className="flex-1 text-base font-black uppercase text-muted">Tên sản phẩm</Text>
+          <Text className="w-44 text-center text-base font-black uppercase text-muted">
+            Đơn giá
+          </Text>
+          <Text className="w-44 text-center text-base font-black uppercase text-muted">Thuế</Text>
+          <Text className="w-52 text-center text-base font-black uppercase text-muted">SL</Text>
+          <Text className="w-44 pr-6 text-right text-base font-black uppercase text-muted">
             Thành tiền
           </Text>
-          <View className="w-20" />
+          <View className="w-16" />
         </View>
 
         <FlashList
@@ -134,27 +145,33 @@ export default function OrderListSession() {
             const itemTotal = item.price * item.quantity
             return (
               <View
-                key={item.product.id}
-                className="flex-row items-center border-b border-outline-variant px-8 py-8 active:bg-surface-100"
+                className="flex-row items-center border-b px-8 py-6 active:bg-surface-100"
+                style={{ borderBottomColor: COLORS.outline.variant }}
               >
-                <Text className="w-20 text-xl font-bold text-surface-on-variant">{index + 1}</Text>
+                <Text className="w-20 text-lg font-bold text-surface-on-variant">{index + 1}</Text>
                 <View className="flex-1">
-                  <Text className="text-2xl font-black text-surface-on">{item.product.name}</Text>
-                  <Text className="mt-1 text-sm font-bold text-muted">{item.product.sku}</Text>
+                  <Text className="text-xl font-black text-surface-on">{item.product.name}</Text>
+                  <Text className="mt-0.5 text-sm font-bold text-muted">{item.product.sku}</Text>
                 </View>
-                <Text className="w-48 text-center text-xl font-bold text-surface-on">
+                <Text className="w-44 text-center text-lg font-bold text-surface-on">
                   {formatCurrency(item.price)}
                 </Text>
-                <View className="w-48 items-center justify-center">
-                  <Text className="text-xl font-bold text-surface-on">{item.product.taxRate}%</Text>
+                <View className="w-44 items-center justify-center">
+                  <Text className="text-lg font-bold text-surface-on">{item.product.taxRate}%</Text>
                 </View>
-                <View className="w-56 items-center">
-                  <View className="flex-row items-center self-center rounded-[20px] border border-outline-variant bg-surface-200">
+                <View className="w-52 items-center">
+                  <View
+                    className="flex-row items-center self-center rounded-full border"
+                    style={{
+                      borderColor: COLORS.outline.default,
+                      backgroundColor: COLORS.surface[200],
+                    }}
+                  >
                     <IconButton
                       icon={Minus}
-                      size={28}
+                      size={22}
                       color={COLORS.surface.on}
-                      className="p-5"
+                      className="p-4"
                       onPress={() =>
                         cartActor?.send({
                           type: 'UPDATE_QUANTITY',
@@ -163,14 +180,14 @@ export default function OrderListSession() {
                         })
                       }
                     />
-                    <Text className="w-24 text-center text-3xl font-black text-surface-on">
+                    <Text className="w-20 text-center text-2xl font-black text-surface-on">
                       {item.quantity}
                     </Text>
                     <IconButton
                       icon={Plus}
-                      size={28}
+                      size={22}
                       color={COLORS.surface.on}
-                      className="p-5"
+                      className="p-4"
                       onPress={() =>
                         cartActor?.send({
                           type: 'UPDATE_QUANTITY',
@@ -181,15 +198,15 @@ export default function OrderListSession() {
                     />
                   </View>
                 </View>
-                <Text className="w-48 pr-8 text-right text-2xl font-black text-primary">
+                <Text className="w-44 pr-6 text-right text-xl font-black text-primary">
                   {formatCurrency(itemTotal)}
                 </Text>
-                <View className="w-20 items-center justify-center">
+                <View className="w-16 items-center justify-center">
                   <IconButton
                     icon={Trash2}
-                    size={32}
+                    size={20}
                     color={COLORS.error.default}
-                    className="bg-transparent opacity-50"
+                    className="bg-transparent opacity-40"
                     onPress={() =>
                       cartActor?.send({ type: 'REMOVE_ITEM', productId: item.product.id })
                     }
@@ -200,8 +217,8 @@ export default function OrderListSession() {
           }}
           ListEmptyComponent={() => (
             <View className="flex-1 items-center justify-center p-32">
-              <ShoppingBasket size={80} color={COLORS.outline.variant} strokeWidth={1} />
-              <Text className="mt-6 text-xl font-medium text-surface-on-variant">
+              <ShoppingBasket size={72} color={COLORS.outline.variant} strokeWidth={1} />
+              <Text className="mt-6 text-lg font-semibold text-surface-on-variant">
                 Giỏ hàng trống
               </Text>
             </View>

@@ -1,5 +1,6 @@
 import { Control, FieldValues, Path, useController } from 'react-hook-form'
 import { Text, View } from 'react-native'
+import { cn } from '@/shared/utils'
 import { Input, type InputProps } from './input'
 import { InputError } from './input-error'
 
@@ -12,6 +13,7 @@ interface ControlledInputProps<T extends FieldValues> extends Omit<
   label?: string
   required?: boolean
   error?: string
+  containerClassName?: string
   formatValue?: (value: any) => string
   onChangeText?: (text: string) => void
 }
@@ -23,6 +25,7 @@ export function ControlledInput<T extends FieldValues>({
   label,
   required,
   error: customError,
+  containerClassName,
   formatValue,
   onChangeText: customOnChangeText,
   ...inputProps
@@ -38,7 +41,7 @@ export function ControlledInput<T extends FieldValues>({
   const errorMessage = customError || formError?.message
 
   return (
-    <View className="mb-4">
+    <View className={cn('mb-4', containerClassName)}>
       {label && (
         <Text className="text-on-surface mb-2 text-body-base font-semibold">
           {label}

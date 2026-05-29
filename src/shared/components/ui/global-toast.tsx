@@ -1,36 +1,35 @@
 import { COLORS } from '@/shared/constants'
 import { useAlertStore, Toast as ToastType } from '@/shared/store'
-import { cn } from '@/shared/utils'
 import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react-native'
 import React from 'react'
-import { Text, View, Pressable } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { SlideInRight, SlideOutRight } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const TYPE_CONFIG = {
   success: {
     icon: CheckCircle,
-    color: COLORS.success.default,
-    bgColor: 'bg-success-container',
-    borderColor: 'border-success',
+    accentColor: COLORS.success.default, // #00944a
+    iconBg: COLORS.success.container, // #ecf1f4
+    borderColor: COLORS.success.default,
   },
   error: {
     icon: AlertCircle,
-    color: COLORS.error.default,
-    bgColor: 'bg-error-container',
-    borderColor: 'border-error',
+    accentColor: COLORS.error.default, // #dd2027
+    iconBg: COLORS.error.container, // #fef3f2
+    borderColor: COLORS.error.default,
   },
   warning: {
     icon: AlertTriangle,
-    color: COLORS.warning.default,
-    bgColor: 'bg-warning-container',
-    borderColor: 'border-warning',
+    accentColor: COLORS.warning.default, // #fb6514
+    iconBg: COLORS.warning.container, // #fff4f2
+    borderColor: COLORS.warning.default,
   },
   info: {
     icon: Info,
-    color: COLORS.info.default,
-    bgColor: 'bg-info-container',
-    borderColor: 'border-info',
+    accentColor: COLORS.info.default, // #2f6bff
+    iconBg: COLORS.info.container, // #dbeafe
+    borderColor: COLORS.info.default,
   },
 }
 
@@ -38,35 +37,33 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
   const { hideToast } = useAlertStore()
   const config = TYPE_CONFIG[toast.type]
   const Icon = config.icon
-  const textOnColor = `text-${toast.type}-on-container`
 
   return (
     <Animated.View
-      entering={SlideInRight.duration(400)}
-      exiting={SlideOutRight.duration(300)}
-      className={cn(
-        'mb-3 flex-row items-center overflow-hidden rounded-xl border p-4 shadow-sm',
-        config.bgColor,
-        config.borderColor,
-      )}
-      style={{ width: 340 }}
+      entering={SlideInRight.duration(350).springify()}
+      exiting={SlideOutRight.duration(250)}
+      style={[styles.card, { borderLeftColor: config.borderColor }]}
     >
-      <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-white/40">
-        <Icon size={24} color={config.color} strokeWidth={2.5} />
+      {/* Icon */}
+      <View style={[styles.iconWrap, { backgroundColor: config.iconBg }]}>
+        <Icon size={22} color={config.accentColor} strokeWidth={2.2} />
       </View>
-      <View className="flex-1">
-        <Text className={cn('text-body-base font-bold', textOnColor)} numberOfLines={1}>
-          {toast.title}
-        </Text>
-        <Text className={cn('text-body-sm opacity-80', textOnColor)} numberOfLines={2}>
+
+      {/* Text */}
+      <View style={styles.textWrap}>
+        {toast.title ? (
+          <Text style={styles.title} numberOfLines={1}>
+            {toast.title}
+          </Text>
+        ) : null}
+        <Text style={[styles.message, !toast.title && styles.messageOnly]} numberOfLines={2}>
           {toast.message}
         </Text>
       </View>
-      <Pressable
-        onPress={() => hideToast(toast.id)}
-        className="ml-2 h-8 w-8 items-center justify-center rounded-full"
-      >
-        <X size={18} color={config.color} />
+
+      {/* Close */}
+      <Pressable onPress={() => hideToast(toast.id)} style={styles.closeBtn} hitSlop={8}>
+        <X size={16} color={COLORS.neutral[400]} strokeWidth={2.5} />
       </Pressable>
     </Animated.View>
   )
@@ -79,14 +76,82 @@ export const GlobalToast = () => {
   if (toasts.length === 0) return null
 
   return (
-    <View
-      pointerEvents="box-none"
-      className="absolute right-6 z-[9999] items-end"
-      style={{ top: insets.top + 12 }}
-    >
+    <View pointerEvents="box-none" style={[styles.container, { top: insets.top + 16 }]}>
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} />
       ))}
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 9999,
+    alignItems: 'flex-end',
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 360,
+    marginBottom: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: COLORS.surface[50], // #ffffff
+    borderLeftWidth: 4,
+    // Figma border: #dfe0e1
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderTopColor: COLORS.outline.default,
+    borderRightColor: COLORS.outline.default,
+    borderBottomColor: COLORS.outline.default,
+    // shadow
+    shadowColor: 'rgba(15,23,42,0.10)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 14,
+    marginRight: 12,
+    flexShrink: 0,
+  },
+  textWrap: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingRight: 4,
+  },
+  title: {
+    fontFamily: 'Manrope-Bold',
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.neutral[900], // #0f0f0f
+    letterSpacing: 0.1,
+    marginBottom: 2,
+  },
+  message: {
+    fontFamily: 'Manrope-SemiBold',
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.neutral[500], // #5b5b5c
+    lineHeight: 18,
+  },
+  messageOnly: {
+    color: COLORS.neutral[800],
+    fontSize: 14,
+  },
+  closeBtn: {
+    padding: 14,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+})

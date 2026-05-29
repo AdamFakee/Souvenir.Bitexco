@@ -1,9 +1,8 @@
-import { EmptyState, IconButton, LoadMore, Shimmer } from '@/shared/components/ui'
-import { COLORS } from '@/shared/constants'
+import { EmptyState, LoadMore, SearchInput, Shimmer } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
-import { Search, SearchX, X } from 'lucide-react-native'
+import { SearchX } from 'lucide-react-native'
 import React, { useState } from 'react'
-import { Keyboard, Pressable, Text, TextInput, View } from 'react-native'
+import { Keyboard, Pressable, Text, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { usePosActor, useProductSearch } from '../hooks'
 import { UnifiedProduct } from '../hooks/use-product-search'
@@ -47,27 +46,15 @@ export function ProductSearch() {
 
   return (
     <View className="relative z-20 flex-1">
-      <View className="h-22 flex-row items-center rounded-3xl border border-outline-variant bg-[#f1f5f9] px-10 focus:border-primary">
-        <Search size={32} color={COLORS.outline.variant} />
-        <TextInput
-          className="ml-6 flex-1 text-2xl font-bold text-surface-on"
-          placeholder="Tìm tên sản phẩm hoặc SKU..."
-          placeholderTextColor="#94a3b8"
-          value={searchText}
-          onChangeText={setSearchText}
-          autoCorrect={false}
-          autoCapitalize="none"
-        />
-        {searchText.length > 0 && (
-          <IconButton
-            icon={X}
-            size={28}
-            onPress={handleClear}
-            className="ml-4 h-14 w-14 rounded-2xl"
-            color={COLORS.error.default}
-          />
-        )}
-      </View>
+      <SearchInput
+        value={searchText}
+        onChangeText={setSearchText}
+        placeholder="Tìm tên sản phẩm hoặc SKU..."
+        placeholderTextColor="#94a3b8"
+        onClear={handleClear}
+        autoCorrect={false}
+        autoCapitalize="none"
+      />
 
       {/* Search Autocomplete / Loading */}
       {searchText.trim().length > 0 && (

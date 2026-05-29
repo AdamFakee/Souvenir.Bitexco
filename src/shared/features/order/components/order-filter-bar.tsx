@@ -1,8 +1,6 @@
-import { DatePicker } from '@/shared/components/ui'
-import { COLORS } from '@/shared/constants'
-import { Search, X } from 'lucide-react-native'
+import { DatePicker, SearchInput } from '@/shared/components/ui'
 import React, { memo } from 'react'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { useOrderFilterStore } from '../store'
 
 export const OrderFilterBar = memo(function OrderFilterBar() {
@@ -11,20 +9,12 @@ export const OrderFilterBar = memo(function OrderFilterBar() {
 
   return (
     <View className="mb-6 flex-row items-center gap-4">
-      <View className="h-16 flex-1 flex-row items-center rounded-xl border border-outline-variant bg-surface-100 px-6">
-        <Search size={24} color={COLORS.outline.default} />
-        <TextInput
-          className="ml-4 flex-1 text-xl font-medium text-surface-on"
-          placeholder="Tìm kiếm đơn hàng..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <Pressable onPress={() => setSearchQuery('')}>
-            <X size={24} color={COLORS.outline.default} />
-          </Pressable>
-        )}
-      </View>
+      <SearchInput
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Tìm kiếm đơn hàng..."
+        containerClassName="flex-1"
+      />
 
       <View className="flex-row items-center gap-4">
         <DatePicker

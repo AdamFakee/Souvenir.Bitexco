@@ -158,11 +158,11 @@ export const Popup = ({
             <Animated.View
               entering={enteringAnim}
               exiting={exitingAnim}
-              className="w-full max-w-sm overflow-hidden rounded-xl bg-surface-50 p-8 shadow-2xl"
+              className="w-full max-w-[480px] overflow-hidden rounded-2xl border border-outline-variant/50 bg-white p-8 shadow-2xl"
             >
               {/* Close Button */}
               {showCloseButton && (
-                <View className="absolute right-4 top-4 z-10">
+                <View className="absolute right-6 top-6 z-10">
                   <IconButton
                     icon={X}
                     variant="sm"
@@ -187,11 +187,17 @@ export const Popup = ({
                     {renderedIcon}
                   </View>
                 )}
-                <Text className="mb-3 text-center text-headline-md font-semibold text-surface-on">
+                <Text
+                  className="mb-3 text-center text-2xl font-black text-surface-on"
+                  style={{ fontFamily: 'Manrope-Bold' }}
+                >
                   {title}
                 </Text>
                 {description && (
-                  <Text className="text-on-surface-variant text-center text-body-base leading-relaxed">
+                  <Text
+                    className="text-center text-lg leading-relaxed text-muted"
+                    style={{ fontFamily: 'Manrope-Medium' }}
+                  >
                     {description}
                   </Text>
                 )}

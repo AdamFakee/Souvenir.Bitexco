@@ -24,9 +24,19 @@ export const GlobalPopup = () => {
 
   return (
     <Popup ref={popupRef} type={type} title={title} description={message} dismissible={false}>
-      <View className="flex-row gap-3">
-        <Button label="Hủy" onPress={onCancel} variant="outline" className="flex-1" />
-        <Button label="Đồng ý" onPress={onConfirm} variant="primary" className="flex-1" />
+      <View className="mt-2 flex-row gap-4">
+        <Button
+          label="Hủy"
+          onPress={onCancel}
+          variant="outline"
+          className="h-14 flex-1 rounded-xl px-4"
+        />
+        <Button
+          label="Đồng ý"
+          onPress={onConfirm}
+          variant="primary"
+          className="h-14 flex-1 rounded-xl px-4"
+        />
       </View>
     </Popup>
   )

@@ -1,8 +1,8 @@
+import { useViceScreen } from '@/screens/use-vice-screen'
 import { ErrorFallback } from '@/shared/components/common'
 import { GlobalPopup, GlobalToast } from '@/shared/components/ui'
 import { HandoverReminderOverlay } from '@/shared/features/note'
-import { useAppInit, useAppGate } from '@/shared/hooks'
-import { useViceScreen } from '@/screens/use-vice-screen'
+import { useAppGate, useAppInit } from '@/shared/hooks'
 import {
   AppDatabaseProvider,
   onAppStateChange,
@@ -10,8 +10,17 @@ import {
   setupReactQueryMobile,
   useDevTools,
 } from '@/shared/lib'
+import {
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { useFonts } from 'expo-font'
 import { Stack } from 'expo-router'
+import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 import { ErrorBoundary } from 'react-error-boundary'
@@ -21,6 +30,8 @@ import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { configureReanimatedLogger } from 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import './global.css'
+
+SplashScreen.preventAutoHideAsync()
 
 setupReactQueryMobile()
 
@@ -43,10 +54,24 @@ function AppBootstrapper() {
 export default function RootLayout() {
   useDevTools(queryClient)
 
+  const [fontsLoaded] = useFonts({
+    'Manrope-Regular': Manrope_400Regular,
+    'Manrope-Medium': Manrope_500Medium,
+    'Manrope-SemiBold': Manrope_600SemiBold,
+    'Manrope-Bold': Manrope_700Bold,
+    'Manrope-ExtraBold': Manrope_800ExtraBold,
+  })
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync()
+  }, [fontsLoaded])
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', onAppStateChange)
     return () => subscription.remove()
   }, [])
+
+  if (!fontsLoaded) return null
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
