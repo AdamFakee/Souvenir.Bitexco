@@ -1,13 +1,14 @@
 import { Button, Numpad } from '@/shared/components/ui'
+import { LogoSkydeck } from '@/shared/components/ui/icons'
 import { COLORS, ROUTES } from '@/shared/constants'
 import { useAppContext, useAppStore } from '@/shared/features/app'
+import { BG_MAIN } from '@/shared/features/auth'
 import { toast, useAlertStore } from '@/shared/store'
 import { formatVND } from '@/shared/utils'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
-import { Coins, User, LogOut } from 'lucide-react-native'
+import { Coins, LogOut, User } from 'lucide-react-native'
 import React, { useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { ImageBackground, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useOpenStaffShift } from '../../shared/features/shift'
 
 export default function OpenShift() {
@@ -94,31 +95,25 @@ export default function OpenShift() {
   }
 
   return (
-    <View className="flex-1 bg-surface">
-      <LinearGradient colors={['#e0f2fe', '#bae6fd']} className="absolute inset-0" />
+    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+      {/* Teal overlay matching Figma */}
+      <View style={styles.overlay} />
 
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
-        }}
-      >
-        <View className="w-full max-w-[600px] rounded-3xl border border-white/20 bg-white p-8 shadow-2xl">
-          {/* Header User Info */}
-          <View className="mb-8 flex-row items-center justify-between">
-            <View className="flex-row items-center gap-4">
-              <View className="h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-                <User size={28} color={COLORS.secondary.default} />
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Logo */}
+        <LogoSkydeck width={200} height={80} color="#ffffff" />
+
+        {/* White card */}
+        <View style={styles.card}>
+          {/* Header — Employee info + Logout */}
+          <View style={styles.cardHeader}>
+            <View style={styles.employeeInfo}>
+              <View style={styles.avatarCircle}>
+                <User size={26} color={COLORS.secondary.default} />
               </View>
               <View>
-                <Text className="text-lg font-bold text-slate-900">
-                  {employee?.displayName || 'Nhân viên'}
-                </Text>
-                <Text className="text-sm text-slate-500">
-                  Mã NV: {employee?.employeeCode || 'N/A'}
-                </Text>
+                <Text style={styles.employeeName}>{employee?.displayName || 'Nhân viên'}</Text>
+                <Text style={styles.employeeCode}>Mã NV: {employee?.employeeCode || 'N/A'}</Text>
               </View>
             </View>
 
@@ -126,49 +121,145 @@ export default function OpenShift() {
               label="Đổi tài khoản"
               variant="outline"
               leftIcon={LogOut}
-              className="h-10 rounded-xl border-slate-200 px-4"
-              textClassName="text-slate-600 text-xs font-semibold"
+              iconSize={16}
+              className="h-10 rounded-xl border-[#e0e1e2] px-4"
+              textClassName="text-[#4b5563] text-xs font-semibold"
               onPress={handleLogout}
             />
           </View>
 
-          {/* Main Open Shift Box */}
-          <View className="mb-6">
-            <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-              TIỀN MẶT ĐẦU CA
-            </Text>
-            <View className="mb-2 flex-row items-center rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <Coins size={24} color="#059669" />
-              <Text className="flex-1 px-2 text-right text-3xl font-black tracking-tight text-slate-900">
+          {/* Cash amount display */}
+          <View style={styles.amountSection}>
+            <Text style={styles.amountLabel}>TIỀN MẶT ĐẦU CA</Text>
+            <View style={styles.amountBox}>
+              <Coins size={24} color={COLORS.secondary.default} />
+              <Text style={styles.amountText} numberOfLines={1} adjustsFontSizeToFit>
                 {formatVND(Number(amountStr || '0'))}
               </Text>
             </View>
-            <Text className="mt-1 text-center text-sm font-medium text-amber-600">
+            <Text style={styles.amountHint}>
               Kiểm tra số lượng tiền mặt hiện có trước khi bắt đầu ca làm
             </Text>
           </View>
 
-          {/* Virtual POS Keyboard */}
-          <View className="w-full flex-row items-center justify-center">
+          {/* Numpad */}
+          <View style={styles.numpadRow}>
             <Numpad
               onPress={(digit) => handleKeyPress(digit)}
               onBackspace={() => handleKeyPress('BACK')}
               onClear={() => handleKeyPress('CLEAR')}
-              className="mb-6 w-[50%]"
+              className="w-[52%]"
             />
           </View>
 
-          {/* Open Shift Action Button */}
+          {/* Open shift button */}
           <Button
             label="MỞ CA LÀM VIỆC"
-            className="h-16 rounded-2xl border-emerald-600 bg-emerald-600 active:opacity-90"
-            textClassName="text-white font-bold text-lg tracking-wide"
             onPress={handleOpenShift}
             loading={isLoading}
             disabled={!amountStr || amountStr === '0'}
           />
         </View>
       </ScrollView>
-    </View>
+    </ImageBackground>
   )
 }
+
+const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(83, 123, 144, 0.75)',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 48,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+  },
+  card: {
+    width: 608,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#e0e1e2',
+    padding: 24,
+    gap: 20,
+    shadowColor: '#a8a8a8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 32,
+    elevation: 8,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  employeeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  employeeName: {
+    fontFamily: 'Manrope-Bold',
+    fontSize: 16,
+    color: '#111827',
+  },
+  employeeCode: {
+    fontFamily: 'Manrope-Regular',
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  amountSection: {
+    gap: 8,
+  },
+  amountLabel: {
+    fontFamily: 'Manrope-Bold',
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: '#6b7280',
+    textTransform: 'uppercase',
+  },
+  amountBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  amountText: {
+    flex: 1,
+    textAlign: 'right',
+    fontFamily: 'Manrope-Bold',
+    fontSize: 28,
+    color: '#0f172a',
+    letterSpacing: -0.5,
+  },
+  amountHint: {
+    fontFamily: 'Manrope-Regular',
+    fontSize: 13,
+    color: '#d97706',
+    textAlign: 'center',
+  },
+  numpadRow: {
+    alignItems: 'center',
+  },
+})

@@ -1,12 +1,18 @@
 import { Button, ControlledInput } from '@/shared/components/ui'
+import { LogoSkydeck } from '@/shared/components/ui/icons'
 import { useAppStore } from '@/shared/features/app'
-import { AuthAPI, DeviceActivationFormData, deviceActivationSchema } from '@/shared/features/auth'
+import {
+  AuthAPI,
+  BG_MAIN,
+  DeviceActivationFormData,
+  deviceActivationSchema,
+} from '@/shared/features/auth'
 import { toast } from '@/shared/store'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { LinearGradient } from 'expo-linear-gradient'
+import { ArrowRight } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Text, View } from 'react-native'
+import { ImageBackground, StyleSheet, Text, View } from 'react-native'
 
 export default function DeviceActivation() {
   const [loading, setLoading] = useState(false)
@@ -67,56 +73,91 @@ export default function DeviceActivation() {
   }
 
   return (
-    <View className="flex-1 flex-row bg-surface">
-      {/* Left Side - Branding */}
-      <LinearGradient
-        colors={['#e0f2fe', '#bae6fd']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        className="flex-[3] justify-center p-12"
-      >
-        <View>
-          <Text className="text-5xl font-black leading-tight tracking-tighter text-primary">
-            SOUVENIR{'\n'}BITEXCO
-          </Text>
-          <Text className="mt-4 text-lg text-surface-on-variant">
-            Hệ thống quản lý bán hàng chuyên nghiệp
-          </Text>
-        </View>
-      </LinearGradient>
+    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+      {/* Teal gradient overlay matching Figma */}
+      <View style={styles.overlay} />
 
-      {/* Right Side - Activation Form */}
-      <View className="flex-[7] items-center justify-center px-16">
-        <View className="w-full max-w-[460px]">
-          <Text className="text-3xl font-bold text-surface-on">Kích hoạt thiết bị</Text>
-          <Text className="mt-2 text-base text-surface-on-variant">
-            Vui lòng nhập mã kích hoạt do quản trị viên cấp để sử dụng máy POS này.
-          </Text>
+      <View style={styles.container}>
+        {/* Logo top */}
+        <LogoSkydeck width={200} height={80} color="#ffffff" />
 
-          <View className="mt-8">
+        {/* White card */}
+        <View style={styles.card}>
+          {/* Card header */}
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Kích hoạt thiết bị</Text>
+          </View>
+
+          {/* Form fields */}
+          <View style={styles.formGroup}>
             <ControlledInput
               control={control}
               name="deviceCode"
               label="Mã thiết bị"
               placeholder="Ví dụ: POS-001"
-              required
             />
             <ControlledInput
               control={control}
               name="activationToken"
               label="Mã kích hoạt"
-              placeholder="Nhập mã 6 chữ số"
-              required
-            />
-            <Button
-              label="Kích hoạt"
-              onPress={handleSubmit(onSubmit)}
-              loading={loading}
-              className="mt-4"
+              placeholder="Nhập mã kích hoạt"
             />
           </View>
+
+          {/* Activate option card button */}
+          <Button
+            label="Kích hoạt ngay"
+            variant="outline"
+            onPress={handleSubmit(onSubmit)}
+            loading={loading}
+            rightIcon={ArrowRight}
+            textClassName="text-[#111827] font-bold text-[20px]"
+          />
         </View>
       </View>
-    </View>
+    </ImageBackground>
   )
 }
+
+const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(83, 123, 144, 0.75)',
+  },
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 48,
+    paddingTop: 24,
+  },
+  card: {
+    width: 608,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#e0e1e2',
+    padding: 24,
+    gap: 24,
+    shadowColor: '#a8a8a8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 32,
+    elevation: 8,
+  },
+  cardHeader: {
+    gap: 4,
+  },
+  cardTitle: {
+    fontFamily: 'Manrope-Bold',
+    fontSize: 32,
+    lineHeight: 44.8,
+    color: '#282929',
+  },
+  formGroup: {
+    gap: 16,
+  },
+})
