@@ -104,10 +104,62 @@ export interface GetRemoteOrdersParams {
 /**
  * Tham số hoàn tiền đơn hàng
  */
+export interface RefundOrderLineRequest {
+  productId: string
+  qty: number
+}
+
 export interface RefundOrderParams {
   orderId: string
   reason: string
   shiftId: string
+  staffId: string
+  lines: RefundOrderLineRequest[]
+}
+
+export interface RefundReceiptLine {
+  productId: string
+  sku?: string
+  name: string
+  orderedQty: number
+  returnedQty: number
+  remainingQty: number
+  unitPrice: number
+  lineRefundAmount: number
+  isReturned: boolean
+}
+
+export interface RefundReceiptData {
+  orderId: string
+  orderCode?: string
+  returnId?: string
+  reason: string
+  refundedAt?: string
+  refundAmount: number
+  lines: RefundReceiptLine[]
+}
+
+export interface RefundOrderResult {
+  returnId?: string
+  orderId: string
+  orderCode?: string
+  refundAmount: number
+  status?: 'COMPLETED' | 'REFUND_PROCESSING' | 'FAILED'
+  receipt?: RefundReceiptData
+}
+
+export class OrderApiError extends Error {
+  code?: string
+  status?: number
+  traceId?: string
+
+  constructor(message: string, options?: { code?: string; status?: number; traceId?: string }) {
+    super(message)
+    this.name = 'OrderApiError'
+    this.code = options?.code
+    this.status = options?.status
+    this.traceId = options?.traceId
+  }
 }
 
 /**
@@ -209,31 +261,35 @@ export const OrderRemoteAPI = {
   },
 
   /**
-   * Hoàn tiền đơn hàng (Remote API)
-   * Thao tác này sẽ thực hiện trực tiếp trên Server.
+   * Trả hàng/hoàn tiền online bằng endpoint atomic.
+   * Backend trả raw JSON object, không có envelope { success, data }.
    */
-  refundOrder: async (params: RefundOrderParams): Promise<IBaseResponse<null>> => {
-    const { orderId, reason, shiftId } = params
+  refundOrder: async (params: RefundOrderParams): Promise<RefundOrderResult> => {
+    const { orderId, reason, shiftId, staffId, lines } = params
 
-    // Giả lập độ trễ mạng
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const response = await AxiosService.getInstance().post<RefundOrderResult>(
+        `/v1/pos/orders/${orderId}/refund`,
+        {
+          reason,
+          shift_id: shiftId,
+          staff_id: staffId,
+          lines,
+        },
+      )
 
-    console.log('OrderRemoteAPI: Refunding order...', { orderId, reason, shiftId })
+      return response.data
+    } catch (error: any) {
+      const status = error?.response?.status
+      const data = error?.response?.data
+      const code = typeof data?.error === 'string' ? data.error : undefined
+      const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
 
-    // GIẢ LẬP GỌI API THẬT:
-    // const response = await apiClient.post<IBaseResponse<null>>(`/orders/${orderId}/refund`, {
-    //   reason,
-    //   shift_id: shiftId
-    // })
-    // return response
-
-    return {
-      success: true,
-      status_code: 200,
-      message: 'Hoàn tiền đơn hàng thành công',
-      data: null,
-      meta: null,
-      error: null,
+      throw new OrderApiError(code || error?.message || 'order.refund_failed', {
+        code,
+        status,
+        traceId,
+      })
     }
   },
 
