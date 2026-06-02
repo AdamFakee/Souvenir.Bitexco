@@ -9,8 +9,8 @@ import {
   PAYMENT_REGISTRY,
   PaymentContext,
   PaymentPopupRef,
+  useApplyVoucher,
 } from '@/shared/features/payment'
-import { remoteVoucherApi } from '@/shared/features/payment/api/remote/voucher.remote.api'
 import { PaymentMethod } from '@/shared/lib/database'
 import { useConnectionStore } from '@/shared/store'
 import { toast } from '@/shared/store/use-alert-store'
@@ -91,7 +91,8 @@ export default function CheckoutPanel() {
   const appliedVoucher = useSelector(cartActor!, (s) => s?.context?.appliedVoucher || null)
 
   const [voucherInput, setVoucherInput] = useState('')
-  const [isVerifying, setIsVerifying] = useState(false)
+  const applyVoucherMutation = useApplyVoucher()
+  const isVerifying = applyVoucherMutation.isPending
   const printRef = useRef(null)
 
   // Refs cho từng popup — key là PaymentMethod type
@@ -151,9 +152,8 @@ export default function CheckoutPanel() {
   const handleApplyVoucher = async () => {
     if (!voucherInput.trim()) return
 
-    setIsVerifying(true)
     try {
-      const response = await remoteVoucherApi.verify({
+      const response = await applyVoucherMutation.mutateAsync({
         code: voucherInput,
       })
       cartActor?.send({ type: 'APPLY_VOUCHER', voucher: response })
@@ -161,8 +161,6 @@ export default function CheckoutPanel() {
       toast.success(`Đã áp dụng mã giảm giá: ${response.code}`)
     } catch (error: any) {
       toast.error(error.message || 'Mã giảm giá không hợp lệ')
-    } finally {
-      setIsVerifying(false)
     }
   }
 

@@ -1,3 +1,5 @@
+import { AxiosService } from '@/shared/lib/axios/axios.service'
+
 export type VerifyVoucherPayload = {
   code: string
 }
@@ -11,50 +13,22 @@ export type VerifyVoucherResponse = {
 
 export const remoteVoucherApi = {
   verify: async (payload: VerifyVoucherPayload): Promise<VerifyVoucherResponse> => {
-    // Mock API delay
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
     const normalizedCode = payload.code.trim().toUpperCase()
 
-    // Mock data
-    if (normalizedCode === '20') {
-      return {
-        code: normalizedCode,
-        percent: 20,
-        maxDiscountAmount: 50000,
-        applicableVariantIds: [
-          'prod_1',
-          'prod_2',
-          'prod_3',
-          'prod_4',
-          'prod_5',
-          'prod_6',
-          'prod_7',
-          'prod_8',
-          'prod_9',
-          'prod_10',
-        ],
-      }
-    }
+    try {
+      const response = await AxiosService.getInstance().post<VerifyVoucherResponse>(
+        '/v1/pos/vouchers/verify',
+        { code: normalizedCode },
+      )
 
-    if (normalizedCode === '10') {
-      return {
-        code: normalizedCode,
-        percent: 10,
-        maxDiscountAmount: 100000,
-        applicableVariantIds: [],
-      }
-    }
+      return response.data
+    } catch (error: any) {
+      const data = error?.response?.data
+      const message = typeof data?.message === 'string' ? data.message : undefined
 
-    if (normalizedCode === '50') {
-      return {
-        code: normalizedCode,
-        percent: 50,
-        maxDiscountAmount: 50000,
-        applicableVariantIds: [],
-      }
+      throw new Error(
+        message || error?.message || 'Không thể kiểm tra mã giảm giá. Vui lòng thử lại.',
+      )
     }
-
-    throw new Error('Mã giảm giá không hợp lệ hoặc đã hết hạn')
   },
 }

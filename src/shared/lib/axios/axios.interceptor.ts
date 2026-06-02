@@ -36,7 +36,7 @@ const onResponseError = async (error: AxiosError): Promise<any> => {
   const originalRequest = error.config as CustomAxiosRequestConfig
   const status = error.response?.status
 
-  // Handle Refresh Token
+  // Handle unauthorized errors globally. Other API errors are handled by feature UI.
   if (
     status === API_CONSTANT.HTTP_STATUS_CODE.UNAUTHORIZED &&
     originalRequest &&
@@ -44,49 +44,8 @@ const onResponseError = async (error: AxiosError): Promise<any> => {
     !originalRequest.url?.includes('/auth/refresh-token')
   ) {
     originalRequest._retry = true
-
-    try {
-      // const { tokens, setTokens, logout } = useAuthStore.getState()
-
-      // if (tokens?.refreshToken) {
-      // const response = await AuthApi.refreshToken({ refreshToken: tokens.refreshToken })
-
-      // if (response.success && response.tokens) {
-      // setTokens(response.tokens)
-
-      // Update authorization header with new token
-      // originalRequest.headers.Authorization = `Bearer ${response.tokens.accessToken}`
-
-      // Retry original request
-      // return axios(originalRequest)
-      // } else {
-      // Refresh failed
-      // logout()
-      // return Promise.reject(error)
-      // }
-      // } else {
-      // No refresh token available
-      // logout()
-      // return Promise.reject(error)
-      // }
-      return Promise.reject(error)
-    } catch (refreshError) {
-      // Refresh token API failed
-      // useAuthStore.getState().logout()
-      return Promise.reject(refreshError)
-    }
-
     toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
     useAppStore.getState().appService?.send({ type: 'TOKEN_EXPIRED' })
-  }
-
-  // Handle other errors (Show Toast)
-  if (status !== API_CONSTANT.HTTP_STATUS_CODE.UNAUTHORIZED) {
-    const message =
-      (error.response?.data as any)?.message ||
-      error.message ||
-      'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-    toast.error(message)
   }
 
   return Promise.reject(error)
