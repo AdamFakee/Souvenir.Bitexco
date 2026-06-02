@@ -110,10 +110,19 @@ export const createMixCheckoutActor = fromPromise(
 )
 
 export const cancelOrderActor = fromPromise(
-  async ({ input }: { input: { orderId: string | null } }): Promise<void> => {
+  async ({
+    input,
+  }: {
+    input: { orderId: string | null; shiftId: string; staffId: string }
+  }): Promise<void> => {
     if (!input.orderId) return
     try {
-      await OrderRemoteAPI.cancelOrder(input.orderId)
+      await OrderRemoteAPI.cancelOrder({
+        orderId: input.orderId,
+        shiftId: input.shiftId,
+        staffId: input.staffId,
+        reason: 'cashier_cancelled_payment',
+      })
     } catch (err) {}
   },
 )

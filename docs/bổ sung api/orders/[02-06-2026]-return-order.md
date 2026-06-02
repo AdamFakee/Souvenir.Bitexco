@@ -23,6 +23,7 @@ Tài liệu này bổ sung endpoint trả hàng/hoàn tiền cho máy POS. Luồ
 
 ```json
 {
+  "idempotencyKey": "client-generated-uuid",
   "reason": "Sản phẩm lỗi",
   "shift_id": "uuid-ca-lam-viec",
   "staff_id": "uuid-nhan-vien",
@@ -41,34 +42,36 @@ Tài liệu này bổ sung endpoint trả hàng/hoàn tiền cho máy POS. Luồ
 
 ### Body Fields
 
-| Trường      | Kiểu dữ liệu | Bắt buộc | Mô tả                                                                  |
-| ----------- | ------------ | -------- | ---------------------------------------------------------------------- |
-| `reason`    | string       | Không    | Lý do trả hàng. Có thể là chuỗi rỗng nếu thu ngân không nhập lý do.    |
-| `shift_id`  | string       | Có       | UUID ca làm việc/cash session hiện tại.                                |
-| `staff_id`  | string       | Có       | UUID nhân viên thực hiện trả hàng.                                     |
-| `lines`     | array        | Có       | Danh sách sản phẩm và số lượng cần trả. Phải có ít nhất 1 dòng hợp lệ. |
-| `productId` | string       | Có       | UUID sản phẩm trong đơn gốc.                                           |
-| `qty`       | number       | Có       | Số lượng trả của sản phẩm. Phải `> 0` và không vượt số lượng còn trả.  |
+| Trường           | Kiểu dữ liệu | Bắt buộc | Mô tả                                                                                                            |
+| ---------------- | ------------ | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `idempotencyKey` | string       | Có       | UUID do FE sinh cho mỗi lần bấm xác nhận trả hàng, dùng để backend chống duplicate khi POS retry/mạng chập chờn. |
+| `reason`         | string       | Không    | Lý do trả hàng. Có thể là chuỗi rỗng nếu thu ngân không nhập lý do.                                              |
+| `shift_id`       | string       | Có       | UUID ca làm việc/cash session hiện tại.                                                                          |
+| `staff_id`       | string       | Có       | UUID nhân viên thực hiện trả hàng.                                                                               |
+| `lines`          | array        | Có       | Danh sách sản phẩm và số lượng cần trả. Phải có ít nhất 1 dòng hợp lệ.                                           |
+| `productId`      | string       | Có       | UUID sản phẩm trong đơn gốc.                                                                                     |
+| `qty`            | number       | Có       | Số lượng trả của sản phẩm. Phải `> 0` và không vượt số lượng còn trả.                                            |
 
 ---
 
 ## 2. Business Rules
 
-| Mã   | Rule                                                                                           |
-| ---- | ---------------------------------------------------------------------------------------------- |
-| BR01 | Chỉ được trả hàng với đơn hàng đã thanh toán thành công.                                       |
-| BR02 | Chỉ được trả các sản phẩm tồn tại trong đơn hàng gốc.                                          |
-| BR03 | Số lượng trả không được vượt quá số lượng đã mua trừ số lượng đã trả trước đó.                 |
-| BR04 | Backend là nguồn dữ liệu chính để đối chiếu phiếu trả hàng và đơn hàng gốc.                    |
-| BR05 | Người dùng phải chọn ít nhất 1 sản phẩm để trả hàng.                                           |
-| BR06 | Số lượng trả của mỗi dòng phải lớn hơn 0.                                                      |
-| BR07 | Giá trị hoàn trả tính theo giá thực tế trên đơn hàng gốc, sau giảm giá nếu có.                 |
-| BR08 | Sau khi trả hàng thành công, backend cập nhật lại tồn kho của sản phẩm được trả.               |
-| BR09 | Tiền hoàn thực tế do thu ngân tự xử lý trực tiếp; backend không cần xử lý chi tiền/settlement. |
-| BR10 | Một đơn hàng có thể phát sinh nhiều lần trả hàng cho đến khi trả hết số lượng đã mua.          |
-| BR11 | Không cho phép trả hàng với đơn hàng đã bị hủy hoặc trạng thái không hợp lệ.                   |
-| BR12 | Không cho phép chỉnh sửa phiếu trả hàng sau khi backend đã hoàn tất xử lý.                     |
-| BR13 | Backend ghi nhận người thực hiện, thời gian và số tiền cần hoàn.                               |
+| Mã   | Rule                                                                                                                           |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------ |
+| BR01 | Chỉ được trả hàng với đơn hàng đã thanh toán thành công.                                                                       |
+| BR02 | Chỉ được trả các sản phẩm tồn tại trong đơn hàng gốc.                                                                          |
+| BR03 | Số lượng trả không được vượt quá số lượng đã mua trừ số lượng đã trả trước đó.                                                 |
+| BR04 | Backend là nguồn dữ liệu chính để đối chiếu phiếu trả hàng và đơn hàng gốc.                                                    |
+| BR05 | Người dùng phải chọn ít nhất 1 sản phẩm để trả hàng.                                                                           |
+| BR06 | Số lượng trả của mỗi dòng phải lớn hơn 0.                                                                                      |
+| BR07 | Giá trị hoàn trả tính theo giá thực tế trên đơn hàng gốc, sau giảm giá nếu có.                                                 |
+| BR08 | Sau khi trả hàng thành công, backend cập nhật lại tồn kho của sản phẩm được trả.                                               |
+| BR09 | Tiền hoàn thực tế do thu ngân tự xử lý trực tiếp; backend không cần xử lý chi tiền/settlement.                                 |
+| BR10 | Một đơn hàng có thể phát sinh nhiều lần trả hàng cho đến khi trả hết số lượng đã mua.                                          |
+| BR11 | Không cho phép trả hàng với đơn hàng đã bị hủy hoặc trạng thái không hợp lệ.                                                   |
+| BR12 | Không cho phép chỉnh sửa phiếu trả hàng sau khi backend đã hoàn tất xử lý.                                                     |
+| BR13 | Backend ghi nhận người thực hiện, thời gian và số tiền cần hoàn.                                                               |
+| BR14 | Backend deduplicate request theo `idempotencyKey` trong TTL ngắn, đề xuất 5 phút, để tránh tạo 2 phiếu trả hàng khi POS retry. |
 
 ---
 
@@ -110,6 +113,7 @@ Backend trả trực tiếp data mới sau khi refund thành công. Data cần �
 ```json
 {
   "returnId": "uuid-phieu-tra-hang",
+  "returnCode": "RTN-20260602-001",
   "orderId": "uuid-don-goc",
   "orderCode": "SO-20260602-001",
   "refundAmount": 126000,
@@ -118,6 +122,7 @@ Backend trả trực tiếp data mới sau khi refund thành công. Data cần �
     "orderId": "uuid-don-goc",
     "orderCode": "SO-20260602-001",
     "returnId": "uuid-phieu-tra-hang",
+    "returnCode": "RTN-20260602-001",
     "reason": "Sản phẩm lỗi",
     "refundedAt": "2026-06-02T10:30:00Z",
     "refundAmount": 126000,
@@ -151,28 +156,29 @@ Backend trả trực tiếp data mới sau khi refund thành công. Data cần �
 
 ### Response Fields
 
-| Trường         | Kiểu dữ liệu | Mô tả                                                                     |
-| -------------- | ------------ | ------------------------------------------------------------------------- |
-| `returnId`     | string       | UUID phiếu trả hàng/hoàn tiền.                                            |
-| `orderId`      | string       | UUID đơn hàng gốc.                                                        |
-| `orderCode`    | string       | Mã đơn hàng gốc hiển thị/in bill.                                         |
-| `refundAmount` | number       | Tổng số tiền hoàn sau làm tròn.                                           |
-| `status`       | string       | Trạng thái xử lý trả hàng, thường là `COMPLETED` khi endpoint thành công. |
-| `receipt`      | object       | Dữ liệu in phiếu trả hàng.                                                |
+| Trường         | Kiểu dữ liệu | Mô tả                                                                           |
+| -------------- | ------------ | ------------------------------------------------------------------------------- |
+| `returnId`     | string       | UUID phiếu trả hàng/hoàn tiền.                                                  |
+| `returnCode`   | string       | Mã phiếu trả hàng human-readable để hiển thị/in bill, ví dụ `RTN-20260602-001`. |
+| `orderId`      | string       | UUID đơn hàng gốc.                                                              |
+| `orderCode`    | string       | Mã đơn hàng gốc hiển thị/in bill.                                               |
+| `refundAmount` | number       | Tổng số tiền hoàn sau làm tròn.                                                 |
+| `status`       | string       | Trạng thái xử lý trả hàng, thường là `COMPLETED` khi endpoint thành công.       |
+| `receipt`      | object       | Dữ liệu in phiếu trả hàng.                                                      |
 
 ### Receipt Line Fields
 
-| Trường             | Kiểu dữ liệu | Mô tả                                                         |
-| ------------------ | ------------ | ------------------------------------------------------------- |
-| `productId`        | string       | UUID sản phẩm.                                                |
-| `sku`              | string       | SKU sản phẩm.                                                 |
-| `name`             | string       | Tên sản phẩm.                                                 |
-| `orderedQty`       | number       | Số lượng đã mua trong đơn gốc.                                |
-| `returnedQty`      | number       | Số lượng hoàn trong lần xử lý này.                            |
-| `remainingQty`     | number       | Số lượng còn có thể trả sau lần xử lý này.                    |
-| `unitPrice`        | number       | Đơn giá dùng để in bill/tham chiếu.                           |
-| `lineRefundAmount` | number       | Số tiền hoàn của dòng này.                                    |
-| `isReturned`       | boolean      | `true` nếu dòng này có hoàn trong lần này, ngược lại `false`. |
+| Trường             | Kiểu dữ liệu | Mô tả                                                                                                                                                                                                     |
+| ------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `productId`        | string       | UUID sản phẩm.                                                                                                                                                                                            |
+| `sku`              | string       | SKU sản phẩm.                                                                                                                                                                                             |
+| `name`             | string       | Tên sản phẩm.                                                                                                                                                                                             |
+| `orderedQty`       | number       | Số lượng đã mua trong đơn gốc.                                                                                                                                                                            |
+| `returnedQty`      | number       | Số lượng hoàn trong lần xử lý này.                                                                                                                                                                        |
+| `remainingQty`     | number       | Số lượng còn có thể trả sau lần xử lý này, tính theo công thức `orderedQty - totalReturnedQtyAcrossAllReturns`. Đây là số lượng còn lại sau khi đã cộng tất cả các lần trả hàng trước đó và lần hiện tại. |
+| `unitPrice`        | number       | Đơn giá dùng để in bill/tham chiếu.                                                                                                                                                                       |
+| `lineRefundAmount` | number       | Số tiền hoàn của dòng này.                                                                                                                                                                                |
+| `isReturned`       | boolean      | `true` nếu dòng này có hoàn trong lần này, ngược lại `false`.                                                                                                                                             |
 
 ---
 
@@ -183,22 +189,6 @@ Backend trả trực tiếp data mới sau khi refund thành công. Data cần �
 ```json
 { "error": "order.return_quantity_exceeded" }
 ```
-
-`error` là code string theo dạng `module.reason` (không phải message hiển thị). FE translate sang tiếng Việt theo error map.
-
-| HTTP  | Error Code                       | Trường hợp / Hướng xử lý                                      |
-| ----- | -------------------------------- | ------------------------------------------------------------- |
-| `400` | `pos.session_not_found`          | Không tìm thấy ca làm việc hiện tại.                          |
-| `400` | `order.invalid_state`            | Trạng thái đơn hàng không cho phép trả hàng.                  |
-| `400` | `order.return_quantity_invalid`  | Số lượng trả hàng không hợp lệ (`<= 0`, không phải số, v.v.). |
-| `400` | `order.return_item_not_found`    | Sản phẩm trả hàng không nằm trong đơn gốc.                    |
-| `400` | `order.no_return_items`          | Không có sản phẩm nào được chọn để trả hàng.                  |
-| `401` | `auth.unauthorized`              | Token hết hạn hoặc không hợp lệ.                              |
-| `403` | `auth.forbidden`                 | Không có quyền `pos:refund`.                                  |
-| `404` | `order.not_found`                | Không tìm thấy đơn hàng gốc.                                  |
-| `409` | `order.return_quantity_exceeded` | Số lượng trả vượt quá số lượng còn có thể trả/OCC conflict.   |
-| `422` | `request.invalid_payload`        | Dữ liệu request không hợp lệ ở tầng validation.               |
-| `429` | `rate_limit.exceeded`            | Rate limit.                                                   |
 
 Ví dụ server error:
 

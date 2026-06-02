@@ -14,8 +14,10 @@ export function RefundReceiptTemplate({ receipt }: RefundReceiptTemplateProps) {
     <View className="w-[384px] bg-white p-4">
       <View className="items-center border-b border-dashed border-surface-300 pb-3">
         <Text className="text-xl font-black uppercase text-surface-on">Phiếu trả hàng</Text>
-        {receipt.returnId && (
-          <Text className="mt-1 text-sm font-bold text-muted">Mã phiếu: {receipt.returnId}</Text>
+        {(receipt.returnCode || receipt.returnId) && (
+          <Text className="mt-1 text-sm font-bold text-muted">
+            Mã phiếu: {receipt.returnCode || receipt.returnId}
+          </Text>
         )}
         <Text className="mt-1 text-sm font-bold text-muted">
           Đơn gốc: {receipt.orderCode || receipt.orderId}

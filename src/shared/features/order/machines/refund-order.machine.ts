@@ -14,6 +14,7 @@ export interface RefundOrderContext {
   order: IOrder | null
   reason: string
   lines: RefundOrderLineRequest[]
+  idempotencyKey: string
   refundAmount: number
   shiftId: string
   staffId: string
@@ -35,11 +36,17 @@ const DEFAULT_CONTEXT: RefundOrderContext = {
   order: null,
   reason: '',
   lines: [],
+  idempotencyKey: '',
   refundAmount: 0,
   shiftId: '',
   staffId: '',
   result: null,
   error: null,
+}
+
+const createIdempotencyKey = () => {
+  const randomPart = Math.random().toString(36).slice(2)
+  return `refund-${Date.now()}-${randomPart}`
 }
 
 const getOriginalQuantity = (order: IOrder | null, productId: string) => {
@@ -90,6 +97,7 @@ export const refundOrderMachine = setup({
 
         return await OrderRemoteAPI.refundOrder({
           orderId: input.order.id,
+          idempotencyKey: input.idempotencyKey,
           reason: input.reason.trim(),
           shiftId: input.shiftId,
           staffId: input.staffId,
@@ -109,6 +117,7 @@ export const refundOrderMachine = setup({
         order: event.order,
         shiftId: event.shiftId,
         staffId: event.staffId,
+        idempotencyKey: createIdempotencyKey(),
       }
     }),
     setReason: assign({

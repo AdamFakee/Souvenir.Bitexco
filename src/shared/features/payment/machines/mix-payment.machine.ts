@@ -737,6 +737,8 @@ export const mixPaymentMachine = setup({
         src: 'cancelOrder',
         input: ({ context }) => ({
           orderId: context.orderId,
+          shiftId: context.shiftId,
+          staffId: context.staffId,
         }),
         onDone: {
           target: 'cancelled',

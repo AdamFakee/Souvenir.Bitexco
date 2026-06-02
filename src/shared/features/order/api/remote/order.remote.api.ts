@@ -111,6 +111,7 @@ export interface RefundOrderLineRequest {
 
 export interface RefundOrderParams {
   orderId: string
+  idempotencyKey: string
   reason: string
   shiftId: string
   staffId: string
@@ -133,6 +134,7 @@ export interface RefundReceiptData {
   orderId: string
   orderCode?: string
   returnId?: string
+  returnCode?: string
   reason: string
   refundedAt?: string
   refundAmount: number
@@ -141,11 +143,26 @@ export interface RefundReceiptData {
 
 export interface RefundOrderResult {
   returnId?: string
+  returnCode?: string
   orderId: string
   orderCode?: string
   refundAmount: number
   status?: 'COMPLETED' | 'REFUND_PROCESSING' | 'FAILED'
   receipt?: RefundReceiptData
+}
+
+export interface CancelOrderParams {
+  orderId: string
+  shiftId: string
+  staffId: string
+  reason?: string
+}
+
+export interface CancelOrderResult {
+  orderId: string
+  orderCode?: string
+  status: 'CANCELLED'
+  cancelledAt?: string
 }
 
 export class OrderApiError extends Error {
@@ -265,12 +282,13 @@ export const OrderRemoteAPI = {
    * Backend trả raw JSON object, không có envelope { success, data }.
    */
   refundOrder: async (params: RefundOrderParams): Promise<RefundOrderResult> => {
-    const { orderId, reason, shiftId, staffId, lines } = params
+    const { orderId, idempotencyKey, reason, shiftId, staffId, lines } = params
 
     try {
       const response = await AxiosService.getInstance().post<RefundOrderResult>(
         `/v1/pos/orders/${orderId}/refund`,
         {
+          idempotencyKey,
           reason,
           shift_id: shiftId,
           staff_id: staffId,
@@ -296,10 +314,17 @@ export const OrderRemoteAPI = {
   /**
    * Hủy đơn hàng (Remote API)
    */
-  cancelOrder: async (orderId: string): Promise<{ success: boolean }> => {
+  cancelOrder: async (params: CancelOrderParams): Promise<CancelOrderResult> => {
+    const { orderId, shiftId, staffId, reason } = params
+
     try {
-      const res = await AxiosService.getInstance().post<{ success: boolean }>(
+      const res = await AxiosService.getInstance().post<CancelOrderResult>(
         `/v1/pos/orders/${orderId}/cancel`,
+        {
+          shift_id: shiftId,
+          staff_id: staffId,
+          reason,
+        },
       )
       return res.data
     } catch (error) {
