@@ -168,7 +168,11 @@ export const OrderList = memo(function OrderList({ onOpenDetails }: OrderListPro
           </Pressable>
         )
       }}
-      onEndReached={fetchNextPage}
+      onEndReached={() => {
+        if (hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      }}
       onEndReachedThreshold={0.5}
       ListFooterComponent={<LoadMore isLoading={isFetchingNextPage} />}
       ListEmptyComponent={

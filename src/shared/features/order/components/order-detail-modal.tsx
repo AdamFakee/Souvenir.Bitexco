@@ -39,6 +39,8 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
 
   useImperativeHandle(ref, () => ({
     open: (o: IOrder) => {
+      console.log('detail order', o)
+
       setOrder(o)
       setVisible(true)
     },

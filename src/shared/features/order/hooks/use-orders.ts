@@ -10,13 +10,16 @@ export const useOrders = (params: {
   dateTo?: Date | null
 }) => {
   const { status, searchQuery, dateFrom, dateTo } = params
+  const normalizedSearchQuery = searchQuery?.trim() || ''
+  const dateFromKey = dateFrom?.toISOString() || null
+  const dateToKey = dateTo?.toISOString() || null
 
   const query = useInfiniteQuery({
-    queryKey: ['orders', status, searchQuery, dateFrom, dateTo],
+    queryKey: ['orders', status, normalizedSearchQuery, dateFromKey, dateToKey],
     queryFn: async ({ pageParam = 1 }) => {
       return await OrderRemoteAPI.getOrders({
         status,
-        searchQuery,
+        searchQuery: normalizedSearchQuery,
         dateFrom,
         dateTo,
         page: pageParam as number,
@@ -26,7 +29,7 @@ export const useOrders = (params: {
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       const meta = lastPage.meta as any
-      return meta?.hasNextPage ? (meta.page as number) + 1 : undefined
+      return meta?.hasNextPage ? Number(meta.page || 1) + 1 : undefined
     },
     networkMode: 'always',
   })

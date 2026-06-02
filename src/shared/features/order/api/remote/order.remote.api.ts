@@ -1,9 +1,8 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { OrderStatus } from '@/shared/lib/database'
-import { IBaseResponse } from '@/shared/types/api'
-import ordersJson from './order.mock.json'
-
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
+import { IBaseResponse, PagedResponse } from '@/shared/types/api'
+import { endOfDay, startOfDay } from '@/shared/utils'
 import { IOrder } from '../../types'
 
 // ─── POS Atomic Checkout ──────────────────────────────────────────────────────
@@ -87,7 +86,28 @@ export interface OrderRaw {
   updated_at: number
 }
 
-const MOCK_ORDERS = ordersJson as OrderRaw[]
+interface OrderListApiItem {
+  id: string
+  shiftId: string
+  staffId: string
+  status: OrderStatus
+  subtotal: number
+  discount: number
+  voucherCode?: string | null
+  voucherDiscount: number
+  total: number
+  totalTax: number
+  note?: string | null
+  refundReason?: string | null
+  originalOrderId?: string | null
+  customerTaxInfo: TaxInfo | null
+  itemsSnapshot?: ItemSnapshot[] | null
+  paymentsSnapshot?: PaymentSnapshot[] | null
+  isDeleted: boolean
+  canReturn?: boolean
+  createdAt: string | number | Date
+  updatedAt: string | number | Date
+}
 
 /**
  * Cấu trúc Request Params cho việc lấy danh sách đơn hàng từ xa.
@@ -190,6 +210,29 @@ export interface OrderSyncChanges {
   }
 }
 
+const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
+  id: order.id,
+  shiftId: order.shiftId,
+  staffId: order.staffId,
+  status: order.status,
+  subtotal: order.subtotal ?? 0,
+  discount: order.discount ?? 0,
+  voucherCode: order.voucherCode ?? undefined,
+  voucherDiscount: order.voucherDiscount ?? 0,
+  total: order.total ?? 0,
+  totalTax: order.totalTax ?? 0,
+  note: order.note ?? undefined,
+  refundReason: order.refundReason ?? undefined,
+  originalOrderId: order.originalOrderId ?? undefined,
+  customerTaxInfo: order.customerTaxInfo ?? null,
+  itemsSnapshot: order.itemsSnapshot ?? [],
+  paymentsSnapshot: order.paymentsSnapshot ?? [],
+  isDeleted: order.isDeleted ?? false,
+  canReturn: order.canReturn ?? order.status === OrderStatus.COMPLETED,
+  createdAt: new Date(order.createdAt),
+  updatedAt: new Date(order.updatedAt),
+})
+
 /**
  * OrderRemoteAPI - Xử lý đồng bộ dữ liệu Đơn hàng với Server
  */
@@ -214,66 +257,65 @@ export const OrderRemoteAPI = {
   },
 
   /**
-   * Lấy danh sách đơn hàng (MOCK - Sẽ thay bằng API thật sau)
+   * Lấy danh sách đơn hàng từ server.
    */
   getOrders: async (params: GetRemoteOrdersParams): Promise<IBaseResponse<IOrder[]>> => {
-    const { status, searchQuery, page = 1, limit = 20 } = params
+    const { status, searchQuery, dateFrom, dateTo, page = 1, limit = 20 } = params
+    const queryParams: Record<string, string | number> = { page, limit }
+    const normalizedSearchQuery = searchQuery?.trim()
 
-    // Giả lập độ trễ mạng
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Filter theo status
-    let filtered = MOCK_ORDERS
     if (status) {
-      filtered = filtered.filter((o) => o.status === status)
+      queryParams.status = status
     }
 
-    // Filter theo searchQuery (ID)
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter((o) => o.id.toLowerCase().includes(query))
+    if (normalizedSearchQuery) {
+      queryParams.q = normalizedSearchQuery
     }
 
-    const total = filtered.length
-    const totalPages = Math.ceil(total / limit)
-    const offset = (page - 1) * limit
-    const paginatedData = filtered.slice(offset, offset + limit).map((o) => ({
-      id: o.id,
-      shiftId: o.shift_id,
-      staffId: o.staff_id,
-      status: o.status,
-      subtotal: o.subtotal,
-      discount: o.discount,
-      voucherCode: o.voucher_code,
-      voucherDiscount: o.voucher_discount,
-      total: o.total,
-      totalTax: o.total_tax,
-      note: o.note,
-      refundReason: o.refund_reason,
-      originalOrderId: o.original_order_id,
-      customerTaxInfo: o.customer_tax_info,
-      itemsSnapshot: o.items_snapshot,
-      paymentsSnapshot: o.payments_snapshot,
-      isDeleted: o.is_deleted,
-      canReturn: o.status === OrderStatus.COMPLETED,
-      createdAt: new Date(o.created_at),
-      updatedAt: new Date(o.updated_at),
-    }))
+    if (dateFrom) {
+      queryParams.date_from = startOfDay(dateFrom).toISOString()
+    }
 
-    return {
-      success: true,
-      status_code: 200,
-      message: 'Lấy danh sách đơn hàng thành công',
-      data: paginatedData,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        timestamp: Date.now(),
-      },
-      error: null,
+    if (dateTo) {
+      queryParams.date_to = endOfDay(dateTo).toISOString()
+    }
+
+    try {
+      const response = await AxiosService.getInstance().get<PagedResponse<OrderListApiItem>>(
+        '/v1/pos/orders',
+        { params: queryParams },
+      )
+      const { items = [], totalCount = 0 } = response.data
+      const currentPage = response.data.page || page
+      const pageSize = response.data.pageSize || limit
+      const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0
+
+      return {
+        success: true,
+        status_code: 200,
+        message: 'Lấy danh sách đơn hàng thành công',
+        data: items.map(mapOrderListApiItemToIOrder),
+        meta: {
+          total: totalCount,
+          page: currentPage,
+          limit: pageSize,
+          totalPages,
+          hasNextPage: currentPage < totalPages,
+          timestamp: Date.now(),
+        },
+        error: null,
+      }
+    } catch (error: any) {
+      const status = error?.response?.status
+      const data = error?.response?.data
+      const code = typeof data?.error === 'string' ? data.error : undefined
+      const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
+
+      throw new OrderApiError(code || error?.message || 'order.list_failed', {
+        code,
+        status,
+        traceId,
+      })
     }
   },
 
