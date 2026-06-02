@@ -88,6 +88,8 @@ export interface PaymentStrategy {
   label: string
   /** Icon hiển thị cạnh tên nút bấm */
   icon: LucideIcon
+  /** Thứ tự hiển thị trên giao diện */
+  displayOrder?: number
   /**
    * Hàm kiểm tra xem phương thức này có được phép dùng không.
    * VD: Thanh toán QR trả về false nếu đang mất mạng (isOffline = true).

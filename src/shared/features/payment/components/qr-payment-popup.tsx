@@ -10,7 +10,7 @@ import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle, Clock3, QrCode } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
-import { Text, View } from 'react-native'
+import { Image, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
 import { getQrPaymentStatusLabel, qrPaymentMachine } from '../machines/qr-payment.machine'
@@ -37,6 +37,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     ref,
   ) => {
     const [visible, setVisible] = useState(false)
+    const [timeLeft, setTimeLeft] = useState('05:00')
     const { tenantConfig } = useAppContext()
 
     const subtotal = calculateSubtotal(items)
@@ -58,6 +59,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
     const machineState = useSelector(actorRef, (s) => s.value)
     const qrContent = useSelector(actorRef, (s) => s.context.qrContent)
+    const expiresAt = useSelector(actorRef, (s) => s.context.expiresAt)
     const billNumber = useSelector(actorRef, (s) => s.context.billNumber)
     const error = useSelector(actorRef, (s) => s.context.error)
     const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
@@ -113,7 +115,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     }, [visible, isSuccess, items, subtotal, discount, tax, total])
 
     useEffect(() => {
-      if (!isSuccess) return
+      if (!isSuccess || !visible) return
 
       ViceService.paymentSuccess({ subtotal, discount, tax, total, customerPaid: total, change: 0 })
 
@@ -135,7 +137,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       }, 1500)
 
       return () => clearTimeout(timer)
-    }, [actorRef, isSuccess, subtotal, discount, tax, total, onSuccess])
+    }, [actorRef, isSuccess, visible, subtotal, discount, tax, total, onSuccess])
 
     useEffect(() => {
       if (isCancelled) {
@@ -143,6 +145,39 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         return () => clearTimeout(timer)
       }
     }, [isCancelled])
+
+    useEffect(() => {
+      if (!visible || !qrContent) {
+        setTimeLeft('05:00')
+        return
+      }
+
+      const updateTimer = () => {
+        if (!expiresAt) {
+          setTimeLeft('05:00')
+          return
+        }
+
+        const expiryTime = new Date(expiresAt).getTime()
+        const now = Date.now()
+        const diffMs = expiryTime - now
+
+        if (diffMs <= 0) {
+          setTimeLeft('00:00')
+          return
+        }
+
+        const totalSecs = Math.floor(diffMs / 1000)
+        const mins = Math.floor(totalSecs / 60)
+        const secs = totalSecs % 60
+        const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        setTimeLeft(formatted)
+      }
+
+      updateTimer()
+      const interval = setInterval(updateTimer, 1000)
+      return () => clearInterval(interval)
+    }, [visible, qrContent, expiresAt])
 
     useImperativeHandle(
       ref,
@@ -265,17 +300,26 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       }
 
       if (qrContent) {
+        const isUrl = qrContent.startsWith('http')
         return (
           <View className="items-center justify-center px-4 py-6">
             <View className="rounded-[22px] border border-surface-200 bg-white p-4 shadow-sm">
-              <QRCode value={qrContent} size={240} color="black" backgroundColor="white" />
+              {isUrl ? (
+                <Image
+                  source={{ uri: qrContent }}
+                  style={{ width: 240, height: 240 }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <QRCode value={qrContent} size={240} color="black" backgroundColor="white" />
+              )}
             </View>
             <Text className="mt-4 text-center text-lg font-bold text-neutral-800">
               Đang chờ thanh toán QR
             </Text>
             <View className="mt-3 flex-row items-center gap-2 rounded-full border border-orange-300 bg-white px-4 py-2">
               <Clock3 size={18} color="#fb8c00" />
-              <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">05:00</Text>
+              <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">{timeLeft}</Text>
             </View>
             <View
               className={`mt-3 flex-row items-center gap-2 rounded-full border px-4 py-2 ${statusPillClassName}`}

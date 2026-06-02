@@ -142,7 +142,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
     // Khi machine đến success → gọi onSuccess và đóng popup
     useEffect(() => {
-      if (!isSuccess) return
+      if (!isSuccess || !visible) return
 
       const paid = Number(cashTendered)
       const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
@@ -167,7 +167,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         isOnline: savedOrder?.source === 'online',
       })
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSuccess])
+    }, [isSuccess, visible])
 
     useImperativeHandle(ref, () => ({
       open: () => {

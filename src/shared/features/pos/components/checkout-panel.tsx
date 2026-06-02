@@ -32,34 +32,48 @@ export default function CheckoutPanel() {
 
   // Lọc và ánh xạ động các nút thanh toán từ XState context.paymentMethods
   const activeStrategies = useMemo(() => {
+    let list = []
     if (!paymentMethods || paymentMethods.length === 0) {
-      return PAYMENT_REGISTRY
+      list = [...PAYMENT_REGISTRY]
+    } else {
+      list = paymentMethods
+        .filter((method) => method.enabled)
+        .map((method) => {
+          // Ánh xạ API code -> PaymentMethod enum
+          let mappedType = PaymentMethod.CASH
+          if (method.code === 'qr_bidv') {
+            mappedType = PaymentMethod.BANK_TRANSFER
+          } else if (method.code === 'card_bidv') {
+            mappedType = PaymentMethod.CARD
+          }
+
+          // Tìm strategy tương ứng trong registry gốc
+          const originalStrategy = PAYMENT_REGISTRY.find((s) => s.type === mappedType)
+          if (!originalStrategy) return null
+
+          // Trả về strategy được tùy chỉnh nhãn và cấu hình hiển thị động
+          return {
+            ...originalStrategy,
+            label: method.name, // Đổi tên nút theo cấu hình API động!
+            displayOrder: method.displayOrder || 99,
+          }
+        })
+        .filter((s): s is NonNullable<typeof s> => s !== null)
     }
 
-    return paymentMethods
-      .filter((method) => method.enabled)
-      .map((method) => {
-        // Ánh xạ API code -> PaymentMethod enum
-        let mappedType = PaymentMethod.CASH
-        if (method.code === 'qr_bidv') {
-          mappedType = PaymentMethod.BANK_TRANSFER
-        } else if (method.code === 'card_bidv') {
-          mappedType = PaymentMethod.CARD
-        }
+    // Luôn luôn thêm MixStrategy nếu chưa có trong danh sách
+    const hasMix = list.some((s) => s.type === PaymentMethod.MIX)
+    if (!hasMix) {
+      const mixStrategy = PAYMENT_REGISTRY.find((s) => s.type === PaymentMethod.MIX)
+      if (mixStrategy) {
+        list.push({
+          ...mixStrategy,
+          displayOrder: 100, // Đặt ở cuối
+        })
+      }
+    }
 
-        // Tìm strategy tương ứng trong registry gốc
-        const originalStrategy = PAYMENT_REGISTRY.find((s) => s.type === mappedType)
-        if (!originalStrategy) return null
-
-        // Trả về strategy được tùy chỉnh nhãn và cấu hình hiển thị động
-        return {
-          ...originalStrategy,
-          label: method.name, // Đổi tên nút theo cấu hình API động!
-          displayOrder: method.displayOrder || 99,
-        }
-      })
-      .filter((s): s is NonNullable<typeof s> => s !== null)
-      .sort((a, b) => a.displayOrder - b.displayOrder)
+    return list.sort((a, b) => (a.displayOrder || 99) - (b.displayOrder || 99))
   }, [paymentMethods])
 
   // Phân bổ tối đa 2 nút trên 1 dòng để tự động full width nút thứ 3

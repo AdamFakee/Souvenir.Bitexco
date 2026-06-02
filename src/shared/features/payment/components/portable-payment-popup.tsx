@@ -169,7 +169,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     )
 
     useEffect(() => {
-      if (!isSuccess) return
+      if (!isSuccess || !visible) return
 
       ViceService.paymentSuccess({ subtotal, discount, tax, total, customerPaid: total, change: 0 })
 
@@ -189,6 +189,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
       return () => clearTimeout(timer)
     }, [
       isSuccess,
+      visible,
       subtotal,
       discount,
       tax,

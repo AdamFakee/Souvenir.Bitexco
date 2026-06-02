@@ -4,13 +4,24 @@ import {
   PosCheckoutRequest,
   PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
-import { PaymentRemoteAPI } from '@/shared/features/payment/api/remote/payment.remote.api'
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PaymentMethod } from '@/shared/lib/database'
-import { PrinterService } from '@/shared/services'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import { PaymentResult, PortablePaymentCommandResult } from '../types'
-import { PortablePaymentService } from '../utils/portable-payment.service'
+
+import {
+  authorizePaymentActor,
+  cancelPaymentActor,
+  capturePaymentActor,
+  cardCaptureActor,
+  cardCaptureManualActor,
+  connectPosActor,
+  isCommunicationLossError,
+  processPaymentActor,
+  sendCardSaleCommandActor,
+  verifyLastTransactionActor,
+} from '../flows/card-collection.actors'
+import { printReceiptActor } from '../flows/print.actors'
 
 export interface PortablePaymentContext {
   /** Input Data */
@@ -66,35 +77,6 @@ export type PortablePaymentInput = {
 
 const MAX_RETRIES = 3
 const PORTABLE_CMD_TIMEOUT_MS = 5 * 60 * 1000
-
-/**
- * Kiểm tra xem lỗi có phải do mất kết nối socket hay timeout giữa chừng không
- */
-function isCommunicationLossError(error: any): boolean {
-  const msg = String(error?.message || '').toUpperCase()
-  return (
-    msg.includes('TIMEOUT') ||
-    msg.includes('SOCKET') ||
-    msg.includes('DISCONNECT') ||
-    msg.includes('CONNECTION_LOST') ||
-    msg.includes('NETWORK_ERROR') ||
-    msg.includes('LOST') ||
-    msg.includes('SIGNAL')
-  )
-}
-
-/**
- * Kiểm tra kết quả giao dịch thanh toán thành công hay không
- */
-function checkSuccessPayment(parsed: PortablePaymentCommandResult | null | undefined): boolean {
-  if (!parsed) return false
-  return (
-    parsed.status === 'DONE' &&
-    parsed.transInfo?.returnCode === '00' &&
-    (parsed.statusCode === 0 || parsed.statusCode === '0') &&
-    parsed.statusText === 'DONE'
-  )
-}
 
 export const portablePaymentMachine = setup({
   types: {
@@ -177,205 +159,57 @@ export const portablePaymentMachine = setup({
      * Bước 2: Chuyển Payment sang PROCESSING
      * POST /v1/payments/{id}/transitions { action: "process", expectedVersion }
      */
-    processPayment: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { paymentId: string; paymentVersion: number }
-      }): Promise<number> => {
-        const res = await PaymentRemoteAPI.transitionPayment(input.paymentId, {
-          action: 'process',
-          expectedVersion: input.paymentVersion,
-        })
-        console.log('[PortablePayment] Payment → PROCESSING, version:', res.version)
-        return res.version
-      },
-    ),
+    processPayment: processPaymentActor,
 
     /**
      * Bước 3a: Kết nối Socket tới máy POS EDC
      */
-    connectPOS: fromPromise(async () => {
-      const resStr = await PortablePaymentService.connect()
-      const parsed = JSON.parse(resStr)
-      console.log('[PortablePayment] Connect result:', parsed)
-      if (parsed?.statusCode !== 0) {
-        throw new Error(parsed?.statusText || 'Xảy ra lỗi khi kết nối tới máy POS thanh toán')
-      }
-      return resStr
-    }),
+    connectPOS: connectPosActor,
 
     /**
      * Bước 3b: Gửi lệnh SALE → yêu cầu khách quẹt/chạm thẻ trên EDC
      * EDC xử lý → trả về authCode, RRN, maskedPan
      */
-    sendCommand: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { amount: number; paymentId: string }
-      }): Promise<PortablePaymentCommandResult> => {
-        const cmd = JSON.stringify({
-          command: 'sale',
-          params: {
-            amount: input.amount,
-            currency: '704',
-            merTransId: input.paymentId, // Dùng paymentId làm merTransId để đối soát
-          },
-        })
-        const resStr = await PortablePaymentService.executeCommand(cmd)
-        const parsed = JSON.parse(resStr) as PortablePaymentCommandResult
-        console.log('[PortablePayment] EDC command result:', parsed)
-        if (!checkSuccessPayment(parsed)) {
-          throw new Error(parsed?.message || 'Giao dịch thanh toán thất bại')
-        }
-        return parsed
-      },
-    ),
+    sendCommand: sendCardSaleCommandActor,
 
     /**
      * Bước 3c (fallback): Đối soát giao dịch cuối nếu bị mất tín hiệu
      * POST last_trans → kiểm tra merTransId khớp paymentId
      */
-    verifyLastTransaction: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { paymentId: string }
-      }): Promise<PortablePaymentCommandResult> => {
-        const cmd = JSON.stringify({ command: 'last_trans', params: {} })
-        const resStr = await PortablePaymentService.executeCommand(cmd)
-        const parsed = JSON.parse(resStr) as PortablePaymentCommandResult
-        console.log('[PortablePayment] last_trans result:', parsed)
-
-        const isSuccess = checkSuccessPayment(parsed) && parsed?.merTransId === input.paymentId
-        if (!isSuccess) {
-          throw new Error('Đối soát: Giao dịch cuối không khớp hoặc thất bại!')
-        }
-        return parsed
-      },
-    ),
+    verifyLastTransaction: verifyLastTransactionActor,
 
     /**
      * Bước 4: Ghi nhận thông tin thẻ từ EDC lên server
      * POST /v1/payments/{id}/card-capture { terminalId, merchantId, maskedPan, authCode, rrn }
      */
-    cardCapture: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { paymentId: string; edcResult: PortablePaymentCommandResult }
-      }): Promise<void> => {
-        const transInfo = input.edcResult.transInfo
-        await PaymentRemoteAPI.cardCapture(input.paymentId, {
-          terminalId: transInfo?.tid || 'unknown',
-          merchantId: transInfo?.mid || 'unknown',
-          maskedPan: transInfo?.cardNo || 'unknown',
-          authCode: transInfo?.approvalCode || 'unknown',
-          rrn: transInfo?.refNo || 'unknown',
-        })
-        console.log('[PortablePayment] Card capture OK')
-      },
-    ),
+    cardCapture: cardCaptureActor,
 
     /**
      * Ghi nhận thông tin thẻ nhập tay từ máy POS di động khi thiết bị EDC mất kết nối/cấu hình lỗi
      */
-    cardCaptureManual: fromPromise(
-      async ({
-        input,
-      }: {
-        input: {
-          paymentId: string
-          manualDetails: {
-            terminalId?: string
-            merchantId?: string
-            referenceNumber?: string
-            approvalCode?: string
-          }
-        }
-      }): Promise<void> => {
-        await PaymentRemoteAPI.cardCapture(input.paymentId, {
-          terminalId: input.manualDetails?.terminalId || 'unknown',
-          merchantId: input.manualDetails?.merchantId || 'unknown',
-          maskedPan: 'unknown',
-          authCode: input.manualDetails?.approvalCode || 'unknown',
-          rrn: input.manualDetails?.referenceNumber || 'unknown',
-        })
-        console.log('[PortablePayment] Manual card capture OK')
-      },
-    ),
+    cardCaptureManual: cardCaptureManualActor,
 
     /**
      * Bước 5: Chuyển Payment sang AUTHORIZED
      * POST /v1/payments/{id}/transitions { action: "authorize", expectedVersion }
      */
-    authorizePayment: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { paymentId: string; paymentVersion: number }
-      }): Promise<number> => {
-        const res = await PaymentRemoteAPI.transitionPayment(input.paymentId, {
-          action: 'authorize',
-          expectedVersion: input.paymentVersion,
-        })
-        console.log('[PortablePayment] Payment → AUTHORIZED, version:', res.version)
-        return res.version
-      },
-    ),
+    authorizePayment: authorizePaymentActor,
 
     /**
      * Bước 6: Capture — hoàn tất giao dịch
      * POST /v1/payments/{id}/transitions { action: "capture", expectedVersion }
      */
-    capturePayment: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { paymentId: string; paymentVersion: number }
-      }): Promise<number> => {
-        const res = await PaymentRemoteAPI.transitionPayment(input.paymentId, {
-          action: 'capture',
-          expectedVersion: input.paymentVersion,
-        })
-        console.log('[PortablePayment] Payment → CAPTURED, version:', res.version)
-        return res.version
-      },
-    ),
+    capturePayment: capturePaymentActor,
 
     /**
      * Hủy giao dịch nếu người dùng cancel (void payment)
      */
-    cancelPayment: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { paymentId: string | null; paymentVersion: number }
-      }): Promise<void> => {
-        if (!input.paymentId) return
-        try {
-          await PaymentRemoteAPI.transitionPayment(input.paymentId, {
-            action: 'void',
-            expectedVersion: input.paymentVersion,
-            reason: 'Người dùng hủy giao dịch',
-          })
-        } catch (err) {
-          console.warn('[PortablePayment] Void payment error (non-critical):', err)
-        }
-      },
-    ),
+    cancelPayment: cancelPaymentActor,
 
     /**
      * In hóa đơn bán hàng
      */
-    printReceipt: fromPromise(async ({ input }: { input: { printRef?: React.RefObject<any> } }) => {
-      if (!input.printRef?.current) {
-        throw new Error('Không tìm thấy component in hóa đơn')
-      }
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      await PrinterService.printComponent(input.printRef)
-    }),
+    printReceipt: printReceiptActor,
   },
   guards: {
     canRetry: ({ context }) => context.retryCount < MAX_RETRIES,

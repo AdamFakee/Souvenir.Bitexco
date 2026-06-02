@@ -1,6 +1,5 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { OrderStatus } from '@/shared/lib/database'
-import { PushChangesParams } from '@/shared/lib/database/sync'
 import { IBaseResponse } from '@/shared/types/api'
 import ordersJson from './order.mock.json'
 
@@ -235,6 +234,20 @@ export const OrderRemoteAPI = {
       data: null,
       meta: null,
       error: null,
+    }
+  },
+
+  /**
+   * Hủy đơn hàng (Remote API)
+   */
+  cancelOrder: async (orderId: string): Promise<{ success: boolean }> => {
+    try {
+      const res = await AxiosService.getInstance().post<{ success: boolean }>(
+        `/v1/pos/orders/${orderId}/cancel`,
+      )
+      return res.data
+    } catch (error) {
+      throw error
     }
   },
 

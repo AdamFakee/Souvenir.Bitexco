@@ -86,16 +86,7 @@ export const PaymentRemoteAPI = {
       )
       return res.data
     } catch (error) {
-      console.warn('generateQrCode API failed, falling back to mock:', error)
-      // Fallback to mock in case server lacks this endpoint
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      return {
-        id: `qr_${paymentId}`,
-        paymentId,
-        qrUrl: `https://payment.mock/qr/${paymentId}?amount=${params.amount}`,
-        qrPayload: `00020101021238580010A00000072701240006970415011012345678900208QRPAYMENT53037045406${params.amount}5802VN5909CONGTYABC6005HANOI62190815Thanh toan don6304`,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-      }
+      throw error
     }
   },
 
@@ -107,19 +98,7 @@ export const PaymentRemoteAPI = {
       const res = await AxiosService.getInstance().get<PaymentResponse>(`/v1/payments/${paymentId}`)
       return res.data
     } catch (error) {
-      console.warn('getPaymentStatus API failed, falling back to mock:', error)
-      // Fallback to mock: auto capture after a delay
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      return {
-        id: paymentId,
-        code: `PAY_${paymentId}`,
-        orderId: 'mock_order_id',
-        method: 'qr_bidv',
-        amount: 100000,
-        currency: 'VND',
-        state: Math.random() > 0.4 ? 'CAPTURED' : 'INITIATED',
-        version: 1,
-      }
+      throw error
     }
   },
 
@@ -138,25 +117,7 @@ export const PaymentRemoteAPI = {
       )
       return res.data
     } catch (error) {
-      console.warn(`[PaymentRemoteAPI] transitionPayment(${params.action}) fallback mock:`, error)
-      await new Promise((resolve) => setTimeout(resolve, 200))
-      const stateMap: Record<string, string> = {
-        process: 'PROCESSING',
-        authorize: 'AUTHORIZED',
-        capture: 'CAPTURED',
-        fail: 'FAILED',
-        void: 'VOIDED',
-      }
-      return {
-        id: paymentId,
-        code: `PAY_${paymentId}`,
-        orderId: 'mock_order_id',
-        method: 'card_bidv',
-        amount: 0,
-        currency: 'VND',
-        state: stateMap[params.action] ?? 'UNKNOWN',
-        version: params.expectedVersion + 1,
-      }
+      throw error
     }
   },
 
@@ -181,15 +142,7 @@ export const PaymentRemoteAPI = {
       )
       return res.data
     } catch (error) {
-      console.warn('[PaymentRemoteAPI] cardCapture fallback mock:', error)
-      await new Promise((resolve) => setTimeout(resolve, 200))
-      return {
-        id: `card_${paymentId}`,
-        paymentId,
-        ...params,
-        responseCode: '00',
-        capturedAt: new Date().toISOString(),
-      }
+      throw error
     }
   },
 }

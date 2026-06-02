@@ -29,6 +29,7 @@ export interface QRPaymentContext {
   orderId: string | null
   paymentId: string | null
   qrContent: string | null
+  expiresAt: string | null
   billNumber: string | null
   error: string | null
   retryCount: number
@@ -217,7 +218,9 @@ export const qrPaymentMachine = setup({
       }
     }),
     assignQRData: assign({
-      qrContent: ({ event }) => (event as any).output?.qrPayload ?? null,
+      qrContent: ({ event }) =>
+        (event as any).output?.qrPayload ?? (event as any).output?.qrUrl ?? null,
+      expiresAt: ({ event }) => (event as any).output?.expiresAt ?? null,
     }),
     recordError: assign({
       error: ({ event }) => {
@@ -251,6 +254,7 @@ export const qrPaymentMachine = setup({
         orderId: null,
         paymentId: null,
         qrContent: null,
+        expiresAt: null,
         billNumber: null,
         error: null,
         retryCount: 0,
@@ -319,6 +323,7 @@ export const qrPaymentMachine = setup({
     orderId: null,
     paymentId: null,
     qrContent: null,
+    expiresAt: null,
     billNumber: null,
     error: null,
     retryCount: 0,

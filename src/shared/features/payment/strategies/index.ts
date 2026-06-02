@@ -1,3 +1,5 @@
 export * from './registry'
 export * from './cash.strategy'
 export * from './qr.strategy'
+export * from './portable-card.strategy'
+export * from './mix.strategy'

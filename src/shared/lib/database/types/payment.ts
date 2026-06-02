@@ -10,6 +10,8 @@ export enum PaymentMethod {
   CARD = 'CARD',
   /** Chuyển khoản ngân hàng (Quét mã QR) */
   BANK_TRANSFER = 'BANK_TRANSFER',
+  /** Thanh toán kết hợp (Tiền mặt + Thẻ/QR) */
+  MIX = 'MIX',
 }
 
 /**
