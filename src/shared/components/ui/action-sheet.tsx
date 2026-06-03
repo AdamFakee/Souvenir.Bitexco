@@ -2,6 +2,7 @@ import { cn } from '@/shared/utils'
 import { X } from 'lucide-react-native'
 import React, { useImperativeHandle, useState } from 'react'
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { GlobalToast } from './global-toast'
 import { useKeyboardHandler } from 'react-native-keyboard-controller'
 import Animated, {
   FadeIn,
@@ -176,6 +177,7 @@ export const ActionSheet = ({
           <View className="w-full">{children}</View>
         </Animated.View>
       </View>
+      <GlobalToast />
     </Modal>
   )
 }

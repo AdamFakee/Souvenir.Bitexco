@@ -2,6 +2,7 @@ import { cn } from '@/shared/utils'
 import React from 'react'
 import { Modal, Pressable, View } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
+import { GlobalToast } from './global-toast'
 
 export interface ModalBaseProps {
   visible: boolean
@@ -51,6 +52,7 @@ export const ModalBase = ({
           {children}
         </Animated.View>
       </View>
+      <GlobalToast />
     </Modal>
   )
 }

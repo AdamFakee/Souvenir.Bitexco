@@ -390,7 +390,7 @@ export const OrderRemoteAPI = {
       const response = await AxiosService.getInstance().post<RefundOrderResult>(
         `/v1/pos/orders/${orderId}/refund`,
         {
-          idempotencyKey,
+          idempotency_key: idempotencyKey,
           reason,
           shift_id: shiftId,
           staff_id: staffId,

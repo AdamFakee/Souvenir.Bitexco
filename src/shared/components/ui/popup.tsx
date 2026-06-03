@@ -5,6 +5,7 @@ import React, { useImperativeHandle, useState } from 'react'
 import { Modal, Text, TouchableWithoutFeedback, View } from 'react-native'
 import Animated, { FadeIn, FadeOut, Keyframe, ZoomIn, ZoomOut } from 'react-native-reanimated'
 import { IconButton } from './icon-button'
+import { GlobalToast } from './global-toast'
 
 export interface PopupRef {
   open: () => void
@@ -209,6 +210,7 @@ export const Popup = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
+      <GlobalToast />
     </Modal>
   )
 }

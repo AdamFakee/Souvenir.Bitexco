@@ -1,6 +1,7 @@
 import React from 'react'
 import { Modal, View, Text } from 'react-native'
 import { LoadingIndicator } from './loading'
+import { GlobalToast } from './global-toast'
 
 interface FullScreenLoadingProps {
   /** Whether the loading overlay is visible */
@@ -18,6 +19,7 @@ export const FullScreenLoading = ({ visible, message }: FullScreenLoadingProps) 
           {message && <Text className="text-on-surface mt-4 text-base font-medium">{message}</Text>}
         </View>
       </View>
+      <GlobalToast />
     </Modal>
   )
 }

@@ -3,6 +3,7 @@ import { getVietnameseMonth } from '@/shared/utils'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import React, { useImperativeHandle, useState } from 'react'
 import { Dimensions, Modal, Pressable, Text, View } from 'react-native'
+import { GlobalToast } from './global-toast'
 
 /**
  * Đại diện cho vị trí và kích thước của component kích hoạt (trigger)
@@ -242,6 +243,7 @@ export function CalendarPopover({
           </View>
         </View>
       </Pressable>
+      <GlobalToast />
     </Modal>
   )
 }
