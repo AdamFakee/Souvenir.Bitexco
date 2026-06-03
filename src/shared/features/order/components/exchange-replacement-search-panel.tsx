@@ -1,5 +1,5 @@
 import { EmptyState, LoadMore, SearchInput, Shimmer } from '@/shared/components/ui'
-import { useProductSearch, UnifiedProduct } from '@/shared/features/pos/hooks/use-product-search'
+import { UnifiedProduct, useProductSearch } from '@/shared/features/pos/hooks/use-product-search'
 import { useConnectionStore } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { SearchX } from 'lucide-react-native'
@@ -44,7 +44,6 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
         <Text className="text-xl font-black uppercase tracking-widest text-surface-on">
           Hàng đổi mới
         </Text>
-        <Text className="text-sm font-black uppercase text-muted">Có hỗ trợ quét mã</Text>
       </View>
 
       <View className="mt-4">

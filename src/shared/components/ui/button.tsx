@@ -17,8 +17,8 @@ interface ButtonProps extends PressableProps {
 
 const variantStyles = {
   primary: 'bg-primary border-primary',
-  secondary: 'bg-secondary-container border-secondary-container',
-  outline: 'bg-white border-outline',
+  secondary: 'bg-secondary-container border-primary',
+  outline: 'bg-white border-primary',
   error: 'bg-error/10 border-error/30',
 }
 
@@ -49,7 +49,7 @@ export const Button = ({
         ? COLORS.secondary.onContainer
         : variant === 'error'
           ? COLORS.error.default
-          : COLORS.neutral[500] // #5b5b5c
+          : COLORS.primary.default
 
   return (
     <Pressable
@@ -94,7 +94,7 @@ export const Button = ({
                   ? 'text-secondary-on-container'
                   : variant === 'error'
                     ? 'text-error'
-                    : 'text-neutral-500', // #5b5b5c
+                    : 'text-primary', // #5b5b5c
               textClassName,
             )}
           >

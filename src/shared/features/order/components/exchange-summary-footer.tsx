@@ -71,7 +71,7 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
         )}
 
         {differenceAmount < 0 && (
-          <Text className="rounded-2xl bg-error-container px-5 py-3 text-sm font-black text-error">
+          <Text className="rounded-2xl bg-error-container px-5 py-3 text-xl font-black text-error">
             Giá trị hàng mới phải lớn hơn hoặc bằng giá trị hàng trả.
           </Text>
         )}

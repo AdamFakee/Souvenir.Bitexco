@@ -1,8 +1,8 @@
 import {
-  Button,
   CartIcon,
   Container,
   DebtIcon,
+  IconButton,
   LogoSkydeck,
   SettingIcon,
   WorkingIcon,
@@ -16,7 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw } from 'lucide-react-native'
 import React, { useEffect, useMemo, useRef } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type MenuItem = {
@@ -101,40 +101,49 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
 
       {/* Sidebar Bottom Info */}
       <View className="gap-4 px-4 pb-2">
-        <View className="relative">
-          <Button
-            label="Note"
-            variant="primary"
-            leftIcon={ClipboardList}
-            onPress={() => handoverNotesModalRef.current?.open()}
-            className="h-16 w-full rounded-2xl border-white/20 bg-white/10"
-            textClassName="text-lg font-bold text-white font-manrope"
-          />
-          {pendingNotesCount > 0 && (
-            <View className="pointer-events-none absolute right-6 top-1/2 -mt-3 h-6 min-w-[24px] items-center justify-center rounded-full bg-error px-1.5 shadow-sm">
-              <Text className="text-xs font-black text-white">{pendingNotesCount}</Text>
-            </View>
-          )}
+        {/* Actions Row */}
+        <View className="flex-row items-center justify-between gap-3">
+          {/* Note Button */}
+          <View className="relative flex-1">
+            <IconButton
+              icon={ClipboardList}
+              variant="xl"
+              color={COLORS.surface[50]}
+              onPress={() => handoverNotesModalRef.current?.open()}
+              className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+            />
+            {pendingNotesCount > 0 && (
+              <View className="pointer-events-none absolute -right-1 -top-1 h-6 min-w-[24px] items-center justify-center rounded-full bg-error px-1.5 shadow-sm">
+                <Text className="text-xs font-black text-white">{pendingNotesCount}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Sync Button */}
+          <View className="flex-1">
+            <IconButton
+              icon={isSyncing ? undefined : RefreshCw}
+              variant="xl"
+              color={COLORS.surface[50]}
+              onPress={syncNow}
+              className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+              disabled={isSyncing}
+            >
+              {isSyncing && <ActivityIndicator size="small" color={COLORS.surface[50]} />}
+            </IconButton>
+          </View>
+
+          {/* Close Shift Button */}
+          <View className="flex-1">
+            <IconButton
+              icon={LogOut}
+              variant="xl"
+              color={COLORS.surface[50]}
+              onPress={onOpenCloseShift}
+              className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+            />
+          </View>
         </View>
-
-        <Button
-          label={isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
-          variant="primary"
-          onPress={syncNow}
-          loading={isSyncing}
-          leftIcon={RefreshCw}
-          className="h-14 w-full rounded-2xl border-white/10 bg-white/5"
-          textClassName="text-[16px] font-semibold text-white/95 font-manrope"
-        />
-
-        <Button
-          label="Kết ca"
-          variant="primary"
-          onPress={onOpenCloseShift}
-          leftIcon={LogOut}
-          className="h-14 w-full rounded-2xl border-white/10 bg-white/5"
-          textClassName="text-[16px] font-semibold text-white/95 font-manrope"
-        />
 
         <HandoverNotesModal ref={handoverNotesModalRef} />
 
@@ -144,10 +153,10 @@ const CustomSidebar = React.memo(({ onOpenCloseShift }: { onOpenCloseShift: () =
               <MaterialIcons name="person" size={24} color={COLORS.primary.on} />
             </View>
             <View className="flex-1">
-              <Text className="font-manrope text-sm font-bold text-white" numberOfLines={1}>
+              <Text className="font-manrope text-lg font-bold text-white" numberOfLines={1}>
                 {employee?.displayName || 'Nhân viên'}
               </Text>
-              <Text className="font-manrope text-xs font-medium text-white/60" numberOfLines={1}>
+              <Text className="font-manrope text-lg font-medium text-white/60" numberOfLines={1}>
                 {employee?.roles?.length ? `Role: ${employee.roles.join(', ')}` : 'Role: N/A'}
               </Text>
             </View>

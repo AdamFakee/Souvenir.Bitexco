@@ -326,9 +326,9 @@ export default function CheckoutPanel() {
                       label={method.label}
                       leftIcon={method.icon}
                       iconSize={32}
-                      variant="outline"
+                      variant="primary"
                       className="flex-1 rounded-[24px]"
-                      textClassName="text-xl font-black"
+                      // textClassName="text-xl font-black"
                       onPress={() => handleStartPayment(String(method.type))}
                       disabled={
                         cart.length === 0 ||

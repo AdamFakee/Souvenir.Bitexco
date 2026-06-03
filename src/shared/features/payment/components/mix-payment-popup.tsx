@@ -492,9 +492,6 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           <View className="flex-1 justify-between">
             <View className="gap-4">
               <Text className="text-xl font-bold text-surface-on">Nhập thông tin thẻ thủ công</Text>
-              <Text className="text-sm text-neutral-500">
-                Điền thông tin từ hóa đơn máy EDC để ghi nhận thanh toán.
-              </Text>
 
               <View className="mt-4 gap-4">
                 <ControlledInput
@@ -580,7 +577,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
               />
               <Button
                 label="Hủy giao dịch"
-                variant="outline"
+                variant="error"
                 disabled={isProcessing}
                 onPress={handleClose}
                 className="h-16"
@@ -689,12 +686,15 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                 <View className="h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                   <CreditCard size={48} color={COLORS.primary.default} />
                 </View>
-                <Text className="max-w-[280px] text-center text-xl text-neutral-500">
+                <Text
+                  className="max-w-[280px] text-center text-2xl text-neutral-500"
+                  numberOfLines={1}
+                >
                   Số tiền quẹt thẻ: {formatCurrency(nonCashAmount)}
                 </Text>
                 <View className="mt-4 w-full flex-row gap-2">{STAGES.map(renderStageBox)}</View>
                 {error && (
-                  <Text className="mt-2 max-w-[280px] text-center text-sm text-error">
+                  <Text className="mt-2 max-w-[280px] text-center text-xl text-error">
                     Lỗi: {error}
                   </Text>
                 )}
@@ -765,7 +765,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
             <Button
               label={isManualResolution ? 'Đóng sự cố' : 'Hủy giao dịch'}
-              variant="outline"
+              variant="error"
               disabled={!canCancel}
               onPress={handleClose}
               className={`h-16 w-full ${isManualResolution ? 'border-error/30 bg-error/5' : ''}`}

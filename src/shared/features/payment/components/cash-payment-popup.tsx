@@ -1,20 +1,20 @@
 import { ViceService } from '@/screens/vice-service'
 import { Button, ModalBase, Numpad } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { IOrder } from '@/shared/features/order/types'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
+import { IOrder } from '@/shared/features/order/types'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
 import { Banknote } from 'lucide-react-native'
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
+import type { CartItem } from '@/shared/features/pos'
 import { OrderStatus, PaymentMethod } from '@/shared/lib/database'
 import { cashPaymentMachine, SavedOrder } from '../machines/cash-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax, getCashSuggestions, roundCashAmount } from '../utils'
-import type { CartItem } from '@/shared/features/pos'
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -402,7 +402,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
             <Button
               label="Hủy giao dịch"
-              variant="outline"
+              variant="error"
               disabled={isProcessing}
               onPress={handleClose}
               className="h-16"

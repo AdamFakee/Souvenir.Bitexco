@@ -1,3 +1,4 @@
+import { LogoSkydeck } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { ActivityIndicator, View } from 'react-native'
 
@@ -8,9 +9,15 @@ import { ActivityIndicator, View } from 'react-native'
 export default function Index() {
   return (
     <View
-      style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' }}
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: COLORS.primary.default,
+      }}
     >
-      <ActivityIndicator size="large" color={COLORS.primary.default} />
+      <LogoSkydeck width={240} height={120} color="#ffffff" />
+      <ActivityIndicator size="large" color="#ffffff" style={{ marginTop: 24 }} />
     </View>
   )
 }

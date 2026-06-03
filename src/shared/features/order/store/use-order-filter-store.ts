@@ -16,7 +16,7 @@ interface OrderFilterState {
 
 export const useOrderFilterStore = create<OrderFilterState>((set) => ({
   searchQuery: '',
-  status: null,
+  status: OrderStatus.COMPLETED,
   dateFrom: null,
   dateTo: new Date(),
 

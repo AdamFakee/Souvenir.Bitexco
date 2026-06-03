@@ -1,6 +1,6 @@
 import { COLORS } from '@/shared/constants'
 import { Minus, Plus } from 'lucide-react-native'
-import React, { memo } from 'react'
+import React, { memo, useCallback, useEffect, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
 
 interface QuantityStepperProps {
@@ -22,6 +22,40 @@ export const QuantityStepper = memo(function QuantityStepper({
   editable = false,
   size = 'md',
 }: QuantityStepperProps) {
+  const [inputValue, setInputValue] = useState(String(value))
+
+  useEffect(() => {
+    setInputValue(String(value))
+  }, [value])
+
+  const handleChangeText = useCallback(
+    (text: string) => {
+      const cleaned = text.replace(/[^0-9]/g, '')
+      setInputValue(cleaned)
+
+      if (cleaned === '') {
+        return
+      }
+
+      const num = Number(cleaned)
+      if (isNaN(num)) return
+
+      const clampedNum = max !== undefined ? Math.min(num, max) : num
+
+      if (clampedNum >= min && clampedNum !== value) {
+        onChange(clampedNum)
+      }
+    },
+    [max, min, value, onChange],
+  )
+
+  const handleBlur = useCallback(() => {
+    const num = Number(inputValue)
+    if (inputValue === '' || isNaN(num) || num < min) {
+      setInputValue(String(value))
+    }
+  }, [inputValue, min, value])
+
   const buttonClassName =
     size === 'sm'
       ? 'h-10 w-10 items-center justify-center rounded-xl bg-surface-100'
@@ -43,11 +77,12 @@ export const QuantityStepper = memo(function QuantityStepper({
 
       {editable ? (
         <TextInput
-          value={value > 0 ? String(value) : ''}
-          onChangeText={(text) => onChange(Number(text || 0))}
+          value={inputValue}
+          onChangeText={handleChangeText}
+          onBlur={handleBlur}
+          onSubmitEditing={handleBlur}
           keyboardType="number-pad"
           editable={!disabled}
-          placeholder="0"
           className={inputClassName}
           placeholderTextColor={COLORS.muted}
         />

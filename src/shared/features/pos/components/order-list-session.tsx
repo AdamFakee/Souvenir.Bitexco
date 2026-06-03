@@ -1,10 +1,10 @@
-import { Button, IconButton } from '@/shared/components/ui'
+import { Button, IconButton, QuantityStepper } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { useSelector } from '@xstate/react'
-import { Minus, Plus, ShoppingBasket, Trash2, X } from 'lucide-react-native'
+import { Plus, ShoppingBasket, Trash2, X } from 'lucide-react-native'
 import React, { useMemo } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ActorRefFrom } from 'xstate'
@@ -159,44 +159,20 @@ export default function OrderListSession() {
                 <View className="w-44 items-center justify-center">
                   <Text className="text-lg font-bold text-surface-on">{item.product.taxRate}%</Text>
                 </View>
-                <View className="w-52 items-center">
-                  <View
-                    className="flex-row items-center self-center rounded-full border"
-                    style={{
-                      borderColor: COLORS.outline.default,
-                      backgroundColor: COLORS.surface[200],
-                    }}
-                  >
-                    <IconButton
-                      icon={Minus}
-                      size={22}
-                      color={COLORS.surface.on}
-                      className="p-4"
-                      onPress={() =>
-                        cartActor?.send({
-                          type: 'UPDATE_QUANTITY',
-                          productId: item.product.id,
-                          quantity: item.quantity - 1,
-                        })
-                      }
-                    />
-                    <Text className="w-20 text-center text-2xl font-black text-surface-on">
-                      {item.quantity}
-                    </Text>
-                    <IconButton
-                      icon={Plus}
-                      size={22}
-                      color={COLORS.surface.on}
-                      className="p-4"
-                      onPress={() =>
-                        cartActor?.send({
-                          type: 'UPDATE_QUANTITY',
-                          productId: item.product.id,
-                          quantity: item.quantity + 1,
-                        })
-                      }
-                    />
-                  </View>
+                <View className="w-52 items-center justify-center">
+                  <QuantityStepper
+                    value={item.quantity}
+                    onChange={(quantity) =>
+                      cartActor?.send({
+                        type: 'UPDATE_QUANTITY',
+                        productId: item.product.id,
+                        quantity,
+                      })
+                    }
+                    min={0}
+                    max={item.product.stock ?? undefined}
+                    editable={true}
+                  />
                 </View>
                 <Text className="w-44 pr-6 text-right text-xl font-black text-primary">
                   {formatCurrency(itemTotal)}

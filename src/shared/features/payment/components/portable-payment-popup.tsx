@@ -457,16 +457,16 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
                     disabled={!canRetry}
                     onPress={handleRetry}
                     className="h-16 rounded-[18px]"
-                    textClassName="text-[26px] font-semibold"
+                    // textClassName="text-[26px] font-semibold"
                   />
                 )}
                 {(isConnectionFailed || isPaymentFailed) && (
                   <Button
                     label="Xác nhận thủ công"
-                    variant="outline"
+                    variant="primary"
                     onPress={() => setShowManualForm(true)}
-                    className="h-16 rounded-[18px] border-surface-200 bg-white"
-                    textClassName="text-[26px] font-semibold text-neutral-500"
+                    className="h-16 rounded-[18px]"
+                    // textClassName="text-[26px] font-semibold text-neutral-500"
                   />
                 )}
                 {isManualResolution && (

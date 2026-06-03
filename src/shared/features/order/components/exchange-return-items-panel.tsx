@@ -1,10 +1,9 @@
-import { Button, QuantityStepper } from '@/shared/components/ui'
+import { Checkbox, QuantityStepper } from '@/shared/components/ui'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
-import { Check } from 'lucide-react-native'
-import React, { memo } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import React, { memo, useCallback, useMemo } from 'react'
+import { Text, View } from 'react-native'
 
 interface ExchangeReturnItemsPanelProps {
   items: ItemSnapshot[]
@@ -15,6 +14,7 @@ interface ExchangeReturnItemsPanelProps {
   onToggleItem: (item: ItemSnapshot) => void
   onChangeQty: (item: ItemSnapshot, qty: number) => void
   onSelectAll: () => void
+  onClearAll: () => void
 }
 
 export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
@@ -26,28 +26,38 @@ export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
   onToggleItem,
   onChangeQty,
   onSelectAll,
+  onClearAll,
 }: ExchangeReturnItemsPanelProps) {
+  const allSelected = useMemo(() => {
+    if (!items || items.length === 0) return false
+    return items.every((item) => getLineQty(item.productId) > 0)
+  }, [items, getLineQty])
+
+  const handleToggleAll = useCallback(() => {
+    if (allSelected) {
+      onClearAll()
+    } else {
+      onSelectAll()
+    }
+  }, [allSelected, onSelectAll, onClearAll])
+
   return (
     <View className="flex-1 bg-white">
       <View className="flex-row items-center justify-between border-b border-outline-variant bg-[#f8fafc] px-8 py-5">
         <Text className="text-xl font-black uppercase tracking-widest text-surface-on">
           Hàng khách trả
         </Text>
-        <Button
-          label="Chọn tất cả"
-          variant="outline"
-          className="h-12 rounded-xl px-5"
-          textClassName="text-sm font-black"
-          onPress={onSelectAll}
-          disabled={!isDraft || isProcessing}
-        />
       </View>
 
       <View className="flex-row items-center border-b border-outline-variant bg-white px-8 py-4">
-        <Text className="w-20 text-center text-xs font-black uppercase tracking-wider text-muted">
-          Chọn
-        </Text>
-        <Text className="flex-1 text-xs font-black uppercase tracking-wider text-muted">
+        <View className="w-11 items-center justify-center">
+          <Checkbox
+            checked={allSelected}
+            onChange={handleToggleAll}
+            disabled={!isDraft || isProcessing}
+          />
+        </View>
+        <Text className="ml-5 flex-1 text-xs font-black uppercase tracking-wider text-muted">
           Sản phẩm
         </Text>
         <Text className="w-24 text-center text-xs font-black uppercase tracking-wider text-muted">
@@ -71,15 +81,11 @@ export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
 
           return (
             <View className="flex-row items-center border-b border-outline-variant px-8 py-5">
-              <Pressable
-                className={`h-11 w-11 items-center justify-center rounded-xl border-2 ${
-                  isSelected ? 'border-primary bg-primary' : 'border-outline-variant bg-white'
-                }`}
-                onPress={() => onToggleItem(item)}
+              <Checkbox
+                checked={isSelected}
+                onChange={() => onToggleItem(item)}
                 disabled={!isDraft || isProcessing}
-              >
-                {isSelected && <Check size={24} color="white" strokeWidth={4} />}
-              </Pressable>
+              />
 
               <View className="ml-5 flex-1">
                 <Text className="text-xl font-black text-surface-on" numberOfLines={1}>

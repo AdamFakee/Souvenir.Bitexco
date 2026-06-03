@@ -15,7 +15,7 @@ export const OrderStatusTabs = memo(function OrderStatusTabs({
 
   return (
     <View className="flex-row gap-0">
-      {(['ALL', OrderStatus.COMPLETED, OrderStatus.REFUNDED, OrderStatus.FAILED] as const).map(
+      {([OrderStatus.COMPLETED, OrderStatus.REFUNDED, OrderStatus.FAILED, 'ALL'] as const).map(
         (s) => {
           const isActive = s === 'ALL' ? status === null : status === s
           const config = ORDER_STATUS_CONFIG[s]

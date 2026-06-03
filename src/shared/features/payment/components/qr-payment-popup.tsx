@@ -321,17 +321,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
               <Clock3 size={18} color="#fb8c00" />
               <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">{timeLeft}</Text>
             </View>
-            <View
-              className={`mt-3 flex-row items-center gap-2 rounded-full border px-4 py-2 ${statusPillClassName}`}
-            >
-              <Text className={`text-sm font-semibold ${statusTextClassName}`}>{statusLabel}</Text>
-            </View>
-            <Text className="mt-4 max-w-[300px] text-center text-sm leading-6 text-neutral-600">
-              {billNumber
-                ? `Mã hóa đơn: ${billNumber}`
-                : 'Mã hóa đơn sẽ hiển thị sau khi khởi tạo đơn.'}
-            </Text>
-            <Text className="mt-2 max-w-[300px] text-center text-sm leading-6 text-neutral-600">
+            <Text className="mt-2 max-w-[300px] text-center text-xl leading-6 text-neutral-600">
               Sau khi thanh toán, vui lòng chờ trong giây lát để hệ thống xác nhận.
             </Text>
           </View>
@@ -354,11 +344,8 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           </Text>
           <View className="mt-3 flex-row items-center gap-2 rounded-full border border-orange-300 bg-white px-4 py-2">
             <Clock3 size={18} color="#fb8c00" />
-            <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">05:00</Text>
+            <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">--:--</Text>
           </View>
-          <Text className="mt-4 max-w-[300px] text-center text-sm leading-6 text-neutral-600">
-            Sau khi thanh toán, vui lòng chờ trong giây lát để hệ thống xác nhận.
-          </Text>
         </View>
       )
     }
@@ -398,34 +385,30 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             </View>
           </View>
 
-          <Text className="mx-auto mt-4 px-2 text-center text-base font-medium leading-6 text-neutral-600">
-            Khách đã thanh toán nhưng chưa nhận được thông tin từ ngân hàng?
-          </Text>
-
           <View className="mx-auto mt-4 w-full max-w-[640px] gap-3">
             <Button
               label="Kiểm tra trạng thái QR với ngân hàng"
-              variant="outline"
+              variant="primary"
               disabled={!qrContent}
               onPress={handleCheckStatusNow}
-              className="h-14 rounded-[16px] border-surface-200 bg-white"
-              textClassName="text-sm font-semibold text-neutral-500"
+              className="h-14 rounded-[16px]"
+              // textClassName="text-sm font-semibold text-neutral-500"
             />
             <Button
               label="Xác nhận khách đã chuyển, kiểm tra sau"
-              variant="outline"
+              variant="primary"
               disabled={!qrContent}
               onPress={handleForceComplete}
-              className="h-14 rounded-[16px] border-surface-200 bg-white"
-              textClassName="text-sm font-semibold text-neutral-500"
+              className="h-14 rounded-[16px]"
+              // textClassName="text-sm font-semibold text-neutral-500"
             />
             <Button
               label="Hủy giao dịch"
-              variant="outline"
+              variant="error"
               disabled={!canCancel && !isError}
               onPress={handleCancel}
-              className="h-14 rounded-[16px] border-error/30 bg-error/5"
-              textClassName="text-base font-semibold text-error"
+              className="h-14 rounded-[16px]"
+              // textClassName="text-base font-semibold text-error"
             />
           </View>
 

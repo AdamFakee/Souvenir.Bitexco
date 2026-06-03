@@ -286,8 +286,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                   label="Đổi hàng"
                   variant="outline"
                   leftIcon={Repeat2}
-                  className="h-16 rounded-2xl border-primary/30 bg-white px-8"
-                  textClassName="text-xl text-primary font-black"
+                  className="h-16 rounded-2xl"
                   disabled={!canExchange}
                   onPress={() => {
                     exchangeModalRef.current?.open(order)
@@ -298,8 +297,8 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                   label={order.status === OrderStatus.REFUNDED ? 'Đã hoàn tiền' : 'Trả hàng'}
                   variant="outline"
                   leftIcon={Trash2}
-                  className="h-16 rounded-2xl border-error/30 bg-white px-8"
-                  textClassName="text-xl text-error font-black"
+                  className="h-16 rounded-2xl"
+                  // textClassName="text-xl text-error font-black"
                   disabled={!order.canReturn && order.status !== OrderStatus.COMPLETED}
                   onPress={() => {
                     refundModalRef.current?.open(order)

@@ -254,6 +254,12 @@ export const ExchangeConfirmModal = React.forwardRef<
     send({ type: 'SET_ALL_RETURN_LINES' })
   }, [send])
 
+  const handleClearAllReturnLines = useCallback(() => {
+    order?.itemsSnapshot?.forEach((item) => {
+      send({ type: 'CLEAR_RETURN_LINE', productId: item.productId })
+    })
+  }, [order, send])
+
   const handleChangeReplacementQty = useCallback(
     (variantId: string, qty: number) => {
       send({ type: 'UPDATE_REPLACEMENT_QTY', variantId, qty })
@@ -310,6 +316,7 @@ export const ExchangeConfirmModal = React.forwardRef<
               onToggleItem={handleToggleReturnItem}
               onChangeQty={handleChangeReturnQty}
               onSelectAll={handleSelectAllReturnLines}
+              onClearAll={handleClearAllReturnLines}
             />
 
             <View className="flex-1 border-l border-outline-variant bg-surface-50">

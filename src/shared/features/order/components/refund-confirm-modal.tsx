@@ -1,4 +1,11 @@
-import { Button, Chip, IconButton, ModalBase } from '@/shared/components/ui'
+import {
+  Button,
+  Checkbox,
+  Chip,
+  IconButton,
+  ModalBase,
+  QuantityStepper,
+} from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { useAppStore } from '@/shared/features/app'
 import { roundCashAmount } from '@/shared/features/payment/utils/cash.utils'
@@ -8,7 +15,7 @@ import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { useMachine } from '@xstate/react'
-import { Check, Minus, Plus, X } from 'lucide-react-native'
+import { X } from 'lucide-react-native'
 import React, {
   useCallback,
   useEffect,
@@ -17,7 +24,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { refundOrderMachine } from '../machines/refund-order.machine'
 import { IOrder } from '../types'
@@ -144,6 +151,21 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
       send({ type: 'SET_LINE_QTY', productId: item.productId, qty: 1 })
     }
 
+    const allSelected = useMemo(() => {
+      if (!order || !order.itemsSnapshot || order.itemsSnapshot.length === 0) return false
+      return order.itemsSnapshot.every((item) => getLineQty(item.productId) > 0)
+    }, [order, getLineQty])
+
+    const handleToggleAll = () => {
+      if (allSelected) {
+        order?.itemsSnapshot?.forEach((item) => {
+          send({ type: 'CLEAR_LINE', productId: item.productId })
+        })
+      } else {
+        send({ type: 'SET_ALL_LINES' })
+      }
+    }
+
     const handleChangeQty = (item: ItemSnapshot, nextQty: number) => {
       send({ type: 'SET_LINE_QTY', productId: item.productId, qty: nextQty })
     }
@@ -187,10 +209,14 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
             <View className="flex-1 flex-row">
               <View className="flex-[1.6] bg-white">
                 <View className="flex-row items-center border-b border-outline-variant bg-[#f8fafc] px-10 py-5">
-                  <Text className="w-24 text-center text-sm font-black uppercase tracking-wider text-muted">
-                    Chọn
-                  </Text>
-                  <Text className="flex-1 text-sm font-black uppercase tracking-wider text-muted">
+                  <View className="w-12 items-center justify-center">
+                    <Checkbox
+                      checked={allSelected}
+                      onChange={handleToggleAll}
+                      disabled={!isDraft || isProcessing}
+                    />
+                  </View>
+                  <Text className="ml-6 flex-1 text-sm font-black uppercase tracking-wider text-muted">
                     Sản phẩm
                   </Text>
                   <Text className="w-32 text-center text-sm font-black uppercase tracking-wider text-muted">
@@ -215,17 +241,11 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
 
                     return (
                       <View className="flex-row items-center border-b border-outline-variant px-10 py-6">
-                        <Pressable
-                          className={`h-12 w-12 items-center justify-center rounded-xl border-2 ${
-                            isSelected
-                              ? 'border-primary bg-primary'
-                              : 'border-outline-variant bg-white'
-                          }`}
-                          onPress={() => handleToggleItem(item)}
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={() => handleToggleItem(item)}
                           disabled={!isDraft || isProcessing}
-                        >
-                          {isSelected && <Check size={26} color="white" strokeWidth={4} />}
-                        </Pressable>
+                        />
 
                         <View className="ml-6 flex-1">
                           <Text className="text-2xl font-black text-surface-on">{item.name}</Text>
@@ -236,32 +256,15 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
                           x{item.quantity}
                         </Text>
 
-                        <View className="w-48 flex-row items-center justify-center gap-3">
-                          <Pressable
-                            className="h-12 w-12 items-center justify-center rounded-xl bg-surface-100"
-                            onPress={() => handleChangeQty(item, qty - 1)}
-                            disabled={!isDraft || isProcessing || qty <= 0}
-                          >
-                            <Minus size={24} color={COLORS.surface.on} strokeWidth={4} />
-                          </Pressable>
-
-                          <TextInput
-                            value={qty > 0 ? String(qty) : ''}
-                            onChangeText={(text) => handleChangeQty(item, Number(text || 0))}
-                            keyboardType="number-pad"
-                            editable={isDraft && !isProcessing}
-                            placeholder="0"
-                            className="h-12 w-16 rounded-xl border border-outline-variant bg-white text-center text-xl font-black text-surface-on"
-                            placeholderTextColor={COLORS.muted}
+                        <View className="w-48 items-center justify-center">
+                          <QuantityStepper
+                            value={qty}
+                            onChange={(newQty) => handleChangeQty(item, newQty)}
+                            disabled={!isDraft || isProcessing}
+                            min={0}
+                            max={item.quantity}
+                            editable={true}
                           />
-
-                          <Pressable
-                            className="h-12 w-12 items-center justify-center rounded-xl bg-surface-100"
-                            onPress={() => handleChangeQty(item, qty + 1)}
-                            disabled={!isDraft || isProcessing || qty >= item.quantity}
-                          >
-                            <Plus size={24} color={COLORS.surface.on} strokeWidth={4} />
-                          </Pressable>
                         </View>
 
                         <Text className="w-40 text-right text-xl font-black text-error">
@@ -279,22 +282,9 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
                     <Text className="text-xl font-black uppercase tracking-widest text-surface-on">
                       Thông tin trả hàng
                     </Text>
-                    <Button
-                      label="Chọn tất cả"
-                      variant="outline"
-                      className="h-12 rounded-xl px-5"
-                      textClassName="text-sm font-black"
-                      onPress={() => send({ type: 'SET_ALL_LINES' })}
-                      disabled={!isDraft || isProcessing}
-                    />
                   </View>
 
                   <View className="gap-6">
-                    <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
-                      <Text className="text-xl font-bold text-muted">Đơn hàng</Text>
-                      <Text className="text-xl font-black text-surface-on">#{order.id}</Text>
-                    </View>
-
                     <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
                       <Text className="text-xl font-bold text-muted">Tổng số món đã mua</Text>
                       <Text className="text-xl font-black text-surface-on">{itemCount} món</Text>
@@ -322,7 +312,7 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
 
                   <View className="mb-6 mt-10">
                     <Text className="mb-4 text-lg font-black uppercase tracking-widest text-muted">
-                      Lý do trả hàng (không bắt buộc)
+                      Lý do trả hàng
                     </Text>
 
                     <View className="mb-4 flex-row flex-wrap gap-4">
