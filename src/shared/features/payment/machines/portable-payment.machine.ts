@@ -207,6 +207,30 @@ export const portablePaymentMachine = setup({
     cancelPayment: cancelPaymentActor,
 
     /**
+     * Hủy đơn hàng online trên server.
+     */
+    cancelOrder: fromPromise(
+      async ({
+        input,
+      }: {
+        input: { orderId: string | null; shiftId: string; staffId: string }
+      }): Promise<void> => {
+        if (!input.orderId) return
+        try {
+          console.log('[PortablePayment] Cancelling order on server:', input.orderId)
+          await OrderRemoteAPI.cancelOrder({
+            orderId: input.orderId,
+            shiftId: input.shiftId,
+            staffId: input.staffId,
+            reason: 'cashier_cancelled_payment',
+          })
+        } catch (err) {
+          console.error('[PortablePayment] Failed to cancel order:', err)
+        }
+      },
+    ),
+
+    /**
      * In hóa đơn bán hàng
      */
     printReceipt: printReceiptActor,
@@ -598,6 +622,20 @@ export const portablePaymentMachine = setup({
           paymentId: context.paymentId,
           paymentVersion: context.paymentVersion,
         }),
+        onDone: { target: 'cancellingOrder' },
+        onError: { target: 'cancellingOrder' },
+      },
+    },
+
+    cancellingOrder: {
+      invoke: {
+        id: 'cancelOrder',
+        src: 'cancelOrder',
+        input: ({ context }) => ({
+          orderId: context.checkoutResult?.orderId ?? null,
+          shiftId: context.shiftId,
+          staffId: context.staffId,
+        }),
         onDone: { target: 'idle', actions: 'resetContext' },
         onError: { target: 'idle', actions: 'resetContext' },
       },
@@ -648,6 +686,7 @@ export function getPortablePaymentStatusLabel(
   if (state.matches('capturingPayment')) return 'Đang hoàn tất thanh toán...'
   if (state.matches('paymentFailed')) return error ?? 'Giao dịch quẹt thẻ bị lỗi!'
   if (state.matches('cancelingPayment')) return 'Đang hủy giao dịch...'
+  if (state.matches('cancellingOrder')) return 'Đang hủy đơn hàng trên hệ thống...'
   if (state.matches('manualResolution')) return 'Lỗi server! Cần xác nhận thủ công hoặc thử lại.'
   if (state.matches('preparingReceipt') || state.matches('printingReceipt'))
     return 'Đang in hóa đơn...'

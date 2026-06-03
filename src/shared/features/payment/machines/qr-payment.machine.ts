@@ -187,11 +187,28 @@ export const qrPaymentMachine = setup({
     }),
 
     /**
-     * Không cần xử lý SQLite local khi hủy đơn online.
+     * Hủy đơn hàng online trên server.
      */
-    failOrder: fromPromise(async () => {
-      // No-op for online flow
-    }),
+    failOrder: fromPromise(
+      async ({
+        input,
+      }: {
+        input: { orderId: string | null; shiftId: string; staffId: string }
+      }): Promise<void> => {
+        if (!input.orderId) return
+        try {
+          console.log('[QR Payment] Cancelling order on server:', input.orderId)
+          await OrderRemoteAPI.cancelOrder({
+            orderId: input.orderId,
+            shiftId: input.shiftId,
+            staffId: input.staffId,
+            reason: 'cashier_cancelled_payment',
+          })
+        } catch (err) {
+          console.error('[QR Payment] Failed to cancel order:', err)
+        }
+      },
+    ),
 
     /**
      * In hóa đơn.
@@ -492,6 +509,8 @@ export const qrPaymentMachine = setup({
         src: 'failOrder',
         input: ({ context }) => ({
           orderId: context.orderId,
+          shiftId: context.shiftId,
+          staffId: context.staffId,
         }),
       },
       on: {
