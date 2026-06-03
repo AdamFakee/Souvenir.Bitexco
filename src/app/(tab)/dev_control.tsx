@@ -2,6 +2,7 @@ import { Container } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
 import { useAppStore } from '@/shared/features/app'
 import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
+import { AuthAPI } from '@/shared/features/auth'
 import { useNoteStore } from '@/shared/features/note'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
@@ -17,9 +18,6 @@ import { ScrollView, Text, View } from 'react-native'
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
   const [products, setProducts] = useState<ProductModel[]>([])
-  const [mockHasOpenShift, setMockHasOpenShift] = useState(
-    storage.getBoolean('mock-has-open-shift') ?? false,
-  )
 
   const loadData = async () => {
     try {
@@ -129,12 +127,6 @@ export default function DevControlScreen() {
     }
   }
 
-  const handleToggleOpenShiftMock = (enabled: boolean) => {
-    storage.set('mock-has-open-shift', enabled)
-    setMockHasOpenShift(enabled)
-    toast.success(`Mock: ${enabled ? 'Đã bật' : 'Đã tắt'} trạng thái Có Ca Đang Mở`, 'Thành công')
-  }
-
   const handleSimulateTokenExpired = () => {
     const appService = useAppStore.getState().appService
     if (appService) {
@@ -159,6 +151,122 @@ export default function DevControlScreen() {
         }
       },
     })
+  }
+
+  // ─── Token Lab handlers ────────────────────────────────────────────────────
+
+  /**
+   * Xoá accessToken khỏi memory (machine context) — simulate JWT hết hạn
+   * Lần sau gọi API sẽ bị 401 → interceptor trigger TOKEN_EXPIRED.
+   */
+  const handleExpireAccessToken = () => {
+    const appService = useAppStore.getState().appService
+    if (!appService) return toast.error('App Service chưa sẵn sàng')
+    const ctx = appService.getSnapshot().context
+    if (!ctx.accessToken) return toast.warning('Không có accessToken trong memory')
+    // Patch context bằng cách dispatch event giả — machine không có SET_ACCESS_TOKEN
+    // nên ta dùng storage để xoá giá trị persist rồi ghi lại MMKV trực tiếp
+    const raw = storage.getString('app-machine-persist')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        parsed.accessToken = null
+        storage.set('app-machine-persist', JSON.stringify(parsed))
+        toast.info(
+          'Đã null accessToken trong MMKV persist.\nRestart app để trigger refresh flow (cold start).\nHoặc bấm "Gọi /refresh thủ công" bên dưới.',
+          'Access Token Cleared',
+        )
+      } catch {
+        toast.error('Parse MMKV thất bại')
+      }
+    }
+  }
+
+  /**
+   * Xoá refreshToken khỏi MMKV — simulate refresh token hết hạn / bị revoke.
+   * Lần cold start tiếp theo sẽ throw → unauthenticated → PIN login.
+   */
+  const handleExpireRefreshToken = () => {
+    storage.remove('auth-refresh-token')
+    toast.warning(
+      'Đã xoá refreshToken khỏi MMKV.\nRestart app → app sẽ throw lúc refresh → bắt buộc PIN login.',
+      'Refresh Token Cleared',
+    )
+  }
+
+  /**
+   * Xoá cả hai token — simulate thiết bị bị wipe / fresh install.
+   * Tương đương với clearAuth action.
+   */
+  const handleWipeBothTokens = () => {
+    toast.confirm({
+      title: 'Wipe cả 2 tokens?',
+      message: 'Xoá accessToken (MMKV persist) + refreshToken → cold start sẽ yêu cầu PIN login.',
+      onConfirm: () => {
+        storage.remove('auth-refresh-token')
+        const raw = storage.getString('app-machine-persist')
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw)
+            parsed.accessToken = null
+            storage.set('app-machine-persist', JSON.stringify(parsed))
+          } catch {}
+        }
+        toast.success('Đã wipe cả accessToken + refreshToken. Restart app để test.')
+      },
+    })
+  }
+
+  /**
+   * Gọi thủ công POST /v1/device/auth/refresh với refreshToken hiện tại.
+   * Dùng để kiểm tra rotation: console log token cũ → token mới.
+   */
+  const handleManualRefresh = async () => {
+    const currentRefreshToken = storage.getString('auth-refresh-token')
+    if (!currentRefreshToken) {
+      return toast.error('Không có refreshToken trong MMKV. Hãy đăng nhập trước.')
+    }
+    toast.info('Đang gọi POST /v1/device/auth/refresh...')
+    try {
+      console.log('[TokenLab] Old refreshToken:', currentRefreshToken.slice(0, 20) + '...')
+      const result = await AuthAPI.refresh(currentRefreshToken)
+      // Lưu token mới vào MMKV (giống logic trong refreshAuthFlow)
+      storage.set('auth-refresh-token', result.refreshToken)
+      console.log('[TokenLab] New accessToken:', result.accessToken.slice(0, 40) + '...')
+      console.log('[TokenLab] New refreshToken:', result.refreshToken.slice(0, 20) + '...')
+      toast.success(
+        `Rotation OK!\nNew accessToken: ${result.accessToken.slice(0, 20)}...\nNew refreshToken: ${result.refreshToken.slice(0, 12)}...`,
+        'Refresh thành công',
+      )
+    } catch (err: any) {
+      const status = err?.response?.status
+      const msg = err?.response?.data?.error || err?.message || 'Lỗi không xác định'
+      console.error('[TokenLab] Refresh failed:', err?.response?.data || err)
+      toast.error(
+        status === 401
+          ? `401 — Token đã bị revoke hoặc hết hạn.\n${msg}`
+          : `${status ?? 'Network error'} — ${msg}`,
+        'Refresh thất bại',
+      )
+    }
+  }
+
+  /**
+   * In ra console trạng thái token hiện tại để debug.
+   */
+  const handleLogTokenState = () => {
+    const ctx = useAppStore.getState().appService?.getSnapshot().context
+    const refreshToken = storage.getString('auth-refresh-token')
+    console.log('======== TOKEN STATE ========')
+    console.log(
+      'accessToken (memory):',
+      ctx?.accessToken ? ctx.accessToken.slice(0, 40) + '...' : 'null',
+    )
+    console.log('refreshToken (MMKV):', refreshToken ? refreshToken.slice(0, 20) + '...' : 'null')
+    console.log('employee:', ctx?.employee?.displayName ?? 'null')
+    console.log('machineState:', useAppStore.getState().appService?.getSnapshot().value ?? 'n/a')
+    console.log('==============================')
+    toast.info('Đã log token state ra console. Mở Metro / Logcat để xem.', 'Token State')
   }
 
   const handleClearNotes = () => {
@@ -276,49 +384,78 @@ export default function DevControlScreen() {
         </View>
       </Container>
 
-      {/* Mock v1.8 Auth & Shift Controls */}
+      {/* Token Lab — test refresh token flow thực */}
       <Container className="mb-6 border border-primary/20 bg-primary/5 p-4">
         <Text className="text-title-md mb-1 font-black uppercase tracking-wider text-primary">
-          Mock v1.8 Auth & Shift
+          🔑 Token Lab
         </Text>
         <Text className="mb-4 text-body-xs text-muted">
-          Thay đổi trạng thái API mock & giả lập các sự kiện State Machine của hệ thống
+          Test refresh token flow thực với backend. Không dùng mock.
         </Text>
 
-        <View className="gap-4">
+        <View className="gap-3">
+          {/* Row 1: Inspect & Refresh */}
           <View className="flex-row gap-3">
             <Button
-              label="Mock: CHƯA MỞ CA"
-              variant={!mockHasOpenShift ? 'primary' : 'outline'}
-              className={`flex-1 ${!mockHasOpenShift ? 'bg-primary' : 'border-primary'}`}
-              textClassName={!mockHasOpenShift ? 'text-white' : 'text-primary'}
-              onPress={() => handleToggleOpenShiftMock(false)}
+              label="Log Token State"
+              variant="outline"
+              className="flex-1 border-sky-500"
+              textClassName="text-sky-600 text-xs font-bold"
+              onPress={handleLogTokenState}
             />
             <Button
-              label="Mock: CÓ CA ĐANG MỞ"
-              variant={mockHasOpenShift ? 'primary' : 'outline'}
-              className={`flex-1 ${mockHasOpenShift ? 'bg-primary' : 'border-primary'}`}
-              textClassName={mockHasOpenShift ? 'text-white' : 'text-primary'}
-              onPress={() => handleToggleOpenShiftMock(true)}
+              label="Gọi /refresh thủ công"
+              variant="outline"
+              className="flex-1 border-violet-500"
+              textClassName="text-violet-600 text-xs font-bold"
+              onPress={handleManualRefresh}
             />
           </View>
 
+          {/* Row 2: Expire scenarios */}
           <View className="flex-row gap-3">
             <Button
-              label="Simulate: Hết hạn Token (401)"
+              label="Null accessToken"
               variant="outline"
-              className="flex-1 border-amber-600"
-              textClassName="text-amber-600"
-              onPress={handleSimulateTokenExpired}
+              className="flex-1 border-amber-500"
+              textClassName="text-amber-600 text-xs font-bold"
+              onPress={handleExpireAccessToken}
             />
             <Button
-              label="Force LOGOUT (Reset)"
+              label="Xoá refreshToken"
               variant="outline"
-              className="flex-1 border-error"
-              textClassName="text-error"
-              onPress={handleForceLogout}
+              className="flex-1 border-orange-500"
+              textClassName="text-orange-600 text-xs font-bold"
+              onPress={handleExpireRefreshToken}
             />
           </View>
+
+          {/* Row 3: Nuclear options */}
+          <View className="flex-row gap-3">
+            <Button
+              label="Wipe cả 2 tokens"
+              variant="outline"
+              className="flex-1 border-error"
+              textClassName="text-error text-xs font-bold"
+              onPress={handleWipeBothTokens}
+            />
+            <Button
+              label="Simulate TOKEN_EXPIRED"
+              variant="outline"
+              className="flex-1 border-amber-600"
+              textClassName="text-amber-600 text-xs font-bold"
+              onPress={handleSimulateTokenExpired}
+            />
+          </View>
+
+          {/* Row 4: Force logout */}
+          <Button
+            label="Force LOGOUT (dispatch LOGGED_OUT)"
+            variant="outline"
+            className="border-error"
+            textClassName="text-error text-xs font-bold"
+            onPress={handleForceLogout}
+          />
         </View>
       </Container>
 

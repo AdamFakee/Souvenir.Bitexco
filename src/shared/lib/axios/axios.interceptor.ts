@@ -41,7 +41,7 @@ const onResponseError = async (error: AxiosError): Promise<any> => {
     status === API_CONSTANT.HTTP_STATUS_CODE.UNAUTHORIZED &&
     originalRequest &&
     !originalRequest._retry &&
-    !originalRequest.url?.includes('/auth/refresh-token')
+    !originalRequest.url?.includes('/auth/refresh')
   ) {
     originalRequest._retry = true
     toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')

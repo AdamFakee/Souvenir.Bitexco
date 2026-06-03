@@ -54,6 +54,7 @@ export const MOCK_REFRESHED_TOKEN = 'mock-access-token-refreshed-eyJhbGciOiJIUzI
 
 export const MOCK_LOGIN_RESPONSE: LoginResponseData = {
   accessToken: MOCK_ACCESS_TOKEN,
+  refreshToken: 'mock-refresh-token-opaque-32bytes-base64url-placeholder',
   employee: MOCK_EMPLOYEE,
   device: { ...MOCK_DEVICE }, // clone để tránh mutation
 }

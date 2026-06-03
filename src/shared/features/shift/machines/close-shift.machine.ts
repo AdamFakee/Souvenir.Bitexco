@@ -1,4 +1,5 @@
 import { EmployeePermission, useAppStore } from '@/shared/features/app'
+import { AuthAPI } from '@/shared/features/auth'
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services'
@@ -247,8 +248,15 @@ export const closeShiftMachine = setup({
       return base
     }),
     triggerLogout: () => {
-      const appService = useAppStore.getState().appService
+      const store = useAppStore.getState()
+      const appService = store.appService
       if (appService) {
+        // Lấy refreshToken từ MMKV trước khi machine clearRefreshToken
+        const refreshToken = store.getRefreshToken()
+        // Fire-and-forget: revoke server-side, không block UI
+        if (refreshToken) {
+          AuthAPI.logout(refreshToken).catch(() => {})
+        }
         toast.success('Đóng ca thành công! Đang tiến hành đăng xuất...')
         setTimeout(() => {
           appService.send({ type: 'LOGGED_OUT' })

@@ -3,6 +3,10 @@ import type { AppContext, AppEvent } from '../types/app.types'
 import { AuthAPI } from '../../auth/api/auth.api'
 import { ShiftRemoteAPI } from '../../shift/api/remote/shift.remote.api'
 import { PaymentRemoteAPI } from '../../payment/api/remote/payment.remote.api'
+import { storage } from '@/shared/lib/storage'
+
+/** Key MMKV để lưu refresh token — phải khớp với use-app-store.ts */
+const REFRESH_TOKEN_KEY = 'auth-refresh-token'
 
 const DEFAULT_CONTEXT: AppContext = {
   device: null,
@@ -35,6 +39,7 @@ export const appMachine = setup({
     }),
     saveAuth: assign(({ event }) => {
       if (event.type !== 'LOGIN_SUCCESS') return {}
+      // refreshToken đã được lưu vào MMKV bởi login handler trước khi gửi event này
       return {
         accessToken: event.accessToken,
         employee: event.employee,
@@ -48,49 +53,77 @@ export const appMachine = setup({
     }),
     clearShift: assign({ cashSessionId: null }),
     /**
-     * Chỉ xoá auth — GIỮ cashSessionId để revalidatingShift check lại sau login
+     * Xoá auth in-memory VÀ wipe refreshToken khỏi MMKV.
+     * Ghi thẳng vào storage — tránh circular import với use-app-store.
      */
-    clearAuth: assign({
-      accessToken: null,
-      employee: null,
+    clearAuth: assign(() => {
+      try {
+        storage.remove(REFRESH_TOKEN_KEY)
+      } catch {}
+      return { accessToken: null, employee: null }
     }),
-    resetDevice: assign(DEFAULT_CONTEXT),
+    resetDevice: assign(() => {
+      try {
+        storage.remove(REFRESH_TOKEN_KEY)
+      } catch {}
+      return DEFAULT_CONTEXT
+    }),
   },
   actors: {
     /**
      * App startup: Refresh token → getMe (permissions fresh) → check ca đang mở
-     * Chạy mỗi khi app start và device đã active
-     * API v1.8: raw response, không có IBaseResponse wrapper
+     * input.refreshToken đọc từ MMKV bởi use-app-store trước khi invoke.
+     * input.onTokenRotated: callback để lưu token mới — tránh circular import.
+     * ⚠️ Nếu refreshToken null → throw ngay → onError → unauthenticated (PIN login).
      */
-    refreshAuthFlow: fromPromise(async ({ input }: { input: { deviceId: string } }) => {
-      console.log('[appMachine] Starting refresh flow...')
+    refreshAuthFlow: fromPromise(
+      async ({
+        input,
+      }: {
+        input: {
+          deviceId: string
+          refreshToken: string | null
+          onTokenRotated: (newToken: string) => void
+        }
+      }) => {
+        console.log('[appMachine] Starting refresh flow...')
 
-      // 1. Refresh token — throw tự động nếu cookie hết hạn (401)
-      const { accessToken } = await AuthAPI.refresh()
+        if (!input.refreshToken) {
+          throw new Error('No refresh token — PIN login required')
+        }
 
-      // 2. Get Employee Me — lấy permissions fresh (có thể thay đổi khi app offline)
-      const employee = await AuthAPI.getMe()
+        // 1. Refresh token — body mode: gửi refreshToken, nhận cặp mới (rotation)
+        const { accessToken, refreshToken: newRefreshToken } = await AuthAPI.refresh(
+          input.refreshToken,
+        )
 
-      // 3. Check ca đang mở — CashSession[]
-      const sessions = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
-      const cashSessionId = sessions.length > 0 ? sessions[0].id : null
+        // 2. Lưu refresh token mới ngay lập tức (rotation bắt buộc)
+        input.onTokenRotated(newRefreshToken)
 
-      // 4. Lấy các phương thức thanh toán khả dụng
-      let paymentMethods = null
-      try {
-        paymentMethods = await PaymentRemoteAPI.getPaymentMethods()
-      } catch (e) {
-        console.error('[appMachine] Failed to fetch payment methods during startup:', e)
-      }
+        // 3. Get Employee Me — lấy permissions fresh (có thể thay đổi khi app offline)
+        const employee = await AuthAPI.getMe()
 
-      console.log('[appMachine] Refresh flow completed:', {
-        accessToken: '***',
-        employee: employee.displayName,
-        cashSessionId,
-        paymentMethodsCount: paymentMethods?.length || 0,
-      })
-      return { accessToken, employee, cashSessionId, paymentMethods }
-    }),
+        // 4. Check ca đang mở — CashSession[]
+        const sessions = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
+        const cashSessionId = sessions.length > 0 ? sessions[0].id : null
+
+        // 5. Lấy các phương thức thanh toán khả dụng
+        let paymentMethods = null
+        try {
+          paymentMethods = await PaymentRemoteAPI.getPaymentMethods()
+        } catch (e) {
+          console.error('[appMachine] Failed to fetch payment methods during startup:', e)
+        }
+
+        console.log('[appMachine] Refresh flow completed:', {
+          accessToken: '***',
+          employee: employee.displayName,
+          cashSessionId,
+          paymentMethodsCount: paymentMethods?.length || 0,
+        })
+        return { accessToken, employee, cashSessionId, paymentMethods }
+      },
+    ),
 
     /**
      * Sau login thành công: check server xem có ca đang mở không
@@ -154,7 +187,15 @@ export const appMachine = setup({
     refreshingAuth: {
       invoke: {
         src: 'refreshAuthFlow',
-        input: ({ context }) => ({ deviceId: context.device!.id }),
+        input: ({ context }) => ({
+          deviceId: context.device!.id,
+          refreshToken: storage.getString(REFRESH_TOKEN_KEY) ?? null,
+          onTokenRotated: (newToken: string) => {
+            try {
+              storage.set(REFRESH_TOKEN_KEY, newToken)
+            } catch {}
+          },
+        }),
         onDone: [
           {
             guard: ({ event }) => event.output.cashSessionId !== null,

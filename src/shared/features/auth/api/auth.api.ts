@@ -15,12 +15,27 @@ export interface LoginRequest {
   pin: string
 }
 
-/** Response 200 từ POST /v1/device/auth/login (API v1.8 — raw, không có wrapper) */
+/** Response 200 từ POST /v1/device/auth/login (body-delivery mode, ADR-0022) */
 export interface LoginResponseData {
   accessToken: string
+  /** Opaque 32-byte base64url — NOT a JWT. Lưu vào encrypted storage. */
+  refreshToken: string
   employee: Employee
   device: DeviceInfo
 }
+
+/** Response 200 từ POST /v1/device/auth/refresh */
+export interface RefreshResponseData {
+  accessToken: string
+  /** Refresh token mới — bắt buộc ghi đè cái cũ ngay lập tức. */
+  refreshToken: string
+}
+
+/**
+ * Header bắt buộc cho tất cả auth endpoints khi chạy trên React Native.
+ * Nếu thiếu header này server trả refreshToken: null và set cookie (vô dụng trên RN).
+ */
+const BODY_DELIVERY_HEADER = { 'X-Token-Delivery': 'body' } as const
 
 export const AuthAPI = {
   /**
@@ -34,32 +49,46 @@ export const AuthAPI = {
   },
 
   /**
-   * 2.1 Đăng nhập nhân viên → JWT
-   * Anonymous — không cần token
-   * TODO: Xoá mock khi API hoạt động
+   * 2.1 Đăng nhập nhân viên → JWT + refreshToken (body-delivery mode)
+   * Anonymous — không cần Bearer token
+   * Header X-Token-Delivery: body → server trả refreshToken trong JSON, không set cookie
    */
   login: async (data: LoginRequest): Promise<LoginResponseData> => {
     const axios = AxiosService.getInstance()
-    const response = await axios.post<LoginResponseData>('/v1/device/auth/login', data)
+    const response = await axios.post<LoginResponseData>('/v1/device/auth/login', data, {
+      headers: BODY_DELIVERY_HEADER,
+    })
     return response.data
   },
 
   /**
-   * 2.2 Làm mới token — đọc refresh token từ cookie
+   * 2.2 Làm mới access token — gửi refreshToken trong body (body-delivery mode)
+   * Anonymous — không cần Bearer token
+   * ⚠️ Rotation: server trả refreshToken MỚI → bắt buộc ghi đè cái cũ ngay lập tức.
+   * ⚠️ Nếu server trả 401 → token hết hạn/bị revoke → wipe storage → PIN login.
    */
-  refresh: async (): Promise<{ accessToken: string }> => {
+  refresh: async (refreshToken: string): Promise<RefreshResponseData> => {
     const axios = AxiosService.getInstance()
-    const response = await axios.post<{ accessToken: string }>('/v1/device/auth/refresh')
+    const response = await axios.post<RefreshResponseData>(
+      '/v1/device/auth/refresh',
+      { refreshToken },
+      { headers: BODY_DELIVERY_HEADER },
+    )
     return response.data
   },
 
   /**
-   * 2.3 Đăng xuất — thu hồi refresh token
+   * 2.3 Đăng xuất — thu hồi refresh token server-side (body-delivery mode)
+   * Fire-and-forget: client xoá storage bất kể server response.
    */
-  logout: async (): Promise<void> => {
+  logout: async (refreshToken: string): Promise<void> => {
     try {
       const axios = AxiosService.getInstance()
-      await axios.post('/v1/device/auth/logout')
+      await axios.post(
+        '/v1/device/auth/logout',
+        { refreshToken },
+        { headers: BODY_DELIVERY_HEADER },
+      )
     } catch {
       // Logout luôn thành công ở phía client dù server lỗi
     }

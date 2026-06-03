@@ -2,7 +2,7 @@ import { Button, Numpad } from '@/shared/components/ui'
 import { LogoSkydeck } from '@/shared/components/ui/icons'
 import { COLORS, ROUTES } from '@/shared/constants'
 import { useAppContext, useAppStore } from '@/shared/features/app'
-import { BG_MAIN } from '@/shared/features/auth'
+import { AuthAPI, BG_MAIN } from '@/shared/features/auth'
 import { toast, useAlertStore } from '@/shared/store'
 import { formatVND } from '@/shared/utils'
 import { useRouter } from 'expo-router'
@@ -82,8 +82,14 @@ export default function OpenShift() {
       onConfirm: () => {
         // Tránh lỗi native crash trên Android khi unmount screen khi Modal Alert chưa kịp đóng hoàn toàn
         setTimeout(() => {
-          const appService = useAppStore.getState().appService
+          const store = useAppStore.getState()
+          const appService = store.appService
           if (appService) {
+            // Revoke refresh token server-side (fire-and-forget)
+            const refreshToken = store.getRefreshToken()
+            if (refreshToken) {
+              AuthAPI.logout(refreshToken).catch(() => {})
+            }
             appService.send({ type: 'LOGGED_OUT' })
             toast.success('Đã đăng xuất nhân viên')
           } else {

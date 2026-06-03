@@ -8,6 +8,11 @@ import type { AppContext } from '../types/app.types'
 // MMKV persistence — chỉ persist những field cần tồn tại sau khi app bị kill
 // ---------------------------------------------------------------------------
 const STORAGE_KEY = 'app-machine-persist'
+/**
+ * RefreshToken lưu riêng — key tách biệt để dễ wipe khi logout/401.
+ * KHÔNG được đưa vào AppContext (in-memory only trong context, persist riêng ở đây).
+ */
+const REFRESH_TOKEN_KEY = 'auth-refresh-token'
 
 interface PersistedAppState {
   device: AppContext['device']
@@ -43,6 +48,33 @@ function loadFromStorage(): PersistedAppState {
   }
 }
 
+/** Đọc refresh token từ MMKV. Trả null nếu chưa có hoặc xảy ra lỗi. */
+function loadRefreshToken(): string | null {
+  try {
+    return storage.getString(REFRESH_TOKEN_KEY) ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Ghi refresh token mới vào MMKV (rotation — ghi đè ngay sau mọi /refresh thành công). */
+function saveRefreshToken(token: string) {
+  try {
+    storage.set(REFRESH_TOKEN_KEY, token)
+  } catch (e) {
+    console.error('[AppStore] saveRefreshToken failed:', e)
+  }
+}
+
+/** Xoá refresh token khỏi MMKV (logout / 401 / employee switch). */
+function clearRefreshToken() {
+  try {
+    storage.remove(REFRESH_TOKEN_KEY)
+  } catch (e) {
+    console.error('[AppStore] clearRefreshToken failed:', e)
+  }
+}
+
 function saveToStorage(ctx: AppContext) {
   try {
     const toSave: PersistedAppState = {
@@ -66,10 +98,20 @@ interface AppStoreState {
   appService: ActorRefFrom<typeof appMachine> | null
   initApp: () => void
   destroyApp: () => void
+  /** Đọc refresh token từ MMKV (dùng trong refreshAuthFlow). */
+  getRefreshToken: () => string | null
+  /** Lưu refresh token mới vào MMKV sau login / refresh rotation. */
+  saveRefreshToken: (token: string) => void
+  /** Xoá refresh token khỏi MMKV (logout / 401). */
+  clearRefreshToken: () => void
 }
 
 export const useAppStore = create<AppStoreState>((set, get) => ({
   appService: null,
+
+  getRefreshToken: () => loadRefreshToken(),
+  saveRefreshToken: (token: string) => saveRefreshToken(token),
+  clearRefreshToken: () => clearRefreshToken(),
 
   /**
    * Khởi tạo appMachine actor (Singleton).

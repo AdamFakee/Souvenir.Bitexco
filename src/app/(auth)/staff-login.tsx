@@ -52,14 +52,17 @@ export default function StaffLogin() {
         pin: data.pin,
       })
 
-      console.log('[StaffLogin] API response:', response)
+      console.log('[StaffLogin] API response:', { ...response, refreshToken: '***' })
 
-      // response ở đây đã là LoginResponseData trực tiếp (API v1.8)
+      // Lưu refreshToken vào MMKV NGAY TRƯỚC khi dispatch — machine cần nó ở refreshAuthFlow
+      useAppStore.getState().saveRefreshToken(response.refreshToken)
+
+      // Dispatch LOGIN_SUCCESS — dùng response.device (fresh từ server)
       appService?.send({
         type: 'LOGIN_SUCCESS',
         accessToken: response.accessToken,
         employee: response.employee,
-        device: appService.getSnapshot().context.device!,
+        device: response.device,
       })
       toast.success('Đăng nhập thành công')
       // Navigation tự động qua useAppGate
