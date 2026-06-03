@@ -15,9 +15,6 @@
   3. Máy POS điều khiển chuyển trạng thái thanh toán từ `INITIATED` ➔ `PROCESSING` ➔ `AUTHORIZED` ➔ `CAPTURED` hoàn toàn thành công trên Server (trạng thái Payment chuyển sang `CAPTURED`).
   4. **Lỗi:** Mặc dù **Payment** đã chuyển sang trạng thái cuối cùng là `CAPTURED` (đã thu tiền thành công), nhưng **Đơn hàng (Order)** liên quan vẫn giữ nguyên trạng thái cũ là `CONFIRMED` / `PENDING` chứ không tự động chuyển sang `FULFILLED` / `COMPLETED`.
 
-- **Nguyên nhân gốc rễ đề xuất:**
-  Hệ thống Backend thiếu trigger nghiệp vụ (business trigger) để tự động cập nhật trạng thái của Đơn hàng khi Payment liên đới đạt đến trạng thái `CAPTURED` (đã thu đủ tiền).
-
 ---
 
 ## 2. CHỨNG CỨ KỸ THUẬT (TECHNICAL EVIDENCE)
