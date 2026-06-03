@@ -6,7 +6,15 @@ Ghi nhận tất cả bugs đã báo cáo. Mỗi entry: triệu chứng, nguyên
 
 ## Đang theo dõi
 
-_(Không có bug mở hiện tại)_
+### [BUG-10] `POST /v1/pos/orders/{id}/cancel` — Cashier hủy đơn bị 403 Forbidden
+
+- **Triệu chứng:** Khi hủy đơn hàng (hoặc QR Payment tự động hủy đơn khi thất bại), ứng dụng báo lỗi `Failed to cancel order: [AxiosError: Request failed with status code 403]`.
+- **Trạng thái:** Đang theo dõi / Phân tích.
+
+### [BUG-11] `POST /v1/pos/orders/{id}/refund` — Hoàn hàng bị lỗi 403 Forbidden
+
+- **Triệu chứng:** Khi thực hiện hoàn hàng (refund), API trả về lỗi 403.
+- **Trạng thái:** Đang theo dõi / Phân tích.
 
 ---
 
