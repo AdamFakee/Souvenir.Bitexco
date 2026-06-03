@@ -17,6 +17,7 @@ export interface UnifiedProduct {
   stock: number
   unitId: string
   unitCode: string
+  taxRate: number
   barcode?: string
 }
 
@@ -46,6 +47,7 @@ export function useProductSearch(searchText: string) {
               stock: r.available,
               unitId: r.unitId,
               unitCode: r.unitCode,
+              taxRate: (r as any).taxRate ?? (r as any).tax_rate ?? 0,
               barcode: r.barcode,
             }))
           } catch (error) {
@@ -71,6 +73,7 @@ export function useProductSearch(searchText: string) {
           stock: p.stock,
           unitId: p.unitId,
           unitCode: p.unitCode,
+          taxRate: p.taxRate || 0,
           barcode: p.barcode,
         }))
       } catch (error) {

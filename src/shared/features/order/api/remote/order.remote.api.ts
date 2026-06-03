@@ -171,6 +171,66 @@ export interface RefundOrderResult {
   receipt?: RefundReceiptData
 }
 
+export interface ExchangeReturnLineRequest {
+  productId: string
+  qty: number
+}
+
+export interface ExchangeReplacementLineRequest {
+  variantId: string
+  unitId: string
+  qty: number
+  unitPrice: number
+  discountAmount: number
+  taxRate: number
+  notes?: string
+}
+
+export interface ExchangeOrderParams {
+  orderId: string
+  idempotencyKey: string
+  reason: string
+  shiftId: string
+  staffId: string
+  returnedLines: ExchangeReturnLineRequest[]
+  replacementLines: ExchangeReplacementLineRequest[]
+}
+
+export interface ExchangeReceiptLine {
+  productId: string
+  sku?: string
+  name: string
+  qty: number
+  unitPrice: number
+  lineAmount: number
+}
+
+export interface ExchangeReceiptData {
+  exchangeId?: string
+  exchangeCode?: string
+  orderId: string
+  orderCode?: string
+  exchangedAt?: string
+  reason?: string
+  returnedValue: number
+  replacementValue: number
+  differenceAmount: number
+  returnedLines: ExchangeReceiptLine[]
+  replacementLines: ExchangeReceiptLine[]
+}
+
+export interface ExchangeOrderResult {
+  exchangeId?: string
+  exchangeCode?: string
+  orderId: string
+  orderCode?: string
+  returnedValue: number
+  replacementValue: number
+  differenceAmount: number
+  status?: 'COMPLETED' | 'EXCHANGE_PROCESSING' | 'FAILED'
+  receipt?: ExchangeReceiptData
+}
+
 export interface CancelOrderParams {
   orderId: string
   shiftId: string
@@ -346,6 +406,41 @@ export const OrderRemoteAPI = {
       const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
 
       throw new OrderApiError(code || error?.message || 'order.refund_failed', {
+        code,
+        status,
+        traceId,
+      })
+    }
+  },
+
+  /**
+   * Đổi hàng online bằng endpoint atomic.
+   */
+  exchangeOrder: async (params: ExchangeOrderParams): Promise<ExchangeOrderResult> => {
+    const { orderId, idempotencyKey, reason, shiftId, staffId, returnedLines, replacementLines } =
+      params
+
+    try {
+      const response = await AxiosService.getInstance().post<ExchangeOrderResult>(
+        `/v1/pos/orders/${orderId}/exchange`,
+        {
+          idempotencyKey,
+          reason,
+          shift_id: shiftId,
+          staff_id: staffId,
+          returned_lines: returnedLines,
+          replacement_lines: replacementLines,
+        },
+      )
+
+      return response.data
+    } catch (error: any) {
+      const status = error?.response?.status
+      const data = error?.response?.data
+      const code = typeof data?.error === 'string' ? data.error : undefined
+      const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
+
+      throw new OrderApiError(code || error?.message || 'order.exchange_failed', {
         code,
         status,
         traceId,

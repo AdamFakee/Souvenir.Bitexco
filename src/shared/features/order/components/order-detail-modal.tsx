@@ -5,12 +5,13 @@ import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
-import { Printer, Trash2, X } from 'lucide-react-native'
+import { Printer, Repeat2, Trash2, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { IOrder } from '../types'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
+import { ExchangeConfirmModal, ExchangeConfirmModalRef } from './exchange-confirm-modal'
 import { RefundConfirmModal, RefundConfirmModalRef } from './refund-confirm-modal'
 
 export interface OrderDetailModalRef {
@@ -26,6 +27,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
   const [visible, setVisible] = useState(false)
   const [order, setOrder] = useState<IOrder | null>(null)
   const refundModalRef = useRef<RefundConfirmModalRef>(null)
+  const exchangeModalRef = useRef<ExchangeConfirmModalRef>(null)
   const printRef = useRef(null)
 
   const handlePrint = async () => {
@@ -51,6 +53,12 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
 
   const items = order.itemsSnapshot || []
   const payments = order.paymentsSnapshot || []
+  const canExchange =
+    order.status === OrderStatus.COMPLETED &&
+    order.canReturn !== false &&
+    !order.voucherCode &&
+    !order.voucherDiscount &&
+    !order.discount
 
   const statusColors: Record<string, string> = {
     PENDING: '#3b82f6',
@@ -275,6 +283,18 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
               {/* Action Buttons - POS Style */}
               <View className="mt-10 flex-row justify-end gap-6">
                 <Button
+                  label="Đổi hàng"
+                  variant="outline"
+                  leftIcon={Repeat2}
+                  className="h-16 rounded-2xl border-primary/30 bg-white px-8"
+                  textClassName="text-xl text-primary font-black"
+                  disabled={!canExchange}
+                  onPress={() => {
+                    exchangeModalRef.current?.open(order)
+                    setVisible(false)
+                  }}
+                />
+                <Button
                   label={order.status === OrderStatus.REFUNDED ? 'Đã hoàn tiền' : 'Trả hàng'}
                   variant="outline"
                   leftIcon={Trash2}
@@ -301,6 +321,13 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
 
       <RefundConfirmModal
         ref={refundModalRef}
+        onSuccess={() => {
+          setVisible(false)
+        }}
+      />
+
+      <ExchangeConfirmModal
+        ref={exchangeModalRef}
         onSuccess={() => {
           setVisible(false)
         }}
