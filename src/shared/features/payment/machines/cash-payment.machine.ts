@@ -101,7 +101,7 @@ export const cashPaymentMachine = setup({
             const qty = item.quantity
             const unitPrice = item.price || item.product.price
             const discountAmount = item.discountAmount ?? 0
-            const taxRate = (item.product.taxRate ?? 8) / 100
+            const taxRate = item.product.taxRate ?? 8
 
             return {
               variantId,

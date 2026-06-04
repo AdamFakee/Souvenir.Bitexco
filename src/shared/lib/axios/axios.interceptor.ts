@@ -1,6 +1,6 @@
 import { API_CONSTANT } from '@/shared/constants'
-import { toast } from '@/shared/store'
 import type { useAppStore as UseAppStoreType } from '@/shared/features/app/store/use-app-store'
+import { toast } from '@/shared/store'
 import {
   AxiosError,
   AxiosHeaders,

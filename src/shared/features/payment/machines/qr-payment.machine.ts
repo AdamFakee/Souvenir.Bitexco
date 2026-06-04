@@ -78,7 +78,7 @@ export const qrPaymentMachine = setup({
         const qty = item.quantity
         const unitPrice = item.price ?? item.product.price ?? 0
         const discountAmount = item.discountAmount ?? 0
-        const taxRate = (item.product.taxRate ?? 8) / 100
+        const taxRate = item.product.taxRate ?? 8
 
         return {
           variantId,

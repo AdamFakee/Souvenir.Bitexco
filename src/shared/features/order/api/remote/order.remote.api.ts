@@ -488,10 +488,12 @@ export const OrderRemoteAPI = {
    * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
    */
   checkout: async (payload: PosCheckoutRequest): Promise<PosCheckoutResult> => {
+    console.log('[OrderRemoteAPI] checkout payload', payload)
     const res = await AxiosService.getInstance().post<PosCheckoutResult>(
       '/v1/pos/checkout',
       payload,
     )
+    console.log('[OrderRemoteAPI] checkout response', res.data)
     return res.data
   },
 }

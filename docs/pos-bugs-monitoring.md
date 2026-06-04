@@ -6,15 +6,11 @@ Ghi nhận tất cả bugs đã báo cáo. Mỗi entry: triệu chứng, nguyên
 
 ## Đang theo dõi
 
-### [BUG-10] `POST /v1/pos/orders/{id}/cancel` — Cashier hủy đơn bị 403 Forbidden
+### [BUG-12] `GET /v1/dashboard/overview` và `/v1/dashboard/product-revenue` trả dữ liệu thống kê bằng 0
 
-- **Triệu chứng:** Khi hủy đơn hàng (hoặc QR Payment tự động hủy đơn khi thất bại), ứng dụng báo lỗi `Failed to cancel order: [AxiosError: Request failed with status code 403]`.
-- **Trạng thái:** Đang theo dõi / Phân tích.
-
-### [BUG-11] `POST /v1/pos/orders/{id}/refund` — Hoàn hàng bị lỗi 403 Forbidden
-
-- **Triệu chứng:** Khi thực hiện hoàn hàng (refund), API trả về lỗi 403.
-- **Trạng thái:** Đang theo dõi / Phân tích.
+- **Triệu chứng:**
+  - Endpoint `GET /v1/dashboard/overview` trả về các chỉ số thống kê `totalRevenue: 0`, `completedOrders: 0`, `totalProductsSold: 0`, `cancelledOrders: 0` mặc dù danh sách `paymentMethods` trả về có phát sinh doanh thu (ví dụ: `cash: 7450888` và `card_bidv: 756000`).
+  - Endpoint `GET /v1/dashboard/product-revenue` trả về danh sách sản phẩm rỗng (`items: []`, `totalCount: 0`).
 
 ---
 
@@ -114,6 +110,18 @@ Ghi nhận tất cả bugs đã báo cáo. Mỗi entry: triệu chứng, nguyên
 - **Triệu chứng:** Checkout fail với lỗi trên.
 - **Thực chất:** WPS (Warehouse Product Settings) — sản phẩm chưa được thêm vào catalog bán của cửa hàng. Admin cần cấu hình `store_catalog`.
 - **Hành động:** Không cần fix code, cần hướng dẫn admin.
+
+### [NOT-BUG-03] `POST /v1/pos/orders/{id}/cancel` — Cashier hủy đơn bị 403 Forbidden
+
+- **Triệu chứng:** Khi hủy đơn hàng (hoặc QR Payment tự động hủy đơn khi thất bại), ứng dụng báo lỗi 403.
+- **Thực chất:** Do hành động hủy đơn yêu cầu quyền quản lý (Manager Approval) để đảm bảo an toàn tài chính. Đây là hành vi phân quyền bảo mật đúng thiết kế, không phải là lỗi phân quyền (RBAC) sai của backend.
+- **Hành động:** Client đã tích hợp form nhập mã nhân viên và PIN của quản lý để gửi kèm trong `managerAuth` khi thực hiện cancel đơn.
+
+### [NOT-BUG-04] `POST /v1/pos/orders/{id}/refund` — Hoàn hàng bị lỗi 403 Forbidden
+
+- **Triệu chứng:** Khi thực hiện hoàn hàng (refund), API trả về lỗi 403.
+- **Thực chất:** Tương tự hủy đơn, hoàn hàng là hành động nhạy cảm yêu cầu phê duyệt của quản lý (Manager Approval).
+- **Hành động:** Client đã tích hợp form nhập mã nhân viên và PIN của quản lý để gửi kèm trong `managerAuth` khi thực hiện hoàn hàng.
 
 ---
 

@@ -1,9 +1,9 @@
+import { Shimmer } from '@/shared/components/ui/shimmer'
+import { useAppContext } from '@/shared/features/app'
+import { formatCurrency } from '@/shared/utils'
 import React from 'react'
 import { Text, View } from 'react-native'
 import { PieChart } from 'react-native-gifted-charts'
-import { formatCurrency } from '@/shared/utils'
-import { Shimmer } from '@/shared/components/ui/shimmer'
-import { useAppContext } from '@/shared/features/app'
 import { useDashboardOverview } from '../hooks'
 
 export function PaymentMethodsPanel() {

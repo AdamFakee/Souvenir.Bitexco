@@ -37,7 +37,7 @@ export const createMixCheckoutActor = fromPromise(
       qty: item.quantity,
       unitPrice: item.price ?? item.product.price ?? 0,
       discountAmount: item.discountAmount ?? 0,
-      taxRate: (item.product.taxRate ?? 8) / 100,
+      taxRate: item.product.taxRate ?? 8,
     }))
 
     const nonCashMethod = input.selectedMethod === 'qr' ? 'qr_bidv' : 'card_bidv'
