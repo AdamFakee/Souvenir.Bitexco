@@ -21,3 +21,10 @@ export interface DashboardOverviewResponse {
   cancelledOrders: number
   paymentMethods: PaymentMethodItem[]
 }
+
+export interface ProductRevenueResponse {
+  items: ProductRevenueItem[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
