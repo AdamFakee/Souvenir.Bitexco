@@ -2,6 +2,7 @@ import {
   Button,
   Checkbox,
   Chip,
+  ControlledInput,
   IconButton,
   ModalBase,
   QuantityStepper,
@@ -24,7 +25,10 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { Text, TextInput, View } from 'react-native'
+import { useForm } from 'react-hook-form'
+import { valibotResolver } from '@hookform/resolvers/valibot'
+import * as v from 'valibot'
+import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { refundOrderMachine } from '../machines/refund-order.machine'
 import { IOrder } from '../types'
@@ -37,6 +41,13 @@ export interface RefundConfirmModalRef {
 
 const QUICK_REASONS = ['Khách đổi ý', 'Sản phẩm lỗi', 'Mua nhầm món']
 
+const managerApprovalSchema = v.object({
+  employeeCode: v.pipe(v.string(), v.minLength(1, 'Mã quản lý là bắt buộc')),
+  pin: v.pipe(v.string(), v.minLength(1, 'PIN là bắt buộc')),
+})
+
+type ManagerApprovalFormData = v.InferOutput<typeof managerApprovalSchema>
+
 interface RefundConfirmModalProps {
   onSuccess?: () => void
 }
@@ -48,7 +59,9 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
     const receiptPrintRef = useRef(null)
     const printedReceiptKeyRef = useRef<string | null>(null)
 
-    const { order, reason, lines, refundAmount, result } = state.context
+    const { order, reason, lines, refundAmount, result, managerAuthError } = state.context
+    const isWaitingManagerApproval = state.matches('waitingManagerApproval')
+    const isSubmitting = state.matches('submittingReturn')
     const isProcessing =
       state.matches('submittingReturn') ||
       state.matches('receivingReturnedItems') ||
@@ -56,6 +69,46 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
     const isDraft = state.matches('draft')
     const isCompleted = state.matches('completed')
     const receipt = result?.receipt
+
+    const {
+      control: managerControl,
+      handleSubmit: handleManagerSubmit,
+      reset: resetManagerForm,
+      setError: setManagerError,
+    } = useForm<ManagerApprovalFormData>({
+      resolver: valibotResolver(managerApprovalSchema),
+      defaultValues: {
+        employeeCode: '',
+        pin: '',
+      },
+    })
+
+    useEffect(() => {
+      if (!visible) {
+        resetManagerForm()
+      }
+    }, [visible, resetManagerForm])
+
+    useEffect(() => {
+      if (managerAuthError) {
+        setManagerError('pin', { type: 'manual', message: managerAuthError })
+      }
+    }, [managerAuthError, setManagerError])
+
+    const onManagerSubmit = (data: ManagerApprovalFormData) => {
+      send({
+        type: 'SUBMIT_MANAGER_PIN',
+        managerAuth: {
+          employeeCode: data.employeeCode,
+          pin: data.pin,
+        },
+      })
+    }
+
+    const onManagerCancel = () => {
+      resetManagerForm()
+      send({ type: 'CANCEL' })
+    }
 
     const getLineQty = useCallback(
       (productId: string) => {
@@ -87,6 +140,7 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
         const staffId = appContext?.employee?.id || ''
 
         printedReceiptKeyRef.current = null
+        resetManagerForm()
         send({ type: 'RESET' })
         send({ type: 'START', order: o, shiftId, staffId })
         setVisible(true)
@@ -94,6 +148,7 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
       close: () => {
         if (isProcessing) return
         setVisible(false)
+        resetManagerForm()
         send({ type: 'RESET' })
       },
     }))
@@ -365,6 +420,55 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
               </View>
             </View>
           </SafeAreaView>
+
+          {/* Manager Approval Overlay */}
+          {(isWaitingManagerApproval || (isSubmitting && state.context.managerAuth !== null)) && (
+            <View style={styles.managerOverlay}>
+              <View style={styles.managerCard}>
+                <View style={styles.managerCardHeader}>
+                  <Text style={styles.managerCardTitle}>Yêu cầu Quyền Quản lý</Text>
+                  <Text style={styles.managerCardSubtitle}>
+                    Vui lòng nhập tài khoản và mã PIN của quản lý để phê duyệt trả hàng.
+                  </Text>
+                </View>
+
+                <View style={styles.managerFormGroup}>
+                  <ControlledInput
+                    control={managerControl}
+                    name="employeeCode"
+                    label="Tài khoản Quản lý"
+                    placeholder="Nhập mã nhân viên quản lý"
+                  />
+                  <ControlledInput
+                    control={managerControl}
+                    name="pin"
+                    label="Mã PIN"
+                    placeholder="Nhập mã PIN/Mật khẩu"
+                    secureTextEntry
+                  />
+                </View>
+
+                <View className="mt-2 flex-row gap-4">
+                  <Button
+                    label="Hủy bỏ"
+                    variant="outline"
+                    onPress={onManagerCancel}
+                    className="h-14 flex-1"
+                    textClassName="font-bold"
+                    disabled={isSubmitting}
+                  />
+                  <Button
+                    label="Xác nhận"
+                    variant="primary"
+                    onPress={handleManagerSubmit(onManagerSubmit)}
+                    className="h-14 flex-1"
+                    textClassName="font-bold"
+                    loading={isSubmitting}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
         </ModalBase>
       </>
     )
@@ -372,3 +476,47 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
 )
 
 RefundConfirmModal.displayName = 'RefundConfirmModal'
+
+const styles = StyleSheet.create({
+  managerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  managerCard: {
+    width: 550,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#e0e1e2',
+    padding: 32,
+    gap: 24,
+    shadowColor: '#a8a8a8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 32,
+    elevation: 8,
+  },
+  managerCardHeader: {
+    gap: 8,
+  },
+  managerCardTitle: {
+    fontFamily: 'Manrope-Bold',
+    fontSize: 28,
+    lineHeight: 36,
+    color: '#282929',
+    textAlign: 'center',
+  },
+  managerCardSubtitle: {
+    fontFamily: 'Manrope-Regular',
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  managerFormGroup: {
+    gap: 16,
+  },
+})

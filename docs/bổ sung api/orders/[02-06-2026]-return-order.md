@@ -36,42 +36,51 @@ Tài liệu này bổ sung endpoint trả hàng/hoàn tiền cho máy POS. Luồ
       "productId": "uuid-san-pham-2",
       "qty": 1
     }
-  ]
+  ],
+  "manager_auth": {
+    "employee_code": "uuid-quan-ly-hoac-ma-nhan-vien",
+    "pin": "123456"
+  }
 }
 ```
 
 ### Body Fields
 
-| Trường           | Kiểu dữ liệu | Bắt buộc | Mô tả                                                                                                            |
-| ---------------- | ------------ | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `idempotencyKey` | string       | Có       | UUID do FE sinh cho mỗi lần bấm xác nhận trả hàng, dùng để backend chống duplicate khi POS retry/mạng chập chờn. |
-| `reason`         | string       | Không    | Lý do trả hàng. Có thể là chuỗi rỗng nếu thu ngân không nhập lý do.                                              |
-| `shift_id`       | string       | Có       | UUID ca làm việc/cash session hiện tại.                                                                          |
-| `staff_id`       | string       | Có       | UUID nhân viên thực hiện trả hàng.                                                                               |
-| `lines`          | array        | Có       | Danh sách sản phẩm và số lượng cần trả. Phải có ít nhất 1 dòng hợp lệ.                                           |
-| `productId`      | string       | Có       | UUID sản phẩm trong đơn gốc.                                                                                     |
-| `qty`            | number       | Có       | Số lượng trả của sản phẩm. Phải `> 0` và không vượt số lượng còn trả.                                            |
+| Trường                       | Kiểu dữ liệu | Bắt buộc | Mô tả                                                                                                            |
+| ---------------------------- | ------------ | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `idempotencyKey`             | string       | Có       | UUID do FE sinh cho mỗi lần bấm xác nhận trả hàng, dùng để backend chống duplicate khi POS retry/mạng chập chờn. |
+| `reason`                     | string       | Không    | Lý do trả hàng. Có thể là chuỗi rỗng nếu thu ngân không nhập lý do.                                              |
+| `shift_id`                   | string       | Có       | UUID ca làm việc/cash session hiện tại.                                                                          |
+| `staff_id`                   | string       | Có       | UUID nhân viên thực hiện trả hàng.                                                                               |
+| `lines`                      | array        | Có       | Danh sách sản phẩm và số lượng cần trả. Phải có ít nhất 1 dòng hợp lệ.                                           |
+| `productId`                  | string       | Có       | UUID sản phẩm trong đơn gốc.                                                                                     |
+| `qty`                        | number       | Có       | Số lượng trả của sản phẩm. Phải `> 0` và không vượt số lượng còn trả.                                            |
+| `manager_auth`               | object       | Không    | Thông tin phê duyệt của Quản lý (chỉ gửi kèm khi retry trả hàng cần phê duyệt).                                  |
+| `manager_auth.employee_code` | string       | Có       | Mã nhân viên quản lý phê duyệt.                                                                                  |
+| `manager_auth.pin`           | string       | Có       | Mã PIN hoặc Mật khẩu của quản lý (độ dài tùy ý).                                                                 |
 
 ---
 
 ## 2. Business Rules
 
-| Mã   | Rule                                                                                                                           |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------ |
-| BR01 | Chỉ được trả hàng với đơn hàng đã thanh toán thành công.                                                                       |
-| BR02 | Chỉ được trả các sản phẩm tồn tại trong đơn hàng gốc.                                                                          |
-| BR03 | Số lượng trả không được vượt quá số lượng đã mua trừ số lượng đã trả trước đó.                                                 |
-| BR04 | Backend là nguồn dữ liệu chính để đối chiếu phiếu trả hàng và đơn hàng gốc.                                                    |
-| BR05 | Người dùng phải chọn ít nhất 1 sản phẩm để trả hàng.                                                                           |
-| BR06 | Số lượng trả của mỗi dòng phải lớn hơn 0.                                                                                      |
-| BR07 | Giá trị hoàn trả tính theo giá thực tế trên đơn hàng gốc, sau giảm giá nếu có.                                                 |
-| BR08 | Sau khi trả hàng thành công, backend cập nhật lại tồn kho của sản phẩm được trả.                                               |
-| BR09 | Tiền hoàn thực tế do thu ngân tự xử lý trực tiếp; backend không cần xử lý chi tiền/settlement.                                 |
-| BR10 | Một đơn hàng có thể phát sinh nhiều lần trả hàng cho đến khi trả hết số lượng đã mua.                                          |
-| BR11 | Không cho phép trả hàng với đơn hàng đã bị hủy hoặc trạng thái không hợp lệ.                                                   |
-| BR12 | Không cho phép chỉnh sửa phiếu trả hàng sau khi backend đã hoàn tất xử lý.                                                     |
-| BR13 | Backend ghi nhận người thực hiện, thời gian và số tiền cần hoàn.                                                               |
-| BR14 | Backend deduplicate request theo `idempotencyKey` trong TTL ngắn, đề xuất 5 phút, để tránh tạo 2 phiếu trả hàng khi POS retry. |
+| Mã   | Rule                                                                                                                                                                                                                                                             |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BR01 | Chỉ được trả hàng với đơn hàng đã thanh toán thành công.                                                                                                                                                                                                         |
+| BR02 | Chỉ được trả các sản phẩm tồn tại trong đơn hàng gốc.                                                                                                                                                                                                            |
+| BR03 | Số lượng trả không được vượt quá số lượng đã mua trừ số lượng đã trả trước đó.                                                                                                                                                                                   |
+| BR04 | Backend là nguồn dữ liệu chính để đối chiếu phiếu trả hàng và đơn hàng gốc.                                                                                                                                                                                      |
+| BR05 | Người dùng phải chọn ít nhất 1 sản phẩm để trả hàng.                                                                                                                                                                                                             |
+| BR06 | Số lượng trả của mỗi dòng phải lớn hơn 0.                                                                                                                                                                                                                        |
+| BR07 | Giá trị hoàn trả tính theo giá thực tế trên đơn hàng gốc, sau giảm giá nếu có.                                                                                                                                                                                   |
+| BR08 | Sau khi trả hàng thành công, backend cập nhật lại tồn kho của sản phẩm được trả.                                                                                                                                                                                 |
+| BR09 | Tiền hoàn thực tế do thu ngân tự xử lý trực tiếp; backend không cần xử lý chi tiền/settlement.                                                                                                                                                                   |
+| BR10 | Một đơn hàng có thể phát sinh nhiều lần trả hàng cho đến khi trả hết số lượng đã mua.                                                                                                                                                                            |
+| BR11 | Không cho phép trả hàng với đơn hàng đã bị hủy hoặc trạng thái không hợp lệ.                                                                                                                                                                                     |
+| BR12 | Không cho phép chỉnh sửa phiếu trả hàng sau khi backend đã hoàn tất xử lý.                                                                                                                                                                                       |
+| BR13 | Backend ghi nhận người thực hiện, thời gian và số tiền cần hoàn.                                                                                                                                                                                                 |
+| BR14 | Backend deduplicate request theo `idempotencyKey` trong TTL ngắn, đề xuất 5 phút, để tránh tạo 2 phiếu trả hàng khi POS retry.                                                                                                                                   |
+| BR15 | Nếu tài khoản thu ngân không đủ quyền tự trả hàng/hoàn tiền, backend phải trả về HTTP `403 Forbidden` với mã lỗi `order.manager_approval_required` để kích hoạt popup PIN Quản lý trên POS.                                                                      |
+| BR16 | Khi nhận được `manager_auth` trong payload, backend tiến hành xác thực tài khoản và mã PIN của Quản lý. Nếu sai, trả về lỗi `auth.invalid_manager_credentials` (401). Nếu Quản lý không có quyền trả hàng, trả về `auth.insufficient_manager_permissions` (403). |
 
 ---
 
@@ -184,11 +193,23 @@ Backend trả trực tiếp data mới sau khi refund thành công. Data cần �
 
 ## 5. Error Response
 
-### Business lỗi (400 / 409)
+### Business lỗi (400 / 401 / 403 / 409)
 
 ```json
 { "error": "order.return_quantity_exceeded" }
 ```
+
+| HTTP  | Error Code                              | Trường hợp / Hướng xử lý                                                  |
+| ----- | --------------------------------------- | ------------------------------------------------------------------------- |
+| `400` | `order.return_quantity_exceeded`        | Số lượng trả hàng vượt quá số lượng cho phép.                             |
+| `400` | `pos.session_not_found`                 | Không tìm thấy ca làm việc hiện tại.                                      |
+| `401` | `auth.unauthorized`                     | Token hết hạn hoặc không hợp lệ.                                          |
+| `401` | `auth.invalid_manager_credentials`      | Mã quản lý hoặc mã PIN không chính xác (dành cho popup Quản lý).          |
+| `403` | `auth.forbidden`                        | Không có quyền `pos:refund`.                                              |
+| `403` | `order.manager_approval_required`       | Yêu cầu phê duyệt của Quản lý để trả hàng (kích hoạt popup PIN trên POS). |
+| `403` | `auth.insufficient_manager_permissions` | Tài khoản quản lý này không có quyền phê duyệt trả hàng.                  |
+| `404` | `order.not_found`                       | Không tìm thấy đơn hàng.                                                  |
+| `409` | `order.version_conflict`                | OCC conflict — dữ liệu đã thay đổi, FE cần tải lại đơn.                   |
 
 Ví dụ server error:
 

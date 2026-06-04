@@ -2,7 +2,6 @@ import { OrderStatus } from '@/shared/lib/database'
 import { toast } from '@/shared/store'
 import { assign, fromPromise, setup } from 'xstate'
 import {
-  OrderApiError,
   OrderRemoteAPI,
   RefundOrderLineRequest,
   RefundOrderResult,
@@ -20,6 +19,8 @@ export interface RefundOrderContext {
   staffId: string
   result: RefundOrderResult | null
   error: string | null
+  managerAuth: { employeeCode: string; pin: string } | null
+  managerAuthError: string | null
 }
 
 export type RefundOrderEvent =
@@ -29,6 +30,7 @@ export type RefundOrderEvent =
   | { type: 'SET_ALL_LINES' }
   | { type: 'CLEAR_LINE'; productId: string }
   | { type: 'SUBMIT' }
+  | { type: 'SUBMIT_MANAGER_PIN'; managerAuth: { employeeCode: string; pin: string } }
   | { type: 'CANCEL' }
   | { type: 'RESET' }
 
@@ -42,6 +44,8 @@ const DEFAULT_CONTEXT: RefundOrderContext = {
   staffId: '',
   result: null,
   error: null,
+  managerAuth: null,
+  managerAuthError: null,
 }
 
 const createIdempotencyKey = () => {
@@ -102,6 +106,7 @@ export const refundOrderMachine = setup({
           shiftId: input.shiftId,
           staffId: input.staffId,
           lines: input.lines.filter((line) => line.qty > 0),
+          managerAuth: input.managerAuth,
         })
       },
     ),
@@ -165,17 +170,23 @@ export const refundOrderMachine = setup({
     },
     notifyError: ({ event }) => {
       const error = (event as any).error
-      const message =
-        error instanceof OrderApiError
-          ? getOrderErrorMessage(error.code, error.status)
-          : error?.message || 'Có lỗi xảy ra khi xử lý trả hàng.'
+      const errData = error?.response?.data
+      const code = errData?.errorCode || errData?.error
+      const status = error?.response?.status
+      const message = code
+        ? getOrderErrorMessage(code, status)
+        : error?.message || 'Có lỗi xảy ra khi xử lý trả hàng.'
       toast.error(message)
     },
     recordError: assign({
       error: ({ event }) => {
         const error = (event as any).error
-        if (error instanceof OrderApiError) return getOrderErrorMessage(error.code, error.status)
-        return error?.message || 'Có lỗi xảy ra khi xử lý trả hàng.'
+        const errData = error?.response?.data
+        const code = errData?.errorCode || errData?.error
+        const status = error?.response?.status
+        return code
+          ? getOrderErrorMessage(code, status)
+          : error?.message || 'Có lỗi xảy ra khi xử lý trả hàng.'
       },
     }),
     resetContext: assign(DEFAULT_CONTEXT),
@@ -244,9 +255,57 @@ export const refundOrderMachine = setup({
           target: 'receivingReturnedItems',
           actions: 'assignResult',
         },
-        onError: {
+        onError: [
+          {
+            guard: ({ event }) => {
+              const error = (event as any).error
+              const errData = error?.response?.data
+              const code = errData?.errorCode || errData?.error
+              return code === 'order.manager_approval_required'
+            },
+            target: 'waitingManagerApproval',
+          },
+          {
+            guard: ({ event }) => {
+              const error = (event as any).error
+              const errData = error?.response?.data
+              const code = errData?.errorCode || errData?.error
+              return (
+                code === 'auth.invalid_manager_credentials' ||
+                code === 'auth.insufficient_manager_permissions'
+              )
+            },
+            actions: assign({
+              managerAuthError: ({ event }) => {
+                const error = (event as any).error
+                const errData = error?.response?.data
+                return errData?.message || 'Thông tin phê duyệt của Quản lý không hợp lệ.'
+              },
+            }),
+            target: 'waitingManagerApproval',
+          },
+          {
+            target: 'draft',
+            actions: ['recordError', 'notifyError'],
+          },
+        ],
+      },
+    },
+    waitingManagerApproval: {
+      on: {
+        SUBMIT_MANAGER_PIN: {
+          actions: assign({
+            managerAuth: ({ event }) => event.managerAuth,
+            managerAuthError: null,
+          }),
+          target: 'submittingReturn',
+        },
+        CANCEL: {
           target: 'draft',
-          actions: ['recordError', 'notifyError'],
+          actions: assign({
+            managerAuth: null,
+            managerAuthError: null,
+          }),
         },
       },
     },

@@ -136,6 +136,10 @@ export interface RefundOrderParams {
   shiftId: string
   staffId: string
   lines: RefundOrderLineRequest[]
+  managerAuth?: {
+    employeeCode: string
+    pin: string
+  } | null
 }
 
 export interface RefundReceiptLine {
@@ -388,7 +392,7 @@ export const OrderRemoteAPI = {
    * Backend trả raw JSON object, không có envelope { success, data }.
    */
   refundOrder: async (params: RefundOrderParams): Promise<RefundOrderResult> => {
-    const { orderId, idempotencyKey, reason, shiftId, staffId, lines } = params
+    const { orderId, idempotencyKey, reason, shiftId, staffId, lines, managerAuth } = params
 
     try {
       const response = await AxiosService.getInstance().post<RefundOrderResult>(
@@ -399,21 +403,20 @@ export const OrderRemoteAPI = {
           shift_id: shiftId,
           staff_id: staffId,
           lines,
+          ...(managerAuth
+            ? {
+                manager_auth: {
+                  employee_code: managerAuth.employeeCode,
+                  pin: managerAuth.pin,
+                },
+              }
+            : {}),
         },
       )
 
       return response.data
-    } catch (error: any) {
-      const status = error?.response?.status
-      const data = error?.response?.data
-      const code = typeof data?.error === 'string' ? data.error : undefined
-      const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
-
-      throw new OrderApiError(code || error?.message || 'order.refund_failed', {
-        code,
-        status,
-        traceId,
-      })
+    } catch (error) {
+      throw error
     }
   },
 
