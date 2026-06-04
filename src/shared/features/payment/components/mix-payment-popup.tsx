@@ -8,6 +8,7 @@ import { OrderStatus, PaymentMethod } from '@/shared/lib/database'
 import { toast, useConnectionStore } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
+import * as v from 'valibot'
 import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
 import {
@@ -20,7 +21,7 @@ import {
 } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Image, ScrollView, Text, View } from 'react-native'
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
 import { mixPaymentMachine } from '../machines/mix-payment.machine'
@@ -86,6 +87,13 @@ function buildReceiptOrder(
   }
 }
 
+const managerApprovalSchema = v.object({
+  employeeCode: v.pipe(v.string(), v.minLength(1, 'Mã quản lý là bắt buộc')),
+  pin: v.pipe(v.string(), v.minLength(1, 'PIN là bắt buộc')),
+})
+
+type ManagerApprovalFormData = v.InferOutput<typeof managerApprovalSchema>
+
 export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
   (
     {
@@ -141,6 +149,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       checkoutResult,
       qrContent,
       expiresAt,
+      managerAuthError,
     } = context
 
     const isIdle = machineState === 'idle'
@@ -163,6 +172,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const isPrinting = machineState === 'printingReceipt'
     const isSuccess = machineState === 'success'
     const isCancelled = machineState === 'cancelled'
+    const isWaitingManagerApproval = machineState === 'waitingManagerApproval'
 
     const isProcessing =
       isCreatingCheckout ||
@@ -198,11 +208,47 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       },
     })
 
+    // Form for manager PIN override approval
+    const {
+      control: managerControl,
+      handleSubmit: handleManagerSubmit,
+      reset: resetManagerForm,
+      setError: setManagerError,
+    } = useForm<ManagerApprovalFormData>({
+      resolver: valibotResolver(managerApprovalSchema),
+      defaultValues: {
+        employeeCode: '',
+        pin: '',
+      },
+    })
+
     useEffect(() => {
       if (!visible) {
         reset()
+        resetManagerForm()
       }
-    }, [visible, reset])
+    }, [visible, reset, resetManagerForm])
+
+    useEffect(() => {
+      if (managerAuthError) {
+        setManagerError('pin', { type: 'manual', message: managerAuthError })
+      }
+    }, [managerAuthError, setManagerError])
+
+    const onManagerSubmit = (data: ManagerApprovalFormData) => {
+      actorRef.send({
+        type: 'SUBMIT_MANAGER_PIN',
+        managerAuth: {
+          employeeCode: data.employeeCode,
+          pin: data.pin,
+        },
+      })
+    }
+
+    const onManagerCancel = () => {
+      resetManagerForm()
+      actorRef.send({ type: 'CANCEL' })
+    }
 
     useEffect(() => {
       if (!visible || !qrContent) {
@@ -381,10 +427,18 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
     useEffect(() => {
       if (isCancelled) {
+        if (cashAmount > 0) {
+          toast.success(
+            `Đã hủy đơn hàng thành công. Vui lòng trả lại ${formatCurrency(cashAmount)} tiền mặt cho khách.`,
+            'Hủy đơn hàng thành công',
+          )
+        } else {
+          toast.success('Đã hủy đơn hàng thành công!', 'Hủy đơn hàng thành công')
+        }
         const timer = setTimeout(() => setVisible(false), 800)
         return () => clearTimeout(timer)
       }
-    }, [isCancelled])
+    }, [isCancelled, cashAmount])
 
     // Log error details for troubleshooting
     useEffect(() => {
@@ -456,7 +510,21 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const handleNumpadClear = () => setCashInput('')
 
     const handleClose = () => {
-      actorRef.send({ type: 'CANCEL' })
+      const snap = actorRef.getSnapshot()
+      const hasCreatedCheckout = !!snap.context.checkoutResult
+      const cashAmount = snap.context.cashAmount
+
+      if (hasCreatedCheckout && cashAmount > 0) {
+        toast.confirm({
+          title: 'Hoàn tiền mặt & Hủy đơn hàng',
+          message: `Đã thu ${formatCurrency(cashAmount)} tiền mặt. Vui lòng hoàn lại tiền mặt cho khách trước, sau đó xác nhận hủy đơn hàng.`,
+          onConfirm: () => {
+            actorRef.send({ type: 'CANCEL' })
+          },
+        })
+      } else {
+        actorRef.send({ type: 'CANCEL' })
+      }
     }
 
     const handleConfirm = () => {
@@ -864,7 +932,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       <ModalBase
         visible={visible}
         onClose={handleClose}
-        dismissible={!isProcessing && !isManualResolution}
+        dismissible={!isProcessing && !isManualResolution && !isWaitingManagerApproval}
         className="max-w-[1100px] flex-row"
       >
         {/* Left Side: Split Details */}
@@ -988,10 +1056,104 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             </View>
           )}
         </View>
+
+        {/* Manager Approval Overlay */}
+        {(isWaitingManagerApproval ||
+          (machineState === 'cancelling' && context.managerAuth !== null)) && (
+          <View style={styles.managerOverlay}>
+            <View style={styles.managerCard}>
+              <View style={styles.managerCardHeader}>
+                <Text style={styles.managerCardTitle}>Yêu cầu Quyền Quản lý</Text>
+                <Text style={styles.managerCardSubtitle}>
+                  Vui lòng nhập tài khoản và mã PIN của quản lý để phê duyệt hủy đơn hàng.
+                </Text>
+              </View>
+
+              <View style={styles.managerFormGroup}>
+                <ControlledInput
+                  control={managerControl}
+                  name="employeeCode"
+                  label="Tài khoản Quản lý"
+                  placeholder="Nhập mã nhân viên quản lý"
+                />
+                <ControlledInput
+                  control={managerControl}
+                  name="pin"
+                  label="Mã PIN"
+                  placeholder="Nhập mã PIN/Mật khẩu"
+                  secureTextEntry
+                />
+              </View>
+
+              <View className="mt-2 flex-row gap-4">
+                <Button
+                  label="Hủy bỏ"
+                  variant="outline"
+                  onPress={onManagerCancel}
+                  className="h-14 flex-1"
+                  textClassName="font-bold"
+                  disabled={machineState === 'cancelling'}
+                />
+                <Button
+                  label="Xác nhận"
+                  variant="primary"
+                  onPress={handleManagerSubmit(onManagerSubmit)}
+                  className="h-14 flex-1"
+                  textClassName="font-bold"
+                  loading={machineState === 'cancelling'}
+                />
+              </View>
+            </View>
+          </View>
+        )}
       </ModalBase>
     )
   },
 )
+
+const styles = StyleSheet.create({
+  managerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  managerCard: {
+    width: 550,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#e0e1e2',
+    padding: 32,
+    gap: 24,
+    shadowColor: '#a8a8a8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 32,
+    elevation: 8,
+  },
+  managerCardHeader: {
+    gap: 8,
+  },
+  managerCardTitle: {
+    fontFamily: 'Manrope-Bold',
+    fontSize: 28,
+    lineHeight: 36,
+    color: '#282929',
+    textAlign: 'center',
+  },
+  managerCardSubtitle: {
+    fontFamily: 'Manrope-Regular',
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  managerFormGroup: {
+    gap: 16,
+  },
+})
 
 MixPaymentPopup.displayName = 'MixPaymentPopup'
 export default MixPaymentPopup

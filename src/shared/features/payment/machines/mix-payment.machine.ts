@@ -6,10 +6,10 @@ import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { assign, setup } from 'xstate'
 import {
-  PaymentResult,
-  PortablePaymentCommandResult,
   PAYMENT_ERROR_CODES,
   PaymentErrorCode,
+  PaymentResult,
+  PortablePaymentCommandResult,
 } from '../types'
 
 import {
@@ -68,6 +68,10 @@ export interface MixPaymentContext {
   errorCode: PaymentErrorCode | null
   retryCount: number
   paymentResult: PaymentResult | null
+
+  /** Manager Override PIN */
+  managerAuth: { employeeCode: string; pin: string } | null
+  managerAuthError: string | null
 }
 
 export type MixPaymentEvent =
@@ -85,6 +89,10 @@ export type MixPaymentEvent =
       merchantId?: string
       referenceNumber?: string
       approvalCode?: string
+    }
+  | {
+      type: 'SUBMIT_MANAGER_PIN'
+      managerAuth: { employeeCode: string; pin: string }
     }
 
 export type MixPaymentInput = {
@@ -285,6 +293,8 @@ export const mixPaymentMachine = setup({
         errorCode: null,
         retryCount: 0,
         paymentResult: null,
+        managerAuth: null,
+        managerAuthError: null,
       }
 
       if (event.type === 'START' && event.input) {
@@ -346,6 +356,8 @@ export const mixPaymentMachine = setup({
     errorCode: null,
     retryCount: 0,
     paymentResult: null,
+    managerAuth: null,
+    managerAuthError: null,
   }),
   states: {
     idle: {
@@ -405,7 +417,7 @@ export const mixPaymentMachine = setup({
     // QR subflow
     fetchingQr: {
       on: {
-        CANCEL: { target: 'cancelling' },
+        CANCEL: { target: 'voidingPayment' },
       },
       invoke: {
         id: 'fetchQR',
@@ -434,7 +446,7 @@ export const mixPaymentMachine = setup({
           target: '#mixPayment.preparingReceipt',
           actions: 'assignForceCompleteQrPaymentResult',
         },
-        CANCEL: { target: 'cancelling' },
+        CANCEL: { target: 'voidingPayment' },
       },
       initial: 'idle',
       states: {
@@ -496,7 +508,7 @@ export const mixPaymentMachine = setup({
           actions: 'assignManualCardDetails',
         },
         CANCEL: {
-          target: 'cancelling',
+          target: 'voidingPayment',
         },
       },
       invoke: {
@@ -524,7 +536,7 @@ export const mixPaymentMachine = setup({
           actions: 'assignManualCardDetails',
         },
         CANCEL: {
-          target: 'cancelling',
+          target: 'voidingPayment',
         },
       },
     },
@@ -673,7 +685,7 @@ export const mixPaymentMachine = setup({
           actions: 'clearError',
         },
         CANCEL: {
-          target: 'cancelling',
+          target: 'voidingPayment',
         },
       },
     },
@@ -703,7 +715,7 @@ export const mixPaymentMachine = setup({
           actions: 'assignForceCompleteQrPaymentResult',
         },
         CANCEL: {
-          target: 'cancelling',
+          target: 'voidingPayment',
         },
       },
     },
@@ -744,6 +756,23 @@ export const mixPaymentMachine = setup({
       },
     },
 
+    voidingPayment: {
+      invoke: {
+        id: 'cancelPayment',
+        src: 'cancelPayment',
+        input: ({ context }) => ({
+          paymentId: context.nonCashPaymentId,
+          paymentVersion: context.nonCashPaymentVersion,
+        }),
+        onDone: {
+          target: 'cancelling',
+        },
+        onError: {
+          target: 'cancelling',
+        },
+      },
+    },
+
     cancelling: {
       invoke: {
         id: 'cancelOrder',
@@ -752,13 +781,86 @@ export const mixPaymentMachine = setup({
           orderId: context.orderId,
           shiftId: context.shiftId,
           staffId: context.staffId,
+          managerAuth: context.managerAuth,
         }),
         onDone: {
           target: 'cancelled',
         },
-        onError: {
-          target: 'cancelled',
+        onError: [
+          {
+            guard: ({ event }) => {
+              const errData = (event.error as any)?.response?.data
+              const code = errData?.errorCode || errData?.error
+              return code === 'order.manager_approval_required'
+            },
+            target: 'waitingManagerApproval',
+          },
+          {
+            guard: ({ event }) => {
+              const errData = (event.error as any)?.response?.data
+              const code = errData?.errorCode || errData?.error
+              return (
+                code === 'auth.invalid_manager_credentials' ||
+                code === 'auth.insufficient_manager_permissions'
+              )
+            },
+            actions: assign({
+              managerAuthError: ({ event }) => {
+                const errData = (event.error as any)?.response?.data
+                return errData?.message || 'Thông tin phê duyệt của Quản lý không hợp lệ.'
+              },
+            }),
+            target: 'waitingManagerApproval',
+          },
+          {
+            target: 'cancelled',
+          },
+        ],
+      },
+    },
+
+    waitingManagerApproval: {
+      on: {
+        SUBMIT_MANAGER_PIN: {
+          actions: assign({
+            managerAuth: ({ event }) => event.managerAuth,
+            managerAuthError: null,
+          }),
+          target: 'cancelling',
         },
+        CANCEL: [
+          {
+            target: 'idle',
+            guard: ({ context }) => !context.checkoutResult,
+            actions: assign({
+              managerAuth: null,
+              managerAuthError: null,
+            }),
+          },
+          {
+            target: 'waitingQrPayment',
+            guard: ({ context }) => context.selectedMethod === 'qr',
+            actions: assign({
+              managerAuth: null,
+              managerAuthError: null,
+            }),
+          },
+          {
+            target: 'connectionFailed',
+            guard: ({ context }) => context.selectedMethod === 'card',
+            actions: assign({
+              managerAuth: null,
+              managerAuthError: null,
+            }),
+          },
+          {
+            target: 'idle',
+            actions: assign({
+              managerAuth: null,
+              managerAuthError: null,
+            }),
+          },
+        ],
       },
     },
 

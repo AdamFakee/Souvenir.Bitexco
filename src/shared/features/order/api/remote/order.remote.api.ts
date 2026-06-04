@@ -236,6 +236,10 @@ export interface CancelOrderParams {
   shiftId: string
   staffId: string
   reason?: string
+  managerAuth?: {
+    employeeCode: string
+    pin: string
+  } | null
 }
 
 export interface CancelOrderResult {
@@ -452,7 +456,7 @@ export const OrderRemoteAPI = {
    * Hủy đơn hàng (Remote API)
    */
   cancelOrder: async (params: CancelOrderParams): Promise<CancelOrderResult> => {
-    const { orderId, shiftId, staffId, reason } = params
+    const { orderId, shiftId, staffId, reason, managerAuth } = params
 
     try {
       const res = await AxiosService.getInstance().post<CancelOrderResult>(
@@ -461,6 +465,14 @@ export const OrderRemoteAPI = {
           shift_id: shiftId,
           staff_id: staffId,
           reason,
+          ...(managerAuth
+            ? {
+                manager_auth: {
+                  employee_code: managerAuth.employeeCode,
+                  pin: managerAuth.pin,
+                },
+              }
+            : {}),
         },
       )
       return res.data

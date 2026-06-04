@@ -158,7 +158,7 @@ export default function CheckoutPanel() {
       })
       cartActor?.send({ type: 'APPLY_VOUCHER', voucher: response })
       setVoucherInput(response.code)
-      toast.success(`Đã áp dụng mã giảm giá: ${response.code}`)
+      // toast.success(`Đã áp dụng mã giảm giá: ${response.code}`)
     } catch (error: any) {
       toast.error(error.message || 'Mã giảm giá không hợp lệ')
     }
@@ -166,7 +166,7 @@ export default function CheckoutPanel() {
 
   const handleRemoveVoucher = () => {
     cartActor?.send({ type: 'REMOVE_VOUCHER' })
-    toast.info(' Đã gỡ mã giảm giá')
+    // toast.info(' Đã gỡ mã giảm giá')
   }
 
   return (

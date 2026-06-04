@@ -113,7 +113,12 @@ export const cancelOrderActor = fromPromise(
   async ({
     input,
   }: {
-    input: { orderId: string | null; shiftId: string; staffId: string }
+    input: {
+      orderId: string | null
+      shiftId: string
+      staffId: string
+      managerAuth?: { employeeCode: string; pin: string } | null
+    }
   }): Promise<void> => {
     if (!input.orderId) return
     try {
@@ -122,7 +127,10 @@ export const cancelOrderActor = fromPromise(
         shiftId: input.shiftId,
         staffId: input.staffId,
         reason: 'cashier_cancelled_payment',
+        managerAuth: input.managerAuth || undefined,
       })
-    } catch (err) {}
+    } catch (err: any) {
+      throw err
+    }
   },
 )

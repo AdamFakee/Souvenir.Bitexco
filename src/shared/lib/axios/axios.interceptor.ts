@@ -1,6 +1,6 @@
 import { API_CONSTANT } from '@/shared/constants'
-import { useAppStore } from '@/shared/features/app'
 import { toast } from '@/shared/store'
+import type { useAppStore as UseAppStoreType } from '@/shared/features/app/store/use-app-store'
 import {
   AxiosError,
   AxiosHeaders,
@@ -13,8 +13,12 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
 }
 
+// Lazy getter — chỉ resolve lúc runtime, tránh circular import lúc module load
+const getAppStore = (): typeof UseAppStoreType =>
+  require('@/shared/features/app/store/use-app-store').useAppStore
+
 const onRequest = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-  const accessToken = useAppStore.getState().appService?.getSnapshot().context.accessToken
+  const accessToken = getAppStore().getState().appService?.getSnapshot().context.accessToken
   config.headers = new AxiosHeaders({
     ...config.headers,
     Authorization: accessToken ? `Bearer ${accessToken}` : '',
@@ -45,7 +49,7 @@ const onResponseError = async (error: AxiosError): Promise<any> => {
   ) {
     originalRequest._retry = true
     toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
-    useAppStore.getState().appService?.send({ type: 'TOKEN_EXPIRED' })
+    getAppStore().getState().appService?.send({ type: 'TOKEN_EXPIRED' })
   }
 
   return Promise.reject(error)
