@@ -1,47 +1,65 @@
 import { Shimmer } from '@/shared/components/ui'
+import { BG_MAIN } from '@/shared/features/auth'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
-import { Text, View } from 'react-native'
+import { ImageBackground, StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useViceStore } from '../vice-store'
 
-const QRCODE_SIZE = 300
+const QRCODE_SIZE = 240
 
 function VicePaymentScreen() {
   const qrCodeUrl = useViceStore((state) => state.qrCodeUrl)
   const total = useViceStore((state) => state.total)
 
   return (
-    <View className="flex-1 items-center justify-center bg-background p-6">
-      {/* Pop-up Card căn giữa dạng Dọc siêu tinh tế & gọn gàng */}
-      <View
-        style={{ width: 400 }}
-        className="items-center rounded-[28px] border border-surface-200 bg-white p-6 shadow-xl"
-      >
-        {/* Phần 1: Khung QR Code đặt ở trên cùng */}
-        <View className="mb-4 items-center justify-center rounded-[20px] border border-surface-200 bg-white p-4 shadow-sm">
-          {qrCodeUrl ? (
-            <QRCode value={qrCodeUrl} size={QRCODE_SIZE} color="black" backgroundColor="white" />
-          ) : (
-            <Shimmer className={`h-[${QRCODE_SIZE}px] w-[${QRCODE_SIZE}px] rounded-[12px]`} />
-          )}
-        </View>
+    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+      <View style={styles.overlay} />
 
-        {/* Đường gạch phân cách mỏng */}
-        <View className="my-4 w-full border-b border-surface-100" />
+      <View className="m-4 flex-1 items-center justify-center">
+        <View className="w-[360px] items-center rounded-[24px] border border-white/20 bg-white p-5 shadow-xl">
+          {/* Phần 1: Khung QR Code */}
+          <View className="items-center justify-center rounded-[18px] border border-outline-variant bg-white p-3 shadow-sm">
+            {qrCodeUrl ? (
+              <QRCode value={qrCodeUrl} size={QRCODE_SIZE} color="black" backgroundColor="white" />
+            ) : (
+              <Shimmer
+                className="rounded-[12px]"
+                style={{ width: QRCODE_SIZE, height: QRCODE_SIZE }}
+              />
+            )}
+          </View>
 
-        {/* Phần 2: Số tiền cần thanh toán */}
-        <View className="flex-row items-center" style={{ width: QRCODE_SIZE }}>
-          <Text className="h-6 w-1/2 text-start font-sans text-3xl font-bold text-surface-on-variant">
-            Tổng thanh toán:
-          </Text>
-          <Text className={`h-6 w-1/2 text-right font-sans text-3xl  font-black text-primary`}>
-            {formatCurrency(total)}
-          </Text>
+          <View className="my-4 w-full border-b border-outline-variant" />
+
+          {/* Phần 2: Số tiền cần thanh toán */}
+          <View className="w-full gap-1">
+            <Text className="text-center text-sm font-black uppercase tracking-widest text-muted">
+              Tổng thanh toán
+            </Text>
+            <Text
+              className="text-center text-4xl font-black text-primary"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.55}
+            >
+              {formatCurrency(total)}
+            </Text>
+          </View>
         </View>
       </View>
-    </View>
+    </ImageBackground>
   )
 }
+
+const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(83, 123, 144, 0.75)',
+  },
+})
 
 export default memo(VicePaymentScreen)

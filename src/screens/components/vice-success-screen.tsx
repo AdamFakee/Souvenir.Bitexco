@@ -1,6 +1,7 @@
+import { BG_MAIN } from '@/shared/features/auth'
 import LottieView from 'lottie-react-native'
 import React, { memo, useEffect } from 'react'
-import { Text, View } from 'react-native'
+import { ImageBackground, StyleSheet, Text, View } from 'react-native'
 import { useViceStore } from '../vice-store'
 
 const paymentSuccessLottie = require('../../assets/animation/payment-success.json')
@@ -19,32 +20,43 @@ function ViceSuccessScreen() {
   }, [setCurrentScreen, clearCart])
 
   return (
-    <View className="flex-1 items-center justify-center bg-white p-6">
-      {/* Khung Success Card căn giữa dạng Dọc siêu sang trọng */}
-      <View
-        style={{ width: 360 }}
-        className="items-center rounded-[28px] border border-surface-200 bg-white p-8 shadow-xl"
-      >
-        {/* Animated Lottie Checkmark siêu đẹp, sinh động */}
-        <View className="mb-6">
-          <LottieView
-            source={paymentSuccessLottie}
-            autoPlay
-            loop={false}
-            style={{ width: 180, height: 180 }}
-          />
-        </View>
+    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+      <View style={styles.overlay} />
 
-        {/* Thông điệp thành công */}
-        <Text className="text-center font-sans text-2xl font-black uppercase tracking-wider text-surface-on">
-          Thanh toán thành công
-        </Text>
-        <Text className="mt-2 text-center font-sans text-xl font-semibold text-surface-on-variant">
-          Cảm ơn và hẹn gặp lại quý khách!
-        </Text>
+      <View className="m-4 flex-1 items-center justify-center">
+        {/* Khung Success Card căn giữa dạng gọn cho màn phụ */}
+        <View className="w-[340px] items-center rounded-[24px] border border-white/20 bg-white p-6 shadow-xl">
+          {/* Animated Lottie Checkmark */}
+          <View className="mb-4">
+            <LottieView
+              source={paymentSuccessLottie}
+              autoPlay
+              loop={false}
+              style={{ width: 140, height: 140 }}
+            />
+          </View>
+
+          {/* Thông điệp thành công */}
+          <Text className="text-center text-2xl font-black uppercase tracking-wider text-surface-on">
+            Thanh toán thành công
+          </Text>
+          <Text className="mt-2 text-center text-lg font-semibold text-surface-on-variant">
+            Cảm ơn và hẹn gặp lại quý khách!
+          </Text>
+        </View>
       </View>
-    </View>
+    </ImageBackground>
   )
 }
+
+const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(83, 123, 144, 0.75)',
+  },
+})
 
 export default memo(ViceSuccessScreen)
