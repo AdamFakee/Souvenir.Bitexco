@@ -5,7 +5,12 @@ import { PaymentMethod } from '@/shared/lib/database'
 import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { assign, setup } from 'xstate'
-import { PaymentResult, PortablePaymentCommandResult } from '../types'
+import {
+  PaymentResult,
+  PortablePaymentCommandResult,
+  PAYMENT_ERROR_CODES,
+  PaymentErrorCode,
+} from '../types'
 
 import {
   authorizePaymentActor,
@@ -19,7 +24,7 @@ import {
   sendCardSaleCommandActor,
   verifyLastTransactionActor,
 } from '../flows/card-collection.actors'
-import { createMixCheckoutActor, cancelOrderActor } from '../flows/checkout.actors'
+import { cancelOrderActor, createMixCheckoutActor } from '../flows/checkout.actors'
 import { printReceiptActor } from '../flows/print.actors'
 import { checkQrPaymentStatusActor, fetchQrActor } from '../flows/qr-collection.actors'
 
@@ -60,6 +65,7 @@ export interface MixPaymentContext {
 
   /** Error and Result */
   error: string | null
+  errorCode: PaymentErrorCode | null
   retryCount: number
   paymentResult: PaymentResult | null
 }
@@ -257,9 +263,10 @@ export const mixPaymentMachine = setup({
 
         return errMsg
       },
+      errorCode: () => PAYMENT_ERROR_CODES.SYSTEM_ERROR,
       retryCount: ({ context }) => context.retryCount + 1,
     }),
-    clearError: assign({ error: null }),
+    clearError: assign({ error: null, errorCode: null }),
     resetContext: assign(({ event }) => {
       const baseContext = {
         cashAmount: 0,
@@ -275,6 +282,7 @@ export const mixPaymentMachine = setup({
         expiresAt: null,
         manualCardDetails: null,
         error: null,
+        errorCode: null,
         retryCount: 0,
         paymentResult: null,
       }
@@ -295,6 +303,10 @@ export const mixPaymentMachine = setup({
         }
       }
       return baseContext as any
+    }),
+    assignTimeoutError: assign({
+      error: () => 'Đã hết thời gian thanh toán. Vui lòng thử lại!',
+      errorCode: () => PAYMENT_ERROR_CODES.TIMEOUT,
     }),
     notifyTimeout: () => {
       toast.error('Mã QR hết hạn thanh toán!')
@@ -331,6 +343,7 @@ export const mixPaymentMachine = setup({
     expiresAt: null,
     manualCardDetails: null,
     error: null,
+    errorCode: null,
     retryCount: 0,
     paymentResult: null,
   }),
@@ -430,7 +443,7 @@ export const mixPaymentMachine = setup({
             POLL_INTERVAL: 'checking',
             TOTAL_TIMEOUT: {
               target: '#mixPayment.paymentFailed',
-              actions: 'notifyTimeout',
+              actions: ['assignTimeoutError', 'notifyTimeout'],
             },
           },
           on: {
@@ -542,7 +555,7 @@ export const mixPaymentMachine = setup({
       after: {
         PORTABLE_CMD_TIMEOUT: {
           target: 'verifyingUnknownCardTransaction',
-          actions: 'recordError',
+          actions: ['assignTimeoutError', 'recordError'],
         },
       },
       on: {

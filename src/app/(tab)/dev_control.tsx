@@ -1,8 +1,9 @@
+import { ViceService } from '@/screens/vice-service'
 import { Container } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
 import { useAppStore } from '@/shared/features/app'
-import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
 import { AuthAPI } from '@/shared/features/auth'
+import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
 import { useNoteStore } from '@/shared/features/note'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
@@ -378,6 +379,151 @@ export default function DevControlScreen() {
                 message: 'Bạn có chắc chắn muốn in lại hóa đơn này không?',
                 onConfirm: () => toast.success('Đang gửi lệnh in...'),
                 onCancel: () => console.log('Hủy in'),
+              })
+            }
+          />
+        </View>
+      </Container>
+
+      {/* Vice Screen Testing */}
+      <Container className="mb-6 p-4">
+        <Text className="text-title-md mb-3 font-bold text-surface-on">
+          Test Vice Customer Display Screens
+        </Text>
+        <View className="flex-row flex-wrap gap-3">
+          <Button
+            label="Màn hình Chờ / Giỏ hàng"
+            className="bg-sky-600"
+            onPress={() =>
+              ViceService.updateCart({
+                items: [
+                  { id: '1', name: 'Nước ngọt Coca-Cola', price: 15000, quantity: 2 },
+                  { id: '2', name: 'Magnet Bitexco', price: 45000, quantity: 1 },
+                ],
+                subtotal: 75000,
+                discount: 5000,
+                tax: 6000,
+                total: 76000,
+              })
+            }
+          />
+          <Button
+            label="Màn hình QR Code"
+            className="bg-indigo-600"
+            onPress={() =>
+              ViceService.showPayment({
+                qrCodeUrl:
+                  'https://img.vietqr.io/image/970415-1133666777-compact.png?amount=76000&addInfo=SO-MOCK-TEST',
+                subtotal: 75000,
+                discount: 5000,
+                tax: 6000,
+                total: 76000,
+              })
+            }
+          />
+          <Button
+            label="Màn hình Cà Thẻ (Portable)"
+            className="bg-purple-600"
+            onPress={() => ViceService.showPortablePayment({ total: 76000 })}
+          />
+          <Button
+            label="Màn hình Thanh Toán Hỗn Hợp (Mix)"
+            className="bg-fuchsia-600"
+            onPress={() =>
+              ViceService.showMixPayment({
+                subtotal: 75000,
+                discount: 5000,
+                tax: 6000,
+                total: 76000,
+                cashPaid: 50000,
+                nonCashAmount: 26000,
+              })
+            }
+          />
+          <Button
+            label="Màn hình Thối Tiền (Cash)"
+            className="bg-emerald-600"
+            onPress={() =>
+              ViceService.showCashPayment({
+                subtotal: 75000,
+                discount: 5000,
+                tax: 6000,
+                total: 76000,
+                customerPaid: 100000,
+                change: 24000,
+              })
+            }
+          />
+          <Button
+            label="Màn hình Thành Công"
+            className="bg-teal-600"
+            onPress={() =>
+              ViceService.paymentSuccess({
+                subtotal: 75000,
+                discount: 5000,
+                tax: 6000,
+                total: 76000,
+                customerPaid: 76000,
+                change: 0,
+              })
+            }
+          />
+          <Button
+            label="Màn hình Hết Giờ (Timeout) ⏰"
+            className="bg-red-600"
+            onPress={() =>
+              ViceService.showStatus({
+                type: 'error',
+                title: 'Hết thời gian thanh toán',
+                message: 'Vui lòng chờ nhân viên thao tác',
+              })
+            }
+          />
+          <Button
+            label="Status Error Custom ❌"
+            className="bg-rose-700"
+            onPress={() =>
+              ViceService.showStatus({
+                type: 'error',
+                title: 'Đã xảy ra lỗi!',
+                message: 'Kết nối đầu đọc thẻ thất bại, vui lòng thử lại.',
+              })
+            }
+          />
+          <Button
+            label="Status Success Custom ✅"
+            className="bg-green-700"
+            onPress={() =>
+              ViceService.showStatus({
+                type: 'success',
+                title: 'Hoàn tất giao dịch',
+                message: 'Cảm ơn quý khách đã mua sắm tại Bitexco!',
+              })
+            }
+          />
+          <Button
+            label="Status Info Custom ℹ️"
+            className="bg-blue-600"
+            onPress={() =>
+              ViceService.showStatus({
+                type: 'info',
+                title: 'Đang xử lý',
+                message: 'Vui lòng chờ trong giây lát...',
+              })
+            }
+          />
+          <Button
+            label="Reset về Home"
+            variant="outline"
+            className="border-neutral-500"
+            textClassName="text-neutral-700"
+            onPress={() =>
+              ViceService.updateCart({
+                items: [],
+                subtotal: 0,
+                discount: 0,
+                tax: 0,
+                total: 0,
               })
             }
           />

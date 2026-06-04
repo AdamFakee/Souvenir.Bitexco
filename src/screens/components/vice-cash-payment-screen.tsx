@@ -17,21 +17,19 @@ const CashCard = memo(function CashCard({
 }) {
   return (
     <View
-      className={`flex-1 items-center justify-center rounded-[18px] border p-4 shadow-sm ${
-        isHighlight ? 'border-outline-variant bg-surface-100' : 'border-surface-200 bg-surface-50'
+      className={`flex-1 rounded-2xl border bg-white px-4 py-3 ${
+        isHighlight ? 'border-primary/20' : 'border-outline-variant'
       }`}
     >
       <Text
-        className={`text-center text-sm font-black uppercase tracking-wider ${
-          isHighlight ? 'text-primary' : 'text-surface-on-variant'
-        }`}
+        className="text-center text-2xl font-bold uppercase tracking-wide text-muted"
         numberOfLines={1}
       >
         {label}
       </Text>
       <Text
-        className={`mt-2 text-center font-black ${
-          isHighlight ? 'text-3xl text-primary' : 'text-2xl text-surface-on'
+        className={`mt-1 text-center text-3xl font-black ${
+          isHighlight ? 'text-primary' : 'text-surface-on'
         }`}
         numberOfLines={1}
         adjustsFontSizeToFit
@@ -55,10 +53,10 @@ const Row = memo(function Row({
   prefix?: string
 }) {
   return (
-    <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-3">
-      <Text className="text-base font-bold text-muted">{label}</Text>
+    <View className="flex-row items-center justify-between border-b border-outline-variant pb-3">
+      <Text className="text-3xl font-bold text-muted">{label}</Text>
       <Text
-        className={`ml-4 flex-1 text-right text-base font-black ${
+        className={`ml-4 flex-1 text-right text-3xl font-black ${
           isHighlight ? 'text-primary' : 'text-surface-on'
         }`}
         numberOfLines={1}
@@ -87,11 +85,8 @@ function ViceCashPaymentScreen() {
       <View className="m-4 flex-1 overflow-hidden rounded-[24px] border border-white/20 bg-white shadow-xl">
         <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-6 py-4">
           <View className="flex-1 pr-4">
-            <Text className="text-2xl font-black tracking-tight text-surface-on">
+            <Text className="text-4xl font-black tracking-tight text-surface-on">
               Thanh toán tiền mặt
-            </Text>
-            <Text className="mt-1 text-sm font-bold text-muted" numberOfLines={1}>
-              Quý khách vui lòng kiểm tra thông tin giao dịch bên dưới.
             </Text>
           </View>
 
@@ -101,15 +96,15 @@ function ViceCashPaymentScreen() {
         </View>
 
         <View className="flex-1 justify-between bg-surface-50 p-5">
-          <View className="flex-row gap-4">
+          <View className="flex-row gap-3">
             <CashCard label="Tổng hóa đơn" value={total} />
             <CashCard label="Khách đưa" value={customerPaid} />
             <CashCard label="Tiền thối" value={change} isHighlight />
           </View>
 
-          <View className="rounded-[20px] border border-dashed border-outline-variant bg-white p-5 shadow-sm">
+          <View className="rounded-[20px] border border-outline-variant bg-white p-5">
             <View className="mb-4">
-              <Text className="text-base font-black uppercase tracking-widest text-surface-on">
+              <Text className="text-3xl font-black uppercase tracking-wide text-surface-on">
                 Chi tiết hóa đơn
               </Text>
             </View>

@@ -24,7 +24,7 @@ import { Image, ScrollView, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
 import { mixPaymentMachine } from '../machines/mix-payment.machine'
-import { PaymentPopupProps, PaymentPopupRef } from '../types'
+import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
 import {
   ManualCardDetailsFormData,
@@ -135,6 +135,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       nonCashAmount,
       selectedMethod,
       error,
+      errorCode,
       retryCount,
       rawCommandResult,
       checkoutResult,
@@ -246,20 +247,85 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       return () => clearTimeout(timer)
     }, [cashInput, visible, actorRef])
 
-    // Update vice display during selection
+    // Update vice display during selection, QR, and Card payment steps
     useEffect(() => {
       if (!visible) return
-      const paid = Number(cashInput) || 0
-      const changeAmt = paid >= total ? paid - total : 0
-      ViceService.showCashPayment({
-        subtotal,
-        discount,
-        tax,
-        total,
-        customerPaid: paid,
-        change: changeAmt,
-      })
-    }, [cashInput, total, visible, subtotal, discount, tax])
+
+      const isCardProcessing =
+        isProcessingCard ||
+        isConnectingCard ||
+        isSendingCardCmd ||
+        isVerifyingCard ||
+        isCapturingCardInfo ||
+        isCapturingCardManual ||
+        isAuthorizingCard ||
+        isCapturingCardPayment ||
+        isManualResolution ||
+        isPaymentFailed
+
+      if (isPaymentFailed || isError) {
+        if (errorCode === PAYMENT_ERROR_CODES.TIMEOUT) {
+          ViceService.showStatus({
+            type: 'error',
+            title: 'Hết thời gian thanh toán',
+            message: 'Vui lòng chờ nhân viên thao tác',
+          })
+        } else {
+          ViceService.showStatus({
+            type: 'error',
+            title: 'Thanh toán thất bại',
+            message: 'Đã xảy ra lỗi hệ thống.',
+          })
+        }
+      } else if (isIdle || isCreatingCheckout) {
+        ViceService.showMixPayment({
+          subtotal,
+          discount,
+          tax,
+          total,
+          cashPaid: cashAmount,
+          nonCashAmount,
+        })
+      } else if ((isFetchingQr || isWaitingQr) && qrContent) {
+        ViceService.showPayment({
+          qrCodeUrl: qrContent,
+          subtotal,
+          discount,
+          tax,
+          total: nonCashAmount,
+        })
+      } else if (selectedMethod === 'card' && isCardProcessing && !isSuccess) {
+        ViceService.showPortablePayment({ total: nonCashAmount })
+      }
+    }, [
+      visible,
+      isIdle,
+      isCreatingCheckout,
+      isFetchingQr,
+      isWaitingQr,
+      qrContent,
+      selectedMethod,
+      isSuccess,
+      isProcessingCard,
+      isConnectingCard,
+      isSendingCardCmd,
+      isVerifyingCard,
+      isCapturingCardInfo,
+      isCapturingCardManual,
+      isAuthorizingCard,
+      isCapturingCardPayment,
+      isManualResolution,
+      isPaymentFailed,
+      isError,
+      errorCode,
+      error,
+      subtotal,
+      discount,
+      tax,
+      total,
+      cashAmount,
+      nonCashAmount,
+    ])
 
     // Clean up auxiliary screen on cancel
     useEffect(() => {

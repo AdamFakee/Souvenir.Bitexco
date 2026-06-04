@@ -103,3 +103,15 @@ export interface PaymentStrategy {
     PaymentPopupProps & React.RefAttributes<PaymentPopupRef>
   >
 }
+
+/**
+ * Các mã lỗi chuẩn hóa cho quá trình thanh toán.
+ */
+export const PAYMENT_ERROR_CODES = {
+  TIMEOUT: 'PAYMENT_TIMEOUT',
+  SYSTEM_ERROR: 'PAYMENT_SYSTEM_ERROR',
+  CONNECTION_FAILED: 'PAYMENT_CONNECTION_FAILED',
+  USER_CANCELLED: 'PAYMENT_USER_CANCELLED',
+} as const
+
+export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[keyof typeof PAYMENT_ERROR_CODES]

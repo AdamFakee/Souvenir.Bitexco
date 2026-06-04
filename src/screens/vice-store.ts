@@ -30,8 +30,22 @@ interface ViceState {
   change: number
   /** Trạng thái thanh toán thành công */
   isSuccess: boolean
+  /** Số tiền mặt đã nhận */
+  cashPaid: number
+  /** Số tiền điện tử còn lại */
+  nonCashAmount: number
+  statusType: 'info' | 'error' | 'success'
+  statusTitle: string
+  statusMessage: string
   /** Màn hình đang hiển thị hiện tại */
-  currentScreen: 'Home' | 'Payment' | 'CashPayment' | 'Success' | 'PortablePayment'
+  currentScreen:
+    | 'Home'
+    | 'Payment'
+    | 'CashPayment'
+    | 'Success'
+    | 'PortablePayment'
+    | 'MixPayment'
+    | 'Status'
 
   // Actions
   updateCart: (payload: {
@@ -50,7 +64,15 @@ interface ViceState {
     tax: number
     total: number
   }) => void
-  showPortablePayment: () => void
+  showPortablePayment: (payload?: { total: number }) => void
+  showMixPayment: (payload: {
+    subtotal: number
+    discount: number
+    tax: number
+    total: number
+    cashPaid: number
+    nonCashAmount: number
+  }) => void
   showCashPayment: (payload: {
     subtotal: number
     discount: number
@@ -61,8 +83,20 @@ interface ViceState {
     isSuccess?: boolean
   }) => void
   setCurrentScreen: (
-    screen: 'Home' | 'Payment' | 'CashPayment' | 'Success' | 'PortablePayment',
+    screen:
+      | 'Home'
+      | 'Payment'
+      | 'CashPayment'
+      | 'Success'
+      | 'PortablePayment'
+      | 'MixPayment'
+      | 'Status',
   ) => void
+  showStatus: (payload: {
+    type: 'info' | 'error' | 'success'
+    title: string
+    message: string
+  }) => void
   clearCart: () => void
 }
 
@@ -78,6 +112,11 @@ export const useViceStore = create<ViceState>((set) => ({
   customerPaid: 0,
   change: 0,
   isSuccess: false,
+  cashPaid: 0,
+  nonCashAmount: 0,
+  statusType: 'info',
+  statusTitle: '',
+  statusMessage: '',
   currentScreen: 'Home',
 
   updateCart: (payload) => {
@@ -103,9 +142,16 @@ export const useViceStore = create<ViceState>((set) => ({
       currentScreen: 'Payment',
       isSuccess: false,
     }),
-  showPortablePayment: () =>
+  showPortablePayment: (payload) =>
     set({
+      ...(payload ? { total: payload.total } : {}),
       currentScreen: 'PortablePayment',
+      isSuccess: false,
+    }),
+  showMixPayment: (payload) =>
+    set({
+      ...payload,
+      currentScreen: 'MixPayment',
       isSuccess: false,
     }),
   showCashPayment: (payload) =>
@@ -115,6 +161,14 @@ export const useViceStore = create<ViceState>((set) => ({
       currentScreen: payload.isSuccess ? 'Success' : 'CashPayment',
     }),
   setCurrentScreen: (currentScreen) => set({ currentScreen }),
+  showStatus: (payload) =>
+    set({
+      statusType: payload.type,
+      statusTitle: payload.title,
+      statusMessage: payload.message,
+      currentScreen: 'Status',
+      isSuccess: false,
+    }),
   clearCart: () =>
     set({
       items: [],

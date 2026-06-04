@@ -31,6 +31,15 @@ export interface ShowPromoPayload {
   imageUrl: string
 }
 
+export interface ShowMixPaymentPayload {
+  subtotal: number
+  discount: number
+  tax: number
+  total: number
+  cashPaid: number
+  nonCashAmount: number
+}
+
 /**
  * Service trung gian để giao tiếp với màn hình phụ iMin
  */
@@ -55,11 +64,15 @@ export const ViceService = {
     IminViceScreen.sendMsgToViceScreen('showPayment', payload)
   },
 
+  showPortablePayment: (payload?: { total: number }) => {
+    IminViceScreen.sendMsgToViceScreen('showPortablePayment', payload || {})
+  },
+
   /**
-   * Hiển thị màn hình quẹt thẻ POS di động
+   * Hiển thị thông tin thanh toán kết hợp
    */
-  showPortablePayment: () => {
-    IminViceScreen.sendMsgToViceScreen('showPortablePayment', {})
+  showMixPayment: (payload: ShowMixPaymentPayload) => {
+    IminViceScreen.sendMsgToViceScreen('showMixPayment', payload)
   },
 
   /**
@@ -95,5 +108,12 @@ export const ViceService = {
    */
   setOrderId: (orderId: string) => {
     IminViceScreen.sendMsgToViceScreen('setOrderId', { orderId })
+  },
+
+  /**
+   * Hiển thị màn hình trạng thái (info, error, success) kèm thông điệp
+   */
+  showStatus: (payload: { type: 'info' | 'error' | 'success'; title: string; message: string }) => {
+    IminViceScreen.sendMsgToViceScreen('showStatus', payload)
   },
 }

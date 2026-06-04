@@ -16,7 +16,7 @@ import {
   getPortablePaymentStatusLabel,
   portablePaymentMachine,
 } from '../machines/portable-payment.machine'
-import { PaymentPopupProps, PaymentPopupRef } from '../types'
+import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
 import { ManualCardDetailsFormData, manualCardDetailsSchema } from '../validation'
 
@@ -59,6 +59,8 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     const machineState = useSelector(actorRef, (s) => s.value)
     const checkoutResult = useSelector(actorRef, (s) => s.context.checkoutResult)
     const paymentId = useSelector(actorRef, (s) => s.context.paymentId)
+    const error = useSelector(actorRef, (s) => s.context.error)
+    const errorCode = useSelector(actorRef, (s) => s.context.errorCode)
     const statusLabel = useSelector(actorRef, getPortablePaymentStatusLabel)
     const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
     const canCancel = useSelector(actorRef, (s) => s.can({ type: 'CANCEL' }))
@@ -116,6 +118,20 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
             customerPaid: total,
             change: 0,
           })
+        } else if (isFailure) {
+          if (errorCode === PAYMENT_ERROR_CODES.TIMEOUT) {
+            ViceService.showStatus({
+              type: 'error',
+              title: 'Hết thời gian thanh toán',
+              message: 'Vui lòng chờ nhân viên thao tác',
+            })
+          } else {
+            ViceService.showStatus({
+              type: 'error',
+              title: 'Thanh toán thất bại',
+              message: 'Đã xảy ra lỗi hệ thống.',
+            })
+          }
         } else {
           ViceService.showPortablePayment()
         }
@@ -133,7 +149,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
           total,
         })
       }
-    }, [visible, isSuccess, items, subtotal, discount, tax, total])
+    }, [visible, isSuccess, isFailure, errorCode, error, items, subtotal, discount, tax, total])
 
     useImperativeHandle(
       ref,

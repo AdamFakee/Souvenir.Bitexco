@@ -1,3 +1,4 @@
+import { LogoSkydeck } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { BG_MAIN } from '@/shared/features/auth'
 import { formatCurrency } from '@/shared/utils'
@@ -16,18 +17,18 @@ const CartItemComponent = memo(function CartItemComponent({
   return (
     <View className="min-h-[52px] flex-row items-center border-b border-outline-variant px-4 py-2.5">
       {/* STT */}
-      <Text className="w-8 text-center text-sm font-black text-surface-on">{index + 1}</Text>
+      <Text className="w-16 text-center text-4xl font-black text-surface-on">{index + 1}</Text>
 
       {/* Product Name */}
       <View className="ml-3 flex-1 pr-2">
-        <Text className="text-base font-black text-surface-on" numberOfLines={2}>
+        <Text className="text-4xl font-black text-surface-on" numberOfLines={2}>
           {item.name}
         </Text>
       </View>
 
       {/* Unit Price */}
       <Text
-        className="w-24 text-right text-sm font-bold text-surface-on-variant"
+        className="w-40 text-right text-4xl font-bold text-surface-on-variant"
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
@@ -36,17 +37,7 @@ const CartItemComponent = memo(function CartItemComponent({
       </Text>
 
       {/* Quantity */}
-      <Text className="w-14 text-center text-base font-black text-primary">x{item.quantity}</Text>
-
-      {/* Subtotal */}
-      <Text
-        className="w-28 text-right text-base font-black text-surface-on"
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
-      >
-        {formatCurrency(item.price * item.quantity)}
-      </Text>
+      <Text className="w-20 text-center text-4xl font-black text-primary">x{item.quantity}</Text>
     </View>
   )
 })
@@ -71,6 +62,9 @@ function ViceHomeScreen() {
       <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
         {/* Teal gradient overlay matching Figma */}
         <View style={styles.overlay} />
+        <View className="h-full w-full items-center justify-center">
+          <LogoSkydeck width={250} height={250} />
+        </View>
       </ImageBackground>
     )
   }
@@ -84,11 +78,8 @@ function ViceHomeScreen() {
       <View className="m-4 flex-1 overflow-hidden rounded-[24px] border border-white/20 bg-white shadow-sm">
         <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-6 py-4">
           <View className="flex-1 pr-4">
-            <Text className="text-2xl font-black tracking-tight text-surface-on">
+            <Text className="text-4xl font-black tracking-tight text-surface-on">
               Chi tiết đơn hàng
-            </Text>
-            <Text className="mt-1 text-sm font-bold text-muted" numberOfLines={1}>
-              Theo dõi sản phẩm và tổng thanh toán của đơn hàng hiện tại.
             </Text>
           </View>
 
@@ -102,20 +93,17 @@ function ViceHomeScreen() {
           <View className="flex-[1.65] bg-white">
             {/* Tiêu đề bảng */}
             <View className="flex-row items-center border-b border-outline-variant bg-[#f8fafc] px-4 py-3">
-              <Text className="w-8 text-center text-xs font-black uppercase tracking-wider text-muted">
+              <Text className="w-16 text-center text-3xl font-black uppercase tracking-wider text-muted">
                 STT
               </Text>
-              <Text className="ml-3 flex-1 text-xs font-black uppercase tracking-wider text-muted">
+              <Text className="ml-3 flex-1 text-3xl font-black uppercase tracking-wider text-muted">
                 Sản phẩm
               </Text>
-              <Text className="w-24 text-right text-xs font-black uppercase tracking-wider text-muted">
+              <Text className="w-40 text-right text-3xl font-black uppercase tracking-wider text-muted">
                 Đơn giá
               </Text>
-              <Text className="w-14 text-center text-xs font-black uppercase tracking-wider text-muted">
+              <Text className="w-20 text-center text-3xl font-black uppercase tracking-wider text-muted">
                 SL
-              </Text>
-              <Text className="w-28 text-right text-xs font-black uppercase tracking-wider text-muted">
-                Thành tiền
               </Text>
             </View>
 
@@ -134,16 +122,16 @@ function ViceHomeScreen() {
           <View className="flex-1 justify-between border-l border-outline-variant bg-surface-50 p-5">
             <View>
               <View className="mb-5 flex-row items-center justify-between">
-                <Text className="text-base font-black uppercase tracking-widest text-surface-on">
+                <Text className="text-4xl font-black uppercase tracking-widest text-surface-on">
                   Tóm tắt đơn hàng
                 </Text>
               </View>
 
               <View className="gap-4">
                 <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
-                  <Text className="text-base font-bold text-muted">Tạm tính</Text>
+                  <Text className="text-4xl font-bold text-muted">Tạm tính</Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-base font-black text-surface-on"
+                    className="ml-4 flex-1 text-right text-4xl font-black text-surface-on"
                     numberOfLines={1}
                     adjustsFontSizeToFit
                     minimumFontScale={0.7}
@@ -154,9 +142,9 @@ function ViceHomeScreen() {
 
                 {discount > 0 && (
                   <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
-                    <Text className="text-base font-bold text-muted">Giảm giá</Text>
+                    <Text className="text-4xl font-bold text-muted">Giảm giá</Text>
                     <Text
-                      className="ml-4 flex-1 text-right text-base font-black text-success"
+                      className="ml-4 flex-1 text-right text-4xl font-black text-success"
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.7}
@@ -167,9 +155,9 @@ function ViceHomeScreen() {
                 )}
 
                 <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
-                  <Text className="text-base font-bold text-muted">Thuế</Text>
+                  <Text className="text-4xl font-bold text-muted">Thuế</Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-base font-black text-surface-on"
+                    className="ml-4 flex-1 text-right text-4xl font-black text-surface-on"
                     numberOfLines={1}
                     adjustsFontSizeToFit
                     minimumFontScale={0.7}
@@ -180,15 +168,22 @@ function ViceHomeScreen() {
               </View>
             </View>
 
-            <View className="gap-2 border-t-2 border-outline-variant pt-5">
-              <Text className="text-lg font-black uppercase tracking-tighter text-surface-on">
+            <View className="flex-row items-center justify-between border-t-2 border-outline-variant pt-5">
+              <Text
+                className="text-4xl font-black uppercase text-surface-on"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                style={styles.totalLabel}
+              >
                 Tổng thanh toán
               </Text>
               <Text
-                className="text-4xl font-black text-primary"
+                className="ml-4 text-right text-4xl font-black text-primary"
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.55}
+                minimumFontScale={0.7}
+                style={styles.totalValue}
               >
                 {formatCurrency(total)}
               </Text>
@@ -207,6 +202,12 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(83, 123, 144, 0.75)',
+  },
+  totalLabel: {
+    flexShrink: 1,
+  },
+  totalValue: {
+    minWidth: 180,
   },
 })
 

@@ -14,7 +14,7 @@ import { Image, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
 import { getQrPaymentStatusLabel, qrPaymentMachine } from '../machines/qr-payment.machine'
-import { PaymentPopupProps, PaymentPopupRef } from '../types'
+import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
 
 /**
@@ -62,6 +62,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const expiresAt = useSelector(actorRef, (s) => s.context.expiresAt)
     const billNumber = useSelector(actorRef, (s) => s.context.billNumber)
     const error = useSelector(actorRef, (s) => s.context.error)
+    const errorCode = useSelector(actorRef, (s) => s.context.errorCode)
     const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
     const savedOrder = useSelector(actorRef, (s) => s.context.savedOrder)
     const statusLabel = useSelector(actorRef, getQrPaymentStatusLabel)
@@ -93,9 +94,25 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         : 'text-neutral-700'
 
     useEffect(() => {
-      if (!qrContent || !visible) return
-      ViceService.showPayment({ qrCodeUrl: qrContent, subtotal, discount, tax, total })
-    }, [qrContent, visible, subtotal, discount, tax, total])
+      if (!visible) return
+      if (isError) {
+        if (errorCode === PAYMENT_ERROR_CODES.TIMEOUT) {
+          ViceService.showStatus({
+            type: 'error',
+            title: 'Hết thời gian thanh toán',
+            message: 'Vui lòng chờ nhân viên thao tác',
+          })
+        } else {
+          ViceService.showStatus({
+            type: 'error',
+            title: 'Thanh toán thất bại',
+            message: 'Đã xảy ra lỗi hệ thống.',
+          })
+        }
+      } else if (qrContent) {
+        ViceService.showPayment({ qrCodeUrl: qrContent, subtotal, discount, tax, total })
+      }
+    }, [qrContent, visible, subtotal, discount, tax, total, isError, errorCode, error])
 
     useEffect(() => {
       if (!visible && !isSuccess) {

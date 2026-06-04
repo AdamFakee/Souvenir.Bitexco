@@ -11,7 +11,7 @@ import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
-import { PaymentResult } from '../types'
+import { PaymentResult, PAYMENT_ERROR_CODES, PaymentErrorCode } from '../types'
 
 export interface QRPaymentContext {
   /** Input Data */
@@ -32,6 +32,7 @@ export interface QRPaymentContext {
   expiresAt: string | null
   billNumber: string | null
   error: string | null
+  errorCode: PaymentErrorCode | null
   retryCount: number
   savedOrder: any | null
   paymentResult: PaymentResult | null
@@ -263,9 +264,10 @@ export const qrPaymentMachine = setup({
         console.error('[QR Payment Machine Error] Processed message:', errMsg)
         return errMsg
       },
+      errorCode: () => PAYMENT_ERROR_CODES.SYSTEM_ERROR,
       retryCount: ({ context }) => context.retryCount + 1,
     }),
-    clearError: assign({ error: null }),
+    clearError: assign({ error: null, errorCode: null }),
     resetContext: assign(({ event }) => {
       const baseContext = {
         orderId: null,
@@ -274,6 +276,7 @@ export const qrPaymentMachine = setup({
         expiresAt: null,
         billNumber: null,
         error: null,
+        errorCode: null,
         retryCount: 0,
         savedOrder: null,
         paymentResult: null,
@@ -313,6 +316,10 @@ export const qrPaymentMachine = setup({
     triggerSync: () => {
       // Sync is not required for online-only orders, but we keep the callback signature
     },
+    assignTimeoutError: assign({
+      error: () => 'Đã hết thời gian thanh toán QR. Vui lòng thử lại!',
+      errorCode: () => PAYMENT_ERROR_CODES.TIMEOUT,
+    }),
     notifyTimeout: () => {
       toast.error('Giao dịch đã hết hạn thanh toán (5 phút)')
     },
@@ -343,6 +350,7 @@ export const qrPaymentMachine = setup({
     expiresAt: null,
     billNumber: null,
     error: null,
+    errorCode: null,
     retryCount: 0,
     savedOrder: null,
     paymentResult: null,
@@ -407,8 +415,8 @@ export const qrPaymentMachine = setup({
           after: {
             POLL_INTERVAL: 'checking',
             TOTAL_TIMEOUT: {
-              target: '#qrPayment.cancelled',
-              actions: 'notifyTimeout',
+              target: '#qrPayment.error',
+              actions: ['assignTimeoutError', 'notifyTimeout'],
             },
           },
           on: {

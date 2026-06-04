@@ -15,21 +15,21 @@ function VicePortablePaymentScreen() {
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">
-        <View className="w-[360px] items-center justify-center rounded-[24px] border border-white/20 bg-white px-8 py-6 shadow-xl">
+        <View className="w-[360px] items-center justify-center rounded-[24px] border border-white/20 bg-white p-5 shadow-sm">
           {/* Lottie Animation */}
           <LottieView
             source={portableLottieAnimation}
             autoPlay
             loop
-            style={{ width: 200, height: 200 }}
+            style={{ width: 160, height: 160 }}
           />
 
-          <View className="mt-4 w-full items-center gap-1 border-t border-outline-variant pt-4">
-            <Text className="text-center text-sm font-black uppercase tracking-widest text-muted">
+          <View className="mt-4 w-full rounded-2xl border border-outline-variant bg-white px-4 py-3">
+            <Text className="text-center text-2xl font-bold uppercase tracking-wide text-muted">
               Tổng thanh toán
             </Text>
             <Text
-              className="text-center text-4xl font-black text-primary"
+              className="mt-1 text-center text-3xl font-black text-primary"
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.55}

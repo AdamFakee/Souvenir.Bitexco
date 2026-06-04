@@ -7,7 +7,12 @@ import {
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PaymentMethod } from '@/shared/lib/database'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
-import { PaymentResult, PortablePaymentCommandResult } from '../types'
+import {
+  PaymentResult,
+  PortablePaymentCommandResult,
+  PAYMENT_ERROR_CODES,
+  PaymentErrorCode,
+} from '../types'
 
 import {
   authorizePaymentActor,
@@ -46,6 +51,7 @@ export interface PortablePaymentContext {
     approvalCode?: string
   } | null
   error: string | null
+  errorCode: PaymentErrorCode | null
   retryCount: number
   paymentResult: PaymentResult | null
 }
@@ -251,12 +257,17 @@ export const portablePaymentMachine = setup({
     assignEdcResult: assign({
       rawCommandResult: ({ event }) => (event as any).output ?? null,
     }),
+    assignTimeoutError: assign({
+      error: () => 'Đã hết thời gian thanh toán. Vui lòng thử lại!',
+      errorCode: () => PAYMENT_ERROR_CODES.TIMEOUT,
+    }),
     recordError: assign({
       error: ({ event }) =>
         (event as any).error?.message ?? 'Đã xảy ra lỗi hệ thống trong quá trình quẹt thẻ!',
+      errorCode: () => PAYMENT_ERROR_CODES.SYSTEM_ERROR,
       retryCount: ({ context }) => context.retryCount + 1,
     }),
-    clearError: assign({ error: null }),
+    clearError: assign({ error: null, errorCode: null }),
     assignPaymentResult: assign({
       paymentResult: ({ context }) => ({
         success: true,
@@ -300,6 +311,7 @@ export const portablePaymentMachine = setup({
         rawCommandResult: null,
         manualCardDetails: null,
         error: null,
+        errorCode: null,
         retryCount: 0,
         paymentResult: null,
       }
@@ -340,6 +352,7 @@ export const portablePaymentMachine = setup({
     rawCommandResult: null,
     manualCardDetails: null,
     error: null,
+    errorCode: null,
     retryCount: 0,
     paymentResult: null,
   }),
@@ -458,7 +471,7 @@ export const portablePaymentMachine = setup({
       after: {
         PORTABLE_CMD_TIMEOUT: {
           target: 'verifyingUnknown',
-          actions: 'recordError',
+          actions: ['assignTimeoutError', 'recordError'],
         },
       },
       on: {

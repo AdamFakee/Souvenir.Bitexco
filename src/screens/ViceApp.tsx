@@ -5,20 +5,27 @@ import {
   ViceCashPaymentScreen,
   ViceHomeScreen,
   VicePaymentScreen,
-  ViceSuccessScreen,
   VicePortablePaymentScreen,
+  ViceSuccessScreen,
+  ViceMixPaymentScreen,
+  ViceStatusScreen,
 } from './components'
 import { useViceStore } from './vice-store'
 
 export default function ViceApp() {
   const currentScreen = useViceStore((state) => state.currentScreen)
+  const statusType = useViceStore((state) => state.statusType)
+  const statusTitle = useViceStore((state) => state.statusTitle)
+  const statusMessage = useViceStore((state) => state.statusMessage)
   const {
     updateCart,
     setCustomerName,
     setOrderId,
     showPayment,
     showPortablePayment,
+    showMixPayment,
     showCashPayment,
+    showStatus,
   } = useViceStore()
 
   useEffect(() => {
@@ -62,7 +69,17 @@ export default function ViceApp() {
           })
           break
         case 'showPortablePayment':
-          showPortablePayment()
+          showPortablePayment(params?.total ? { total: params.total } : undefined)
+          break
+        case 'showMixPayment':
+          showMixPayment({
+            subtotal: params.subtotal || 0,
+            discount: params.discount || 0,
+            tax: params.tax || 0,
+            total: params.total || 0,
+            cashPaid: params.cashPaid || 0,
+            nonCashAmount: params.nonCashAmount || 0,
+          })
           break
         case 'showCashPayment':
           showCashPayment({
@@ -73,6 +90,13 @@ export default function ViceApp() {
             customerPaid: params.customerPaid || 0,
             change: params.change || 0,
             isSuccess: params.isSuccess || false,
+          })
+          break
+        case 'showStatus':
+          showStatus({
+            type: params.type || 'info',
+            title: params.title || '',
+            message: params.message || '',
           })
           break
       }
@@ -91,7 +115,11 @@ export default function ViceApp() {
         {currentScreen === 'Payment' && <VicePaymentScreen />}
         {currentScreen === 'CashPayment' && <ViceCashPaymentScreen />}
         {currentScreen === 'PortablePayment' && <VicePortablePaymentScreen />}
+        {currentScreen === 'MixPayment' && <ViceMixPaymentScreen />}
         {currentScreen === 'Success' && <ViceSuccessScreen />}
+        {currentScreen === 'Status' && (
+          <ViceStatusScreen type={statusType} title={statusTitle} message={statusMessage} />
+        )}
       </SafeAreaView>
     </SafeAreaProvider>
   )
