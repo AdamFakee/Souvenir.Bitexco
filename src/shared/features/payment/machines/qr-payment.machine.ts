@@ -10,14 +10,13 @@ import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
-import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
-import { PaymentResult, PAYMENT_ERROR_CODES, PaymentErrorCode } from '../types'
 import {
-  fetchQrActor,
   checkQrPaymentStatusActor,
+  fetchQrActor,
   forceCaptureQrActor,
   voidPaymentActor,
 } from '../flows/qr-collection.actors'
+import { PAYMENT_ERROR_CODES, PaymentErrorCode, PaymentResult } from '../types'
 
 export interface QRPaymentContext {
   /** Input Data */
@@ -128,7 +127,7 @@ export const qrPaymentMachine = setup({
       }
 
       const result = response
-      const paymentId = result.payments?.[0]?.paymentId || `pay_${result.orderId}`
+      const paymentId = result.payments?.[0]?.paymentId
 
       return {
         orderId: result.orderId,
