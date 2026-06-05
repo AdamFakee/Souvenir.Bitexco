@@ -5,7 +5,7 @@ import {
   PosCheckoutRequest,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { PaymentMethod } from '@/shared/lib/database'
+
 import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
@@ -303,15 +303,16 @@ export const qrPaymentMachine = setup({
       savedOrder: ({ event }) => (event as any).output ?? null,
     }),
     assignPaymentResult: assign({
-      paymentResult: ({ context }) => ({
-        success: true,
-        method: PaymentMethod.BANK_TRANSFER,
-        paidAmount: context.total,
-        change: 0,
-        isOnline: true,
-        orderId: context.orderId ?? context.savedOrder?.orderCode ?? undefined,
-        referenceCode: context.billNumber ?? context.orderId ?? undefined,
-      }),
+      paymentResult: ({ context }) =>
+        ({
+          success: true,
+          method: 'qr_bidv',
+          paidAmount: context.total,
+          change: 0,
+          isOnline: true,
+          orderId: context.orderId ?? context.savedOrder?.orderCode ?? undefined,
+          referenceCode: context.billNumber ?? context.orderId ?? undefined,
+        }) satisfies PaymentResult,
     }),
     triggerSync: () => {
       // Sync is not required for online-only orders, but we keep the callback signature

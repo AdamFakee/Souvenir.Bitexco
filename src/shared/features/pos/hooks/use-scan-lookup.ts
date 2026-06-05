@@ -1,3 +1,4 @@
+import { useAppContext } from '@/shared/features/app'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { toast, useConnectionStore } from '@/shared/store'
@@ -8,6 +9,8 @@ export function useScanLookup() {
   const posActor = usePosActor()
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
   const [isProcessing, setIsProcessing] = useState(false)
+  const { device } = useAppContext()
+  const warehouseId = device?.warehouseId
 
   const handleScan = useCallback(
     async (codes: string[]) => {
@@ -21,7 +24,10 @@ export function useScanLookup() {
           // 1. Luồng Online First
           if (isNetworkConnected) {
             try {
-              const remoteResult = await ProductRemoteAPI.lookupProduct({ barcode: code })
+              const remoteResult = await ProductRemoteAPI.lookupProduct({
+                barcode: code,
+                warehouseId,
+              })
               if (remoteResult) {
                 product = {
                   id: remoteResult.variantId,
@@ -64,7 +70,7 @@ export function useScanLookup() {
         setIsProcessing(false)
       }
     },
-    [isNetworkConnected, posActor],
+    [isNetworkConnected, posActor, warehouseId],
   )
 
   return {

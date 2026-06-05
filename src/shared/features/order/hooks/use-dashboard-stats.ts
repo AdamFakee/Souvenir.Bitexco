@@ -1,10 +1,5 @@
-import {
-  database,
-  OrderModel,
-  OrderStatus,
-  PaymentMethod,
-  ProductModel,
-} from '@/shared/lib/database'
+import { database, OrderModel, OrderStatus, ProductModel } from '@/shared/lib/database'
+import { PAYMENT_CHART_COLORS } from '@/shared/features/payment'
 import { Q } from '@nozbe/watermelondb'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -56,6 +51,7 @@ export const useDashboardStats = (shiftId?: string) => {
       // 3. Revenue from Orders
       let revCash = 0
       let revQr = 0
+      let revCard = 0
 
       // 4. Calculate Other Stats from Orders
       const completed = orders.filter((o) => o.status === OrderStatus.COMPLETED)
@@ -72,8 +68,9 @@ export const useDashboardStats = (shiftId?: string) => {
       completed.forEach((order) => {
         // Aggregate revenue
         order.paymentsSnapshot.forEach((payment) => {
-          if (payment.method === PaymentMethod.CASH) revCash += payment.amount
-          if (payment.method === PaymentMethod.BANK_TRANSFER) revQr += payment.amount
+          if (payment.method === 'cash') revCash += payment.amount
+          if (payment.method === 'qr_bidv') revQr += payment.amount
+          if (payment.method === 'card_bidv') revCard += payment.amount
         })
 
         // Aggregate products from snapshot
@@ -98,15 +95,16 @@ export const useDashboardStats = (shiftId?: string) => {
         .slice(0, 5)
 
       const paymentMethodsData = [
-        { name: 'Tiền mặt', value: revCash, color: '#0284c7' },
-        { name: 'Chuyển khoản / QR', value: revQr, color: '#db2777' },
+        { name: 'Tiền mặt', value: revCash, color: PAYMENT_CHART_COLORS.cash },
+        { name: 'Chuyển khoản / QR', value: revQr, color: PAYMENT_CHART_COLORS.qr_bidv },
+        { name: 'Thẻ POS', value: revCard, color: PAYMENT_CHART_COLORS.card_bidv },
       ].filter((d) => d.value > 0)
 
       return {
         totalRevenue,
         revCash,
         revQr,
-        revCard: 0, // ShiftModel hiện chưa tách riêng Card
+        revCard: 0, // TODO: Tính card từ payment.method === 'card_bidv'
         completedOrders: completed.length,
         cancelledOrders: cancelled.length,
         totalProducts,

@@ -2,7 +2,7 @@ import { ViceService } from '@/screens/vice-service'
 import { Button, ControlledInput, ModalBase, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
-import { PaymentMethod } from '@/shared/lib/database'
+
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
@@ -193,7 +193,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
         setVisible(false)
         onSuccess({
           success: true,
-          method: PaymentMethod.CARD,
+          method: 'card_bidv',
           paidAmount: total,
           change: 0,
           referenceCode: checkoutResult?.orderId ?? paymentId ?? undefined,
@@ -538,7 +538,7 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
                     })),
                     paymentsSnapshot: [
                       {
-                        method: PaymentMethod.CARD,
+                        method: 'card_bidv',
                         amount: checkoutResult.grandTotal,
                       },
                     ],

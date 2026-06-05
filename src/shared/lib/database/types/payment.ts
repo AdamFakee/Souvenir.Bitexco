@@ -1,25 +1,16 @@
+import type { PaymentMethodCode } from '../../../features/payment/types/payment.constants'
 import type { PortablePaymentCommandResult } from '../../../features/payment/types/portable-payment.type'
 
-/**
- * Các phương thức thanh toán được hỗ trợ
- */
-export enum PaymentMethod {
-  /** Thanh toán bằng Tiền mặt */
-  CASH = 'CASH',
-  /** Thanh toán bằng thẻ (POS quẹt thẻ) */
-  CARD = 'CARD',
-  /** Chuyển khoản ngân hàng (Quét mã QR) */
-  BANK_TRANSFER = 'BANK_TRANSFER',
-  /** Thanh toán kết hợp (Tiền mặt + Thẻ/QR) */
-  MIX = 'MIX',
-}
+// Re-export để các consumer cũ vẫn import từ đây được
+export type { PaymentMethodCode } from '../../../features/payment/types/payment.constants'
 
 /**
- * Dữ liệu Snapshot ghi nhận lịch sử các giao dịch thanh toán của đơn hàng
+ * Dữ liệu Snapshot ghi nhận lịch sử các giao dịch thanh toán của đơn hàng.
+ * Trường `method` dùng PaymentMethodCode làm chuẩn duy nhất.
  */
 export interface PaymentSnapshot {
-  /** Phương thức thanh toán */
-  method: PaymentMethod
+  /** Phương thức thanh toán (PaymentMethodCode) */
+  method: PaymentMethodCode
   /** Số tiền giao dịch */
   amount: number
   /** Tiền khách đưa (Dùng cho Tiền mặt) */
@@ -40,7 +31,7 @@ export interface PaymentSnapshot {
 export const sanitizePaymentsSnapshot = (rawPayments: any): PaymentSnapshot[] => {
   if (!Array.isArray(rawPayments)) return []
   return rawPayments.map((payment: any) => ({
-    method: (payment.method as PaymentMethod) || PaymentMethod.CASH,
+    method: (payment.method as PaymentMethodCode) || 'cash',
     amount: Number(payment.amount || 0),
     cashTendered: payment.cashTendered !== undefined ? Number(payment.cashTendered) : undefined,
     cashChange: payment.cashChange !== undefined ? Number(payment.cashChange) : undefined,

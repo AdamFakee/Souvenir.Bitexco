@@ -1,7 +1,7 @@
 import { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { PaymentMethod } from '@/shared/lib/database'
 import { LucideIcon } from 'lucide-react-native'
 import React from 'react'
+import type { PaymentMethodCode } from './payment.constants'
 
 /**
  * Dữ liệu bối cảnh (context) truyền vào để kiểm tra trạng thái và điều kiện
@@ -26,8 +26,8 @@ export interface PaymentContext {
 export interface PaymentResult {
   /** Trạng thái thành công */
   success: boolean
-  /** Phương thức đã sử dụng (Tiền mặt, QR, Thẻ...) */
-  method: PaymentMethod
+  /** Phương thức đã sử dụng */
+  method: PaymentMethodCode
   /** Số tiền thực tế khách đã đưa (hoặc số tiền đã chuyển khoản) */
   paidAmount: number
   /** Số tiền thối lại cho khách (nếu có) */
@@ -82,8 +82,8 @@ export interface PaymentPopupRef {
  * Contract (Giao kèo) mà mọi phương thức thanh toán mới đều phải implement.
  */
 export interface PaymentStrategy {
-  /** Mã loại hình thanh toán lưu vào DB */
-  type: PaymentMethod
+  /** Mã loại hình thanh toán lưu vào DB — dùng PaymentMethodCode */
+  type: PaymentMethodCode
   /** Tên hiển thị trên nút bấm (VD: "Tiền mặt", "Momo") */
   label: string
   /** Icon hiển thị cạnh tên nút bấm */

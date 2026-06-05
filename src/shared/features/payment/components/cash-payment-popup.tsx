@@ -11,7 +11,7 @@ import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'rea
 import { ScrollView, Text, View } from 'react-native'
 
 import type { CartItem } from '@/shared/features/pos'
-import { OrderStatus, PaymentMethod } from '@/shared/lib/database'
+import { OrderStatus } from '@/shared/lib/database'
 import { cashPaymentMachine, SavedOrder } from '../machines/cash-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateSubtotal, calculateTotalTax, getCashSuggestions, roundCashAmount } from '../utils'
@@ -64,7 +64,7 @@ function buildReceiptOrder(
     })),
     paymentsSnapshot: [
       {
-        method: PaymentMethod.CASH,
+        method: 'cash',
         amount: Number(cashTendered) || roundedTotal,
         cashTendered: Number(cashTendered) || roundedTotal,
         cashChange: Number(cashTendered) >= roundedTotal ? Number(cashTendered) - roundedTotal : 0,
@@ -161,7 +161,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       setVisible(false)
       onSuccess({
         success: true,
-        method: PaymentMethod.CASH,
+        method: 'cash',
         paidAmount: paid,
         change: changeAmt,
         isOnline: savedOrder?.source === 'online',

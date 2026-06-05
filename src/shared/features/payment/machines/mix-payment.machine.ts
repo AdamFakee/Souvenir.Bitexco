@@ -1,7 +1,7 @@
 import { TenantConfig } from '@/shared/features/app/types/app.types'
 import { PosCheckoutResult } from '@/shared/features/order/api/remote/order.remote.api'
 import { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { PaymentMethod } from '@/shared/lib/database'
+
 import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { assign, setup } from 'xstate'
@@ -192,43 +192,46 @@ export const mixPaymentMachine = setup({
       rawCommandResult: ({ event }) => (event as any).output ?? null,
     }),
     assignPaymentResult: assign({
-      paymentResult: ({ context }) => ({
-        success: true,
-        method: PaymentMethod.MIX,
-        paidAmount: context.total,
-        change: 0,
-        isOnline: context.manualCardDetails ? false : true,
-        orderId: context.orderCode ?? context.orderId ?? undefined,
-        referenceCode:
-          context.rawCommandResult?.transInfo?.refNo ??
-          context.rawCommandResult?.transInfo?.transId ??
-          context.manualCardDetails?.referenceNumber ??
-          context.nonCashPaymentId ??
-          undefined,
-      }),
+      paymentResult: ({ context }) =>
+        ({
+          success: true,
+          method: 'mix',
+          paidAmount: context.total,
+          change: 0,
+          isOnline: context.manualCardDetails ? false : true,
+          orderId: context.orderCode ?? context.orderId ?? undefined,
+          referenceCode:
+            context.rawCommandResult?.transInfo?.refNo ??
+            context.rawCommandResult?.transInfo?.transId ??
+            context.manualCardDetails?.referenceNumber ??
+            context.nonCashPaymentId ??
+            undefined,
+        }) satisfies PaymentResult,
     }),
     assignForceCompleteQrPaymentResult: assign({
-      paymentResult: ({ context }) => ({
-        success: true,
-        method: PaymentMethod.MIX,
-        paidAmount: context.total,
-        change: 0,
-        isOnline: false,
-        orderId: context.orderCode ?? context.orderId ?? undefined,
-        referenceCode: context.nonCashPaymentId ?? undefined,
-      }),
+      paymentResult: ({ context }) =>
+        ({
+          success: true,
+          method: 'mix',
+          paidAmount: context.total,
+          change: 0,
+          isOnline: false,
+          orderId: context.orderCode ?? context.orderId ?? undefined,
+          referenceCode: context.nonCashPaymentId ?? undefined,
+        }) satisfies PaymentResult,
     }),
     assignManualCardPaymentResult: assign({
-      paymentResult: ({ context }) => ({
-        success: true,
-        method: PaymentMethod.MIX,
-        paidAmount: context.total,
-        change: 0,
-        isOnline: false,
-        orderId: context.orderCode ?? context.orderId ?? undefined,
-        referenceCode:
-          context.manualCardDetails?.referenceNumber ?? context.nonCashPaymentId ?? undefined,
-      }),
+      paymentResult: ({ context }) =>
+        ({
+          success: true,
+          method: 'mix',
+          paidAmount: context.total,
+          change: 0,
+          isOnline: false,
+          orderId: context.orderCode ?? context.orderId ?? undefined,
+          referenceCode:
+            context.manualCardDetails?.referenceNumber ?? context.nonCashPaymentId ?? undefined,
+        }) satisfies PaymentResult,
     }),
     assignManualCardDetails: assign({
       manualCardDetails: ({ event }) => {

@@ -1,7 +1,6 @@
 import { database } from '@/shared/lib/database/database'
 import OrderModel, { OrderStatus } from '@/shared/lib/database/models/order'
 import ProductModel from '@/shared/lib/database/models/product'
-import { PaymentMethod } from '@/shared/lib/database/types'
 
 export const OrderService = {
   /**
@@ -26,7 +25,7 @@ export const OrderService = {
         o.paymentsSnapshot = [
           ...currentPayments,
           {
-            method: PaymentMethod.CASH,
+            method: 'cash',
             amount: -order.total,
           },
         ]

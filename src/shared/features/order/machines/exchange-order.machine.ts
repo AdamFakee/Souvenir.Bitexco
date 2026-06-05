@@ -1,5 +1,6 @@
-import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
+import { useAppStore } from '@/shared/features/app'
 import { calculateTotalTax } from '@/shared/features/payment/utils'
+import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { OrderStatus } from '@/shared/lib/database'
 import { toast, useConnectionStore } from '@/shared/store'
 import { assign, fromPromise, setup } from 'xstate'
@@ -247,8 +248,13 @@ const lookupScannedProducts = async (codes: string[]) => {
     throw new Error('Đổi hàng chỉ hỗ trợ khi có kết nối mạng.')
   }
 
+  const warehouseId = useAppStore.getState().appService?.getSnapshot().context.device?.warehouseId
+
   for (const code of codes) {
-    const remoteResult = await ProductRemoteAPI.lookupProduct({ barcode: code })
+    const remoteResult = await ProductRemoteAPI.lookupProduct({
+      barcode: code,
+      warehouseId,
+    })
 
     if (remoteResult) {
       products.push({

@@ -1,5 +1,6 @@
 import { EmptyState, LoadMore, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
+import { getPaymentMethodStyle } from '@/shared/features/payment'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { Eye, PackageOpen } from 'lucide-react-native'
@@ -17,23 +18,7 @@ interface OrderListProps {
 const getPaymentMethodInfo = (order: IOrder) => {
   const payments = order.paymentsSnapshot || []
   if (payments.length === 0) return { label: '—', color: COLORS.muted, bg: COLORS.surface[100] }
-
-  const method = payments[0].method.toUpperCase()
-  switch (method) {
-    case 'CASH':
-      return { label: 'Tiền mặt', color: COLORS.success.onContainer, bg: COLORS.success.container }
-    case 'CARD':
-      return { label: 'Thẻ POS', color: COLORS.warning.onContainer, bg: COLORS.warning.container }
-    case 'QR':
-    case 'BANK_TRANSFER':
-      return {
-        label: 'Chuyển khoản',
-        color: COLORS.primary.onFixedVariant,
-        bg: COLORS.primary.fixed,
-      }
-    default:
-      return { label: method, color: COLORS.muted, bg: COLORS.surface[100] }
-  }
+  return getPaymentMethodStyle(payments[0].method)
 }
 
 const OrderSkeleton = () => (

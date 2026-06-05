@@ -1,8 +1,11 @@
 import type { ActorRefFrom } from 'xstate'
 import type { appMachine } from '../machines/app.machine'
+import type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
+
+export type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 
 // ---------------------------------------------------------------------------
-// Enums — nhất quán với StaffRole, PaymentMethod trong codebase
+// Enums — nhất quán với StaffRole, PaymentMethodCode trong codebase
 // ---------------------------------------------------------------------------
 
 export enum EmployeeRole {
@@ -32,6 +35,7 @@ export interface DeviceInfo {
   deviceType: string // "pos" | "tablet"
   location: string // "Tầng 1"
   tenantId: string // uuid
+  warehouseId?: string // uuid - ID kho hàng của thiết bị
   status?: string // "active" — có trong login response
 }
 
@@ -50,7 +54,8 @@ export interface Employee {
   permissions: EmployeePermission[] // dùng để kiểm soát quyền UI
 }
 
-export type PaymentMethodCode = 'cash' | 'qr_bidv' | 'card_bidv'
+// PaymentMethodCode được định nghĩa tập trung tại @/shared/features/payment/types/payment.constants
+// và re-export ở trên — không định nghĩa lại ở đây
 
 /**
  * Cấu hình phương thức thanh toán.

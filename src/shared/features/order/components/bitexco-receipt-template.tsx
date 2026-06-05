@@ -1,3 +1,4 @@
+import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment'
 import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
 import { formatDateTime } from '@/shared/utils'
 import React, { useEffect, useState } from 'react'
@@ -161,14 +162,7 @@ export const BitexcoReceiptTemplate = ({
         <Text style={{ fontSize: 28, fontWeight: 'bold' }}>Chi tiết thanh toán:</Text>
         {payments.map((p: PaymentSnapshot, idx: number) => (
           <View key={idx} className="ml-4 flex-row justify-between">
-            <Text style={{ fontSize: 28 }}>
-              +{' '}
-              {p.method === 'CARD'
-                ? 'Thẻ tín dụng'
-                : p.method === 'CASH'
-                  ? 'Tiền mặt'
-                  : 'Chuyển khoản'}
-            </Text>
+            <Text style={{ fontSize: 28 }}>+ {PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Text>
             <Text style={{ fontSize: 28 }}>{formatCurrency(p.amount || 0)}</Text>
           </View>
         ))}

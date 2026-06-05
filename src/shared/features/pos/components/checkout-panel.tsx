@@ -11,7 +11,7 @@ import {
   PaymentPopupRef,
   useApplyVoucher,
 } from '@/shared/features/payment'
-import { PaymentMethod } from '@/shared/lib/database'
+
 import { useConnectionStore } from '@/shared/store'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
@@ -39,16 +39,8 @@ export default function CheckoutPanel() {
       list = paymentMethods
         .filter((method) => method.enabled)
         .map((method) => {
-          // Ánh xạ API code -> PaymentMethod enum
-          let mappedType = PaymentMethod.CASH
-          if (method.code === 'qr_bidv') {
-            mappedType = PaymentMethod.BANK_TRANSFER
-          } else if (method.code === 'card_bidv') {
-            mappedType = PaymentMethod.CARD
-          }
-
-          // Tìm strategy tương ứng trong registry gốc
-          const originalStrategy = PAYMENT_REGISTRY.find((s) => s.type === mappedType)
+          // Tìm strategy tương ứng bằng PaymentMethodCode trực tiếp
+          const originalStrategy = PAYMENT_REGISTRY.find((s) => s.type === method.code)
           if (!originalStrategy) return null
 
           // Trả về strategy được tùy chỉnh nhãn và cấu hình hiển thị động
@@ -62,9 +54,9 @@ export default function CheckoutPanel() {
     }
 
     // Luôn luôn thêm MixStrategy nếu chưa có trong danh sách
-    const hasMix = list.some((s) => s.type === PaymentMethod.MIX)
+    const hasMix = list.some((s) => s.type === 'mix')
     if (!hasMix) {
-      const mixStrategy = PAYMENT_REGISTRY.find((s) => s.type === PaymentMethod.MIX)
+      const mixStrategy = PAYMENT_REGISTRY.find((s) => s.type === 'mix')
       if (mixStrategy) {
         list.push({
           ...mixStrategy,
@@ -333,7 +325,7 @@ export default function CheckoutPanel() {
                       disabled={
                         cart.length === 0 ||
                         !isAvailable ||
-                        (method.type === PaymentMethod.BANK_TRANSFER && !isNetworkConnected)
+                        (method.type === 'qr_bidv' && !isNetworkConnected)
                       }
                     />
                   )

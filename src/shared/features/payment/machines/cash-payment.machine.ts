@@ -6,11 +6,10 @@ import {
   PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { PaymentMethod } from '@/shared/lib/database'
+import { PaymentResult } from '../types'
 import { PrinterService } from '@/shared/services'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
 import { assign, fromPromise, setup } from 'xstate'
-import { PaymentResult } from '../types'
 import { calculateVoucherDiscount, roundCashAmount } from '../utils'
 
 // ─── Saved Order Types ────────────────────────────────────────────────────────
@@ -163,7 +162,7 @@ export const cashPaymentMachine = setup({
           total: finalTotal,
           note: undefined,
           payment: {
-            method: PaymentMethod.CASH,
+            method: 'cash',
             amount: input.amountTendered,
             cashTendered: input.amountTendered,
             cashChange: input.change,
@@ -261,17 +260,18 @@ export const cashPaymentMachine = setup({
       },
     }),
     assignPaymentResult: assign({
-      paymentResult: ({ context }) => ({
-        success: true,
-        method: PaymentMethod.CASH,
-        paidAmount: context.amountTendered,
-        change: context.change,
-        isOnline: context.savedOrder?.source === 'online',
-        orderId:
-          context.savedOrder?.source === 'online'
-            ? context.savedOrder.orderCode
-            : context.savedOrder?.id,
-      }),
+      paymentResult: ({ context }) =>
+        ({
+          success: true,
+          method: 'cash',
+          paidAmount: context.amountTendered,
+          change: context.change,
+          isOnline: context.savedOrder?.source === 'online',
+          orderId:
+            context.savedOrder?.source === 'online'
+              ? context.savedOrder.orderCode
+              : context.savedOrder?.id,
+        }) satisfies PaymentResult,
     }),
     triggerSync: () => {
       // Chỉ có ý nghĩa khi offline — WatermelonDB push bản ghi SQLite lên server

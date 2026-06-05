@@ -10,6 +10,7 @@ Tổng hợp các endpoint liên quan đến POS: Phương thức thanh toán, H
 2. [Hủy đơn hàng — `POST /v1/pos/orders/{id}/cancel`](#2-hủy-đơn-hàng)
 3. [Đồng bộ đơn hàng offline — `POST /v1/pos/sync/orders`](#3-đồng-bộ-đơn-hàng-offline)
 4. [Trả hàng / Hoàn tiền — `POST /v1/pos/orders/{id}/refund`](#4-trả-hàng--hoàn-tiền)
+5. [Kích hoạt & Đăng nhập Thiết bị — `POST /v1/pos-devices/activate` & `POST /v1/device/auth/login`](#5-kích-hoạt--đăng-nhập-thiết-bị)
 
 ---
 
@@ -440,3 +441,29 @@ Làm tròn đến hàng nghìn theo quy tắc tiền mặt Việt Nam:
 5. FE chỉ hiển thị số tiền cần hoàn; tiền hoàn thực tế do thu ngân tự xử lý trực tiếp với khách.
 6. FE dùng `receipt.lines` backend trả về để in phiếu trả hàng.
 7. Nếu `reason` rỗng, FE không in dòng lý do trên phiếu trả hàng.
+
+---
+
+## 5. Kích Hoạt & Đăng Nhập Thiết Bị
+
+> Bổ sung trường `warehouseId` (ID kho hàng của thiết bị) vào thông tin thiết bị (`DeviceInfo`) để FE có thể lưu lại và lọc sản phẩm tương ứng với kho của thiết bị đó.
+
+### API cập nhật thông tin Thiết bị:
+
+- **Kích hoạt thiết bị:** `POST /v1/pos-devices/activate`
+- **Đăng nhập thiết bị:** `POST /v1/device/auth/login` (Trường `device` trong Response)
+
+### Cấu Trúc Đối Tượng `DeviceInfo` (Response mới):
+
+```json
+{
+  "id": "019e437b-1620-71c0-9924-c1df81683180",
+  "deviceCode": "POS-001",
+  "name": "Quầy 1",
+  "deviceType": "pos",
+  "location": "Tầng 1",
+  "tenantId": "019e437b-1620-71c0-9924-c1df81683185",
+  "warehouseId": "019e437b-1620-71c0-9924-c1df81683186", // <--- 🚀 TRƯỜNG MỚI BỔ SUNG
+  "status": "active"
+}
+```

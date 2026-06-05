@@ -1,3 +1,4 @@
+import { useAppContext } from '@/shared/features/app'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { database } from '@/shared/lib/database'
@@ -24,9 +25,11 @@ export interface UnifiedProduct {
 export function useProductSearch(searchText: string) {
   const [debouncedSearch] = useDebounce(searchText, 300)
   const queryClient = useQueryClient()
+  const { device } = useAppContext()
+  const warehouseId = device?.warehouseId
 
   const query = useInfiniteQuery({
-    queryKey: ['products', 'search', debouncedSearch],
+    queryKey: ['products', 'search', debouncedSearch, warehouseId],
     queryFn: async ({ pageParam = 0 }): Promise<UnifiedProduct[]> => {
       try {
         if (!debouncedSearch.trim()) return []
@@ -37,6 +40,7 @@ export function useProductSearch(searchText: string) {
           try {
             const remoteResults = await ProductRemoteAPI.searchProducts({
               q: debouncedSearch,
+              warehouseId,
               limit: LIMIT,
             })
             return remoteResults.map((r) => ({

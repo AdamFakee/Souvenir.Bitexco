@@ -3,11 +3,11 @@ import { ProductLocalAPI } from '@/shared/features/product/api/local/product.loc
 import type { PortablePaymentCommandResult } from '@/shared/features/payment/types/portable-payment.type'
 import { generateGuid } from '../remote/order.remote.api'
 
+import type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 import {
   database,
   OrderModel,
   OrderStatus,
-  PaymentMethod,
   type ItemSnapshot,
   type PaymentSnapshot,
 } from '@/shared/lib/database'
@@ -15,7 +15,7 @@ import { endOfDay, startOfDay } from '@/shared/utils'
 import { Q } from '@nozbe/watermelondb'
 
 export interface CheckoutPaymentPayload {
-  method: PaymentMethod
+  method: PaymentMethodCode
   amount: number
   cashTendered?: number
   cashChange?: number

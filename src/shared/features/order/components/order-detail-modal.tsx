@@ -9,6 +9,7 @@ import { Printer, Repeat2, Trash2, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment'
 import { IOrder } from '../types'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { ExchangeConfirmModal, ExchangeConfirmModalRef } from './exchange-confirm-modal'
@@ -79,12 +80,6 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
     COMPLETED: 'Hoàn thành',
     REFUNDED: 'Hoàn tiền',
     FAILED: 'Thất bại',
-  }
-
-  const paymentMethodLabels: Record<string, string> = {
-    CASH: 'Tiền mặt',
-    CARD: 'Thẻ',
-    BANK_TRANSFER: 'Chuyển khoản',
   }
 
   return (
@@ -217,7 +212,7 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                     <View className="flex-row gap-2">
                       {payments.map((p, i) => (
                         <Text key={i} className="text-lg font-black text-primary">
-                          {paymentMethodLabels[p.method] || p.method}
+                          {PAYMENT_METHOD_LABELS[p.method] ?? p.method}
                         </Text>
                       ))}
                     </View>

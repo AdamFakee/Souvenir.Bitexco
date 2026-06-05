@@ -90,7 +90,7 @@ export const SyncService = {
         created_at: o.createdAt.getTime(),
         updated_at: o.updatedAt.getTime(),
       }))
-
+      console.log('[SyncService] raw orders:', JSON.stringify(rawOrders, null, 2))
       // 3. Chia nhỏ (Chunking) thành từng cụm nhỏ (10 đơn/lần) để tránh quá tải payload
       const CHUNK_SIZE = 10
       for (let i = 0; i < rawOrders.length; i += CHUNK_SIZE) {

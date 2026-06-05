@@ -5,7 +5,7 @@ import {
   PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { PaymentMethod } from '@/shared/lib/database'
+
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import {
   PaymentResult,
@@ -269,31 +269,33 @@ export const portablePaymentMachine = setup({
     }),
     clearError: assign({ error: null, errorCode: null }),
     assignPaymentResult: assign({
-      paymentResult: ({ context }) => ({
-        success: true,
-        method: PaymentMethod.CARD,
-        paidAmount: context.total,
-        change: 0,
-        isOnline: context.manualCardDetails ? false : true,
-        orderId: context.checkoutResult?.orderId,
-        referenceCode:
-          context.rawCommandResult?.transInfo?.refNo ??
-          context.rawCommandResult?.transInfo?.transId ??
-          context.manualCardDetails?.referenceNumber ??
-          context.paymentId ??
-          undefined,
-      }),
+      paymentResult: ({ context }) =>
+        ({
+          success: true,
+          method: 'card_bidv',
+          paidAmount: context.total,
+          change: 0,
+          isOnline: context.manualCardDetails ? false : true,
+          orderId: context.checkoutResult?.orderId,
+          referenceCode:
+            context.rawCommandResult?.transInfo?.refNo ??
+            context.rawCommandResult?.transInfo?.transId ??
+            context.manualCardDetails?.referenceNumber ??
+            context.paymentId ??
+            undefined,
+        }) satisfies PaymentResult,
     }),
     assignManualPaymentResult: assign({
-      paymentResult: ({ context }) => ({
-        success: true,
-        method: PaymentMethod.CARD,
-        paidAmount: context.total,
-        change: 0,
-        isOnline: false,
-        orderId: context.checkoutResult?.orderId,
-        referenceCode: context.paymentId ?? undefined,
-      }),
+      paymentResult: ({ context }) =>
+        ({
+          success: true,
+          method: 'card_bidv',
+          paidAmount: context.total,
+          change: 0,
+          isOnline: false,
+          orderId: context.checkoutResult?.orderId,
+          referenceCode: context.paymentId ?? undefined,
+        }) satisfies PaymentResult,
     }),
     assignManualCardDetails: assign({
       manualCardDetails: ({ event }) => ({

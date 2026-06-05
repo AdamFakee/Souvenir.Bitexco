@@ -3,7 +3,7 @@ import { Button, ModalBase, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { useAppContext } from '@/shared/features/app'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
-import { PaymentMethod } from '@/shared/lib/database'
+
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import NetInfo from '@react-native-community/netinfo'
@@ -144,7 +144,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         setVisible(false)
         onSuccess({
           success: true,
-          method: PaymentMethod.BANK_TRANSFER,
+          method: 'qr_bidv',
           paidAmount: total,
           change: 0,
           referenceCode: resolvedBillNumber,
@@ -273,7 +273,7 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           })),
           paymentsSnapshot: [
             {
-              method: 'BANK_TRANSFER',
+              method: 'qr_bidv',
               amount: total,
             },
           ],

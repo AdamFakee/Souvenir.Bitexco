@@ -4,7 +4,7 @@ import { COLORS } from '@/shared/constants'
 import { useAppContext } from '@/shared/features/app'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { IOrder } from '@/shared/features/order/types'
-import { OrderStatus, PaymentMethod } from '@/shared/lib/database'
+import { OrderStatus } from '@/shared/lib/database'
 import { toast, useConnectionStore } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
@@ -76,11 +76,11 @@ function buildReceiptOrder(
     })),
     paymentsSnapshot: [
       {
-        method: PaymentMethod.CASH,
+        method: 'cash',
         amount: cashAmount,
       },
       {
-        method: selectedMethod === 'qr' ? PaymentMethod.BANK_TRANSFER : PaymentMethod.CARD,
+        method: selectedMethod === 'qr' ? 'qr_bidv' : 'card_bidv',
         amount: nonCashAmount,
       },
     ],
@@ -413,7 +413,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         setVisible(false)
         onSuccess({
           success: true,
-          method: PaymentMethod.MIX,
+          method: 'mix',
           paidAmount: total,
           change: 0,
           referenceCode: resolvedBillCode,
