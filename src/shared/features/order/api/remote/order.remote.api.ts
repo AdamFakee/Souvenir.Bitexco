@@ -301,6 +301,28 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   updatedAt: new Date(order.updatedAt),
 })
 
+export const generateGuid = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+export const localIdToGuid = (localId: string): string => {
+  const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (guidRegex.test(localId)) {
+    return localId
+  }
+  let hex = ''
+  for (let i = 0; i < localId.length; i++) {
+    const code = localId.charCodeAt(i)
+    hex += code.toString(16).padStart(2, '0')
+  }
+  hex = hex.padEnd(32, '0').slice(0, 32)
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+}
+
 /**
  * OrderRemoteAPI - Xử lý đồng bộ dữ liệu Đơn hàng với Server
  */
@@ -316,10 +338,38 @@ export const OrderRemoteAPI = {
     console.log(`OrderRemoteAPI: Syncing ${orders.length} offline orders to server...`)
 
     try {
-      const payload = { orders }
+      const payload = orders.map((o) => ({
+        id: localIdToGuid(o.id),
+        shiftId: o.shift_id,
+        staffId: o.staff_id,
+        status: o.status,
+        subtotal: o.subtotal,
+        discount: o.discount,
+        voucherCode: o.voucher_code || null,
+        voucherDiscount: o.voucher_discount,
+        total: o.total,
+        totalTax: o.total_tax,
+        note: o.note || null,
+        refundReason: o.refund_reason || null,
+        originalOrderId: o.original_order_id ? localIdToGuid(o.original_order_id) : null,
+        customerTaxInfo: o.customer_tax_info,
+        itemsSnapshot: o.items_snapshot,
+        paymentsSnapshot: o.payments_snapshot,
+        isDeleted: o.is_deleted,
+        createdAt: new Date(o.created_at).toISOString(),
+        updatedAt: new Date(o.updated_at).toISOString(),
+      }))
+      console.log('OrderRemoteAPI: Sync payload:', JSON.stringify(payload, null, 2))
       await AxiosService.getInstance().post('/v1/pos/sync/orders', payload)
-    } catch (error) {
+    } catch (error: any) {
       console.error('OrderRemoteAPI: Failed to sync offline orders', error)
+      if (error.response) {
+        console.log('[OrderRemoteAPI] Sync offline orders error status:', error.response.status)
+        console.log(
+          '[OrderRemoteAPI] Sync offline orders error data:',
+          JSON.stringify(error.response.data),
+        )
+      }
       throw error
     }
   },

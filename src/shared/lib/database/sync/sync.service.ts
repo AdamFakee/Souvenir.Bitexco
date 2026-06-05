@@ -22,6 +22,9 @@ export const SyncService = {
         pullChanges: async ({ lastPulledAt }) => {
           const timestamp = lastPulledAt ?? null
 
+          console.log(
+            `[SyncService] pullMasterData started with lastPulledAt timestamp: ${timestamp}`,
+          )
           // Luôn lấy đầy đủ thay đổi của Product và Category
           const [product, category] = await Promise.all([
             ProductRemoteAPI.fetchChanges!({ lastPulledAt: timestamp }),
@@ -29,11 +32,16 @@ export const SyncService = {
           ])
 
           const changes: SyncDatabaseChangeSet = {
-            ...product,
-            ...category,
+            products: product.products,
+            categories: category.categories,
           }
 
-          return { changes, timestamp: Date.now() }
+          const nextTimestamp = product?.syncedAt || category?.syncedAt || Date.now()
+          console.log(
+            `[SyncService] pullMasterData complete. New timestamp to store: ${nextTimestamp}`,
+          )
+
+          return { changes, timestamp: nextTimestamp }
         },
         pushChanges: async () => {
           // KHÔNG đẩy Orders thông qua WatermelonDB

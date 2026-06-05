@@ -1,6 +1,7 @@
 import type { CartItem } from '@/shared/features/pos/types/cart.types'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
 import type { PortablePaymentCommandResult } from '@/shared/features/payment/types/portable-payment.type'
+import { generateGuid } from '../remote/order.remote.api'
 
 import {
   database,
@@ -143,6 +144,7 @@ export const OrderLocalAPI = {
 
     // 1. Prepare Order
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
+      o._raw.id = generateGuid()
       o.shiftId = payload.shiftId
       o.staffId = payload.staffId
       o.status = OrderStatus.COMPLETED
@@ -193,6 +195,7 @@ export const OrderLocalAPI = {
     const totalTax = itemsSnapshot.reduce((sum, item) => sum + item.taxAmount, 0)
 
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
+      o._raw.id = generateGuid()
       o.shiftId = payload.shiftId
       o.staffId = payload.staffId
       o.status = OrderStatus.PENDING
@@ -239,6 +242,7 @@ export const OrderLocalAPI = {
     const totalTax = itemsSnapshot.reduce((sum, item) => sum + item.taxAmount, 0)
 
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
+      o._raw.id = generateGuid()
       o.shiftId = payload.shiftId
       o.staffId = payload.staffId
       o.status = OrderStatus.PENDING

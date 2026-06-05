@@ -1,6 +1,7 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
-import mockProducts from './mock-products.json'
+import { database, ProductModel } from '@/shared/lib/database'
+import { Q } from '@nozbe/watermelondb'
 
 /**
  * ProductRaw - Cấu trúc dữ liệu Sản phẩm khớp với SQLite POS Schema (v1.8)
@@ -39,6 +40,8 @@ export interface PosLookupResult {
   trackBatches: boolean
   trackSerials: boolean
   barcode: string
+  taxRate: number
+  isActive: boolean
 }
 
 /**
@@ -50,6 +53,7 @@ export interface ProductSyncChanges {
     updated: ProductRaw[]
     deleted: string[]
   }
+  syncedAt?: number
 }
 
 export const ProductRemoteAPI: FeatureRemoteAPI & {
@@ -116,36 +120,125 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
 
   /**
    * 4.3 Tải danh mục sản phẩm (sync warmup)
-   * Translation Engine dịch dữ liệu API v1.8 sang cấu trúc SQLite POS gọn nhẹ
+   * Gọi API GET /v1/pos/products/sync phân trang và chuyển đổi sang Schema WatermelonDB.
    */
   fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<ProductSyncChanges> => {
-    console.log('ProductRemoteAPI: Fetching changes (Pull)...', { lastPulledAt })
+    console.log('[ProductRemoteAPI] Fetching changes (Pull) starting...', { lastPulledAt })
 
-    if (!lastPulledAt) {
-      const now = Date.now()
-      const products: ProductRaw[] = (mockProducts as any[]).map((p) => ({
-        id: p.id,
-        sku: p.sku,
-        barcode: p.barcodes?.[0] || p.sku,
-        name: p.name,
-        price: p.price,
-        tax_rate: 8,
-        stock: p.stock,
-        unit_id: p.unitId,
-        unit_code: p.unitCode || 'CAI',
-        is_active: true,
-        is_deleted: false,
-        created_at: now,
-        updated_at: now,
-      }))
+    const axios = AxiosService.getInstance()
+    let allItems: any[] = []
+    let page = 0
+    let hasMore = true
+    const limit = 200 // page limit
+    let syncedAtFromServer = Date.now()
+
+    try {
+      while (hasMore) {
+        console.log(`[ProductRemoteAPI] Fetching products page ${page}...`)
+        const response = await axios.get<{
+          items: any[]
+          hasMore: boolean
+          syncedAt: number | string
+        }>('/v1/pos/products/sync', {
+          params: {
+            lastSyncedAt: lastPulledAt
+              ? new Date(lastPulledAt).toISOString()
+              : new Date(0).toISOString(),
+            page,
+            limit,
+          },
+        })
+
+        const data = response.data
+        if (data && data.items) {
+          allItems = allItems.concat(data.items)
+          hasMore = data.hasMore
+          if (data.syncedAt) {
+            syncedAtFromServer =
+              typeof data.syncedAt === 'string' ? new Date(data.syncedAt).getTime() : data.syncedAt
+          }
+          console.log(
+            `[ProductRemoteAPI] Fetched ${data.items.length} products. hasMore=${data.hasMore}, syncedAt=${data.syncedAt}`,
+          )
+        } else {
+          hasMore = false
+        }
+        page++
+      }
+
+      console.log(`[ProductRemoteAPI] Total products fetched from server: ${allItems.length}`)
+
+      // Lấy danh sách IDs đã tồn tại dưới DB Local để quyết định CREATE hay UPDATE
+      const existingIds = new Set<string>()
+      if (lastPulledAt && allItems.length > 0) {
+        const productIds = allItems.map((item) => item.id).filter(Boolean)
+        const chunkSize = 500
+        for (let i = 0; i < productIds.length; i += chunkSize) {
+          const chunk = productIds.slice(i, i + chunkSize)
+          const existingProducts = await database
+            .get<ProductModel>('products')
+            .query(Q.where('id', Q.oneOf(chunk)))
+            .fetch()
+          existingProducts.forEach((p) => existingIds.add(p.id))
+        }
+        console.log(
+          `[ProductRemoteAPI] Checked database. Found ${existingIds.size} existing products locally out of ${allItems.length} changed items.`,
+        )
+      }
+
+      const created: ProductRaw[] = []
+      const updated: ProductRaw[] = []
+      const deleted: string[] = []
+
+      for (const item of allItems) {
+        const mapped: ProductRaw = {
+          id: item.id,
+          sku: item.sku,
+          barcode: item.barcode || item.sku,
+          name: item.name,
+          price: item.price,
+          tax_rate: item.taxRate ?? 0,
+          stock: item.stock ?? 0,
+          unit_id: item.unitId,
+          unit_code: item.unitCode || 'CAI',
+          is_active: item.isActive ?? true,
+          is_deleted: item.isDeleted ?? false,
+          created_at: item.createdAt || Date.now(),
+          updated_at: item.updatedAt || Date.now(),
+        }
+
+        if (item.isDeleted) {
+          if (lastPulledAt && existingIds.has(item.id)) {
+            deleted.push(item.id)
+          }
+        } else {
+          if (lastPulledAt && existingIds.has(item.id)) {
+            updated.push(mapped)
+          } else {
+            created.push(mapped)
+          }
+        }
+      }
+
+      console.log(
+        `[ProductRemoteAPI] Categorized changes -> Created: ${created.length}, Updated: ${updated.length}, Deleted: ${deleted.length}`,
+      )
 
       return {
-        products: { created: products, updated: [], deleted: [] },
+        products: { created, updated, deleted },
+        syncedAt: syncedAtFromServer,
       }
-    }
-
-    return {
-      products: { created: [], updated: [], deleted: [] },
+    } catch (error: any) {
+      console.error('[ProductRemoteAPI] fetchChanges API error:', error)
+      if (error.response) {
+        console.error('[ProductRemoteAPI] Error response status:', error.response.status)
+        console.error('[ProductRemoteAPI] Error response headers:', error.response.headers)
+        console.error(
+          '[ProductRemoteAPI] Error response data:',
+          JSON.stringify(error.response.data),
+        )
+      }
+      throw error
     }
   },
 

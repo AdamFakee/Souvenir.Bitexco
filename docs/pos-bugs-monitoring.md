@@ -6,6 +6,19 @@ Ghi nhận tất cả bugs đã báo cáo. Mỗi entry: triệu chứng, nguyên
 
 ## Đang theo dõi
 
+### [BUG-13] `POST /v1/pos/sync/orders` — Đơn offline sync thành công nhưng `items_snapshot` rỗng trên Server
+
+- **Triệu chứng:**
+  - Đơn hàng offline được đẩy lên Server qua `POST /v1/pos/sync/orders` thành công (HTTP 200), hiển thị đúng tổng tiền và thuế trên Admin.
+  - Tuy nhiên, phần **Sản phẩm** trong chi tiết đơn hàng trên Admin hoàn toàn trống (`—`) mặc dù Client đã gửi đầy đủ `itemsSnapshot` trong payload.
+- **Payload Client gửi (mẫu):**
+  ```json
+  "itemsSnapshot": [{ "productId": "...", "name": "test 4", "price": 350000, "quantity": 1, ... }]
+  ```
+- **Trạng thái:** ⏳ Chờ Backend fix.
+
+---
+
 ### [BUG-12] `GET /v1/dashboard/overview` và `/v1/dashboard/product-revenue` trả dữ liệu thống kê bằng 0
 
 - **Triệu chứng:**
