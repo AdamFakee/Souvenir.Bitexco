@@ -12,6 +12,12 @@ import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import { PaymentRemoteAPI } from '../api/remote/payment.remote.api'
 import { PaymentResult, PAYMENT_ERROR_CODES, PaymentErrorCode } from '../types'
+import {
+  fetchQrActor,
+  checkQrPaymentStatusActor,
+  forceCaptureQrActor,
+  voidPaymentActor,
+} from '../flows/qr-collection.actors'
 
 export interface QRPaymentContext {
   /** Input Data */
@@ -36,6 +42,8 @@ export interface QRPaymentContext {
   retryCount: number
   savedOrder: any | null
   paymentResult: PaymentResult | null
+  paymentState?: string | null
+  paymentVersion?: number | null
 }
 
 export type QRPaymentEvent =
@@ -132,48 +140,17 @@ export const qrPaymentMachine = setup({
     /**
      * Sinh mã QR từ paymentId.
      */
-    fetchQR: fromPromise(
-      async ({
-        input,
-      }: {
-        input: {
-          paymentId: string
-          total: number
-          orderCode: string
-          tenantConfig: TenantConfig | null
-        }
-      }) => {
-        const params = {
-          bankCode: input.tenantConfig?.bankCode || '---',
-          accountNo: input.tenantConfig?.accountNo || '---',
-          accountName: input.tenantConfig?.accountName || '---',
-          amount: input.total,
-          description: `Thanh toan don ${input.orderCode}`,
-        }
-        console.log('[QR Fetch] Generating QR with params:', JSON.stringify(params, null, 2))
-        const qrData = await PaymentRemoteAPI.generateQrCode(input.paymentId, params)
-        console.log('[QR Fetch] Received QR Response:', JSON.stringify(qrData, null, 2))
-        return qrData
-      },
-    ),
+    fetchQR: fetchQrActor,
 
     /**
      * Kiểm tra trạng thái thanh toán (Polling từ paymentId).
      */
-    checkStatus: fromPromise(async ({ input }: { input: { paymentId: string } }) => {
-      console.log('[QR Poll] Checking payment status for ID:', input.paymentId)
-      const payment = await PaymentRemoteAPI.getPaymentStatus(input.paymentId)
-      console.log(
-        '[QR Poll] Current Payment State:',
-        payment.state,
-        'Full Data:',
-        JSON.stringify(payment, null, 2),
-      )
-      if (payment.state !== 'CAPTURED') {
-        throw new Error('NOT_CAPTURED_YET')
-      }
-      return payment
-    }),
+    checkStatus: checkQrPaymentStatusActor,
+
+    /**
+     * Chuyển trạng thái cưỡng bức lên CAPTURED khi nhấn Force Complete.
+     */
+    forceCaptureQr: forceCaptureQrActor,
 
     /**
      * Trả về thông tin đơn hàng online thành công.
@@ -188,28 +165,9 @@ export const qrPaymentMachine = setup({
     }),
 
     /**
-     * Hủy đơn hàng online trên server.
+     * Hủy/Void giao dịch thanh toán QR trên server.
      */
-    failOrder: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { orderId: string | null; shiftId: string; staffId: string }
-      }): Promise<void> => {
-        if (!input.orderId) return
-        try {
-          console.log('[QR Payment] Cancelling order on server:', input.orderId)
-          await OrderRemoteAPI.cancelOrder({
-            orderId: input.orderId,
-            shiftId: input.shiftId,
-            staffId: input.staffId,
-            reason: 'cashier_cancelled_payment',
-          })
-        } catch (err) {
-          console.error('[QR Payment] Failed to cancel order:', err)
-        }
-      },
-    ),
+    voidPayment: voidPaymentActor,
 
     /**
      * In hóa đơn.
@@ -280,6 +238,8 @@ export const qrPaymentMachine = setup({
         retryCount: 0,
         savedOrder: null,
         paymentResult: null,
+        paymentState: null,
+        paymentVersion: null,
       }
 
       if (event.type === 'START' && event.input) {
@@ -355,6 +315,8 @@ export const qrPaymentMachine = setup({
     retryCount: 0,
     savedOrder: null,
     paymentResult: null,
+    paymentState: null,
+    paymentVersion: null,
   }),
   states: {
     idle: {
@@ -386,7 +348,7 @@ export const qrPaymentMachine = setup({
         src: 'fetchQR',
         input: ({ context }) => ({
           paymentId: context.paymentId ?? '',
-          total: context.total,
+          amount: context.total,
           orderCode: context.billNumber ?? '',
           tenantConfig: context.tenantConfig ?? null,
         }),
@@ -408,7 +370,7 @@ export const qrPaymentMachine = setup({
       on: {
         CANCEL: { target: 'cancelled', actions: 'notifyCancel' },
         CHECK_STATUS_NOW: { target: '.checking' },
-        FORCE_COMPLETE: { target: '#qrPayment.savingOrder' },
+        FORCE_COMPLETE: { target: '#qrPayment.forceCapturingPayment' },
       },
       initial: 'idle',
       states: {
@@ -431,13 +393,54 @@ export const qrPaymentMachine = setup({
             input: ({ context }) => ({
               paymentId: context.paymentId ?? '',
             }),
-            onDone: {
-              target: '#qrPayment.savingOrder',
-            },
+            onDone: [
+              {
+                target: '#qrPayment.savingOrder',
+                guard: ({ event }) => (event.output as any).state === 'CAPTURED',
+              },
+              {
+                target: '#qrPayment.error',
+                guard: ({ event }) => ['FAILED', 'VOIDED'].includes((event.output as any).state),
+                actions: assign({
+                  error: ({ event }) =>
+                    `Giao dịch đã bị ${(event.output as any).state === 'VOIDED' ? 'hủy' : 'thất bại'} trên server.`,
+                  paymentState: ({ event }) => (event.output as any).state,
+                  paymentVersion: ({ event }) => (event.output as any).version,
+                }),
+              },
+              {
+                target: 'idle',
+                actions: assign({
+                  paymentState: ({ event }) => (event.output as any).state,
+                  paymentVersion: ({ event }) => (event.output as any).version,
+                }),
+              },
+            ],
             onError: {
               target: 'idle',
             },
           },
+        },
+      },
+    },
+
+    forceCapturingPayment: {
+      invoke: {
+        id: 'forceCaptureQr',
+        src: 'forceCaptureQr',
+        input: ({ context }) => ({
+          paymentId: context.paymentId ?? '',
+          paymentVersion: context.paymentVersion ?? 1,
+        }),
+        onDone: {
+          target: 'savingOrder',
+          actions: assign({
+            paymentVersion: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: 'recordError',
         },
       },
     },
@@ -475,7 +478,7 @@ export const qrPaymentMachine = setup({
           target: 'success',
         },
         onError: {
-          target: 'success', // Lỗi in không cản trở flow thành công
+          target: 'success', // Lỗi in không cản trước flow thành công
         },
       },
     },
@@ -501,7 +504,7 @@ export const qrPaymentMachine = setup({
           guard: ({ context }) => context.paymentId !== null,
           actions: 'clearError',
         },
-        FORCE_COMPLETE: { target: '#qrPayment.savingOrder' },
+        FORCE_COMPLETE: { target: '#qrPayment.forceCapturingPayment' },
         CANCEL: { target: 'cancelled' },
       },
     },
@@ -514,12 +517,10 @@ export const qrPaymentMachine = setup({
 
     cancelled: {
       invoke: {
-        id: 'failOrder',
-        src: 'failOrder',
+        id: 'voidPayment',
+        src: 'voidPayment',
         input: ({ context }) => ({
-          orderId: context.orderId,
-          shiftId: context.shiftId,
-          staffId: context.staffId,
+          paymentId: context.paymentId,
         }),
       },
       on: {
@@ -538,6 +539,7 @@ export function getQrPaymentStatusLabel(state: SnapshotFrom<typeof qrPaymentMach
   if (state.matches('creatingOrder')) return 'Đang khởi tạo đơn hàng...'
   if (state.matches('fetchingQR')) return 'Đang lấy mã QR...'
   if (state.matches('waitingForPayment')) return 'Đang chờ khách quét mã thanh toán'
+  if (state.matches('forceCapturingPayment')) return 'Đang xác nhận thủ công...'
   if (state.matches('savingOrder')) return 'Đang lưu giao dịch...'
   if (state.matches('printingReceipt')) return 'Đang in hóa đơn...'
   if (state.matches('success')) return 'Thanh toán thành công!'

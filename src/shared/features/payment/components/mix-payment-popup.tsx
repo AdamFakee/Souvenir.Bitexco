@@ -523,7 +523,13 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           },
         })
       } else {
-        actorRef.send({ type: 'CANCEL' })
+        toast.confirm({
+          title: 'Xác nhận hủy giao dịch',
+          message: 'Bạn có chắc chắn muốn hủy giao dịch thanh toán hỗn hợp này không?',
+          onConfirm: () => {
+            actorRef.send({ type: 'CANCEL' })
+          },
+        })
       }
     }
 

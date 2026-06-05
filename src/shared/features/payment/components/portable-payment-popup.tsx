@@ -224,8 +224,14 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
     }, [isIdle, visible, isLoading, checkoutResult])
 
     const handleCancel = () => {
-      actorRef.send({ type: 'CANCEL' })
-      if (!checkoutResult) setVisible(false)
+      toast.confirm({
+        title: 'Xác nhận hủy giao dịch',
+        message: 'Bạn có chắc chắn muốn hủy giao dịch thanh toán qua thẻ này không?',
+        onConfirm: () => {
+          actorRef.send({ type: 'CANCEL' })
+          if (!checkoutResult) setVisible(false)
+        },
+      })
     }
 
     const handleRetry = () => {

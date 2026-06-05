@@ -26,7 +26,11 @@ import {
 } from '../flows/card-collection.actors'
 import { cancelOrderActor, createMixCheckoutActor } from '../flows/checkout.actors'
 import { printReceiptActor } from '../flows/print.actors'
-import { checkQrPaymentStatusActor, fetchQrActor } from '../flows/qr-collection.actors'
+import {
+  checkQrPaymentStatusActor,
+  fetchQrActor,
+  forceCaptureQrActor,
+} from '../flows/qr-collection.actors'
 
 // ─── Machine Types ────────────────────────────────────────────────────────────
 
@@ -122,6 +126,7 @@ export const mixPaymentMachine = setup({
     cancelOrder: cancelOrderActor,
     fetchQR: fetchQrActor,
     checkQrStatus: checkQrPaymentStatusActor,
+    forceCaptureQr: forceCaptureQrActor,
     processPayment: processPaymentActor,
     connectPOS: connectPosActor,
     sendCommand: sendCardSaleCommandActor,
@@ -180,7 +185,13 @@ export const mixPaymentMachine = setup({
       }
     }),
     assignPaymentVersion: assign({
-      nonCashPaymentVersion: ({ event }) => (event as any).output,
+      nonCashPaymentVersion: ({ event }) => {
+        const out = (event as any).output
+        if (out && typeof out === 'object' && 'version' in out) {
+          return out.version
+        }
+        return out
+      },
     }),
     assignEdcResult: assign({
       rawCommandResult: ({ event }) => (event as any).output ?? null,
@@ -446,8 +457,7 @@ export const mixPaymentMachine = setup({
       on: {
         CHECK_STATUS_NOW: { target: '.checking' },
         FORCE_COMPLETE: {
-          target: '#mixPayment.preparingReceipt',
-          actions: 'assignForceCompleteQrPaymentResult',
+          target: 'capturingQrManual',
         },
         CANCEL: { target: 'voidingPayment' },
       },
@@ -472,14 +482,51 @@ export const mixPaymentMachine = setup({
             input: ({ context }) => ({
               paymentId: context.nonCashPaymentId!,
             }),
-            onDone: {
-              target: '#mixPayment.preparingReceipt',
-              actions: 'assignPaymentResult',
-            },
+            onDone: [
+              {
+                target: '#mixPayment.preparingReceipt',
+                guard: ({ event }) => (event.output as any).state === 'CAPTURED',
+                actions: ['assignPaymentVersion', 'assignPaymentResult'],
+              },
+              {
+                target: '#mixPayment.paymentFailed',
+                guard: ({ event }) => ['FAILED', 'VOIDED'].includes((event.output as any).state),
+                actions: assign({
+                  error: ({ event }) =>
+                    `Giao dịch QR đã bị ${(event.output as any).state === 'VOIDED' ? 'hủy' : 'thất bại'} trên server.`,
+                  nonCashPaymentVersion: ({ event }) => (event.output as any).version,
+                }),
+              },
+              {
+                target: 'idle',
+                actions: assign({
+                  nonCashPaymentVersion: ({ event }) => (event.output as any).version,
+                }),
+              },
+            ],
             onError: {
               target: 'idle',
             },
           },
+        },
+      },
+    },
+
+    capturingQrManual: {
+      invoke: {
+        id: 'forceCaptureQr',
+        src: 'forceCaptureQr',
+        input: ({ context }) => ({
+          paymentId: context.nonCashPaymentId!,
+          paymentVersion: context.nonCashPaymentVersion ?? 1,
+        }),
+        onDone: {
+          target: 'preparingReceipt',
+          actions: ['assignPaymentVersion', 'assignForceCompleteQrPaymentResult'],
+        },
+        onError: {
+          target: 'paymentFailed',
+          actions: 'recordError',
         },
       },
     },

@@ -241,7 +241,11 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     )
 
     const handleCancel = () => {
-      actorRef.send({ type: 'CANCEL' })
+      toast.confirm({
+        title: 'Xác nhận hủy giao dịch',
+        message: 'Bạn có chắc chắn muốn hủy giao dịch thanh toán QR này không?',
+        onConfirm: () => actorRef.send({ type: 'CANCEL' }),
+      })
     }
 
     const handleRetry = () => {

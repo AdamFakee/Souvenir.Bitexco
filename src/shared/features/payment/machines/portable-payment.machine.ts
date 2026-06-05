@@ -8,10 +8,10 @@ import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import {
-  PaymentResult,
-  PortablePaymentCommandResult,
   PAYMENT_ERROR_CODES,
   PaymentErrorCode,
+  PaymentResult,
+  PortablePaymentCommandResult,
 } from '../types'
 
 import {

@@ -72,9 +72,9 @@ export const PaymentRemoteAPI = {
   generateQrCode: async (
     paymentId: string,
     params: {
-      bankCode: string
-      accountNo: string
-      accountName: string
+      bankCode?: string
+      accountNo?: string
+      accountName?: string
       amount: number
       description?: string
     },
