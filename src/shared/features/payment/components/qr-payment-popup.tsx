@@ -253,7 +253,12 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     }
 
     const handleForceComplete = () => {
-      actorRef.send({ type: 'FORCE_COMPLETE' })
+      toast.confirm({
+        title: 'Xác nhận thanh toán thủ công',
+        message:
+          'Bạn có chắc chắn muốn xác nhận khách đã chuyển khoản thành công và ghi nhận đơn hàng này không?',
+        onConfirm: () => actorRef.send({ type: 'FORCE_COMPLETE' }),
+      })
     }
 
     const receiptOrder = savedOrder

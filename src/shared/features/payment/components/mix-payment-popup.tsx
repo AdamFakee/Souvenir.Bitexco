@@ -536,18 +536,29 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     }
 
     const handleForceComplete = () => {
-      actorRef.send({ type: 'FORCE_COMPLETE' })
+      toast.confirm({
+        title: 'Xác nhận thanh toán thủ công',
+        message:
+          'Bạn có chắc chắn muốn xác nhận khách đã thanh toán thành công phần tiền không dùng tiền mặt và ghi nhận đơn hàng này không?',
+        onConfirm: () => actorRef.send({ type: 'FORCE_COMPLETE' }),
+      })
     }
 
     const handleManualCaptureSubmit = (data: ManualCardDetailsFormData) => {
-      actorRef.send({
-        type: 'MANUAL_CAPTURE',
-        terminalId: data.terminalId || undefined,
-        merchantId: data.merchantId || undefined,
-        referenceNumber: data.referenceNumber || undefined,
-        approvalCode: data.approvalCode || undefined,
+      toast.confirm({
+        title: 'Xác nhận thanh toán thủ công',
+        message: 'Hãy chắc chắn giao dịch đã thành công trên máy EDC trước khi xác nhận.',
+        onConfirm: () => {
+          actorRef.send({
+            type: 'MANUAL_CAPTURE',
+            terminalId: data.terminalId || undefined,
+            merchantId: data.merchantId || undefined,
+            referenceNumber: data.referenceNumber || undefined,
+            approvalCode: data.approvalCode || undefined,
+          })
+          setShowManualForm(false)
+        },
       })
-      setShowManualForm(false)
     }
 
     const isQrUrl = qrContent ? qrContent.startsWith('http') : false
