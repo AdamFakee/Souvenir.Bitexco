@@ -6,14 +6,24 @@ Ghi nhận tất cả bugs đã báo cáo. Mỗi entry: triệu chứng, nguyên
 
 ## Đang theo dõi
 
-### [BUG-13] `POST /v1/pos/sync/orders` — Đơn offline sync thành công nhưng `items_snapshot` rỗng trên Server
+### [BUG-13] `POST /v1/pos/sync/orders` — Đơn offline sync thành công nhưng `items_snapshot` và `payments_snapshot` rỗng trên Server
 
 - **Triệu chứng:**
   - Đơn hàng offline được đẩy lên Server qua `POST /v1/pos/sync/orders` thành công (HTTP 200), hiển thị đúng tổng tiền và thuế trên Admin.
-  - Tuy nhiên, phần **Sản phẩm** trong chi tiết đơn hàng trên Admin hoàn toàn trống (`—`) mặc dù Client đã gửi đầy đủ `itemsSnapshot` trong payload.
+  - Tuy nhiên, phần **Sản phẩm** và **Thanh toán** trong chi tiết đơn hàng trên Admin hoàn toàn trống (`—`) mặc dù Client đã gửi đầy đủ `items_snapshot` và `payments_snapshot` trong payload.
 - **Payload Client gửi (mẫu):**
   ```json
-  "itemsSnapshot": [{ "productId": "...", "name": "test 4", "price": 350000, "quantity": 1, ... }]
+  {
+    "orders": [
+      {
+        "id": "766f6361-6c5f-3333-3136-393237303030",
+        "items_snapshot": [
+          { "productId": "...", "name": "test 4", "price": 350000, "quantity": 1 }
+        ],
+        "payments_snapshot": [{ "method": "cash", "amount": 350000 }]
+      }
+    ]
+  }
   ```
 - **Trạng thái:** ⏳ Chờ Backend fix.
 
@@ -28,6 +38,17 @@ Ghi nhận tất cả bugs đã báo cáo. Mỗi entry: triệu chứng, nguyên
 ---
 
 ## Đã fix
+
+### [BUG-15] `GET /v1/dashboard/overview` — Lệch dữ liệu giữa `totalRevenue` và chi tiết `paymentMethods`
+
+- **Triệu chứng:**
+  - Dữ liệu trả về từ API `/v1/dashboard/overview` của ca làm việc hiện tại bị không khớp (lệch số liệu doanh thu).
+  - Tổng doanh thu `totalRevenue` trả về nhỏ hơn rất nhiều so với tổng số tiền thu được từ các phương thức thanh toán cộng lại.
+- **Nguyên nhân:** Công thức tính doanh thu ca (Aggregate Logic) chưa đồng bộ đúng dữ liệu giữa doanh thu thực tế và tổng thanh toán.
+- **Fix:** Backend đã cập nhật và đồng bộ lại công thức tính doanh thu tổng trên Dashboard.
+- **Trạng thái:** ✅ Đã sửa thành công.
+
+---
 
 ### [BUG-01] HTTP 500 Scriban — `Cannot get member with name created_by`
 

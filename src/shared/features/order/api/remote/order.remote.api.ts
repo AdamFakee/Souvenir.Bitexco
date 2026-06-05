@@ -71,13 +71,13 @@ export interface OrderRaw {
   status: OrderStatus
   subtotal: number
   discount: number
-  voucher_code?: string
+  voucher_code?: string | null
   voucher_discount: number
   total: number
   total_tax: number
-  note?: string
-  refund_reason?: string
-  original_order_id?: string
+  note?: string | null
+  refund_reason?: string | null
+  original_order_id?: string | null
   customer_tax_info: TaxInfo | null
   items_snapshot: ItemSnapshot[]
   payments_snapshot: PaymentSnapshot[]
@@ -338,27 +338,7 @@ export const OrderRemoteAPI = {
     console.log(`OrderRemoteAPI: Syncing ${orders.length} offline orders to server...`)
 
     try {
-      const payload = orders.map((o) => ({
-        id: localIdToGuid(o.id),
-        shiftId: o.shift_id,
-        staffId: o.staff_id,
-        status: o.status,
-        subtotal: o.subtotal,
-        discount: o.discount,
-        voucherCode: o.voucher_code || null,
-        voucherDiscount: o.voucher_discount,
-        total: o.total,
-        totalTax: o.total_tax,
-        note: o.note || null,
-        refundReason: o.refund_reason || null,
-        originalOrderId: o.original_order_id ? localIdToGuid(o.original_order_id) : null,
-        customerTaxInfo: o.customer_tax_info,
-        itemsSnapshot: o.items_snapshot,
-        paymentsSnapshot: o.payments_snapshot,
-        isDeleted: o.is_deleted,
-        createdAt: new Date(o.created_at).toISOString(),
-        updatedAt: new Date(o.updated_at).toISOString(),
-      }))
+      const payload = { orders }
       console.log('OrderRemoteAPI: Sync payload:', JSON.stringify(payload, null, 2))
       await AxiosService.getInstance().post('/v1/pos/sync/orders', payload)
     } catch (error: any) {

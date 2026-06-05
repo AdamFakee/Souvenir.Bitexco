@@ -5,7 +5,7 @@ import { SyncDatabaseChangeSet, synchronize } from '@nozbe/watermelondb/sync'
 import { database } from '../database'
 
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
-import { OrderRaw } from '@/shared/features/order/api/remote/order.remote.api'
+import { OrderRaw, localIdToGuid } from '@/shared/features/order/api/remote/order.remote.api'
 
 /**
  * SyncService - Quản lý đồng bộ dữ liệu Offline/Online.
@@ -70,19 +70,19 @@ export const SyncService = {
 
       // 2. Chuyển đổi sang định dạng OrderRaw thô (raw JSON)
       const rawOrders: OrderRaw[] = unsyncedOrders.map((o) => ({
-        id: o.id,
+        id: localIdToGuid(o.id),
         shift_id: o.shiftId,
         staff_id: o.staffId,
         status: o.status,
         subtotal: o.subtotal,
         discount: o.discount,
-        voucher_code: o.voucherCode,
+        voucher_code: o.voucherCode || null,
         voucher_discount: o.voucherDiscount,
         total: o.total,
         total_tax: o.totalTax,
-        note: o.note,
-        refund_reason: o.refundReason,
-        original_order_id: o.originalOrderId,
+        note: o.note || null,
+        refund_reason: o.refundReason || null,
+        original_order_id: o.originalOrderId ? localIdToGuid(o.originalOrderId) : null,
         customer_tax_info: o.customerTaxInfo,
         items_snapshot: o.itemsSnapshot,
         payments_snapshot: o.paymentsSnapshot,
