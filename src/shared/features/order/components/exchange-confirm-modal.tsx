@@ -5,8 +5,9 @@ import { useAppStore } from '@/shared/features/app'
 import { UnifiedProduct } from '@/shared/features/pos/hooks/use-product-search'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { PrinterService } from '@/shared/services'
-import { toast } from '@/shared/store'
+import { appSettings, toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
+import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
 import { useMachine } from '@xstate/react'
 import { X } from 'lucide-react-native'
 import React, {
@@ -51,6 +52,7 @@ export const ExchangeConfirmModal = React.forwardRef<
   const [visible, setVisible] = useState(false)
   const receiptPrintRef = useRef(null)
   const printedReceiptKeyRef = useRef<string | null>(null)
+  const businessChecklistModalRef = useRef<BusinessChecklistModalRef>(null)
 
   const { order, reason, returnedLines, replacementLines, result } = state.context
   const isProcessing =
@@ -165,6 +167,7 @@ export const ExchangeConfirmModal = React.forwardRef<
       printedReceiptKeyRef.current = null
       send({ type: 'RESET' })
       send({ type: 'START', order: o, shiftId, staffId })
+      businessChecklistModalRef.current?.close()
       setVisible(true)
     },
     close: () => {
@@ -225,13 +228,30 @@ export const ExchangeConfirmModal = React.forwardRef<
   const handleConfirm = () => {
     if (!order) return
 
-    toast.confirm({
-      title: 'Xác nhận đổi hàng',
-      message: `Bạn có chắc chắn muốn đổi ${selectedReturnCount} sản phẩm, hàng mới ${formatCurrency(
-        replacementValue,
-      )}, chênh lệch ${formatCurrency(Math.max(0, differenceAmount))} không?`,
-      onConfirm: () => send({ type: 'SUBMIT' }),
-    })
+    const exchangeRequireChecklist = appSettings.get('exchangeRequireChecklist')
+    if (exchangeRequireChecklist) {
+      businessChecklistModalRef.current?.open({
+        title: 'Checklist Xác nhận Nghiệp vụ',
+        subtitle: 'Vui lòng xác nhận các bước nghiệp vụ trước khi hoàn tất đổi hàng.',
+        items: [
+          'Tôi đã nhận lại sản phẩm lỗi/cũ từ khách hàng.',
+          'Tôi đã giao đầy đủ sản phẩm mới thay thế cho khách hàng.',
+          `Tôi đã thu/chi đúng số tiền chênh lệch (${formatCurrency(Math.max(0, differenceAmount))}) từ khách hàng.`,
+        ],
+        onDontShowAgain: () => appSettings.set('exchangeRequireChecklist', false),
+        onConfirm: () => {
+          send({ type: 'SUBMIT' })
+        },
+      })
+    } else {
+      toast.confirm({
+        title: 'Xác nhận đổi hàng',
+        message: `Bạn có chắc chắn muốn đổi ${selectedReturnCount} sản phẩm, hàng mới ${formatCurrency(
+          replacementValue,
+        )}, chênh lệch ${formatCurrency(Math.max(0, differenceAmount))} không?`,
+        onConfirm: () => send({ type: 'SUBMIT' }),
+      })
+    }
   }
 
   const stepText = useMemo(() => {
@@ -349,6 +369,7 @@ export const ExchangeConfirmModal = React.forwardRef<
             </View>
           </View>
         </SafeAreaView>
+        <BusinessChecklistModal ref={businessChecklistModalRef} />
       </ModalBase>
     </>
   )

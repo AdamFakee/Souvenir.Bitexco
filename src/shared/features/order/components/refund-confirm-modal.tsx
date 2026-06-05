@@ -12,8 +12,9 @@ import { useAppStore } from '@/shared/features/app'
 import { roundCashAmount } from '@/shared/features/payment/utils/cash.utils'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { PrinterService } from '@/shared/services'
-import { toast } from '@/shared/store'
+import { toast, useSettingsStore, appSettings } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
+import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
 import { FlashList } from '@shopify/flash-list'
 import { useMachine } from '@xstate/react'
 import { X } from 'lucide-react-native'
@@ -58,6 +59,8 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
     const [visible, setVisible] = useState(false)
     const receiptPrintRef = useRef(null)
     const printedReceiptKeyRef = useRef<string | null>(null)
+
+    const businessChecklistModalRef = useRef<BusinessChecklistModalRef>(null)
 
     const { order, reason, lines, refundAmount, result, managerAuthError } = state.context
     const isWaitingManagerApproval = state.matches('waitingManagerApproval')
@@ -143,6 +146,7 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
         resetManagerForm()
         send({ type: 'RESET' })
         send({ type: 'START', order: o, shiftId, staffId })
+        businessChecklistModalRef.current?.close()
         setVisible(true)
       },
       close: () => {
@@ -185,15 +189,31 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
     const handleConfirm = () => {
       if (!order) return
 
-      toast.confirm({
-        title: 'Xác nhận trả hàng',
-        message: `Bạn có chắc chắn muốn trả ${selectedItemCount} sản phẩm và hoàn ${formatCurrency(
-          roundedPreviewRefundAmount,
-        )} không?`,
-        onConfirm: () => {
-          send({ type: 'SUBMIT' })
-        },
-      })
+      const refundRequireChecklist = appSettings.get('refundRequireChecklist')
+      if (refundRequireChecklist) {
+        businessChecklistModalRef.current?.open({
+          title: 'Checklist Xác nhận Nghiệp vụ',
+          subtitle: 'Vui lòng xác nhận các bước nghiệp vụ trước khi hoàn tất trả hàng.',
+          items: [
+            'Tôi đã nhận lại đầy đủ sản phẩm hoàn trả từ khách hàng.',
+            `Tôi đã hoàn trả đúng số tiền chênh lệch cho khách hàng (${formatCurrency(displayRefundAmount)}).`,
+          ],
+          onDontShowAgain: () => appSettings.set('refundRequireChecklist', false),
+          onConfirm: () => {
+            send({ type: 'SUBMIT' })
+          },
+        })
+      } else {
+        toast.confirm({
+          title: 'Xác nhận trả hàng',
+          message: `Bạn có chắc chắn muốn trả ${selectedItemCount} sản phẩm và hoàn ${formatCurrency(
+            roundedPreviewRefundAmount,
+          )} không?`,
+          onConfirm: () => {
+            send({ type: 'SUBMIT' })
+          },
+        })
+      }
     }
 
     const handleToggleItem = (item: ItemSnapshot) => {
@@ -414,7 +434,7 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
                     textClassName="text-2xl font-black"
                     onPress={handleConfirm}
                     loading={isProcessing}
-                    disabled={!isDraft && !state.matches('completed')}
+                    disabled={(!isDraft && !state.matches('completed')) || selectedItemCount === 0}
                   />
                 </View>
               </View>
@@ -469,6 +489,8 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
               </View>
             </View>
           )}
+
+          <BusinessChecklistModal ref={businessChecklistModalRef} />
         </ModalBase>
       </>
     )

@@ -1,7 +1,8 @@
+import i18n from '@/shared/lib/i18n'
+import { useEffect } from 'react'
 import { useAppStore } from '../features/app'
 import { usePosStore } from '../features/pos'
-import { useConnectionStore } from '../store'
-import { useEffect } from 'react'
+import { appSettings, useConnectionStore } from '../store'
 
 /**
  * Hook khởi tạo ứng dụng.
@@ -10,6 +11,12 @@ import { useEffect } from 'react'
  */
 export const useAppInit = () => {
   useEffect(() => {
+    // 0. Đồng bộ ngôn ngữ cài đặt đã lưu
+    const savedLanguage = appSettings.get('language')
+    if (i18n.language !== savedLanguage) {
+      i18n.changeLanguage(savedLanguage)
+    }
+
     // 1. Start appMachine (singleton)
     useAppStore.getState().initApp()
 
