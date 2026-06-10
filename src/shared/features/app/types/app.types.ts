@@ -70,6 +70,19 @@ export interface PaymentMethodConfig {
   settlementDays: number
   displayOrder: number
   isDefault: boolean
+  bankConfig?: TenantConfig | null
+  terminalConfig?: TerminalConfig | null
+}
+
+/**
+ * Cấu hình terminal/ECR của phương thức thanh toán.
+ * Persist → MMKV.
+ */
+export interface TerminalConfig {
+  posUrl: string
+  merchantName: string
+  cashierId: string
+  license: string
 }
 
 /**
@@ -100,6 +113,7 @@ export interface AppContext {
   // Config — persist → MMKV (cần cho offline mode)
   paymentMethods: PaymentMethodConfig[] | null
   tenantConfig: TenantConfig | null
+  terminalConfig: TerminalConfig | null
 
   // Error
   error: string | null
@@ -118,6 +132,7 @@ export type AppEvent =
   | { type: 'LOGGED_OUT' }
   | { type: 'TOKEN_EXPIRED' }
   | { type: 'DEVICE_RESET' } // xoá device, về DEVICE_INACTIVE
+  | { type: 'PAYMENT_METHODS_UPDATED'; paymentMethods: PaymentMethodConfig[] }
 
 // ---------------------------------------------------------------------------
 // Store types

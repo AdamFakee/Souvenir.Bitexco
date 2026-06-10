@@ -1,5 +1,7 @@
-import { PaymentMethodConfig } from '@/shared/features/app'
+import { PaymentMethodConfig, PaymentMethodCode } from '@/shared/features/app'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
+
+const ALLOWED_PAYMENT_METHOD_CODES: PaymentMethodCode[] = ['cash', 'qr_bidv', 'card_bidv']
 
 export interface QrPaymentResponse {
   id: string
@@ -26,44 +28,16 @@ export interface PaymentResponse {
  * Remote API cho luồng thanh toán QR Code.
  */
 export const PaymentRemoteAPI = {
-  /**
-   * Lấy cấu hình các phương thức thanh toán khả dụng từ server (hoặc mock v1.8).
-   */
   getPaymentMethods: async (): Promise<PaymentMethodConfig[]> => {
-    // --- MOCK: Giả lập delay mạng 0.3 giây ---
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    return [
-      {
-        code: 'cash',
-        name: 'Tiền mặt',
-        icon: 'banknote',
-        enabled: true,
-        provider: null,
-        settlementDays: 0,
-        displayOrder: 1,
-        isDefault: true,
-      },
-      {
-        code: 'qr_bidv',
-        name: 'VietQR BIDV',
-        icon: 'qr-code',
-        enabled: true,
-        provider: 'bidv',
-        settlementDays: 1,
-        displayOrder: 2,
-        isDefault: true,
-      },
-      {
-        code: 'card_bidv',
-        name: 'Thẻ BIDV',
-        icon: 'credit-card',
-        enabled: true,
-        provider: 'card-bidv',
-        settlementDays: 1,
-        displayOrder: 4,
-        isDefault: true,
-      },
-    ]
+    try {
+      const res = await AxiosService.getInstance().get<PaymentMethodConfig[]>('/v1/payment-methods')
+      return res.data.filter(
+        (method) => method.enabled && ALLOWED_PAYMENT_METHOD_CODES.includes(method.code),
+      )
+    } catch (error) {
+      console.error('[PaymentRemoteAPI] getPaymentMethods failed:', error)
+      throw error
+    }
   },
 
   /**

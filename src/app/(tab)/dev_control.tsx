@@ -128,6 +128,29 @@ export default function DevControlScreen() {
     }
   }
 
+  const handleTestGetPaymentMethods = async () => {
+    try {
+      toast.info('Đang gọi API lấy Payment Methods...')
+      const response = await AxiosService.getInstance().get<any[]>('/v1/payment-methods')
+      console.log('✅ Get Payment Methods Success:', JSON.stringify(response.data, null, 2))
+
+      const enabledMethods = response.data.filter((m) => m.enabled)
+      const appService = useAppStore.getState().appService
+      if (appService) {
+        appService.send({ type: 'PAYMENT_METHODS_UPDATED', paymentMethods: enabledMethods })
+        toast.success(
+          `Đã cập nhật ${enabledMethods.length} phương thức khả dụng vào Machine! Xem console.`,
+        )
+      } else {
+        toast.warning('Lấy thành công nhưng App Service chưa sẵn sàng.')
+      }
+    } catch (error: any) {
+      const errData = error.response?.data
+      console.error('❌ Get Payment Methods Error:', errData || error.message)
+      toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message))
+    }
+  }
+
   const handleSimulateTokenExpired = () => {
     const appService = useAppStore.getState().appService
     if (appService) {
@@ -654,11 +677,16 @@ export default function DevControlScreen() {
             onPress={handleClearData}
           />
         </View>
-        <View className="mt-4">
+        <View className="mt-4 flex-col gap-4">
           <Button
             label="Test API: Kích hoạt máy POS (/v1/pos-devices/activate)"
             className="bg-blue-600"
             onPress={handleTestActivateDevice}
+          />
+          <Button
+            label="Test API: Lấy DS Payment Methods (/v1/payment-methods)"
+            className="bg-violet-600"
+            onPress={handleTestGetPaymentMethods}
           />
         </View>
       </Container>

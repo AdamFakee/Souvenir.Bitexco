@@ -18,6 +18,7 @@ interface PersistedAppState {
   device: AppContext['device']
   paymentMethods: AppContext['paymentMethods']
   tenantConfig: AppContext['tenantConfig']
+  terminalConfig: AppContext['terminalConfig']
   accessToken: AppContext['accessToken']
   employee: AppContext['employee']
   cashSessionId: AppContext['cashSessionId']
@@ -31,6 +32,7 @@ function loadFromStorage(): PersistedAppState {
         device: null,
         paymentMethods: null,
         tenantConfig: null,
+        terminalConfig: null,
         accessToken: null,
         employee: null,
         cashSessionId: null,
@@ -41,6 +43,7 @@ function loadFromStorage(): PersistedAppState {
       device: null,
       paymentMethods: null,
       tenantConfig: null,
+      terminalConfig: null,
       accessToken: null,
       employee: null,
       cashSessionId: null,
@@ -81,6 +84,7 @@ function saveToStorage(ctx: AppContext) {
       device: ctx.device,
       paymentMethods: ctx.paymentMethods,
       tenantConfig: ctx.tenantConfig,
+      terminalConfig: ctx.terminalConfig,
       accessToken: ctx.accessToken,
       employee: ctx.employee,
       cashSessionId: ctx.cashSessionId,
@@ -131,6 +135,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         device: persisted.device,
         paymentMethods: persisted.paymentMethods,
         tenantConfig: persisted.tenantConfig,
+        terminalConfig: persisted.terminalConfig,
         accessToken: persisted.accessToken,
         employee: persisted.employee,
         cashSessionId: persisted.cashSessionId,

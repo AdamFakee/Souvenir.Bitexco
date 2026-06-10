@@ -9,6 +9,7 @@ const DEFAULT_CONTEXT: AppContext = {
   cashSessionId: null,
   paymentMethods: [],
   tenantConfig: null,
+  terminalConfig: null,
   error: null,
 }
 

@@ -15,6 +15,7 @@ const DEFAULT_CONTEXT: AppContext = {
   cashSessionId: null,
   paymentMethods: null,
   tenantConfig: null,
+  terminalConfig: null,
   error: null,
 }
 
@@ -27,6 +28,7 @@ export const appMachine = setup({
       device?: AppContext['device']
       paymentMethods?: AppContext['paymentMethods']
       tenantConfig?: AppContext['tenantConfig']
+      terminalConfig?: AppContext['terminalConfig']
       accessToken?: AppContext['accessToken']
       employee?: AppContext['employee']
       cashSessionId?: AppContext['cashSessionId']
@@ -165,11 +167,27 @@ export const appMachine = setup({
     device: input?.device ?? null,
     paymentMethods: input?.paymentMethods ?? null,
     tenantConfig: input?.tenantConfig ?? null,
+    terminalConfig: input?.terminalConfig ?? null,
     // accessToken từ MMKV không dùng để skip refresh, chỉ là initial value
     accessToken: input?.accessToken ?? null,
     employee: input?.employee ?? null,
     cashSessionId: input?.cashSessionId ?? null,
   }),
+  on: {
+    PAYMENT_METHODS_UPDATED: {
+      actions: assign({
+        paymentMethods: ({ event }) => event.paymentMethods,
+        tenantConfig: ({ event, context }) => {
+          const bankTransferMethod = event.paymentMethods.find((m) => m.code === 'qr_bidv')
+          return bankTransferMethod?.bankConfig ?? context.tenantConfig
+        },
+        terminalConfig: ({ event, context }) => {
+          const cardMethod = event.paymentMethods.find((m) => m.code === 'card_bidv')
+          return cardMethod?.terminalConfig ?? context.terminalConfig
+        },
+      }),
+    },
+  },
   states: {
     /**
      * Khởi tạo — luôn vào refreshingAuth nếu đã có device
@@ -206,6 +224,16 @@ export const appMachine = setup({
               cashSessionId: ({ event }) => event.output.cashSessionId,
               paymentMethods: ({ event, context }) =>
                 event.output.paymentMethods ?? context.paymentMethods,
+              tenantConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const bankTransferMethod = methods?.find((m) => m.code === 'qr_bidv')
+                return bankTransferMethod?.bankConfig ?? context.tenantConfig
+              },
+              terminalConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const cardMethod = methods?.find((m) => m.code === 'card_bidv')
+                return cardMethod?.terminalConfig ?? context.terminalConfig
+              },
             }),
           },
           {
@@ -216,6 +244,16 @@ export const appMachine = setup({
               cashSessionId: null,
               paymentMethods: ({ event, context }) =>
                 event.output.paymentMethods ?? context.paymentMethods,
+              tenantConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const bankTransferMethod = methods?.find((m) => m.code === 'qr_bidv')
+                return bankTransferMethod?.bankConfig ?? context.tenantConfig
+              },
+              terminalConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const cardMethod = methods?.find((m) => m.code === 'card_bidv')
+                return cardMethod?.terminalConfig ?? context.terminalConfig
+              },
             }),
           },
         ],
@@ -274,6 +312,16 @@ export const appMachine = setup({
               cashSessionId: ({ event }) => event.output.cashSessionId,
               paymentMethods: ({ event, context }) =>
                 event.output.paymentMethods ?? context.paymentMethods,
+              tenantConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const bankTransferMethod = methods?.find((m) => m.code === 'qr_bidv')
+                return bankTransferMethod?.bankConfig ?? context.tenantConfig
+              },
+              terminalConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const cardMethod = methods?.find((m) => m.code === 'card_bidv')
+                return cardMethod?.terminalConfig ?? context.terminalConfig
+              },
             }),
           },
           {
@@ -282,6 +330,16 @@ export const appMachine = setup({
               cashSessionId: null,
               paymentMethods: ({ event, context }) =>
                 event.output.paymentMethods ?? context.paymentMethods,
+              tenantConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const bankTransferMethod = methods?.find((m) => m.code === 'qr_bidv')
+                return bankTransferMethod?.bankConfig ?? context.tenantConfig
+              },
+              terminalConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const cardMethod = methods?.find((m) => m.code === 'card_bidv')
+                return cardMethod?.terminalConfig ?? context.terminalConfig
+              },
             }),
           },
         ],
