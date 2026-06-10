@@ -338,7 +338,43 @@ export const OrderRemoteAPI = {
     console.log(`OrderRemoteAPI: Syncing ${orders.length} offline orders to server...`)
 
     try {
-      const payload = { orders }
+      const payload = {
+        orders: orders.map((order) => ({
+          id: order.id,
+          shiftId: order.shift_id,
+          staffId: order.staff_id,
+          status: order.status,
+          subTotal: order.subtotal,
+          discount: order.discount,
+          voucherCode: order.voucher_code || null,
+          voucherDiscount: order.voucher_discount,
+          totalTax: order.total_tax,
+          total: order.total,
+          note: order.note || null,
+          refundReason: order.refund_reason || null,
+          originalOrderId: order.original_order_id || null,
+          customerTaxInfo: order.customer_tax_info || null,
+          createdAt: new Date(order.created_at).toISOString(),
+          updatedAt: new Date(order.updated_at).toISOString(),
+          itemsSnapshot: (order.items_snapshot || []).map((item) => ({
+            productId: item.productId,
+            sku: item.sku,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            subtotal: item.subtotal,
+            taxRate: item.taxRate,
+            taxAmount: item.taxAmount,
+            discountAmount: item.discountAmount,
+          })),
+          paymentsSnapshot: (order.payments_snapshot || []).map((payment) => ({
+            method: (payment.method || 'CASH').toUpperCase(),
+            amount: payment.amount,
+            cashTendered: payment.cashTendered ?? 0,
+            cashChange: payment.cashChange ?? 0,
+          })),
+        })),
+      }
       console.log('OrderRemoteAPI: Sync payload:', JSON.stringify(payload, null, 2))
       await AxiosService.getInstance().post('/v1/pos/sync/orders', payload)
     } catch (error: any) {
