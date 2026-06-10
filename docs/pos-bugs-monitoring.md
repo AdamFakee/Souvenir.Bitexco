@@ -6,6 +6,16 @@ Ghi nhận tất cả bugs đã báo cáo. Mỗi entry: triệu chứng, nguyên
 
 ## Đang theo dõi
 
+### [BUG-12] `GET /v1/dashboard/overview` và `/v1/dashboard/product-revenue` trả dữ liệu thống kê bằng 0
+
+- **Triệu chứng:**
+  - Endpoint `GET /v1/dashboard/overview` trả về các chỉ số thống kê `totalRevenue: 0`, `completedOrders: 0`, `totalProductsSold: 0`, `cancelledOrders: 0` mặc dù danh sách `paymentMethods` trả về có phát sinh doanh thu (ví dụ: `cash: 7450888` và `card_bidv: 756000`).
+  - Endpoint `GET /v1/dashboard/product-revenue` trả về danh sách sản phẩm rỗng (`items: []`, `totalCount: 0`).
+
+---
+
+## Đã fix
+
 ### [BUG-13] `POST /v1/pos/sync/orders` — Đơn offline sync thành công nhưng `items_snapshot` và `payments_snapshot` rỗng trên Server
 
 - **Triệu chứng:**
@@ -25,19 +35,19 @@ Ghi nhận tất cả bugs đã báo cáo. Mỗi entry: triệu chứng, nguyên
     ]
   }
   ```
-- **Trạng thái:** ⏳ Chờ Backend fix.
+- **Fix:** Backend đã sửa logic lưu trữ dữ liệu để tiếp nhận đúng `items_snapshot` và `payments_snapshot` từ payload đồng bộ.
+- **Trạng thái:** ✅ Đã sửa thành công.
 
 ---
 
-### [BUG-12] `GET /v1/dashboard/overview` và `/v1/dashboard/product-revenue` trả dữ liệu thống kê bằng 0
+### [BUG-17] `POST /v1/pos/orders/{id}/refund` — Lỗi "sản phẩm trả hàng k nằm trong đơn gốc" do truyền sai ID
 
-- **Triệu chứng:**
-  - Endpoint `GET /v1/dashboard/overview` trả về các chỉ số thống kê `totalRevenue: 0`, `completedOrders: 0`, `totalProductsSold: 0`, `cancelledOrders: 0` mặc dù danh sách `paymentMethods` trả về có phát sinh doanh thu (ví dụ: `cash: 7450888` và `card_bidv: 756000`).
-  - Endpoint `GET /v1/dashboard/product-revenue` trả về danh sách sản phẩm rỗng (`items: []`, `totalCount: 0`).
+- **Triệu chứng:** Khi thực hiện hoàn hàng, Backend trả về lỗi `"sản phẩm trả hàng k nằm trong đơn gốc"` và từ chối xử lý hoàn hàng.
+- **Nguyên nhân:** Client truyền `productId` (là Variant ID của sản phẩm ở local) thay vì `orderLineId` (ID của từng dòng sản phẩm trong đơn hàng gốc trên Backend) vào mảng `lines` của yêu cầu hoàn hàng.
+- **Fix:** Tích hợp gọi API `GET /v1/orders/lookup?code=...` để tra cứu thông tin chi tiết đơn hàng trên Backend trước khi hoàn hàng. Từ kết quả tra cứu, đối chiếu `variantId` của dòng sản phẩm với `productId` cục bộ để tìm ra đúng `orderLineId` và truyền vào `productId` gửi lên Backend. Có chế độ fallback an toàn về local snapshot nếu không tra cứu được.
+- **Trạng thái:** ✅ Đã sửa thành công phía Client.
 
 ---
-
-## Đã fix
 
 ### [BUG-15] `GET /v1/dashboard/overview` — Lệch dữ liệu giữa `totalRevenue` và chi tiết `paymentMethods`
 
