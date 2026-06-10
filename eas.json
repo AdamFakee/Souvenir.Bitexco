@@ -1,0 +1,26 @@
+{
+  "cli": {
+    "appVersionSource": "local"
+  },
+  "build": {
+    "base": {
+      "node": "22.13.1",
+      "credentialsSource": "local",
+      "android": {
+        "autoIncrement": "versionCode"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}

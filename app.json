@@ -32,9 +32,12 @@
         "android.permission.INTERNET",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_EXTERNAL_STORAGE"
-      ]
+      ],
+      "versionCode": 5
     },
     "plugins": [
+      "./scripts/withAndroidSigning",
+      "./scripts/withShortBuildDir",
       "expo-router",
       [
         "expo-splash-screen",
@@ -80,6 +83,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8df576a7-be37-45dd-9d84-24eeeff07e0f"
+      }
     }
   }
 }

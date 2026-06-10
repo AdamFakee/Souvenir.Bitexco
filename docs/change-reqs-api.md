@@ -64,10 +64,10 @@ Tổng hợp các endpoint liên quan đến POS: Phương thức thanh toán, H
     "isDefault": true,
     "bankConfig": null,
     "terminalConfig": {
-      "posUrl": "http://192.168.1.142:8080",
+      "posUrl": "http://192.168.1.12:8080",
       "merchantName": "TGDD",
       "cashierId": "cashier01",
-      "license": "name=TGDD;bank=BIDV;copyright=Use for TGDD only;..."
+      "license": "name=TGDD;bank=BIDV;copyright=Use for TGDD only;signature=F9725778F943ABFD16EF0DB9026A2465E3F7BA5ABE1E6E3532CB8483447A6716;expiryDate=2037-12-31;encryption=yes;encoding=base64;userConfirmation=yes;version=20;LCV=4A5995"
     }
   }
 ]
