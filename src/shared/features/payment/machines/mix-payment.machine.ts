@@ -14,7 +14,6 @@ import {
 
 import {
   authorizePaymentActor,
-  cancelPaymentActor,
   capturePaymentActor,
   cardCaptureActor,
   cardCaptureManualActor,
@@ -135,7 +134,7 @@ export const mixPaymentMachine = setup({
     cardCaptureManual: cardCaptureManualActor,
     authorizePayment: authorizePaymentActor,
     capturePayment: capturePaymentActor,
-    cancelPayment: cancelPaymentActor,
+    cancelPayment: cancelOrderActor,
     printReceipt: printReceiptActor,
   },
   guards: {
@@ -811,15 +810,44 @@ export const mixPaymentMachine = setup({
         id: 'cancelPayment',
         src: 'cancelPayment',
         input: ({ context }) => ({
-          paymentId: context.nonCashPaymentId,
-          paymentVersion: context.nonCashPaymentVersion,
+          orderId: context.orderId,
+          shiftId: context.shiftId,
+          staffId: context.staffId,
+          managerAuth: context.managerAuth,
         }),
         onDone: {
-          target: 'cancelling',
+          target: 'cancelled',
         },
-        onError: {
-          target: 'cancelling',
-        },
+        onError: [
+          {
+            guard: ({ event }) => {
+              const errData = (event.error as any)?.response?.data
+              const code = errData?.errorCode || errData?.error
+              return code === 'order.manager_approval_required'
+            },
+            target: 'waitingManagerApproval',
+          },
+          {
+            guard: ({ event }) => {
+              const errData = (event.error as any)?.response?.data
+              const code = errData?.errorCode || errData?.error
+              return (
+                code === 'auth.invalid_manager_credentials' ||
+                code === 'auth.insufficient_manager_permissions'
+              )
+            },
+            actions: assign({
+              managerAuthError: ({ event }) => {
+                const errData = (event.error as any)?.response?.data
+                return errData?.message || 'Thông tin phê duyệt của Quản lý không hợp lệ.'
+              },
+            }),
+            target: 'waitingManagerApproval',
+          },
+          {
+            target: 'cancelled',
+          },
+        ],
       },
     },
 

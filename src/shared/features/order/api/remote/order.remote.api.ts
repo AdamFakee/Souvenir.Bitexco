@@ -544,6 +544,7 @@ export const OrderRemoteAPI = {
             : {}),
         },
       )
+      console.log('OrderRemoteAPI: Cancel order response', res.data)
       return res.data
     } catch (error) {
       throw error
