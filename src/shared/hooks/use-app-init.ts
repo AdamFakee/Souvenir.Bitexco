@@ -1,7 +1,7 @@
 import i18n from '@/shared/lib/i18n'
 import { useEffect } from 'react'
-import { useAppStore } from '../features/app'
-import { usePosStore } from '../features/pos'
+import { useAppStore } from '../features/app/store/use-app-store'
+import { usePosStore } from '../features/pos/store/use-pos-store'
 import { appSettings, useConnectionStore } from '../store'
 
 /**

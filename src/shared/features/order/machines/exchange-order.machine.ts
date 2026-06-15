@@ -1,4 +1,4 @@
-import { useAppStore } from '@/shared/features/app'
+import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { calculateTotalTax } from '@/shared/features/payment/utils'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { OrderStatus } from '@/shared/lib/database'
@@ -446,6 +446,9 @@ export const exchangeOrderMachine = setup({
       pendingScanCodes: [],
     }),
     resetContext: assign(DEFAULT_CONTEXT),
+    showDevelopmentToast: () => {
+      toast.info('Tính năng đang phát triển')
+    },
   },
 }).createMachine({
   id: 'exchangeOrder',
@@ -492,7 +495,7 @@ export const exchangeOrderMachine = setup({
           actions: 'setPendingScanCodes',
         },
         SUBMIT: {
-          target: 'validating',
+          actions: 'showDevelopmentToast',
         },
         RESET: {
           target: 'idle',

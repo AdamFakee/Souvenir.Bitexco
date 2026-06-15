@@ -1,11 +1,14 @@
-import { CategoryRemoteAPI } from '@/shared/features/category'
-import { OrderRemoteAPI } from '@/shared/features/order'
-import { ProductRemoteAPI } from '@/shared/features/product'
+import { CategoryRemoteAPI } from '@/shared/features/category/api/remote/category.remote.api'
+import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { SyncDatabaseChangeSet, synchronize } from '@nozbe/watermelondb/sync'
 import { database } from '../database'
 
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
-import { OrderRaw, localIdToGuid } from '@/shared/features/order/api/remote/order.remote.api'
+import {
+  OrderRemoteAPI,
+  OrderRaw,
+  localIdToGuid,
+} from '@/shared/features/order/api/remote/order.remote.api'
 
 /**
  * SyncService - Quản lý đồng bộ dữ liệu Offline/Online.

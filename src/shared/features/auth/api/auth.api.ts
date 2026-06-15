@@ -1,5 +1,5 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
-import type { Employee, DeviceInfo } from '../../app/types/app.types'
+import type { DeviceInfo, Employee } from '../../app/types/app.types'
 
 /** Key MMKV — phải khớp với use-app-store.ts */
 const APP_STORAGE_KEY = 'app-machine-persist'
@@ -102,4 +102,21 @@ export const AuthAPI = {
     const response = await axios.get<Employee>('/v1/device/auth/me')
     return response.data
   },
+
+  /**
+   * 2.5 Lấy thông tin ngữ cảnh thiết bị — kiểm tra isActive
+   */
+  getDeviceContext: async (): Promise<DeviceContextResponse> => {
+    const axios = AxiosService.getInstance()
+    const response = await axios.get<DeviceContextResponse>('/v1/pos/device-context')
+    return response.data
+  },
+}
+
+export interface DeviceContextResponse {
+  deviceId: string
+  deviceCode: string
+  deviceName: string
+  warehouseId: string
+  isActive: boolean
 }

@@ -1,4 +1,5 @@
 import {
+  Button,
   CartIcon,
   Container,
   DebtIcon,
@@ -10,10 +11,12 @@ import {
   WorkingIcon,
 } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppContext } from '@/shared/features/app'
+import { useAppContext, useAppStore } from '@/shared/features/app'
+import { AuthAPI } from '@/shared/features/auth'
 import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/shared/features/note'
 import { CloseShiftModal, CloseShiftModalRef } from '@/shared/features/shift'
 import { useSync } from '@/shared/lib/database/sync'
+import { toast, useAlertStore } from '@/shared/store'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
@@ -47,6 +50,30 @@ const CustomSidebar = React.memo(
     const router = useRouter()
     const segments = useSegments()
     const { syncNow, isSyncing } = useSync()
+    const { confirm } = useAlertStore()
+
+    const handleLogout = () => {
+      confirm({
+        title: 'Đăng xuất tài khoản',
+        message: 'Bạn có chắc chắn muốn đăng xuất và đổi nhân viên khác không?',
+        onConfirm: () => {
+          setTimeout(() => {
+            const store = useAppStore.getState()
+            const appService = store.appService
+            if (appService) {
+              const refreshToken = store.getRefreshToken()
+              if (refreshToken) {
+                AuthAPI.logout(refreshToken).catch(() => {})
+              }
+              appService.send({ type: 'LOGGED_OUT' })
+              toast.success('Đã đăng xuất nhân viên')
+            } else {
+              toast.error('App Service chưa sẵn sàng')
+            }
+          }, 150)
+        },
+      })
+    }
 
     // Determine active route based on segments
     const activeTab = segments[1] || 'pos'
@@ -153,19 +180,27 @@ const CustomSidebar = React.memo(
               </IconButton>
             </View>
 
-            {/* Close Shift Button */}
+            {/* Logout Button */}
             <View className="flex-1">
               <IconButton
                 icon={LogOut}
                 variant="xl"
                 color={COLORS.surface[50]}
-                onPress={onOpenCloseShift}
+                onPress={handleLogout}
                 className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
               />
             </View>
           </View>
 
           <HandoverNotesModal ref={handoverNotesModalRef} />
+
+          <Button
+            label="KẾT CA"
+            variant="outline"
+            className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+            textClassName="text-white font-manrope text-[18px] font-bold leading-[26px]"
+            onPress={onOpenCloseShift}
+          />
 
           <Container className="flex-row items-center justify-between rounded-2xl border border-white/10 bg-white/10 p-4 shadow-sm">
             <View className="mr-2 flex-1 flex-row items-center gap-3">

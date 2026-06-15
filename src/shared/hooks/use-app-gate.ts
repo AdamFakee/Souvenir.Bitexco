@@ -2,7 +2,7 @@ import { useSelector } from '@xstate/react'
 import { useRootNavigationState, useRouter, useSegments } from 'expo-router'
 import { useEffect } from 'react'
 import { ROUTES } from '../constants'
-import { useAppStore } from '../features/app'
+import { useAppStore } from '../features/app/store/use-app-store'
 
 /**
  * Root navigation guard dựa trên appMachine state.
@@ -32,6 +32,9 @@ export const useAppGate = () => {
     switch (stateValue) {
       case 'deviceInactive':
         if (currentRoute !== 'device-activation') router.replace(ROUTES.DEVICE_ACTIVATION.path())
+        break
+      case 'deviceLockedByServer':
+        if (currentRoute !== 'device-locked') router.replace(ROUTES.DEVICE_LOCKED.path())
         break
       case 'unauthenticated':
         if (currentRoute !== 'staff-login') router.replace(ROUTES.STAFF_LOGIN.path())

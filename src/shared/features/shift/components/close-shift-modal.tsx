@@ -205,9 +205,7 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
             {(isChecking || isClosing) && (
               <View className="mt-4 gap-3 rounded-[20px] border border-outline-variant bg-surface-50 p-4">
                 <Text className="text-lg font-black text-surface-on">
-                  {isChecking
-                    ? 'Đang kiểm tra số liệu chốt ca...'
-                    : 'Đang đóng ca & in Z-Report...'}
+                  {isChecking ? 'Đang kiểm tra số liệu chốt ca...' : 'Đang đóng ca.'}
                 </Text>
                 <Shimmer className="h-10 w-full rounded-xl" />
                 <Shimmer className="h-10 w-3/4 rounded-xl" />

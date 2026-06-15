@@ -132,6 +132,7 @@ export type AppEvent =
   | { type: 'LOGGED_OUT' }
   | { type: 'TOKEN_EXPIRED' }
   | { type: 'DEVICE_RESET' } // xoá device, về DEVICE_INACTIVE
+  | { type: 'DEVICE_UNLOCKED' } // thiết bị được kích hoạt lại từ server
   | { type: 'PAYMENT_METHODS_UPDATED'; paymentMethods: PaymentMethodConfig[] }
 
 // ---------------------------------------------------------------------------

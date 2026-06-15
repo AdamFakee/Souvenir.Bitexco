@@ -1,9 +1,10 @@
-import { assign, setup, fromPromise } from 'xstate'
-import type { AppContext, AppEvent } from '../types/app.types'
-import { AuthAPI } from '../../auth/api/auth.api'
-import { ShiftRemoteAPI } from '../../shift/api/remote/shift.remote.api'
-import { PaymentRemoteAPI } from '../../payment/api/remote/payment.remote.api'
 import { storage } from '@/shared/lib/storage'
+import { assign, fromPromise, setup } from 'xstate'
+import { AuthAPI } from '../../auth/api/auth.api'
+import { PaymentRemoteAPI } from '../../payment/api/remote/payment.remote.api'
+import { ShiftRemoteAPI } from '../../shift/api/remote/shift.remote.api'
+import { SyncService } from '@/shared/lib/database/sync'
+import type { AppContext, AppEvent } from '../types/app.types'
 
 /** Key MMKV để lưu refresh token — phải khớp với use-app-store.ts */
 const REFRESH_TOKEN_KEY = 'auth-refresh-token'
@@ -39,13 +40,17 @@ export const appMachine = setup({
       if (event.type !== 'DEVICE_ACTIVATED') return {}
       return { device: event.device, error: null }
     }),
-    saveAuth: assign(({ event }) => {
+    saveAuth: assign(({ event, context }) => {
       if (event.type !== 'LOGIN_SUCCESS') return {}
       // refreshToken đã được lưu vào MMKV bởi login handler trước khi gửi event này
+      // Giữ lại warehouseId từ device activation — login response không trả về field này
       return {
         accessToken: event.accessToken,
         employee: event.employee,
-        device: event.device, // refresh device.status từ login response
+        device: {
+          ...event.device,
+          warehouseId: event.device.warehouseId ?? context.device?.warehouseId,
+        },
         error: null,
       }
     }),
@@ -105,11 +110,28 @@ export const appMachine = setup({
         // 3. Get Employee Me — lấy permissions fresh (có thể thay đổi khi app offline)
         const employee = await AuthAPI.getMe()
 
-        // 4. Check ca đang mở — CashSession[]
+        // 4. Kiểm tra trạng thái kích hoạt thiết bị
+        // Lỗi mạng/server → bỏ qua, chỉ chặn khi server xác nhận isActive=false
+        let warehouseId: string | undefined
+        try {
+          const deviceContext = await AuthAPI.getDeviceContext()
+          if (!deviceContext.isActive) {
+            console.warn('[appMachine] Device is inactive — locking screen')
+            const err = new Error('DEVICE_INACTIVE')
+            ;(err as any).code = 'DEVICE_INACTIVE'
+            throw err
+          }
+          warehouseId = deviceContext.warehouseId
+        } catch (e: any) {
+          if (e?.code === 'DEVICE_INACTIVE') throw e // re-throw để machine bắt
+          console.error('[appMachine] getDeviceContext failed, continuing:', e)
+        }
+
+        // 5. Check ca đang mở — CashSession[]
         const sessions = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
         const cashSessionId = sessions.length > 0 ? sessions[0].id : null
 
-        // 5. Lấy các phương thức thanh toán khả dụng
+        // 6. Lấy các phương thức thanh toán khả dụng
         let paymentMethods = null
         try {
           paymentMethods = await PaymentRemoteAPI.getPaymentMethods()
@@ -117,13 +139,18 @@ export const appMachine = setup({
           console.error('[appMachine] Failed to fetch payment methods during startup:', e)
         }
 
+        // 7. Kéo dữ liệu master data ngầm (offline cache)
+        SyncService.pullMasterData().catch((e) => {
+          console.error('[appMachine] Background sync failed during startup:', e)
+        })
+
         console.log('[appMachine] Refresh flow completed:', {
           accessToken: '***',
           employee: employee.displayName,
           cashSessionId,
           paymentMethodsCount: paymentMethods?.length || 0,
         })
-        return { accessToken, employee, cashSessionId, paymentMethods }
+        return { accessToken, employee, cashSessionId, paymentMethods, warehouseId }
       },
     ),
 
@@ -133,6 +160,25 @@ export const appMachine = setup({
      */
     revalidateShiftFlow: fromPromise(async ({ input }: { input: { deviceId: string } }) => {
       console.log('[appMachine] Revalidating shift after login...')
+
+      // 1. Kiểm tra trạng thái kích hoạt thiết bị
+      // Lỗi mạng/server → bỏ qua, chỉ chặn khi server xác nhận isActive=false
+      let warehouseId: string | undefined
+      try {
+        const deviceContext = await AuthAPI.getDeviceContext()
+        if (!deviceContext.isActive) {
+          console.warn('[appMachine] Device is inactive after login — locking screen')
+          const err = new Error('DEVICE_INACTIVE')
+          ;(err as any).code = 'DEVICE_INACTIVE'
+          throw err
+        }
+        warehouseId = deviceContext.warehouseId
+      } catch (e: any) {
+        if (e?.code === 'DEVICE_INACTIVE') throw e // re-throw để machine bắt
+        console.error('[appMachine] getDeviceContext failed, continuing:', e)
+      }
+
+      // 2. Check ca đang mở — CashSession[]
       const sessions = await ShiftRemoteAPI.getOpenSessions(input.deviceId)
       const cashSessionId = sessions.length > 0 ? sessions[0].id : null
 
@@ -143,11 +189,16 @@ export const appMachine = setup({
         console.error('[appMachine] Failed to fetch payment methods during revalidation:', e)
       }
 
+      // 3. Kéo dữ liệu master data ngầm (offline cache)
+      SyncService.pullMasterData().catch((e) => {
+        console.error('[appMachine] Background sync failed during revalidation:', e)
+      })
+
       console.log('[appMachine] Revalidate shift result:', {
         cashSessionId,
         paymentMethodsCount: paymentMethods?.length || 0,
       })
-      return { cashSessionId, paymentMethods }
+      return { cashSessionId, paymentMethods, warehouseId }
     }),
   },
   guards: {
@@ -201,6 +252,7 @@ export const appMachine = setup({
      * App startup: Refresh token + getMe + check open sessions
      * → shiftOpen nếu có ca / noShift nếu không có
      * → unauthenticated nếu refresh token hết hạn
+     * → deviceLockedByServer nếu isActive = false
      */
     refreshingAuth: {
       invoke: {
@@ -222,6 +274,10 @@ export const appMachine = setup({
               accessToken: ({ event }) => event.output.accessToken,
               employee: ({ event }) => event.output.employee,
               cashSessionId: ({ event }) => event.output.cashSessionId,
+              device: ({ event, context }) =>
+                context.device && event.output.warehouseId
+                  ? { ...context.device, warehouseId: event.output.warehouseId }
+                  : context.device,
               paymentMethods: ({ event, context }) =>
                 event.output.paymentMethods ?? context.paymentMethods,
               tenantConfig: ({ event, context }) => {
@@ -242,6 +298,10 @@ export const appMachine = setup({
               accessToken: ({ event }) => event.output.accessToken,
               employee: ({ event }) => event.output.employee,
               cashSessionId: null,
+              device: ({ event, context }) =>
+                context.device && event.output.warehouseId
+                  ? { ...context.device, warehouseId: event.output.warehouseId }
+                  : context.device,
               paymentMethods: ({ event, context }) =>
                 event.output.paymentMethods ?? context.paymentMethods,
               tenantConfig: ({ event, context }) => {
@@ -257,11 +317,17 @@ export const appMachine = setup({
             }),
           },
         ],
-        onError: {
-          // Refresh token hết hạn (401) → cần đăng nhập lại
-          target: 'unauthenticated',
-          actions: 'clearAuth',
-        },
+        onError: [
+          {
+            guard: ({ event }) => (event as any).error?.code === 'DEVICE_INACTIVE',
+            target: 'deviceLockedByServer',
+          },
+          {
+            // Refresh token hết hạn (401) → cần đăng nhập lại
+            target: 'unauthenticated',
+            actions: 'clearAuth',
+          },
+        ],
       },
     },
 
@@ -310,6 +376,10 @@ export const appMachine = setup({
             target: 'shiftOpen',
             actions: assign({
               cashSessionId: ({ event }) => event.output.cashSessionId,
+              device: ({ event, context }) =>
+                context.device && event.output.warehouseId
+                  ? { ...context.device, warehouseId: event.output.warehouseId }
+                  : context.device,
               paymentMethods: ({ event, context }) =>
                 event.output.paymentMethods ?? context.paymentMethods,
               tenantConfig: ({ event, context }) => {
@@ -328,6 +398,10 @@ export const appMachine = setup({
             target: 'noShift',
             actions: assign({
               cashSessionId: null,
+              device: ({ event, context }) =>
+                context.device && event.output.warehouseId
+                  ? { ...context.device, warehouseId: event.output.warehouseId }
+                  : context.device,
               paymentMethods: ({ event, context }) =>
                 event.output.paymentMethods ?? context.paymentMethods,
               tenantConfig: ({ event, context }) => {
@@ -343,10 +417,29 @@ export const appMachine = setup({
             }),
           },
         ],
-        onError: {
-          // Lỗi mạng khi check ca → vào noShift, không block user
-          target: 'noShift',
-          actions: assign({ cashSessionId: null }),
+        onError: [
+          {
+            guard: ({ event }) => (event as any).error?.code === 'DEVICE_INACTIVE',
+            target: 'deviceLockedByServer',
+          },
+          {
+            // Lỗi mạng khi check ca → vào noShift, không block user
+            target: 'noShift',
+            actions: assign({ cashSessionId: null }),
+          },
+        ],
+      },
+    },
+
+    /**
+     * Thiết bị bị khoá từ server (isActive = false).
+     * → Màn hình: device-locked
+     * → Chỉ thoát khi admin kích hoạt lại và user bấm "Kiểm tra lại"
+     */
+    deviceLockedByServer: {
+      on: {
+        DEVICE_UNLOCKED: {
+          target: 'refreshingAuth',
         },
       },
     },

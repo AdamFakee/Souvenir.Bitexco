@@ -1,5 +1,5 @@
 import { COLORS } from '@/shared/constants'
-import { useAlertStore, Toast as ToastType } from '@/shared/store'
+import { Toast as ToastType, useAlertStore } from '@/shared/store'
 import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react-native'
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'

@@ -1,7 +1,7 @@
 import { ViceService } from '@/screens/vice-service'
 import { Button, ModalBase, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppContext } from '@/shared/features/app'
+import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 
 import { toast } from '@/shared/store/use-alert-store'

@@ -2,6 +2,7 @@ import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
 import { database, ProductModel } from '@/shared/lib/database'
 import { Q } from '@nozbe/watermelondb'
+import { storage } from '@/shared/lib/storage'
 
 /**
  * ProductRaw - Cấu trúc dữ liệu Sản phẩm khớp với SQLite POS Schema (v1.8)
@@ -123,7 +124,20 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
    * Gọi API GET /v1/pos/products/sync phân trang và chuyển đổi sang Schema WatermelonDB.
    */
   fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<ProductSyncChanges> => {
-    console.log('[ProductRemoteAPI] Fetching changes (Pull) starting...', { lastPulledAt })
+    let warehouseId: string | undefined
+    try {
+      const rawPersist = storage.getString('app-machine-persist')
+      if (rawPersist) {
+        const parsed = JSON.parse(rawPersist)
+        warehouseId = parsed.device?.warehouseId
+      }
+    } catch (e) {
+      console.error('[ProductRemoteAPI] Failed to parse warehouseId from storage:', e)
+    }
+    console.log('[ProductRemoteAPI] Fetching changes (Pull) starting...', {
+      lastPulledAt,
+      warehouseId,
+    })
 
     const axios = AxiosService.getInstance()
     let allItems: any[] = []
@@ -146,6 +160,7 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
               : new Date(0).toISOString(),
             page,
             limit,
+            warehouseId,
           },
         })
 

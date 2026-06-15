@@ -1,14 +1,13 @@
 import { ViceService } from '@/screens/vice-service'
 import { Button, ControlledInput, ModalBase, Numpad, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppContext } from '@/shared/features/app'
+import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { IOrder } from '@/shared/features/order/types'
 import { OrderStatus } from '@/shared/lib/database'
 import { toast, useConnectionStore } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import * as v from 'valibot'
 import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
 import {
@@ -23,6 +22,7 @@ import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'rea
 import { useForm } from 'react-hook-form'
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
+import * as v from 'valibot'
 
 import { mixPaymentMachine } from '../machines/mix-payment.machine'
 import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'

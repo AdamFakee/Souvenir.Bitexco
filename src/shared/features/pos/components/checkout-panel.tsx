@@ -1,6 +1,6 @@
 import { Button, IconButton } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppContext } from '@/shared/features/app'
+import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
 import {
   calculateSubtotal,
   calculateTotalQuantity,
@@ -325,7 +325,8 @@ export default function CheckoutPanel() {
                       disabled={
                         cart.length === 0 ||
                         !isAvailable ||
-                        (method.type === 'qr_bidv' && !isNetworkConnected)
+                        (method.type === 'qr_bidv' && !isNetworkConnected) ||
+                        (method.type === 'card_bidv' && !isPosConnected)
                       }
                     />
                   )

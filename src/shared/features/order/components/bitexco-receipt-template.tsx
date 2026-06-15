@@ -1,4 +1,4 @@
-import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment'
+import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment/types/payment.constants'
 import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
 import { formatDateTime } from '@/shared/utils'
 import React, { useEffect, useState } from 'react'
@@ -129,10 +129,6 @@ export const BitexcoReceiptTemplate = ({
 
       {/* Totals */}
       <View className="gap-1">
-        <View className="flex-row justify-between">
-          <Text style={{ fontSize: 32, fontWeight: 'bold' }}>Tổng</Text>
-          <Text style={{ fontSize: 32, fontWeight: 'bold' }}>{formatCurrency(total)}</Text>
-        </View>
         <View className="flex-row justify-between">
           <Text style={{ fontSize: 32, fontWeight: 'bold' }}>Tổng tiền:</Text>
           <Text style={{ fontSize: 32, fontWeight: 'bold' }}>{formatCurrency(total)}</Text>

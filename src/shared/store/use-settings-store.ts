@@ -1,4 +1,4 @@
-import { zustandStorage } from '@/shared/lib'
+import { zustandStorage } from '@/shared/lib/storage'
 import i18n from '@/shared/lib/i18n'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'

@@ -1,5 +1,7 @@
+import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { OrderStatus } from '@/shared/lib/database'
 import { toast } from '@/shared/store'
+import { formatCurrency } from '@/shared/utils'
 import { assign, fromPromise, setup } from 'xstate'
 import {
   OrderRemoteAPI,
@@ -12,7 +14,8 @@ import { IOrder } from '../types'
 export interface RefundOrderContext {
   order: IOrder | null
   reason: string
-  lines: RefundOrderLineRequest[]
+  lines: { productId: string; qty: number }[]
+  lookupLines: any[]
   idempotencyKey: string
   refundAmount: number
   shiftId: string
@@ -21,6 +24,7 @@ export interface RefundOrderContext {
   error: string | null
   managerAuth: { employeeCode: string; pin: string } | null
   managerAuthError: string | null
+  managerApprovalMessage: string | null
 }
 
 export type RefundOrderEvent =
@@ -38,6 +42,7 @@ const DEFAULT_CONTEXT: RefundOrderContext = {
   order: null,
   reason: '',
   lines: [],
+  lookupLines: [],
   idempotencyKey: '',
   refundAmount: 0,
   shiftId: '',
@@ -46,6 +51,7 @@ const DEFAULT_CONTEXT: RefundOrderContext = {
   error: null,
   managerAuth: null,
   managerAuthError: null,
+  managerApprovalMessage: null,
 }
 
 const createIdempotencyKey = () => {
@@ -58,10 +64,10 @@ const getOriginalQuantity = (order: IOrder | null, productId: string) => {
 }
 
 const upsertLineQuantity = (
-  lines: RefundOrderLineRequest[],
+  lines: { productId: string; qty: number }[],
   productId: string,
   qty: number,
-): RefundOrderLineRequest[] => {
+): { productId: string; qty: number }[] => {
   const normalizedQty = Math.max(0, Math.floor(Number(qty) || 0))
   const nextLines = lines.filter((line) => line.productId !== productId)
 
@@ -76,6 +82,9 @@ const getValidationMessage = (context: RefundOrderContext) => {
   if (!context.order) return 'Không tìm thấy đơn hàng cần trả.'
   if (context.order.status !== OrderStatus.COMPLETED || context.order.canReturn === false) {
     return 'Trạng thái đơn hàng không cho phép trả hàng.'
+  }
+  if (!context.lookupLines || context.lookupLines.length === 0) {
+    return 'Chưa tải xong hoặc không tìm thấy thông tin chi tiết đơn hàng trực tuyến.'
   }
   const selectedLines = context.lines.filter((line) => line.qty > 0)
   if (selectedLines.length === 0) return 'Vui lòng chọn ít nhất 1 sản phẩm để trả hàng.'
@@ -95,19 +104,150 @@ export const refundOrderMachine = setup({
     events: {} as RefundOrderEvent,
   },
   actors: {
+    lookupOrderActor: fromPromise(async ({ input }: { input: string }): Promise<any> => {
+      if (!input) throw new Error('Không tìm thấy thông tin đơn hàng.')
+      console.log('[RefundMachine] Fetching order details for ID/Code:', input)
+      const response = await OrderRemoteAPI.lookupOrder(input)
+      console.log(
+        '[RefundMachine] Order details fetched successfully:',
+        JSON.stringify(response, null, 2),
+      )
+      return response
+    }),
     refundOrderActor: fromPromise(
       async ({ input }: { input: RefundOrderContext }): Promise<RefundOrderResult> => {
         if (!input.order) throw new Error('Không tìm thấy đơn hàng cần trả.')
 
-        return await OrderRemoteAPI.refundOrder({
+        console.log('[RefundMachine] Mapping product ID to variant ID.')
+        console.log(
+          '[RefundMachine] Internal selection lines:',
+          JSON.stringify(input.lines, null, 2),
+        )
+        console.log(
+          '[RefundMachine] Online detail lookup lines:',
+          JSON.stringify(input.lookupLines, null, 2),
+        )
+        const mappedLines: RefundOrderLineRequest[] = await Promise.all(
+          input.lines
+            .filter((line) => line.qty > 0)
+            .map(async (line) => {
+              const itemSnapshot = input.order?.itemsSnapshot?.find(
+                (item) => item.productId === line.productId,
+              )
+              const localIndex =
+                input.order?.itemsSnapshot?.findIndex(
+                  (item) => item.productId === line.productId,
+                ) ?? -1
+
+              let matchedLookupLine = null
+
+              // 1. Try direct ID match
+              let found = input.lookupLines?.find(
+                (l) => l.variantId === line.productId || l.productId === line.productId,
+              )
+
+              if (found) {
+                matchedLookupLine = found
+              } else if (localIndex !== -1 && input.lookupLines && input.lookupLines[localIndex]) {
+                // 2. Try index-based price match
+                const candidate = input.lookupLines[localIndex]
+                const snapshotPrice =
+                  itemSnapshot && itemSnapshot.quantity > 0
+                    ? itemSnapshot.subtotal / itemSnapshot.quantity
+                    : 0
+                if (Math.abs(snapshotPrice - candidate.unitPrice) < 2) {
+                  matchedLookupLine = candidate
+                }
+              }
+
+              // 3. Try fallback match by price only
+              if (!matchedLookupLine && input.lookupLines) {
+                const snapshotPrice =
+                  itemSnapshot && itemSnapshot.quantity > 0
+                    ? itemSnapshot.subtotal / itemSnapshot.quantity
+                    : 0
+                const foundByPrice = input.lookupLines.find(
+                  (l) => Math.abs(l.unitPrice - snapshotPrice) < 2,
+                )
+                if (foundByPrice) {
+                  matchedLookupLine = foundByPrice
+                }
+              }
+
+              let variantId = matchedLookupLine?.variantId
+
+              // 4. Try online SKU lookup if variantId is still unknown
+              if (!variantId && itemSnapshot?.sku) {
+                console.log(
+                  `[RefundMachine] Variant ID not found in lookup lines. Fetching online for SKU: ${itemSnapshot.sku}`,
+                )
+                try {
+                  const remoteProduct = await ProductRemoteAPI.lookupProduct({
+                    sku: itemSnapshot.sku,
+                  })
+                  if (remoteProduct?.variantId) {
+                    variantId = remoteProduct.variantId
+                    console.log(
+                      `[RefundMachine] Online lookup resolved variant ID: ${variantId} for SKU: ${itemSnapshot.sku}`,
+                    )
+                  }
+                } catch (err) {
+                  console.error(
+                    `[RefundMachine] Online lookup failed for SKU: ${itemSnapshot.sku}`,
+                    err,
+                  )
+                }
+              }
+
+              // Final fallback
+              if (!variantId) {
+                variantId = line.productId
+              }
+
+              console.log(
+                `[RefundMachine] Line product ID: ${line.productId} (SKU: ${itemSnapshot?.sku}) -> Mapped Variant ID: ${variantId}`,
+              )
+
+              return {
+                variantId,
+                qty: line.qty,
+              }
+            }),
+        )
+
+        console.log(
+          '[RefundMachine] Final payload mapped lines:',
+          JSON.stringify(mappedLines, null, 2),
+        )
+
+        const payload = {
           orderId: input.order.id,
           idempotencyKey: input.idempotencyKey,
           reason: input.reason.trim(),
           shiftId: input.shiftId,
           staffId: input.staffId,
-          lines: input.lines.filter((line) => line.qty > 0),
+          lines: mappedLines,
           managerAuth: input.managerAuth,
-        })
+        }
+        console.log(
+          '[RefundMachine] Sending refund request payload:',
+          JSON.stringify(payload, null, 2),
+        )
+
+        try {
+          const result = await OrderRemoteAPI.refundOrder(payload)
+          console.log('[RefundMachine] Refund response result:', JSON.stringify(result, null, 2))
+          return result
+        } catch (error: any) {
+          console.error('[RefundMachine] Refund error:', error)
+          if (error.response?.data) {
+            console.error(
+              '[RefundMachine] Refund error data:',
+              JSON.stringify(error.response.data, null, 2),
+            )
+          }
+          throw error
+        }
       },
     ),
   },
@@ -130,7 +270,7 @@ export const refundOrderMachine = setup({
       error: null,
     }),
     setLineQuantity: assign(({ context, event }) => {
-      if (event.type !== 'SET_LINE_QTY') return {}
+      if (event.type !== 'SET_LINE_QTY' || !context.lookupLines?.length) return {}
       const maxQuantity = getOriginalQuantity(context.order, event.productId)
       const qty = Math.min(Math.max(0, Math.floor(Number(event.qty) || 0)), maxQuantity)
       return {
@@ -138,16 +278,19 @@ export const refundOrderMachine = setup({
         error: null,
       }
     }),
-    setAllLines: assign(({ context }) => ({
-      lines:
-        context.order?.itemsSnapshot?.map((item) => ({
-          productId: item.productId,
-          qty: item.quantity,
-        })) ?? [],
-      error: null,
-    })),
+    setAllLines: assign(({ context }) => {
+      if (!context.lookupLines?.length) return {}
+      return {
+        lines:
+          context.order?.itemsSnapshot?.map((item) => ({
+            productId: item.productId,
+            qty: item.quantity,
+          })) ?? [],
+        error: null,
+      }
+    }),
     clearLine: assign(({ context, event }) => {
-      if (event.type !== 'CLEAR_LINE') return {}
+      if (event.type !== 'CLEAR_LINE' || !context.lookupLines?.length) return {}
       return {
         lines: context.lines.filter((line) => line.productId !== event.productId),
         error: null,
@@ -189,6 +332,10 @@ export const refundOrderMachine = setup({
           : error?.message || 'Có lỗi xảy ra khi xử lý trả hàng.'
       },
     }),
+    assignLookupLines: assign({
+      lookupLines: ({ event }) => (event as any).output?.lines || [],
+      error: null,
+    }),
     resetContext: assign(DEFAULT_CONTEXT),
   },
 }).createMachine({
@@ -199,15 +346,29 @@ export const refundOrderMachine = setup({
     idle: {
       on: {
         START: {
-          target: 'draft',
+          target: 'fetchingOrderDetails',
           actions: 'setOrder',
+        },
+      },
+    },
+    fetchingOrderDetails: {
+      invoke: {
+        src: 'lookupOrderActor',
+        input: ({ context }) => context.order?.id ?? '',
+        onDone: {
+          target: 'draft',
+          actions: 'assignLookupLines',
+        },
+        onError: {
+          target: 'draft',
+          actions: ['recordError', 'notifyError'],
         },
       },
     },
     draft: {
       on: {
         START: {
-          target: 'draft',
+          target: 'fetchingOrderDetails',
           actions: 'setOrder',
         },
         SET_REASON: {
@@ -261,15 +422,6 @@ export const refundOrderMachine = setup({
               const error = (event as any).error
               const errData = error?.response?.data
               const code = errData?.errorCode || errData?.error
-              return code === 'order.manager_approval_required'
-            },
-            target: 'waitingManagerApproval',
-          },
-          {
-            guard: ({ event }) => {
-              const error = (event as any).error
-              const errData = error?.response?.data
-              const code = errData?.errorCode || errData?.error
               return (
                 code === 'auth.invalid_manager_credentials' ||
                 code === 'auth.insufficient_manager_permissions'
@@ -280,6 +432,61 @@ export const refundOrderMachine = setup({
                 const error = (event as any).error
                 const errData = error?.response?.data
                 return errData?.message || 'Thông tin phê duyệt của Quản lý không hợp lệ.'
+              },
+            }),
+            target: 'waitingManagerApproval',
+          },
+          {
+            guard: ({ context, event }) => {
+              if (context.managerAuth === null) return false
+
+              const error = (event as any).error
+              const errData = error?.response?.data
+              const code = errData?.errorCode || errData?.error
+              const status = error?.response?.status
+              return (
+                status === 403 ||
+                code === 'refund.cashier_threshold' ||
+                code === 'order.manager_approval_required'
+              )
+            },
+            actions: assign({
+              managerAuthError: ({ event }) => {
+                const error = (event as any).error
+                const errData = error?.response?.data
+                return errData?.message || 'Tài khoản không có quyền phê duyệt.'
+              },
+            }),
+            target: 'waitingManagerApproval',
+          },
+          {
+            guard: ({ context, event }) => {
+              if (context.managerAuth !== null) return false
+
+              const error = (event as any).error
+              const errData = error?.response?.data
+              const code = errData?.errorCode || errData?.error
+              const status = error?.response?.status
+              return (
+                status === 403 ||
+                code === 'refund.cashier_threshold' ||
+                code === 'order.manager_approval_required'
+              )
+            },
+            actions: assign({
+              managerApprovalMessage: ({ event }) => {
+                const error = (event as any).error
+                const errData = error?.response?.data
+                const code = errData?.errorCode || errData?.error
+
+                if (code === 'refund.cashier_threshold') {
+                  const refundAmount = errData?.context?.refundAmount
+                  const threshold = errData?.context?.threshold
+                  if (refundAmount !== undefined && threshold !== undefined) {
+                    return `Hoàn ${formatCurrency(refundAmount, { suffix: 'đ' })} vượt ngưỡng ${formatCurrency(threshold, { suffix: 'đ' })} — cần manager duyệt.`
+                  }
+                }
+                return 'Yêu cầu quyền Quản lý để thực hiện hoàn tiền.'
               },
             }),
             target: 'waitingManagerApproval',
@@ -305,6 +512,7 @@ export const refundOrderMachine = setup({
           actions: assign({
             managerAuth: null,
             managerAuthError: null,
+            managerApprovalMessage: null,
           }),
         },
       },
@@ -329,7 +537,7 @@ export const refundOrderMachine = setup({
           actions: 'resetContext',
         },
         START: {
-          target: 'draft',
+          target: 'fetchingOrderDetails',
           actions: 'setOrder',
         },
       },

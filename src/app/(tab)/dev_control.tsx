@@ -1,16 +1,20 @@
 import { ViceService } from '@/screens/vice-service'
-import { Container } from '@/shared/components/ui'
+import { Container, ModalBase } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
+import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { useAppStore } from '@/shared/features/app'
 import { AuthAPI } from '@/shared/features/auth'
 import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
 import { useNoteStore } from '@/shared/features/note'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
+import { RefundReceiptTemplate } from '@/shared/features/order/components/refund-receipt-template'
 import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { database } from '@/shared/lib/database'
 import CategoryModel from '@/shared/lib/database/models/category'
 import ProductModel from '@/shared/lib/database/models/product'
+import OrderModel from '@/shared/lib/database/models/order'
+import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
 import { storage } from '@/shared/lib/storage'
 import { toast } from '@/shared/store'
 import React, { useEffect, useState } from 'react'
@@ -19,6 +23,9 @@ import { ScrollView, Text, View } from 'react-native'
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
   const [products, setProducts] = useState<ProductModel[]>([])
+  const [syncResult, setSyncResult] = useState<any>(null)
+  const [isSyncResultVisible, setIsSyncResultVisible] = useState(false)
+  const [isFetchingChanges, setIsFetchingChanges] = useState(false)
 
   const loadData = async () => {
     try {
@@ -148,6 +155,78 @@ export default function DevControlScreen() {
       const errData = error.response?.data
       console.error('❌ Get Payment Methods Error:', errData || error.message)
       toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message))
+    }
+  }
+
+  const handleTestGetDeviceContext = async () => {
+    try {
+      toast.info('Đang gọi GET /v1/pos/device-context...')
+      const result = await AuthAPI.getDeviceContext()
+      console.log('✅ Device Context:', JSON.stringify(result, null, 2))
+      toast.success(
+        `isActive: ${result.isActive ? '✅ TRUE' : '❌ FALSE'}\ndeviceCode: ${result.deviceCode}\nwarehouseId: ${result.warehouseId ?? 'null'}`,
+        'Device Context',
+      )
+    } catch (error: any) {
+      const status = error?.response?.status
+      const errData = error?.response?.data
+      console.error('❌ Device Context Error:', errData || error.message)
+      toast.error(
+        `${status ?? 'Network error'} — ${errData?.message || errData?.error || error.message}`,
+        'Device Context Lỗi',
+      )
+    }
+  }
+
+  const handleTestOrderLookup = async () => {
+    try {
+      toast.info('Đang tìm đơn hàng để tra cứu...')
+      let orderId = ''
+
+      // 1. Try local database for orders
+      const orders = await database.collections.get<OrderModel>('orders').query().fetch()
+      if (orders.length > 0) {
+        orderId = orders[0].id
+      } else {
+        // 2. Try fetching from remote API
+        const remoteOrdersRes = await OrderRemoteAPI.getOrders({ limit: 5 })
+        if (remoteOrdersRes.success && remoteOrdersRes.data && remoteOrdersRes.data.length > 0) {
+          orderId = remoteOrdersRes.data[0].id
+        }
+      }
+
+      if (!orderId) {
+        toast.warning('Không tìm thấy đơn hàng nào trong local DB hoặc server để test.')
+        return
+      }
+
+      toast.info(`Đang tra cứu đơn hàng code/id: ${orderId}`)
+      const response = await OrderRemoteAPI.lookupOrder(orderId)
+      console.log('✅ Order Lookup Success:', JSON.stringify(response, null, 2))
+      toast.success('Tra cứu thành công! Xem console log.', 'Order Lookup')
+    } catch (error: any) {
+      const errData = error.response?.data
+      console.error('❌ Order Lookup Error:', errData || error.message)
+      toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message), 'Order Lookup')
+    }
+  }
+
+  const handleTestFetchChanges = async () => {
+    try {
+      setIsFetchingChanges(true)
+      if (!ProductRemoteAPI.fetchChanges) {
+        throw new Error('fetchChanges is not implemented')
+      }
+      const result = await ProductRemoteAPI.fetchChanges({ lastPulledAt: null })
+      setSyncResult(result)
+      setIsSyncResultVisible(true)
+      toast.success('Lấy danh sách thay đổi sản phẩm thành công!')
+    } catch (error: any) {
+      console.error('❌ Fetch Changes Error:', error)
+      const errMsg = error?.response?.data?.message || error.message || 'Lỗi không xác định'
+      toast.error('Lỗi: ' + errMsg)
+    } finally {
+      setIsFetchingChanges(false)
     }
   }
 
@@ -688,6 +767,22 @@ export default function DevControlScreen() {
             className="bg-violet-600"
             onPress={handleTestGetPaymentMethods}
           />
+          <Button
+            label="Test API: Device Context (/v1/pos/device-context)"
+            className="bg-teal-600"
+            onPress={handleTestGetDeviceContext}
+          />
+          <Button
+            label="Test API: Tra cứu đơn hàng (/v1/orders/lookup)"
+            className="bg-indigo-600"
+            onPress={handleTestOrderLookup}
+          />
+          <Button
+            label="Test API: Đồng bộ sản phẩm (fetchChanges)"
+            className="bg-orange-600"
+            loading={isFetchingChanges}
+            onPress={handleTestFetchChanges}
+          />
         </View>
       </Container>
 
@@ -772,6 +867,112 @@ export default function DevControlScreen() {
           Mẫu hóa đơn thực tế (Width: 576px)
         </Text>
       </View>
+
+      {/* 4. Refund Receipt Preview */}
+      <Text className="text-headline-sm mb-4 font-bold text-primary">Refund Receipt Preview</Text>
+      <View className="mb-12 items-center justify-center rounded-[32px] bg-surface-100 py-10 shadow-sm">
+        <View className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-xl">
+          <RefundReceiptTemplate
+            receipt={{
+              orderId: 'ORD-MOCK-2026',
+              orderCode: 'SO-260613163910D7',
+              returnId: 'RET-MOCK-2026',
+              returnCode: 'RT-260613164012A3',
+              reason: 'Khách hàng đổi ý, trả hàng',
+              refundedAt: new Date().toISOString(),
+              refundAmount: 78000,
+              lines: [
+                {
+                  productId: 'P001',
+                  sku: '2010113000043',
+                  name: 'Metal Magnet Bitexco',
+                  orderedQty: 2,
+                  returnedQty: 1,
+                  remainingQty: 1,
+                  unitPrice: 78000,
+                  lineRefundAmount: 78000,
+                  isReturned: true,
+                },
+                {
+                  productId: 'P002',
+                  sku: '2010113000088',
+                  name: 'Postcard Saigon Skydeck',
+                  orderedQty: 1,
+                  returnedQty: 0,
+                  remainingQty: 1,
+                  unitPrice: 15000,
+                  lineRefundAmount: 0,
+                  isReturned: false,
+                },
+              ],
+            }}
+          />
+        </View>
+        <Text className="text-surface-onVariant mt-4 text-xs font-bold uppercase tracking-widest">
+          Mẫu phiếu trả hàng thực tế (Width: 384px)
+        </Text>
+      </View>
+
+      <ModalBase
+        visible={isSyncResultVisible}
+        onClose={() => setIsSyncResultVisible(false)}
+        size="90%"
+      >
+        <View className="flex-1 p-5">
+          {/* Header */}
+          <View className="mb-3 flex-row items-center justify-between border-b border-neutral-200 pb-3">
+            <Text className="font-bevn-bold text-lg font-bold text-neutral-800">
+              Kết quả API fetchChanges
+            </Text>
+            <Button
+              label="Đóng"
+              variant="outline"
+              className="h-[32px] min-h-[32px] border-neutral-300 px-3 py-1"
+              textClassName="text-xs text-neutral-600"
+              onPress={() => setIsSyncResultVisible(false)}
+            />
+          </View>
+
+          {/* Quick Metrics */}
+          {syncResult && (
+            <View className="mb-3 flex-row justify-between rounded-lg bg-neutral-100 p-3">
+              <Text className="font-bevn-med text-xs text-neutral-600">
+                Created:{' '}
+                <Text className="font-bevn-bold font-bold text-success">
+                  {syncResult.products?.created?.length ?? 0}
+                </Text>
+              </Text>
+              <Text className="font-bevn-med text-xs text-neutral-600">
+                Updated:{' '}
+                <Text className="font-bevn-bold font-bold text-warning">
+                  {syncResult.products?.updated?.length ?? 0}
+                </Text>
+              </Text>
+              <Text className="font-bevn-med text-xs text-neutral-600">
+                Deleted:{' '}
+                <Text className="font-bevn-bold text-danger font-bold">
+                  {syncResult.products?.deleted?.length ?? 0}
+                </Text>
+              </Text>
+              <Text className="font-bevn-med text-xs text-neutral-600">
+                Synced At:{' '}
+                <Text className="font-bevn-bold font-bold text-primary">
+                  {syncResult.syncedAt ? new Date(syncResult.syncedAt).toLocaleTimeString() : 'N/A'}
+                </Text>
+              </Text>
+            </View>
+          )}
+
+          {/* Code Viewer Container */}
+          <View className="flex-1 overflow-hidden rounded-xl bg-slate-900">
+            <ScrollView className="flex-1 p-4">
+              <Text className="select-all text-xs text-sky-400" style={{ fontFamily: 'monospace' }}>
+                {syncResult ? JSON.stringify(syncResult, null, 2) : 'Không có dữ liệu'}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </ModalBase>
     </ScrollView>
   )
 }

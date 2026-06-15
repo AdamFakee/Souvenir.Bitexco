@@ -215,6 +215,9 @@ export const closeShiftMachine = setup({
         let errMsg = 'Có lỗi xảy ra'
         if (err && typeof err === 'object') {
           const axiosErr = err as any
+          if (axiosErr.response?.status === 403) {
+            return 'Bạn không có quyền kết ca.'
+          }
           if (axiosErr.response?.data) {
             console.error(
               '[closeShiftMachine] Axios error response data:',

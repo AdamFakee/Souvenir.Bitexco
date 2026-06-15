@@ -125,7 +125,7 @@ export interface GetRemoteOrdersParams {
  * Tham số hoàn tiền đơn hàng
  */
 export interface RefundOrderLineRequest {
-  productId: string
+  variantId: string
   qty: number
 }
 
@@ -451,6 +451,16 @@ export const OrderRemoteAPI = {
         traceId,
       })
     }
+  },
+
+  /**
+   * Tra cứu đơn hàng bằng code để xem cấu trúc phản hồi từ backend.
+   */
+  lookupOrder: async (code: string): Promise<any> => {
+    const response = await AxiosService.getInstance().get<any>(`/v1/pos/orders/lookup`, {
+      params: { code },
+    })
+    return response.data
   },
 
   /**

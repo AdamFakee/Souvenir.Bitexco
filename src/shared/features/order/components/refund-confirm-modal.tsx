@@ -8,13 +8,13 @@ import {
   QuantityStepper,
 } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppStore } from '@/shared/features/app'
+import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { roundCashAmount } from '@/shared/features/payment/utils/cash.utils'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { PrinterService } from '@/shared/services'
-import { toast, useSettingsStore, appSettings } from '@/shared/store'
+import { appSettings, toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
-import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
+import { valibotResolver } from '@hookform/resolvers/valibot'
 import { FlashList } from '@shopify/flash-list'
 import { useMachine } from '@xstate/react'
 import { X } from 'lucide-react-native'
@@ -27,12 +27,12 @@ import React, {
   useState,
 } from 'react'
 import { useForm } from 'react-hook-form'
-import { valibotResolver } from '@hookform/resolvers/valibot'
-import * as v from 'valibot'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import * as v from 'valibot'
 import { refundOrderMachine } from '../machines/refund-order.machine'
 import { IOrder } from '../types'
+import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
 import { RefundReceiptTemplate } from './refund-receipt-template'
 
 export interface RefundConfirmModalRef {
@@ -62,13 +62,16 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
 
     const businessChecklistModalRef = useRef<BusinessChecklistModalRef>(null)
 
-    const { order, reason, lines, refundAmount, result, managerAuthError } = state.context
+    const { order, reason, lines, refundAmount, result, managerAuthError, managerApprovalMessage } =
+      state.context
     const isWaitingManagerApproval = state.matches('waitingManagerApproval')
     const isSubmitting = state.matches('submittingReturn')
+    const isFetchingOrder = state.matches('fetchingOrderDetails')
     const isProcessing =
       state.matches('submittingReturn') ||
       state.matches('receivingReturnedItems') ||
-      state.matches('refundProcessing')
+      state.matches('refundProcessing') ||
+      isFetchingOrder
     const isDraft = state.matches('draft')
     const isCompleted = state.matches('completed')
     const receipt = result?.receipt
@@ -246,6 +249,7 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
     }
 
     const getStepText = () => {
+      if (state.matches('fetchingOrderDetails')) return 'Đang tải chi tiết đơn hàng...'
       if (state.matches('submittingReturn')) return 'Đang xử lý trả hàng...'
       if (state.matches('receivingReturnedItems')) return 'Đang nhập kho hàng trả...'
       if (state.matches('refundProcessing')) return 'Đang hoàn tiền...'
@@ -448,7 +452,8 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
                 <View style={styles.managerCardHeader}>
                   <Text style={styles.managerCardTitle}>Yêu cầu Quyền Quản lý</Text>
                   <Text style={styles.managerCardSubtitle}>
-                    Vui lòng nhập tài khoản và mã PIN của quản lý để phê duyệt trả hàng.
+                    {managerApprovalMessage ||
+                      'Vui lòng nhập tài khoản và mã PIN của quản lý để phê duyệt trả hàng.'}
                   </Text>
                 </View>
 

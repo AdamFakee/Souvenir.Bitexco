@@ -1,4 +1,4 @@
-import { useIsOnline } from '@/shared/hooks'
+import { useIsOnline } from '@/shared/hooks/use-is-online'
 import { useCallback, useState } from 'react'
 import { SyncService } from '../sync.service'
 

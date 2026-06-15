@@ -7,74 +7,110 @@ interface RefundReceiptTemplateProps {
   receipt: RefundReceiptData
 }
 
+const DashedLine = () => (
+  <View
+    style={{
+      borderBottomWidth: 1,
+      borderBottomColor: '#000',
+      borderStyle: 'dashed',
+      marginVertical: 8,
+    }}
+  />
+)
+
 export function RefundReceiptTemplate({ receipt }: RefundReceiptTemplateProps) {
   const refundedAt = receipt.refundedAt ? new Date(receipt.refundedAt) : new Date()
+  const formattedDate = refundedAt.toLocaleString('vi-VN')
+  const returnCodeOrId = receipt.returnCode || receipt.returnId
+  const orderCodeOrId = receipt.orderCode || receipt.orderId
 
   return (
-    <View className="w-[384px] bg-white p-4">
-      <View className="items-center border-b border-dashed border-surface-300 pb-3">
-        <Text className="text-xl font-black uppercase text-surface-on">Phiếu trả hàng</Text>
-        {(receipt.returnCode || receipt.returnId) && (
-          <Text className="mt-1 text-sm font-bold text-muted">
-            Mã phiếu: {receipt.returnCode || receipt.returnId}
-          </Text>
-        )}
-        <Text className="mt-1 text-sm font-bold text-muted">
-          Đơn gốc: {receipt.orderCode || receipt.orderId}
+    <View className="bg-white px-4 py-8" style={{ width: 576 }}>
+      {/* Header */}
+      <View className="items-center">
+        <Text style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center' }}>
+          Quầy lưu niệm Saigon Skydeck - Bitexco Tower
         </Text>
-        <Text className="mt-1 text-sm text-muted">{refundedAt.toLocaleString('vi-VN')}</Text>
+        <Text style={{ fontSize: 28, textAlign: 'center', marginTop: 4 }}>
+          36 Ho Tung Mau ST, District 1 HCMC
+        </Text>
+        <Text style={{ fontSize: 28, textAlign: 'center' }}>TEL: (84-8) 39 156 156</Text>
+
+        <Text style={{ fontSize: 42, fontWeight: 'bold', marginTop: 16 }}>PHIẾU TRẢ HÀNG</Text>
+        <Text style={{ fontSize: 24 }}>---000---</Text>
       </View>
 
-      {!!receipt.reason && (
-        <View className="border-b border-dashed border-surface-300 py-3">
-          <Text className="text-sm font-bold text-surface-on">Lý do: {receipt.reason}</Text>
-        </View>
-      )}
+      <View className="mt-6 gap-1">
+        <Text style={{ fontSize: 28 }}>{formattedDate}</Text>
+        {!!returnCodeOrId && (
+          <Text style={{ fontSize: 28 }}>Mã phiếu: {returnCodeOrId.toUpperCase()}</Text>
+        )}
+        <Text style={{ fontSize: 28 }}>Đơn gốc: {orderCodeOrId.toUpperCase()}</Text>
+        {!!receipt.reason && (
+          <Text style={{ fontSize: 28, marginTop: 4 }}>Lý do: {receipt.reason}</Text>
+        )}
+      </View>
 
-      <View className="py-3">
-        {receipt.lines.map((line) => (
-          <View key={line.productId} className="mb-3 border-b border-surface-100 pb-2">
-            <View className="flex-row items-start justify-between gap-2">
-              <View className="flex-1">
-                <Text className="text-base font-black text-surface-on">{line.name}</Text>
-                {line.sku && <Text className="text-xs text-muted">SKU: {line.sku}</Text>}
-              </View>
-              <Text
-                className={
-                  line.isReturned ? 'text-sm font-black text-error' : 'text-sm font-bold text-muted'
-                }
-              >
-                {line.isReturned ? 'Đã trả' : 'Không trả'}
+      <DashedLine />
+
+      {/* Table Header */}
+      <View className="flex-row">
+        <View style={{ flex: 2.5 }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold' }}>Sản phẩm</Text>
+        </View>
+        <View style={{ flex: 1.5 }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', textAlign: 'center' }}>Số lượng</Text>
+        </View>
+        <View style={{ flex: 2 }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', textAlign: 'right' }}>Hoàn tiền</Text>
+        </View>
+      </View>
+
+      <DashedLine />
+
+      {/* Items */}
+      {receipt.lines.map((line) => (
+        <View key={line.productId} className="mb-4">
+          <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{line.name}</Text>
+          <Text style={{ fontSize: 24 }}>{line.sku || '---'}</Text>
+
+          <View className="mt-1 flex-row">
+            <View style={{ flex: 2.5 }}>
+              <Text style={{ fontSize: 28 }}>Mua: {line.orderedQty}</Text>
+            </View>
+            <View style={{ flex: 1.5 }}>
+              <Text style={{ fontSize: 28, textAlign: 'center' }}>Trả: {line.returnedQty}</Text>
+            </View>
+            <View style={{ flex: 2 }}>
+              <Text style={{ fontSize: 28, textAlign: 'right', fontWeight: 'bold' }}>
+                {line.isReturned ? `-${formatCurrency(line.lineRefundAmount)}` : 'Không trả'}
               </Text>
             </View>
-
-            <View className="mt-2 flex-row justify-between">
-              <Text className="text-xs text-muted">Đã mua: {line.orderedQty}</Text>
-              <Text className="text-xs text-muted">Trả: {line.returnedQty}</Text>
-              <Text className="text-xs text-muted">Còn lại: {line.remainingQty}</Text>
-            </View>
-
-            {line.isReturned && (
-              <View className="mt-1 flex-row justify-between">
-                <Text className="text-xs text-muted">
-                  Đơn giá: {formatCurrency(line.unitPrice)}
-                </Text>
-                <Text className="text-sm font-black text-error">
-                  -{formatCurrency(line.lineRefundAmount)}
-                </Text>
-              </View>
-            )}
           </View>
-        ))}
-      </View>
+        </View>
+      ))}
 
-      <View className="border-t border-dashed border-surface-300 pt-3">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-base font-black uppercase text-surface-on">Tổng tiền hoàn</Text>
-          <Text className="text-xl font-black text-error">
+      <DashedLine />
+
+      {/* Totals */}
+      <View className="gap-1">
+        <View className="flex-row justify-between">
+          <Text style={{ fontSize: 32, fontWeight: 'bold' }}>Tổng tiền hoàn:</Text>
+          <Text style={{ fontSize: 32, fontWeight: 'bold' }}>
             {formatCurrency(receipt.refundAmount)}
           </Text>
         </View>
+      </View>
+
+      <DashedLine />
+
+      <View className="mt-2 items-center">
+        <Text style={{ fontSize: 24, textAlign: 'center', fontStyle: 'italic' }}>
+          Quý khách vui lòng kiểm tra lại hóa đơn.
+        </Text>
+        <Text style={{ fontSize: 24, textAlign: 'center', fontStyle: 'italic', marginTop: 4 }}>
+          Xin cảm ơn và hẹn gặp lại
+        </Text>
       </View>
     </View>
   )

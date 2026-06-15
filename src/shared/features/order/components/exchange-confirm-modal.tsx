@@ -1,7 +1,7 @@
 import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { IconButton, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppStore } from '@/shared/features/app'
+import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { UnifiedProduct } from '@/shared/features/pos/hooks/use-product-search'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { PrinterService } from '@/shared/services'
