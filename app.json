@@ -2,7 +2,7 @@
   "expo": {
     "name": "souvenir",
     "slug": "souvenir",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "platforms": ["ios", "android"],
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
@@ -33,7 +33,7 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_EXTERNAL_STORAGE"
       ],
-      "versionCode": 5
+      "versionCode": 6
     },
     "plugins": [
       "./scripts/withAndroidSigning",

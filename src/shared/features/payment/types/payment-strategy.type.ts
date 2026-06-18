@@ -66,6 +66,7 @@ export interface PaymentPopupProps extends BasePaymentPopupProps {
   staffName?: string
   activeSessionId: string | null
   printRef?: React.RefObject<any>
+  note?: string
 }
 
 /**

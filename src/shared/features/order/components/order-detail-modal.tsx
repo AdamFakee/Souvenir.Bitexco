@@ -1,5 +1,6 @@
 import { Button, IconButton, ModalBase } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
+import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment'
 import { OrderStatus } from '@/shared/lib/database/models/order'
 import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
@@ -9,7 +10,6 @@ import { Printer, Repeat2, Trash2, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment'
 import { IOrder } from '../types'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { ExchangeConfirmModal, ExchangeConfirmModalRef } from './exchange-confirm-modal'
@@ -173,7 +173,9 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                 <View className="gap-5">
                   <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
                     <Text className="text-lg font-bold text-muted">Mã đơn hàng</Text>
-                    <Text className="text-lg font-black text-primary">#{order.id}</Text>
+                    <Text className="text-lg font-black text-primary">
+                      #{order.id.substring(0, 8).toUpperCase()}
+                    </Text>
                   </View>
                   <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
                     <Text className="text-lg font-bold text-muted">Trạng thái</Text>
@@ -197,26 +199,19 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                     </Text>
                   </View>
 
-                  <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
-                    <Text className="text-lg font-bold text-muted">Mã nhân viên</Text>
-                    <Text className="text-lg font-black text-surface-on">{order.staffId}</Text>
-                  </View>
-
-                  <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
-                    <Text className="text-lg font-bold text-muted">Mã ca làm việc</Text>
-                    <Text className="text-lg font-black text-surface-on">{order.shiftId}</Text>
-                  </View>
-
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-lg font-bold text-muted">Phương thức</Text>
-                    <View className="flex-row gap-2">
-                      {payments.map((p, i) => (
-                        <Text key={i} className="text-lg font-black text-primary">
-                          {PAYMENT_METHOD_LABELS[p.method] ?? p.method}
-                        </Text>
-                      ))}
+                  {payments.map((p, i) => (
+                    <View
+                      key={i}
+                      className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4"
+                    >
+                      <Text className="text-lg font-bold text-muted">
+                        Thanh toán ({PAYMENT_METHOD_LABELS[p.method] ?? p.method})
+                      </Text>
+                      <Text className="text-lg font-black text-surface-on">
+                        {formatCurrency(p.amount)}
+                      </Text>
                     </View>
-                  </View>
+                  ))}
 
                   {order.voucherCode && (
                     <View className="mt-5 flex-row items-center justify-between">

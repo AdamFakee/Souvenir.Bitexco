@@ -26,7 +26,7 @@ import * as v from 'valibot'
 
 import { mixPaymentMachine } from '../machines/mix-payment.machine'
 import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
-import { calculateSubtotal, calculateTotalTax } from '../utils'
+import { calculateSubtotal, calculateTotalTax, getMixPaymentSuggestions } from '../utils'
 import {
   ManualCardDetailsFormData,
   manualCardDetailsSchema,
@@ -107,6 +107,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       activeSessionId,
       printRef,
       onSuccess,
+      note,
     },
     ref,
   ) => {
@@ -114,9 +115,19 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const [cashInput, setCashInput] = useState('')
     const [showManualForm, setShowManualForm] = useState(false)
     const [timeLeft, setTimeLeft] = useState('05:00')
-    const { tenantConfig } = useAppContext()
+    const { tenantConfig, paymentMethods } = useAppContext()
     const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
     const isPosConnected = useConnectionStore((s) => s.isPosConnected)
+
+    const qrLabel = React.useMemo(() => {
+      const method = paymentMethods?.find((m) => m.code === 'qr_bidv')
+      return method?.enabled ? method.name : 'QRCode'
+    }, [paymentMethods])
+
+    const cardLabel = React.useMemo(() => {
+      const method = paymentMethods?.find((m) => m.code === 'card_bidv')
+      return method?.enabled ? method.name : 'Thẻ (POS)'
+    }, [paymentMethods])
 
     const subtotal = calculateSubtotal(items)
     const tax = calculateTotalTax(items)
@@ -132,6 +143,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         appliedVoucher: appliedVoucher || null,
         printRef,
         tenantConfig,
+        note,
       },
     })
 
@@ -190,7 +202,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       isPrinting
 
     // Quick cash suggestions smaller than the total amount
-    const suggestions = [10000, 20000, 50000, 100000, 200000, 500000].filter((amt) => amt < total)
+    const suggestions = getMixPaymentSuggestions(total)
 
     // Sync state actions
     const canConfirm = useSelector(actorRef, (s) => s.can({ type: 'CONFIRM' }))
@@ -427,18 +439,14 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
     useEffect(() => {
       if (isCancelled) {
-        if (cashAmount > 0) {
-          toast.success(
-            `Đã hủy đơn hàng thành công. Vui lòng trả lại ${formatCurrency(cashAmount)} tiền mặt cho khách.`,
-            'Hủy đơn hàng thành công',
-          )
-        } else {
-          toast.success('Đã hủy đơn hàng thành công!', 'Hủy đơn hàng thành công')
+        const hasCreatedCheckout = !!checkoutResult
+        if (!hasCreatedCheckout || cashAmount <= 0) {
+          toast.info('Đã hủy giao dịch!', 'Thông báo')
         }
         const timer = setTimeout(() => setVisible(false), 800)
         return () => clearTimeout(timer)
       }
-    }, [isCancelled, cashAmount])
+    }, [isCancelled, cashAmount, checkoutResult])
 
     // Log error details for troubleshooting
     useEffect(() => {
@@ -489,6 +497,7 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
               appliedVoucher: appliedVoucher || null,
               printRef,
               tenantConfig,
+              note,
             },
           })
         },
@@ -497,7 +506,18 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           actorRef.send({ type: 'CANCEL' })
         },
       }),
-      [actorRef, appliedVoucher, printRef, shiftId, staffId, tenantConfig, discount, items, total],
+      [
+        actorRef,
+        appliedVoucher,
+        printRef,
+        shiftId,
+        staffId,
+        tenantConfig,
+        discount,
+        items,
+        total,
+        note,
+      ],
     )
 
     const handleNumpadPress = (digit: string) => {
@@ -520,6 +540,10 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           message: `Đã thu ${formatCurrency(cashAmount)} tiền mặt. Vui lòng hoàn lại tiền mặt cho khách trước, sau đó xác nhận hủy đơn hàng.`,
           onConfirm: () => {
             actorRef.send({ type: 'CANCEL' })
+            toast.infoPopup({
+              title: 'Hủy đơn hàng thành công',
+              message: `Đã hủy đơn hàng thành công. Vui lòng trả lại ${formatCurrency(cashAmount)} tiền mặt cho khách.`,
+            })
           },
         })
       } else {
@@ -621,7 +645,6 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         </View>
       )
     }
-    console.log(qrContent, isQrUrl)
 
     const renderRightPanel = () => {
       if (isSuccess) {
@@ -743,11 +766,13 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           <View className="flex-1 justify-between">
             <View className="gap-4">
               <Text className="text-xl font-bold text-surface-on">Nhập số tiền mặt khách đưa</Text>
-              <Numpad
-                onPress={handleNumpadPress}
-                onBackspace={handleNumpadBackspace}
-                onClear={handleNumpadClear}
-              />
+              <View className="w-[92%] self-center">
+                <Numpad
+                  onPress={handleNumpadPress}
+                  onBackspace={handleNumpadBackspace}
+                  onClear={handleNumpadClear}
+                />
+              </View>
             </View>
 
             <View className="mt-6 gap-3">
@@ -940,11 +965,6 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         )
       : null
 
-    const remainingErrorMsg =
-      nonCashAmount > 0 && nonCashAmount < 5000
-        ? 'Số tiền không tiền mặt tối thiểu phải từ 5.000 đ'
-        : null
-
     return (
       <ModalBase
         visible={visible}
@@ -963,14 +983,6 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             </View>
 
             <View className="gap-4">
-              {/* Total Order Amount */}
-              <View className="rounded-xl border border-outline-variant bg-surface-50 p-6">
-                <Text className="text-surface-onVariant mb-1 text-xl font-medium">
-                  Tổng tiền hóa đơn
-                </Text>
-                <Text className="text-5xl font-bold text-primary">{formatCurrency(total)}</Text>
-              </View>
-
               {/* Cash Portion */}
               <View className="rounded-xl border-2 border-primary bg-primary/5 p-6">
                 <Text className="mb-1 text-xl font-bold text-primary">Tiền mặt thanh toán</Text>
@@ -981,17 +993,20 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
               {/* Non-cash Remaining Amount */}
               <View className="rounded-xl border border-outline-variant bg-white p-6">
-                <Text className="text-surface-onVariant mb-1 text-xl font-medium">
+                <Text className="text-surface-onVariant mb-1 text-xl font-bold">
                   Số tiền còn lại (QR / Thẻ)
                 </Text>
-                <Text className="text-4xl font-bold text-neutral-800">
+                <Text className="text-5xl font-bold text-neutral-800">
                   {formatCurrency(nonCashAmount)}
                 </Text>
-                {remainingErrorMsg && (
-                  <Text className="mt-2 text-sm font-semibold text-error">
-                    ⚠ {remainingErrorMsg}
-                  </Text>
-                )}
+              </View>
+
+              {/* Total Order Amount */}
+              <View className="rounded-xl border border-outline-variant bg-surface-50 p-6">
+                <Text className="text-surface-onVariant mb-1 text-xl font-medium">
+                  Tổng tiền hóa đơn
+                </Text>
+                <Text className="text-5xl font-bold text-primary">{formatCurrency(total)}</Text>
               </View>
             </View>
 
@@ -1012,20 +1027,12 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                       key={`suggestion-${idx}-${amt}`}
                       label={formatCurrency(amt)}
                       variant="outline"
-                      className="h-16 min-w-[140px]"
+                      className="h-18 min-w-[140px]"
                       disabled={!isIdle}
                       onPress={() => setCashInput(amt.toString())}
                     />
                   ))}
                 </ScrollView>
-
-                <Button
-                  label="Chẵn 50% tiền mặt"
-                  variant="outline"
-                  className="mt-4 h-16 w-full"
-                  disabled={!isIdle}
-                  onPress={() => setCashInput(Math.round(total / 2).toString())}
-                />
               </View>
 
               <View>
@@ -1035,11 +1042,11 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                 <View className="flex-row gap-4">
                   <View className="flex-1">
                     <Button
-                      label="Mã QR BIDV"
+                      label={qrLabel}
                       leftIcon={QrCode}
                       iconSize={32}
                       variant={selectedMethod === 'qr' ? 'primary' : 'outline'}
-                      className="h-20 w-full border-2"
+                      className="h-[84px] w-full border-2"
                       disabled={!isIdle || !isNetworkConnected}
                       onPress={() => actorRef.send({ type: 'SELECT_METHOD', method: 'qr' })}
                     />
@@ -1047,11 +1054,11 @@ export const MixPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
                   <View className="flex-1">
                     <Button
-                      label="Thẻ (POS EDC)"
+                      label={cardLabel}
                       leftIcon={CreditCard}
                       iconSize={32}
                       variant={selectedMethod === 'card' ? 'primary' : 'outline'}
-                      className="h-20 w-full border-2"
+                      className="h-[84px] w-full border-2"
                       disabled={!isIdle || !isPosConnected}
                       onPress={() => actorRef.send({ type: 'SELECT_METHOD', method: 'card' })}
                     />

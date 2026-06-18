@@ -4,8 +4,8 @@ import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react-n
 import React, { useImperativeHandle, useState } from 'react'
 import { Modal, Text, TouchableWithoutFeedback, View } from 'react-native'
 import Animated, { FadeIn, FadeOut, Keyframe, ZoomIn, ZoomOut } from 'react-native-reanimated'
-import { IconButton } from './icon-button'
 import { GlobalToast } from './global-toast'
+import { IconButton } from './icon-button'
 
 export interface PopupRef {
   open: () => void
@@ -166,7 +166,7 @@ export const Popup = ({
                 <View className="absolute right-6 top-6 z-10">
                   <IconButton
                     icon={X}
-                    variant="sm"
+                    variant="xl"
                     color={COLORS.surface.on}
                     onPress={() => {
                       setVisible(false)

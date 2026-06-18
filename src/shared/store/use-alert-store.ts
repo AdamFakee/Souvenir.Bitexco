@@ -10,12 +10,13 @@ export interface Toast {
 }
 
 interface AlertState {
-  // Confirm Dialog State
+  // Confirm/Info Dialog State
   visible: boolean
   type: AlertType
   title: string
   message: string
   isConfirm: boolean
+  popupType: 'confirm' | 'info' | null
   onConfirm?: () => void
   onCancel?: () => void
 
@@ -31,7 +32,7 @@ interface AlertState {
    */
   hideToast: (id: string) => void
   /**
-   * Hiển thị hộp thoại xác nhận (Confirm Dialog)
+   * Hiển thị hộp thoại xác nhận (Confirm Dialog - 2 nút)
    */
   confirm: (params: {
     title: string
@@ -40,7 +41,11 @@ interface AlertState {
     onCancel?: () => void
   }) => void
   /**
-   * Đóng hộp thoại xác nhận
+   * Hiển thị hộp thoại thông tin (Info Dialog - 1 nút)
+   */
+  infoPopup: (params: { title: string; message: string; onConfirm?: () => void }) => void
+  /**
+   * Đóng hộp thoại
    */
   hide: () => void
 }
@@ -51,6 +56,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   title: '',
   message: '',
   isConfirm: false,
+  popupType: null,
   onConfirm: undefined,
   onCancel: undefined,
   toasts: [],
@@ -82,17 +88,33 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       title,
       message,
       isConfirm: true,
+      popupType: 'confirm',
       onConfirm: () => {
+        set({ visible: false, popupType: null })
         onConfirm()
-        set({ visible: false })
       },
       onCancel: () => {
+        set({ visible: false, popupType: null })
         onCancel?.()
-        set({ visible: false })
       },
     }),
 
-  hide: () => set({ visible: false }),
+  infoPopup: ({ title, message, onConfirm }) =>
+    set({
+      visible: true,
+      type: 'info',
+      title,
+      message,
+      isConfirm: true,
+      popupType: 'info',
+      onConfirm: () => {
+        set({ visible: false, popupType: null })
+        onConfirm?.()
+      },
+      onCancel: undefined,
+    }),
+
+  hide: () => set({ visible: false, popupType: null }),
 }))
 
 /**
@@ -114,4 +136,6 @@ export const toast = {
     onConfirm: () => void
     onCancel?: () => void
   }) => useAlertStore.getState().confirm(params),
+  infoPopup: (params: { title: string; message: string; onConfirm?: () => void }) =>
+    useAlertStore.getState().infoPopup(params),
 }

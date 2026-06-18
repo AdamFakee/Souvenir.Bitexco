@@ -81,6 +81,7 @@ export default function CheckoutPanel() {
   const items = useSelector(cartActor!, (s) => s?.context?.items || {})
   const activeSessionId = useSelector(cartActor!, (s) => s?.context?.id || null)
   const appliedVoucher = useSelector(cartActor!, (s) => s?.context?.appliedVoucher || null)
+  const note = useSelector(cartActor!, (s) => s?.context?.note || '')
 
   const [voucherInput, setVoucherInput] = useState('')
   const applyVoucherMutation = useApplyVoucher()
@@ -290,24 +291,38 @@ export default function CheckoutPanel() {
               {formatCurrency(tax)}
             </Text>
           </View>
-        </View>
 
-        {/* 3. Right: Total & Payment Actions */}
-        <View className="min-w-[600px] flex-col justify-end">
-          <View className="flex-row items-center">
-            <Text className="mr-6 text-2xl font-black uppercase text-surface-on" numberOfLines={1}>
+          <View className="mt-2 flex-row items-center justify-between border-t border-dashed border-outline-variant pt-4">
+            <Text className="text-xl font-black uppercase text-surface-on" numberOfLines={1}>
               Tổng thanh toán
             </Text>
             <Text
-              className="flex-1 text-right text-[56px] font-black tracking-[-2px] text-primary"
+              className="text-[38px] font-black tracking-[-1px] text-primary"
               numberOfLines={1}
               adjustsFontSizeToFit
             >
               {formatCurrency(total)}
             </Text>
           </View>
+        </View>
 
-          <View className="mt-6 flex-col gap-4">
+        {/* 3. Right: Total & Payment Actions */}
+        <View className="min-w-[600px] flex-col justify-end gap-6">
+          {/* Order Note Section */}
+          <View>
+            <Text className="mb-3 text-sm font-black uppercase tracking-widest text-surface-on">
+              Ghi chú đơn hàng
+            </Text>
+            <TextInput
+              className="py-4.5 rounded-[20px] border border-outline-variant bg-surface-100 px-6 text-xl font-medium text-surface-on"
+              placeholder="Nhập ghi chú..."
+              placeholderTextColor={COLORS.muted}
+              value={note}
+              onChangeText={(text) => cartActor?.send({ type: 'SET_NOTE', note: text })}
+            />
+          </View>
+
+          <View className="flex-col gap-4">
             {chunkedStrategies.map((chunk, rowIndex) => (
               <View key={rowIndex} className="h-[72px] flex-row gap-4">
                 {chunk.map((method) => {
@@ -353,6 +368,7 @@ export default function CheckoutPanel() {
             printRef={printRef}
             staffName={employee?.displayName}
             onSuccess={handleCheckoutSuccess}
+            note={note}
           />
         ))}
       </View>

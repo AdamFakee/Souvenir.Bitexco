@@ -44,6 +44,7 @@ export interface MixPaymentContext {
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<any>
   tenantConfig?: TenantConfig | null
+  note?: string
 
   /** User Form Input */
   cashAmount: number
@@ -108,6 +109,7 @@ export type MixPaymentInput = {
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<any>
   tenantConfig?: TenantConfig | null
+  note?: string
 }
 
 const MAX_RETRIES = 3
@@ -146,6 +148,7 @@ export const mixPaymentMachine = setup({
       if (context.nonCashAmount <= 0) return false
       if (context.cashAmount + context.nonCashAmount !== total) return false
       if (context.nonCashAmount < 5000) return false
+      if (context.cashAmount % 1000 !== 0) return false // Tiền mặt phải chia hết cho 1000đ
 
       return true
     },
@@ -308,6 +311,7 @@ export const mixPaymentMachine = setup({
         paymentResult: null,
         managerAuth: null,
         managerAuthError: null,
+        note: undefined,
       }
 
       if (event.type === 'START' && event.input) {
@@ -322,6 +326,7 @@ export const mixPaymentMachine = setup({
           appliedVoucher: event.input.appliedVoucher,
           printRef: event.input.printRef,
           tenantConfig: event.input.tenantConfig,
+          note: event.input.note,
           nonCashAmount: Math.round(event.input.total),
         }
       }
@@ -353,6 +358,7 @@ export const mixPaymentMachine = setup({
     appliedVoucher: input.appliedVoucher,
     printRef: input.printRef,
     tenantConfig: input.tenantConfig,
+    note: input.note,
     cashAmount: 0,
     nonCashAmount: Math.round(input.total),
     selectedMethod: null,
@@ -407,6 +413,7 @@ export const mixPaymentMachine = setup({
           cashAmount: context.cashAmount,
           nonCashAmount: context.nonCashAmount,
           selectedMethod: context.selectedMethod!,
+          note: context.note,
         }),
         onDone: [
           {

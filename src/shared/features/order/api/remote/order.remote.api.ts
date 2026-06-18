@@ -423,7 +423,7 @@ export const OrderRemoteAPI = {
       const currentPage = response.data.page || page
       const pageSize = response.data.pageSize || limit
       const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0
-
+      console.log('OrderRemoteAPI: Orders fetched:', items.length)
       return {
         success: true,
         status_code: 200,

@@ -9,7 +9,8 @@ import { Popup, PopupRef } from './popup'
  * Đặt tại Root của ứng dụng
  */
 export const GlobalPopup = () => {
-  const { visible, type, title, message, isConfirm, onConfirm, onCancel } = useAlertStore()
+  const { visible, type, title, message, isConfirm, popupType, onConfirm, onCancel } =
+    useAlertStore()
   const popupRef = useRef<PopupRef>(null)
 
   useEffect(() => {
@@ -22,15 +23,19 @@ export const GlobalPopup = () => {
 
   if (!isConfirm && visible) return null
 
+  const showCancelButton = popupType === 'confirm'
+
   return (
     <Popup ref={popupRef} type={type} title={title} description={message} dismissible={false}>
       <View className="mt-2 flex-row gap-4">
-        <Button
-          label="Hủy"
-          onPress={onCancel}
-          variant="outline"
-          className="h-14 flex-1 rounded-xl px-4"
-        />
+        {showCancelButton && (
+          <Button
+            label="Hủy"
+            onPress={onCancel}
+            variant="outline"
+            className="h-14 flex-1 rounded-xl px-4"
+          />
+        )}
         <Button
           label="Đồng ý"
           onPress={onConfirm}

@@ -4,6 +4,7 @@ import {
   Container,
   DebtIcon,
   IconButton,
+  IconButtonWithBadge,
   LogoSkydeck,
   SettingIcon,
   SettingsModal,
@@ -20,7 +21,9 @@ import { toast, useAlertStore } from '@/shared/store'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
-import React, { useEffect, useMemo, useRef } from 'react'
+import { database, OrderModel } from '@/shared/lib/database'
+import { Q } from '@nozbe/watermelondb'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -82,10 +85,27 @@ const CustomSidebar = React.memo(
     const handoverNotesModalRef = useRef<HandoverNotesModalRef>(null)
     const { notes, loadNotes } = useNoteStore()
     const pendingNotesCount = useMemo(() => notes.filter((n) => !n.isCompleted).length, [notes])
+    const [unsyncedOrdersCount, setUnsyncedOrdersCount] = useState(0)
 
     useEffect(() => {
       loadNotes()
       // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    useEffect(() => {
+      const subscription = database
+        .get<OrderModel>('orders')
+        .query(Q.where('is_synced', false))
+        .observeCount()
+        .subscribe({
+          next: (count) => {
+            setUnsyncedOrdersCount(count)
+          },
+          error: (err) => {
+            console.error('Failed to observe unsynced orders count:', err)
+          },
+        })
+      return () => subscription.unsubscribe()
     }, [])
 
     return (
@@ -140,20 +160,15 @@ const CustomSidebar = React.memo(
           {/* Actions Row */}
           <View className="flex-row items-center justify-between gap-3">
             {/* Note Button */}
-            <View className="relative flex-1">
-              <IconButton
-                icon={ClipboardList}
-                variant="xl"
-                color={COLORS.surface[50]}
-                onPress={() => handoverNotesModalRef.current?.open()}
-                className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
-              />
-              {pendingNotesCount > 0 && (
-                <View className="pointer-events-none absolute -right-1 -top-1 h-6 min-w-[24px] items-center justify-center rounded-full bg-error px-1.5 shadow-sm">
-                  <Text className="text-xs font-black text-white">{pendingNotesCount}</Text>
-                </View>
-              )}
-            </View>
+            <IconButtonWithBadge
+              icon={ClipboardList}
+              variant="xl"
+              color={COLORS.surface[50]}
+              onPress={() => handoverNotesModalRef.current?.open()}
+              className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+              badgeCount={pendingNotesCount}
+              containerClassName="flex-1"
+            />
 
             {/* Settings Button */}
             <View className="flex-1">
@@ -167,18 +182,18 @@ const CustomSidebar = React.memo(
             </View>
 
             {/* Sync Button */}
-            <View className="flex-1">
-              <IconButton
-                icon={isSyncing ? undefined : RefreshCw}
-                variant="xl"
-                color={COLORS.surface[50]}
-                onPress={syncNow}
-                className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
-                disabled={isSyncing}
-              >
-                {isSyncing && <ActivityIndicator size="small" color={COLORS.surface[50]} />}
-              </IconButton>
-            </View>
+            <IconButtonWithBadge
+              icon={isSyncing ? undefined : RefreshCw}
+              variant="xl"
+              color={COLORS.surface[50]}
+              onPress={syncNow}
+              className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+              disabled={isSyncing}
+              badgeCount={unsyncedOrdersCount}
+              containerClassName="flex-1"
+            >
+              {isSyncing && <ActivityIndicator size="small" color={COLORS.surface[50]} />}
+            </IconButtonWithBadge>
 
             {/* Logout Button */}
             <View className="flex-1">

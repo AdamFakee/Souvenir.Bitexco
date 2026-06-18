@@ -9,9 +9,17 @@ export const roundCashAmount = (amount: number): number => {
   return Math.round(amount / 1000) * 1000
 }
 
-const VND_DENOMS = [
+export const VND_DENOMS = [
   10_000, 20_000, 50_000, 100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000,
 ]
+
+/**
+ * Logic gợi ý số tiền mặt khách đưa đối với thanh toán kết hợp (mix payment):
+ * Chỉ gợi ý các mệnh giá nhỏ hơn tổng tiền hóa đơn để khách trả một phần bằng tiền mặt.
+ */
+export const getMixPaymentSuggestions = (total: number): number[] => {
+  return VND_DENOMS.filter((denom) => denom < total)
+}
 
 /**
  * Logic gợi ý số tiền khách đưa (Suggestions):

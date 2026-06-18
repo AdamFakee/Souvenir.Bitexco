@@ -6,10 +6,10 @@ import {
   PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { PaymentResult } from '../types'
 import { PrinterService } from '@/shared/services'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
 import { assign, fromPromise, setup } from 'xstate'
+import { PaymentResult } from '../types'
 import { calculateVoucherDiscount, roundCashAmount } from '../utils'
 
 // ─── Saved Order Types ────────────────────────────────────────────────────────

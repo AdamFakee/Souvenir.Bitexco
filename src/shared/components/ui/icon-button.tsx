@@ -2,7 +2,7 @@ import { COLORS } from '@/shared/constants'
 import { cn } from '@/shared/utils'
 import { LucideIcon } from 'lucide-react-native'
 import React from 'react'
-import { Pressable, PressableProps, ViewStyle } from 'react-native'
+import { Pressable, PressableProps, ViewStyle, View, Text } from 'react-native'
 
 /** Standard size configurations for IconButtons */
 const SIZE_CONFIG = {
@@ -12,7 +12,7 @@ const SIZE_CONFIG = {
   xl: { container: 'w-16 h-16', icon: 32, hitSlop: 6 },
 }
 
-interface IconButtonProps extends Omit<PressableProps, 'style'> {
+export interface IconButtonProps extends Omit<PressableProps, 'style'> {
   /** The Lucide icon component to display (optional if children is provided) */
   icon?: LucideIcon
   /** Custom content to render inside the button (e.g. a pre-configured icon or badge) */
@@ -56,5 +56,27 @@ export const IconButton = ({
     >
       {Icon ? <Icon size={size ?? config.icon} color={color} strokeWidth={1.5} /> : children}
     </Pressable>
+  )
+}
+
+export interface IconButtonWithBadgeProps extends IconButtonProps {
+  badgeCount?: number
+  containerClassName?: string
+}
+
+export const IconButtonWithBadge = ({
+  badgeCount,
+  containerClassName,
+  ...props
+}: IconButtonWithBadgeProps) => {
+  return (
+    <View className={cn('relative', containerClassName)}>
+      <IconButton {...props} />
+      {badgeCount !== undefined && badgeCount > 0 && (
+        <View className="pointer-events-none absolute -right-1 -top-1 h-6 min-w-[24px] items-center justify-center rounded-full bg-error px-1.5 shadow-sm">
+          <Text className="text-xs font-black text-white">{badgeCount}</Text>
+        </View>
+      )}
+    </View>
   )
 }

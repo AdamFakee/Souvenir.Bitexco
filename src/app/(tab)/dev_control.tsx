@@ -484,6 +484,19 @@ export default function DevControlScreen() {
               })
             }
           />
+          <Button
+            label="Info Popup"
+            variant="outline"
+            className="border-primary"
+            textClassName="text-primary"
+            onPress={() =>
+              toast.infoPopup({
+                title: 'Thông báo',
+                message: 'Giao dịch đã được ghi nhận. Vui lòng hoàn tiền cho khách hàng.',
+                onConfirm: () => console.log('Đã bấm đồng ý info popup'),
+              })
+            }
+          />
         </View>
       </Container>
 
