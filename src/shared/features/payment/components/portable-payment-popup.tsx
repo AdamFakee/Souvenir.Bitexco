@@ -532,6 +532,8 @@ export const PortablePaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProp
                   {
                     id: checkoutResult.orderId,
                     total: checkoutResult.grandTotal,
+                    subtotal,
+                    discount,
                     totalTax: checkoutResult.taxTotal,
                     itemsSnapshot: items.map((i) => ({
                       sku: i.product.sku,

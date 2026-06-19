@@ -1,29 +1,31 @@
 import { ViceService } from '@/screens/vice-service'
-import { Container, ModalBase, Input } from '@/shared/components/ui'
+import { Container, Input, ModalBase } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
-import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { useAppStore } from '@/shared/features/app'
 import { AuthAPI } from '@/shared/features/auth'
 import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
 import { useNoteStore } from '@/shared/features/note'
+import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { RefundReceiptTemplate } from '@/shared/features/order/components/refund-receipt-template'
-import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
-import { AxiosService } from '@/shared/lib/axios/axios.service'
-import { database } from '@/shared/lib/database'
-import CategoryModel from '@/shared/lib/database/models/category'
-import ProductModel from '@/shared/lib/database/models/product'
-import OrderModel from '@/shared/lib/database/models/order'
-import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
-import { storage } from '@/shared/lib/storage'
-import { toast } from '@/shared/store'
-import React, { useEffect, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
 import {
   getPortablePosUrl,
   setPortablePosUrl,
 } from '@/shared/features/payment/utils/portable-payment.service'
+import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
+import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
+import { AxiosService } from '@/shared/lib/axios/axios.service'
+import { database } from '@/shared/lib/database'
+import CategoryModel from '@/shared/lib/database/models/category'
+import OrderModel from '@/shared/lib/database/models/order'
+import ProductModel from '@/shared/lib/database/models/product'
+import { storage } from '@/shared/lib/storage'
+import { PrinterService } from '@/shared/services/printer-service'
+import { toast } from '@/shared/store'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
+import React, { useEffect, useRef, useState } from 'react'
+import { ScrollView, Text, View } from 'react-native'
+import PrinterImin from 'react-native-printer-imin'
 
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
@@ -31,11 +33,163 @@ export default function DevControlScreen() {
   const [syncResult, setSyncResult] = useState<any>(null)
   const [isSyncResultVisible, setIsSyncResultVisible] = useState(false)
   const [isFetchingChanges, setIsFetchingChanges] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
+  const receiptPrintRef3 = useRef<View>(null)
+  const receiptPrintRef10 = useRef<View>(null)
+  const refundPrintRef = useRef<View>(null)
 
   const [posUrlInput, setPosUrlInput] = useState(getPortablePosUrl())
   const isPosConnected = useConnectionStore((state) => state.isPosConnected)
   const isCheckingPosConnection = useConnectionStore((state) => state.isCheckingPosConnection)
   const checkPosConnection = useConnectionStore((state) => state.checkPosConnection)
+
+  const handlePrint = async (ref: React.RefObject<any>, name: string) => {
+    if (isPrinting) return
+    setIsPrinting(true)
+    try {
+      await PrinterService.printComponent(ref)
+      toast.success(`Đã gửi lệnh in ${name} thành công!`)
+    } catch (err: any) {
+      toast.error('Lỗi máy in: ' + (err?.message ?? 'Không xác định'))
+    } finally {
+      setIsPrinting(false)
+    }
+  }
+
+  const handlePrintDoubleCopy = async (ref: React.RefObject<any>, name: string) => {
+    if (isPrinting) return
+    setIsPrinting(true)
+    try {
+      await PrinterService.printComponent(ref, { doubleCopy: true })
+      toast.success(`Đã gửi lệnh in 2 liên (${name}) thành công!`)
+    } catch (err: any) {
+      toast.error('Lỗi máy in: ' + (err?.message ?? 'Không xác định'))
+    } finally {
+      setIsPrinting(false)
+    }
+  }
+
+  const handlePrintTextCmd = async (copyNumber: number) => {
+    if (isPrinting) return
+    setIsPrinting(true)
+    try {
+      await PrinterImin.initPrinter()
+      const status = await PrinterImin.getPrinterStatus()
+      if (Number(status.code) !== 0) {
+        throw new Error(status.message)
+      }
+
+      await PrinterImin.setPageFormat(0) // 80mm
+
+      // Header
+      await PrinterImin.printText('Skystore Bitexco Financial Tower', {
+        fontSize: 32,
+        fontStyle: 1,
+        align: 1,
+      })
+      await PrinterImin.printText('36 Ho Tung Mau ST, District 1 HCMC', { fontSize: 28, align: 1 })
+      await PrinterImin.printText('TEL: (84-8) 39 156 156', { fontSize: 28, align: 1 })
+      await PrinterImin.printAndLineFeed()
+      await PrinterImin.printText('BANG KE BAN LE', { fontSize: 42, fontStyle: 1, align: 1 })
+      await PrinterImin.printText('---o0o---', { fontSize: 24, align: 1 })
+      await PrinterImin.printText(`Lien: ${copyNumber}`, { fontSize: 28, align: 1 })
+      await PrinterImin.printText('--------------------------------', { fontSize: 24 })
+
+      // Meta
+      const dateStr = new Date().toLocaleString('vi-VN')
+      await PrinterImin.printText(dateStr, { fontSize: 28 })
+      await PrinterImin.printText('So HD: ORD-MOCK-2026', { fontSize: 28 })
+      await PrinterImin.printText('Quay: F49 - 1', { fontSize: 28 })
+      await PrinterImin.printText('NV: Nguyen Huynh Tram Anh', { fontSize: 28 })
+      await PrinterImin.printText('--------------------------------', { fontSize: 24 })
+
+      // Table Header
+      await PrinterImin.printColumnsString([
+        { text: 'Don gia', width: 2, fontSize: 28, align: 0 },
+        { text: 'So luong', width: 1, fontSize: 28, align: 1 },
+        { text: 'Thanh tien', width: 2, fontSize: 28, align: 2 },
+      ])
+      await PrinterImin.printText('--------------------------------', { fontSize: 24 })
+
+      // Items
+      const items = [
+        {
+          sku: '2010113000043',
+          name: 'Metal Magnet Bitexco',
+          price: 78000,
+          quantity: 2,
+          subtotal: 156000,
+        },
+        {
+          sku: '2010113000088',
+          name: 'Postcard Saigon Skydeck',
+          price: 15000,
+          quantity: 1,
+          subtotal: 15000,
+        },
+      ]
+
+      for (const item of items) {
+        await PrinterImin.printText(item.name, { fontSize: 30, fontStyle: 1 })
+        await PrinterImin.printText(item.sku, { fontSize: 24 })
+        await PrinterImin.printColumnsString([
+          { text: item.price.toLocaleString('vi-VN'), width: 2, fontSize: 28, align: 0 },
+          { text: String(item.quantity), width: 1, fontSize: 28, align: 1 },
+          { text: item.subtotal.toLocaleString('vi-VN'), width: 2, fontSize: 28, align: 2 },
+        ])
+      }
+      await PrinterImin.printText('--------------------------------', { fontSize: 24 })
+
+      // Totals
+      await PrinterImin.printColumnsString([
+        { text: 'Tong', width: 1, fontSize: 28, align: 0 },
+        { text: '3', width: 1, fontSize: 28, align: 2 },
+      ])
+      await PrinterImin.printColumnsString([
+        { text: 'Tong tien:', width: 1, fontSize: 32, align: 0 },
+        { text: '171.000', width: 1, fontSize: 32, align: 2 },
+      ])
+      await PrinterImin.printColumnsString([
+        { text: 'Tien khach tra:', width: 1, fontSize: 28, align: 0 },
+        { text: '171.000', width: 1, fontSize: 28, align: 2 },
+      ])
+      await PrinterImin.printColumnsString([
+        { text: 'Tien tra lai cho khach:', width: 1, fontSize: 28, align: 0 },
+        { text: '0', width: 1, fontSize: 28, align: 2 },
+      ])
+
+      await PrinterImin.printText('Chi tiet tien thue:', { fontSize: 28 })
+      await PrinterImin.printColumnsString([
+        { text: 'VAT', width: 1, fontSize: 28, align: 0 },
+        { text: '15.545', width: 1, fontSize: 28, align: 2 },
+      ])
+      await PrinterImin.printText('--------------------------------', { fontSize: 24 })
+
+      // Payments
+      await PrinterImin.printText('Chi tiet thanh toan:', { fontSize: 28 })
+      await PrinterImin.printColumnsString([
+        { text: '+ CARD', width: 1, fontSize: 28, align: 0 },
+        { text: '171.000', width: 1, fontSize: 28, align: 2 },
+      ])
+      await PrinterImin.printText('--------------------------------', { fontSize: 24 })
+
+      // Footer
+      await PrinterImin.printText('Quy khach vui long kiem tra lai hoa don.', {
+        fontSize: 24,
+        align: 1,
+      })
+      await PrinterImin.printText('Xin cam on va hen gap lai', { fontSize: 24, align: 1 })
+
+      await PrinterImin.printAndFeedPaper(60) // Reduced from 100 to make bill shorter
+      await PrinterImin.partialCut()
+
+      toast.success(`Đã gửi lệnh in CMD lần ${copyNumber} thành công!`)
+    } catch (err: any) {
+      toast.error('Lỗi in CMD: ' + (err?.message ?? 'Không xác định'))
+    } finally {
+      setIsPrinting(false)
+    }
+  }
 
   const handleSaveAndTestPos = async () => {
     try {
@@ -952,16 +1106,17 @@ export default function DevControlScreen() {
       {/* 3. Receipt Preview */}
       <Text className="text-headline-sm mb-4 font-bold text-primary">Receipt Preview</Text>
       <View className="mb-12 items-center justify-center rounded-[32px] bg-surface-100 py-10 shadow-sm">
+        {/* Preview hiển thị */}
         <View className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-xl">
           <BitexcoReceiptTemplate
             order={
               {
                 id: 'ORD-MOCK-2026',
                 createdAt: new Date(),
-                total: 171000,
-                subtotal: 171000,
-                discount: 0,
-                totalTax: 15545,
+                total: 299480,
+                subtotal: 306000,
+                discount: 31000,
+                totalTax: 24480,
                 itemsSnapshot: [
                   {
                     sku: '2010113000043',
@@ -969,6 +1124,8 @@ export default function DevControlScreen() {
                     price: 78000,
                     quantity: 2,
                     subtotal: 156000,
+                    taxRate: 8,
+                    taxAmount: 12480,
                   },
                   {
                     sku: '2010113000088',
@@ -976,12 +1133,23 @@ export default function DevControlScreen() {
                     price: 15000,
                     quantity: 1,
                     subtotal: 15000,
+                    taxRate: 8,
+                    taxAmount: 1200,
+                  },
+                  {
+                    sku: '2010113000099',
+                    name: 'Keychain Bitexco Tower',
+                    price: 45000,
+                    quantity: 3,
+                    subtotal: 135000,
+                    taxRate: 8,
+                    taxAmount: 10800,
                   },
                 ],
                 paymentsSnapshot: [
                   {
                     method: 'CARD',
-                    amount: 171000,
+                    amount: 299480,
                   },
                 ],
                 staffId: 'NV001',
@@ -993,12 +1161,245 @@ export default function DevControlScreen() {
         <Text className="text-surface-onVariant mt-4 text-xs font-bold uppercase tracking-widest">
           Mẫu hóa đơn thực tế (Width: 576px)
         </Text>
+
+        <View className="mt-4 flex-row gap-3">
+          <Button
+            label="In 3 SP"
+            variant="outline"
+            className="flex-1 border-primary"
+            textClassName="text-primary font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrint(receiptPrintRef3, '3 sản phẩm')}
+          />
+          <Button
+            label="In 10 SP"
+            variant="outline"
+            className="flex-1 border-primary"
+            textClassName="text-primary font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrint(receiptPrintRef10, '10 sản phẩm')}
+          />
+        </View>
+
+        <View className="mt-3 flex-row gap-3">
+          <Button
+            label="In 2 liên (3 SP)"
+            variant="primary"
+            className="flex-1 bg-primary"
+            textClassName="text-white font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrintDoubleCopy(receiptPrintRef3, '3 sản phẩm')}
+          />
+          <Button
+            label="In 2 liên (10 SP)"
+            variant="primary"
+            className="flex-1 bg-primary"
+            textClassName="text-white font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrintDoubleCopy(receiptPrintRef10, '10 sản phẩm')}
+          />
+        </View>
+
+        <View className="mt-3 flex-row gap-3">
+          {[1, 2, 3].map((n) => (
+            <Button
+              key={n}
+              label={`In CMD lần ${n}`}
+              variant="primary"
+              className="px-4"
+              textClassName="font-bold"
+              loading={isPrinting}
+              disabled={isPrinting}
+              onPress={() => handlePrintTextCmd(n)}
+            />
+          ))}
+        </View>
+      </View>
+
+      {/* Hidden refs dùng để chụp ảnh in — render ngoài màn hình */}
+      <View style={{ position: 'absolute', left: -2000, top: 0 }} collapsable={false}>
+        {/* Mẫu 3 sản phẩm */}
+        <View collapsable={false} ref={receiptPrintRef3}>
+          <BitexcoReceiptTemplate
+            order={
+              {
+                id: 'ORD-MOCK-2026',
+                createdAt: new Date(),
+                total: 299480,
+                subtotal: 306000,
+                discount: 31000,
+                totalTax: 24480,
+                itemsSnapshot: [
+                  {
+                    sku: '2010113000043',
+                    name: 'Metal Magnet Bitexco',
+                    price: 78000,
+                    quantity: 2,
+                    subtotal: 156000,
+                    taxRate: 8,
+                    taxAmount: 12480,
+                  },
+                  {
+                    sku: '2010113000088',
+                    name: 'Postcard Saigon Skydeck',
+                    price: 15000,
+                    quantity: 1,
+                    subtotal: 15000,
+                    taxRate: 8,
+                    taxAmount: 1200,
+                  },
+                  {
+                    sku: '2010113000099',
+                    name: 'Keychain Bitexco Tower',
+                    price: 45000,
+                    quantity: 3,
+                    subtotal: 135000,
+                    taxRate: 8,
+                    taxAmount: 10800,
+                  },
+                ],
+                paymentsSnapshot: [
+                  {
+                    method: 'CARD',
+                    amount: 299480,
+                  },
+                ],
+                staffId: 'NV001',
+              } as any
+            }
+            staffName="Nguyễn Huỳnh Trâm Anh"
+          />
+        </View>
+
+        {/* Mẫu 10 sản phẩm */}
+        <View collapsable={false} ref={receiptPrintRef10}>
+          <BitexcoReceiptTemplate
+            order={
+              {
+                id: 'ORD-MOCK-2026',
+                createdAt: new Date(),
+                total: 1522880,
+                subtotal: 1536000,
+                discount: 136000,
+                totalTax: 122880,
+                itemsSnapshot: [
+                  {
+                    sku: '2010113000043',
+                    name: 'Metal Magnet Bitexco',
+                    price: 78000,
+                    quantity: 2,
+                    subtotal: 156000,
+                    taxRate: 8,
+                    taxAmount: 12480,
+                  },
+                  {
+                    sku: '2010113000088',
+                    name: 'Postcard Saigon Skydeck',
+                    price: 15000,
+                    quantity: 1,
+                    subtotal: 15000,
+                    taxRate: 8,
+                    taxAmount: 1200,
+                  },
+                  {
+                    sku: '2010113000099',
+                    name: 'Keychain Bitexco Tower',
+                    price: 45000,
+                    quantity: 3,
+                    subtotal: 135000,
+                    taxRate: 8,
+                    taxAmount: 10800,
+                  },
+                  {
+                    sku: '2010113000101',
+                    name: 'Coffee Mug Saigon',
+                    price: 120000,
+                    quantity: 1,
+                    subtotal: 120000,
+                    taxRate: 8,
+                    taxAmount: 9600,
+                  },
+                  {
+                    sku: '2010113000102',
+                    name: 'T-shirt Saigon Skydeck',
+                    price: 250000,
+                    quantity: 2,
+                    subtotal: 500000,
+                    taxRate: 8,
+                    taxAmount: 40000,
+                  },
+                  {
+                    sku: '2010113000103',
+                    name: 'Notebook Skyline',
+                    price: 60000,
+                    quantity: 1,
+                    subtotal: 60000,
+                    taxRate: 8,
+                    taxAmount: 4800,
+                  },
+                  {
+                    sku: '2010113000104',
+                    name: 'Canvas Tote Bag',
+                    price: 95000,
+                    quantity: 2,
+                    subtotal: 190000,
+                    taxRate: 8,
+                    taxAmount: 15200,
+                  },
+                  {
+                    sku: '2010113000105',
+                    name: 'Wooden Coaster Set',
+                    price: 80000,
+                    quantity: 1,
+                    subtotal: 80000,
+                    taxRate: 8,
+                    taxAmount: 6400,
+                  },
+                  {
+                    sku: '2010113000106',
+                    name: 'Snow Globe Skydeck',
+                    price: 180000,
+                    quantity: 1,
+                    subtotal: 180000,
+                    taxRate: 8,
+                    taxAmount: 14400,
+                  },
+                  {
+                    sku: '2010113000107',
+                    name: 'Sticker Pack Iconic',
+                    price: 20000,
+                    quantity: 5,
+                    subtotal: 100000,
+                    taxRate: 8,
+                    taxAmount: 8000,
+                  },
+                ],
+                paymentsSnapshot: [
+                  {
+                    method: 'CARD',
+                    amount: 1522880,
+                  },
+                ],
+                staffId: 'NV001',
+              } as any
+            }
+            staffName="Nguyễn Huỳnh Trâm Anh"
+          />
+        </View>
       </View>
 
       {/* 4. Refund Receipt Preview */}
       <Text className="text-headline-sm mb-4 font-bold text-primary">Refund Receipt Preview</Text>
       <View className="mb-12 items-center justify-center rounded-[32px] bg-surface-100 py-10 shadow-sm">
-        <View className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-xl">
+        <View
+          collapsable={false}
+          ref={refundPrintRef}
+          className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-xl"
+        >
           <RefundReceiptTemplate
             receipt={{
               orderId: 'ORD-MOCK-2026',
@@ -1036,8 +1437,29 @@ export default function DevControlScreen() {
           />
         </View>
         <Text className="text-surface-onVariant mt-4 text-xs font-bold uppercase tracking-widest">
-          Mẫu phiếu trả hàng thực tế (Width: 384px)
+          Mẫu phiếu trả hàng thực tế (Width: 576px)
         </Text>
+
+        <View className="mt-4 w-full flex-row gap-3 px-6">
+          <Button
+            label="In Phiếu Trả"
+            variant="outline"
+            className="flex-1 border-primary"
+            textClassName="text-primary font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrint(refundPrintRef, 'phiếu trả hàng')}
+          />
+          <Button
+            label="In 2 liên"
+            variant="primary"
+            className="flex-1 bg-primary"
+            textClassName="text-white font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrintDoubleCopy(refundPrintRef, 'phiếu trả hàng')}
+          />
+        </View>
       </View>
 
       <ModalBase

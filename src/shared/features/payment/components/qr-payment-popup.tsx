@@ -270,6 +270,8 @@ export const QrPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           ...savedOrder,
           id: savedOrder.id,
           total,
+          subtotal,
+          discount,
           totalTax: tax,
           itemsSnapshot: items.map((i) => ({
             sku: i.product.sku,

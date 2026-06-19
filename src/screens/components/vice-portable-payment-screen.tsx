@@ -15,26 +15,23 @@ function VicePortablePaymentScreen() {
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">
-        <View className="w-[360px] items-center justify-center rounded-[24px] border border-white/20 bg-white p-5 shadow-sm">
+        <View className="w-[280px] gap-2 rounded-xl bg-white px-3 py-3">
           {/* Lottie Animation */}
-          <LottieView
-            source={portableLottieAnimation}
-            autoPlay
-            loop
-            style={{ width: 160, height: 160 }}
-          />
+          <View className="w-full items-center justify-center py-1">
+            <LottieView
+              source={portableLottieAnimation}
+              autoPlay
+              loop
+              style={{ width: 140, height: 140 }}
+            />
+          </View>
 
-          <View className="mt-4 w-full rounded-2xl border border-outline-variant bg-white px-4 py-3">
-            <Text className="text-center text-2xl font-bold uppercase tracking-wide text-muted">
-              Tổng thanh toán
-            </Text>
-            <Text
-              className="mt-1 text-center text-3xl font-black text-primary"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.55}
-            >
-              {formatCurrency(total)}
+          <View className="h-px w-full bg-slate-200" />
+
+          {/* Amount info */}
+          <View className="w-full flex-row items-center justify-center">
+            <Text style={styles.totalLabel}>
+              Total: <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
             </Text>
           </View>
         </View>
@@ -44,12 +41,23 @@ function VicePortablePaymentScreen() {
 }
 
 const styles = StyleSheet.create({
-  bg: {
-    flex: 1,
-  },
+  bg: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(83, 123, 144, 0.75)',
+  },
+  totalLabel: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#1e293b',
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
+  totalValue: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#ff5c00',
+    includeFontPadding: false,
   },
 })
 

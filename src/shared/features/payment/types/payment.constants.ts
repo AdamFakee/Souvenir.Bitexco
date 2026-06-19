@@ -21,7 +21,7 @@ export type PaymentMethodCode = 'cash' | 'qr_bidv' | 'card_bidv' | 'mix'
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethodCode, string> = {
   cash: 'Tiền mặt',
-  qr_bidv: 'Chuyển khoản / QR',
+  qr_bidv: 'QR Code',
   card_bidv: 'Thẻ POS',
   mix: 'Hỗn hợp',
 }

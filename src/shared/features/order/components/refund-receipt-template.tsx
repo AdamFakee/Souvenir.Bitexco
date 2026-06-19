@@ -1,68 +1,41 @@
-import { formatCurrency } from '@/shared/utils'
+import { formatCurrency, formatDateTime } from '@/shared/utils'
 import React from 'react'
 import { Text, View } from 'react-native'
 import { RefundReceiptData } from '../api/remote/order.remote.api'
+import { DashedLine, ReceiptWrapper, S } from './receipt-wrapper'
 
 interface RefundReceiptTemplateProps {
   receipt: RefundReceiptData
+  copyNumber?: number
 }
 
-const DashedLine = () => (
-  <View
-    style={{
-      borderBottomWidth: 1,
-      borderBottomColor: '#000',
-      borderStyle: 'dashed',
-      marginVertical: 8,
-    }}
-  />
-)
-
-export function RefundReceiptTemplate({ receipt }: RefundReceiptTemplateProps) {
+export function RefundReceiptTemplate({ receipt, copyNumber = 1 }: RefundReceiptTemplateProps) {
   const refundedAt = receipt.refundedAt ? new Date(receipt.refundedAt) : new Date()
-  const formattedDate = refundedAt.toLocaleString('vi-VN')
   const returnCodeOrId = receipt.returnCode || receipt.returnId
   const orderCodeOrId = receipt.orderCode || receipt.orderId
 
   return (
-    <View className="bg-white px-4 py-8" style={{ width: 576 }}>
-      {/* Header */}
-      <View className="items-center">
-        <Text style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center' }}>
-          Quầy lưu niệm Saigon Skydeck - Bitexco Tower
-        </Text>
-        <Text style={{ fontSize: 28, textAlign: 'center', marginTop: 4 }}>
-          36 Ho Tung Mau ST, District 1 HCMC
-        </Text>
-        <Text style={{ fontSize: 28, textAlign: 'center' }}>TEL: (84-8) 39 156 156</Text>
-
-        <Text style={{ fontSize: 42, fontWeight: 'bold', marginTop: 16 }}>PHIẾU TRẢ HÀNG</Text>
-        <Text style={{ fontSize: 24 }}>---000---</Text>
-      </View>
-
-      <View className="mt-6 gap-1">
-        <Text style={{ fontSize: 28 }}>{formattedDate}</Text>
-        {!!returnCodeOrId && (
-          <Text style={{ fontSize: 28 }}>Mã phiếu: {returnCodeOrId.toUpperCase()}</Text>
-        )}
-        <Text style={{ fontSize: 28 }}>Đơn gốc: {orderCodeOrId.toUpperCase()}</Text>
-        {!!receipt.reason && (
-          <Text style={{ fontSize: 28, marginTop: 4 }}>Lý do: {receipt.reason}</Text>
-        )}
+    <ReceiptWrapper title="PHIẾU TRẢ HÀNG" copyNumber={copyNumber}>
+      {/* Meta info — để dọc */}
+      <View style={{ marginTop: 4 }}>
+        <Text style={S.fs28}>{formatDateTime(refundedAt)}</Text>
+        {!!returnCodeOrId && <Text style={S.fs28}>Mã phiếu: {returnCodeOrId.toUpperCase()}</Text>}
+        <Text style={S.fs28}>Đơn gốc: {orderCodeOrId.toUpperCase()}</Text>
+        {!!receipt.reason && <Text style={S.fs28}>Lý do: {receipt.reason}</Text>}
       </View>
 
       <DashedLine />
 
       {/* Table Header */}
-      <View className="flex-row">
-        <View style={{ flex: 2.5 }}>
-          <Text style={{ fontSize: 28, fontWeight: 'bold' }}>Sản phẩm</Text>
+      <View style={{ flexDirection: 'row' }}>
+        <View style={{ flex: 2 }}>
+          <Text style={S.fs28}>Sản phẩm</Text>
         </View>
-        <View style={{ flex: 1.5 }}>
-          <Text style={{ fontSize: 28, fontWeight: 'bold', textAlign: 'center' }}>Số lượng</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={{ ...S.fs28, textAlign: 'center' }}>Số lượng</Text>
         </View>
         <View style={{ flex: 2 }}>
-          <Text style={{ fontSize: 28, fontWeight: 'bold', textAlign: 'right' }}>Hoàn tiền</Text>
+          <Text style={{ ...S.fs28, textAlign: 'right' }}>Hoàn tiền</Text>
         </View>
       </View>
 
@@ -70,19 +43,19 @@ export function RefundReceiptTemplate({ receipt }: RefundReceiptTemplateProps) {
 
       {/* Items */}
       {receipt.lines.map((line) => (
-        <View key={line.productId} className="mb-4">
-          <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{line.name}</Text>
-          <Text style={{ fontSize: 24 }}>{line.sku || '---'}</Text>
+        <View key={line.productId} style={{ marginBottom: 4 }}>
+          <Text style={S.fs28b}>{line.name}</Text>
+          <Text style={{ ...S.fs24, lineHeight: 26 }}>{line.sku || '---'}</Text>
 
-          <View className="mt-1 flex-row">
-            <View style={{ flex: 2.5 }}>
-              <Text style={{ fontSize: 28 }}>Mua: {line.orderedQty}</Text>
+          <View style={{ flexDirection: 'row' }}>
+            <View style={{ flex: 2 }}>
+              <Text style={S.fs28}>Mua: {line.orderedQty}</Text>
             </View>
-            <View style={{ flex: 1.5 }}>
-              <Text style={{ fontSize: 28, textAlign: 'center' }}>Trả: {line.returnedQty}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ ...S.fs28, textAlign: 'center' }}>Trả: {line.returnedQty}</Text>
             </View>
             <View style={{ flex: 2 }}>
-              <Text style={{ fontSize: 28, textAlign: 'right', fontWeight: 'bold' }}>
+              <Text style={{ ...S.fs28, textAlign: 'right' }}>
                 {line.isReturned ? `-${formatCurrency(line.lineRefundAmount)}` : 'Không trả'}
               </Text>
             </View>
@@ -93,25 +66,12 @@ export function RefundReceiptTemplate({ receipt }: RefundReceiptTemplateProps) {
       <DashedLine />
 
       {/* Totals */}
-      <View className="gap-1">
-        <View className="flex-row justify-between">
-          <Text style={{ fontSize: 32, fontWeight: 'bold' }}>Tổng tiền hoàn:</Text>
-          <Text style={{ fontSize: 32, fontWeight: 'bold' }}>
-            {formatCurrency(receipt.refundAmount)}
-          </Text>
+      <View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={S.fs32b}>Tổng tiền hoàn:</Text>
+          <Text style={S.fs32b}>{formatCurrency(receipt.refundAmount)}</Text>
         </View>
       </View>
-
-      <DashedLine />
-
-      <View className="mt-2 items-center">
-        <Text style={{ fontSize: 24, textAlign: 'center', fontStyle: 'italic' }}>
-          Quý khách vui lòng kiểm tra lại hóa đơn.
-        </Text>
-        <Text style={{ fontSize: 24, textAlign: 'center', fontStyle: 'italic', marginTop: 4 }}>
-          Xin cảm ơn và hẹn gặp lại
-        </Text>
-      </View>
-    </View>
+    </ReceiptWrapper>
   )
 }

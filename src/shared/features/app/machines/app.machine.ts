@@ -1,10 +1,10 @@
+import { SyncService } from '@/shared/lib/database/sync'
 import { storage } from '@/shared/lib/storage'
 import { AxiosError } from 'axios'
 import { assign, fromPromise, setup } from 'xstate'
 import { AuthAPI } from '../../auth/api/auth.api'
 import { PaymentRemoteAPI } from '../../payment/api/remote/payment.remote.api'
 import { ShiftRemoteAPI } from '../../shift/api/remote/shift.remote.api'
-import { SyncService } from '@/shared/lib/database/sync'
 import type { AppContext, AppEvent } from '../types/app.types'
 
 /** Key MMKV để lưu refresh token — phải khớp với use-app-store.ts */

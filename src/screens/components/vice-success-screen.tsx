@@ -18,8 +18,8 @@ function ViceSuccessScreen() {
   return (
     <ViceStatusScreen
       type="success"
-      title="Thanh toán thành công"
-      message="Cảm ơn và hẹn gặp lại quý khách!"
+      title="Payment Successful"
+      message="Thank you! Have a great day!"
     />
   )
 }

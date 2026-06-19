@@ -6,6 +6,7 @@ export interface PrintOptions {
   partialCut?: boolean
   width?: number
   align?: number
+  doubleCopy?: boolean
 }
 
 const DEFAULT_OPTIONS: PrintOptions = {
@@ -13,6 +14,24 @@ const DEFAULT_OPTIONS: PrintOptions = {
   partialCut: true,
   width: 576,
   align: 1, // Center
+  doubleCopy: false,
+}
+
+// Bộ lắng nghe thay đổi Liên in (Copy Number)
+const copyNumberListeners = new Set<(copyNo: number) => void>()
+let currentCopyNumber = 1
+
+export const setGlobalPrintCopyNumber = (copyNo: number) => {
+  currentCopyNumber = copyNo
+  copyNumberListeners.forEach((cb) => cb(copyNo))
+}
+
+export const subscribePrintCopyNumber = (cb: (copyNo: number) => void) => {
+  copyNumberListeners.add(cb)
+  cb(currentCopyNumber)
+  return () => {
+    copyNumberListeners.delete(cb)
+  }
 }
 
 /**
@@ -55,12 +74,11 @@ export const PrinterService = {
     if (!ref?.current) {
       throw new Error('View Reference không hợp lệ')
     }
-
     return await captureRef(ref, {
       format: 'png',
       quality: 1,
       result: 'tmpfile',
-      width: 576 * 4, // Super sampling 4x để đảm bảo độ nét
+      width: 576 * 4, // Super sampling 4x để chữ sắc nét
     })
   },
 
@@ -103,11 +121,37 @@ export const PrinterService = {
     }
   },
 
-  /**
-   * Chụp và In bill từ một UI Ref
-   */
   async printComponent(ref: any, options?: PrintOptions) {
-    const imageUri = await this.captureView(ref)
-    return await this.printBitmap(imageUri, options)
+    const opts = { ...DEFAULT_OPTIONS, ...options }
+
+    if (opts.doubleCopy) {
+      try {
+        // --- IN LIÊN 1 ---
+        setGlobalPrintCopyNumber(1)
+        // Đợi 150ms để React cập nhật giao diện hiển thị Liên 1
+        await new Promise((resolve) => setTimeout(resolve, 150))
+        const imageUri1 = await this.captureView(ref)
+        // Liên 1 chỉ feed 45 để dao cắt nằm đúng mép dưới của Liên 1
+        await this.printBitmap(imageUri1, { ...opts, feedPaper: 45 })
+
+        // --- IN LIÊN 2 ---
+        setGlobalPrintCopyNumber(2)
+        // Đợi 150ms để React cập nhật giao diện hiển thị Liên 2
+        await new Promise((resolve) => setTimeout(resolve, 150))
+        const imageUri2 = await this.captureView(ref)
+        // Liên 2 feed 100 để đẩy hẳn bill ra ngoài tránh bị kẹt
+        await this.printBitmap(imageUri2, opts)
+
+        // Reset lại Liên 1
+        setGlobalPrintCopyNumber(1)
+        return { success: true }
+      } catch (error) {
+        setGlobalPrintCopyNumber(1)
+        throw error
+      }
+    } else {
+      const imageUri = await this.captureView(ref)
+      return await this.printBitmap(imageUri, opts)
+    }
   },
 }

@@ -11,10 +11,8 @@ import { useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
-// Relative imports to avoid circular dependencies
 import { closeShiftMachine } from '../machines/close-shift.machine'
 import { closeShiftSchema, type CloseShiftInput } from '../validations/close-shift.validation'
-import { ZReportPrintTemplate } from './z-report-print-template'
 
 export interface CloseShiftModalRef {
   open: () => void
@@ -39,18 +37,17 @@ const DISCREPANCY_REASONS = [
 export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
   const [visible, setVisible] = useState(false)
   const [showManualInput, setShowManualInput] = useState(false)
-  const zReportRef = useRef(null)
 
   // Khởi tạo XState Machine
   const [state, send] = useMachine(closeShiftMachine, {
     input: {
       shiftId: shiftId || '',
-      printRef: zReportRef,
+      printRef: { current: null },
     },
   })
 
   // Giải nén context từ XState
-  const { expectedEndingCash, unsyncedCount, zReportData } = state.context
+  const { expectedEndingCash, unsyncedCount } = state.context
 
   // Phản ánh trạng thái máy trạng thái
   const isChecking = state.matches('checkingSyncStatus')
@@ -58,7 +55,7 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
   const isUnsynced = state.matches('unsyncedWarning')
   const isSyncing = state.matches('syncing')
   const isReady = state.matches('readyToClose')
-  const isClosing = state.matches('closing') || state.matches('printing')
+  const isClosing = state.matches('closing')
 
   const { control, handleSubmit, watch, reset, setValue } = useForm<CloseShiftInput>({
     resolver: valibotResolver(closeShiftSchema),
@@ -138,14 +135,6 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
       className="max-w-[640px] overflow-hidden rounded-[28px] bg-surface-50"
     >
       <View className="bg-surface-50 px-6 pb-5 pt-5">
-        {zReportData && (
-          <View style={{ position: 'absolute', left: -3000, top: 0 }}>
-            <View collapsable={false} ref={zReportRef}>
-              <ZReportPrintTemplate data={zReportData} />
-            </View>
-          </View>
-        )}
-
         <KeyboardAwareScrollView showsVerticalScrollIndicator={false} bottomOffset={32}>
           <View className="overflow-hidden rounded-[32px] border border-surface-200 bg-white px-6 py-6 shadow-sm">
             <View className="items-center justify-center px-4 py-4">
@@ -156,7 +145,7 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
                 Kết thúc ca
               </Text>
               <Text className="mt-2 max-w-[420px] text-center text-base leading-6 text-neutral-600">
-                Kiểm đếm tiền mặt tại quầy trước khi in kết ca.
+                Kiểm đếm tiền mặt tại quầy trước khi kết ca.
               </Text>
             </View>
 

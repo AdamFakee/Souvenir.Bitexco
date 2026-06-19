@@ -1,5 +1,5 @@
+import { PAYMENT_CHART_COLORS, PAYMENT_METHOD_LABELS } from '@/shared/features/payment'
 import { database, OrderModel, OrderStatus, ProductModel } from '@/shared/lib/database'
-import { PAYMENT_CHART_COLORS } from '@/shared/features/payment'
 import { Q } from '@nozbe/watermelondb'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -95,9 +95,13 @@ export const useDashboardStats = (shiftId?: string) => {
         .slice(0, 5)
 
       const paymentMethodsData = [
-        { name: 'Tiền mặt', value: revCash, color: PAYMENT_CHART_COLORS.cash },
-        { name: 'Chuyển khoản / QR', value: revQr, color: PAYMENT_CHART_COLORS.qr_bidv },
-        { name: 'Thẻ POS', value: revCard, color: PAYMENT_CHART_COLORS.card_bidv },
+        { name: PAYMENT_METHOD_LABELS.cash, value: revCash, color: PAYMENT_CHART_COLORS.cash },
+        { name: PAYMENT_METHOD_LABELS.qr_bidv, value: revQr, color: PAYMENT_CHART_COLORS.qr_bidv },
+        {
+          name: PAYMENT_METHOD_LABELS.card_bidv,
+          value: revCard,
+          color: PAYMENT_CHART_COLORS.card_bidv,
+        },
       ].filter((d) => d.value > 0)
 
       return {

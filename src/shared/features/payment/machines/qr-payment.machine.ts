@@ -176,7 +176,7 @@ export const qrPaymentMachine = setup({
         throw new Error('Không tìm thấy component in hóa đơn')
       }
       await new Promise((resolve) => setTimeout(resolve, 800))
-      await PrinterService.printComponent(input.printRef)
+      await PrinterService.printComponent(input.printRef, { doubleCopy: true })
     }),
   },
   guards: {

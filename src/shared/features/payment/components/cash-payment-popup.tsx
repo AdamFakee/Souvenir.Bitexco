@@ -27,6 +27,8 @@ function buildReceiptOrder(
   items: CartItem[],
   cashTendered: string,
   roundedTotal: number,
+  subtotal: number,
+  discount: number,
   staffId: string,
   shiftId: string,
 ): IOrder {
@@ -41,9 +43,9 @@ function buildReceiptOrder(
     shiftId,
     staffId,
     status: OrderStatus.COMPLETED,
-    subtotal: roundedTotal,
-    discount: 0,
-    voucherDiscount: 0,
+    subtotal,
+    discount,
+    voucherDiscount: discount,
     total: roundedTotal,
     totalTax,
     customerTaxInfo: null,
@@ -96,6 +98,7 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     const [cashTendered, setCashTendered] = useState('')
 
     const roundedTotal = roundCashAmount(total)
+    const subtotal = calculateSubtotal(items)
 
     // Khởi tạo actor với toàn bộ context
     const actorRef = useActorRef(
@@ -146,7 +149,6 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
       const paid = Number(cashTendered)
       const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
-      const subtotal = calculateSubtotal(items)
       const tax = calculateTotalTax(items)
 
       ViceService.paymentSuccess({
@@ -420,6 +422,8 @@ export const CashPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                   items,
                   cashTendered,
                   roundedTotal,
+                  subtotal,
+                  discount,
                   staffId,
                   shiftId,
                 )}

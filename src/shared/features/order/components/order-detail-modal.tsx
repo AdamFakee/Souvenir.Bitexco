@@ -31,10 +31,10 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
   const exchangeModalRef = useRef<ExchangeConfirmModalRef>(null)
   const printRef = useRef(null)
 
-  const handlePrint = async () => {
+  const handlePrint = async (doubleCopy: boolean = false) => {
     try {
       if (!printRef.current) return
-      await PrinterService.printComponent(printRef)
+      await PrinterService.printComponent(printRef, { doubleCopy })
     } catch (error: any) {
       toast.error(error.message || 'Lỗi khi in hóa đơn')
     }
@@ -296,11 +296,19 @@ export default function OrderDetailModal({ ref }: OrderDetailModalProps) {
                   }}
                 />
                 <Button
-                  label="In hóa đơn"
+                  label="In 1 liên"
+                  variant="outline"
                   leftIcon={Printer}
-                  className="h-16 rounded-2xl px-12"
+                  className="h-16 rounded-2xl border-primary px-8"
+                  textClassName="text-xl font-black text-primary"
+                  onPress={() => handlePrint(false)}
+                />
+                <Button
+                  label="In 2 liên"
+                  leftIcon={Printer}
+                  className="h-16 rounded-2xl px-8"
                   textClassName="text-xl font-black"
-                  onPress={handlePrint}
+                  onPress={() => handlePrint(true)}
                 />
               </View>
             </View>

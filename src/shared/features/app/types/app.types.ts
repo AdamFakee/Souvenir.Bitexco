@@ -1,6 +1,6 @@
+import type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 import type { ActorRefFrom } from 'xstate'
 import type { appMachine } from '../machines/app.machine'
-import type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 
 export type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 

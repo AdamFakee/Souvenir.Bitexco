@@ -188,7 +188,7 @@ export const cashPaymentMachine = setup({
         }
 
         await new Promise((resolve) => setTimeout(resolve, 800))
-        await PrinterService.printComponent(input.printRef)
+        await PrinterService.printComponent(input.printRef, { doubleCopy: true })
       },
     ),
   },

@@ -149,45 +149,7 @@ export const closeShiftMachine = setup({
           console.log('[closeShiftActor] resolve hoàn tất. Ca đã CLOSED trực tuyến.')
         }
 
-        // Lấy Z-Report — chỉ gọi nếu nhân viên có quyền print:shift
-        let zReportData: ZReportResponse | null = null
-        const employee = useAppStore.getState().appService?.getSnapshot().context.employee
-        const canPrintShift =
-          employee?.permissions?.includes(EmployeePermission.PRINT_SHIFT) ?? false
-        if (canPrintShift) {
-          try {
-            zReportData = await ShiftRemoteAPI.getZReport(input.shiftId)
-            console.log('[closeShiftActor] Nạp Z-report thành công.')
-          } catch (zReportErr) {
-            console.warn('[closeShiftActor] Lấy Z-Report thất bại.', zReportErr)
-          }
-        } else {
-          console.log('[closeShiftActor] Bỏ qua Z-Report — nhân viên không có quyền print:shift.')
-        }
-
-        return zReportData
-      },
-    ),
-
-    /**
-     * In Z-Report offscreen
-     */
-    printZReport: fromPromise(
-      async ({ input }: { input: { printRef: React.RefObject<unknown> } }) => {
-        const employee = useAppStore.getState().appService?.getSnapshot().context.employee
-        const canPrintShift =
-          employee?.permissions?.includes(EmployeePermission.PRINT_SHIFT) ?? false
-        if (!canPrintShift) {
-          console.log('[printZReportActor] Bỏ qua in ấn — nhân viên không có quyền print:shift.')
-          return
-        }
-        if (!input.printRef?.current) {
-          toast.warning('In báo cáo ca thất bại')
-          return
-        }
-        // Đợi 600ms để React vẽ xong template ẩn
-        await new Promise((resolve) => setTimeout(resolve, 600))
-        await PrinterService.printComponent(input.printRef)
+        return null
       },
     ),
   },
@@ -391,26 +353,11 @@ export const closeShiftMachine = setup({
           discrepancyReason: context.discrepancyReason,
         }),
         onDone: {
-          target: 'printing',
-          actions: 'assignZReportData',
+          target: 'success',
         },
         onError: {
           target: 'readyToClose',
           actions: ['recordError', 'toastError'],
-        },
-      },
-    },
-
-    printing: {
-      invoke: {
-        id: 'printZReport',
-        src: 'printZReport',
-        input: ({ context }) => ({ printRef: context.printRef }),
-        onDone: {
-          target: 'success',
-        },
-        onError: {
-          target: 'success', // Lỗi in không cản trở flow đăng xuất chính
         },
       },
     },

@@ -6,6 +6,7 @@ import { Text, View } from 'react-native'
 import { IOrder } from '../types'
 
 import { useAppContext } from '@/shared/features/app'
+import { DashedLine, ReceiptWrapper, S } from './receipt-wrapper'
 
 interface BitexcoReceiptTemplateProps {
   order: IOrder
@@ -13,29 +14,23 @@ interface BitexcoReceiptTemplateProps {
   copyNumber?: number
 }
 
-const DashedLine = () => (
-  <View
-    style={{
-      borderBottomWidth: 1,
-      borderBottomColor: '#000',
-      borderStyle: 'dashed',
-      marginVertical: 8,
-    }}
-  />
-)
-
 export const BitexcoReceiptTemplate = ({
   order,
   staffName,
   copyNumber = 1,
 }: BitexcoReceiptTemplateProps) => {
-  const { employee } = useAppContext()
+  const { employee, device } = useAppContext()
   const [resolvedStaffName, setResolvedStaffName] = useState(staffName)
 
   useEffect(() => {
     if (staffName) {
       setResolvedStaffName(staffName)
-    } else if (order.staffId === employee?.employeeCode) {
+    } else if (
+      employee &&
+      (order.staffId === employee.id || order.staffId === employee.employeeCode)
+    ) {
+      setResolvedStaffName(employee.displayName)
+    } else if (employee?.displayName) {
       setResolvedStaffName(employee.displayName)
     }
   }, [order.staffId, staffName, employee])
@@ -44,136 +39,144 @@ export const BitexcoReceiptTemplate = ({
     id: orderId,
     createdAt,
     total,
+    subtotal,
+    discount = 0,
     totalTax,
     itemsSnapshot: items = [],
     paymentsSnapshot: payments = [],
   } = order
 
-  // Format currency for
+  const deviceName = device?.name ?? null
+
   const formatCurrency = (amount: any) => {
     if (typeof amount !== 'number') return '0'
     return amount.toLocaleString('vi-VN')
   }
 
   const totalPaid = (payments || []).reduce((acc, p: PaymentSnapshot) => acc + (p.amount || 0), 0)
-
-  // Tính toán làm tròn (Rounding)
-  // Trong hệ thống, subtotal - discount + tax là total thực tế trước làm tròn (nếu là tiền mặt)
-  // Nhưng ở đây ta so sánh total lưu trong đơn hàng với (subtotal - discount + tax)
   const changeAmount = Math.max(0, totalPaid - total)
+  const totalQty = items.reduce((sum: number, i: ItemSnapshot) => sum + (i.quantity || 0), 0)
+
+  const discountPercentStr = (() => {
+    if (!discount || !subtotal) return ''
+    const pct = (discount / subtotal) * 100
+    return pct % 1 === 0 ? `${pct}%` : `${pct.toFixed(1)}%`
+  })()
 
   return (
-    <View className="bg-white px-4 py-8" style={{ width: 576 }}>
-      {/* Header */}
-      <View className="items-center">
-        <Text style={{ fontSize: 32, fontWeight: 'bold', textAlign: 'center' }}>
-          Quầy lưu niệm Saigon Skydeck - Bitexco Tower
-        </Text>
-        <Text style={{ fontSize: 28, textAlign: 'center', marginTop: 4 }}>
-          36 Ho Tung Mau ST, District 1 HCMC
-        </Text>
-        <Text style={{ fontSize: 28, textAlign: 'center' }}>TEL: (84-8) 39 156 156</Text>
-
-        <Text style={{ fontSize: 42, fontWeight: 'bold', marginTop: 16 }}>BẢNG KÊ BÁN LẺ</Text>
-        <Text style={{ fontSize: 24 }}>---000---</Text>
-        <Text style={{ fontSize: 28 }}>Liên: {copyNumber}</Text>
-      </View>
-
-      <View className="mt-6 gap-1">
-        <Text style={{ fontSize: 28 }}>{formatDateTime(createdAt || new Date())}</Text>
-        <Text style={{ fontSize: 28 }}>Số HD: {orderId ? orderId.toUpperCase() : '---'}</Text>
-        <Text style={{ fontSize: 28 }}>
-          Nhân viên: {resolvedStaffName || order.staffId || '---'}
-        </Text>
+    <ReceiptWrapper title="SALES RECEIPT" copyNumber={copyNumber}>
+      {/* Meta info — Chỉ hiển thị Date và Receipt */}
+      <View style={{ marginTop: 4 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={S.fs28}>Date:</Text>
+          <Text style={S.fs28}>{formatDateTime(createdAt || new Date())}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+          <Text style={S.fs28}>Receipt:</Text>
+          <Text style={S.fs28}>{orderId ? orderId.toUpperCase() : '---'}</Text>
+        </View>
       </View>
 
       <DashedLine />
 
       {/* Table Header */}
-      <View className="flex-row">
-        <View style={{ flex: 2 }}>
-          <Text style={{ fontSize: 28, fontWeight: 'bold' }}>Đơn giá</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flex: 2.5 }}>
+          <Text style={S.fs28}>Unit Price</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 28, fontWeight: 'bold', textAlign: 'center' }}>Số lượng</Text>
+        <View style={{ flex: 1.5, alignItems: 'center' }}>
+          <Text style={S.fs28}>Quantity</Text>
         </View>
         <View style={{ flex: 2 }}>
-          <Text style={{ fontSize: 28, fontWeight: 'bold', textAlign: 'right' }}>Thành tiền</Text>
+          <Text style={{ ...S.fs28, textAlign: 'right' }}>Amount</Text>
         </View>
       </View>
 
       <DashedLine />
 
       {/* Items */}
-      {items.map((item: ItemSnapshot, index: number) => (
-        <View key={index} className="mb-4">
-          <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{item.name}</Text>
-          <Text style={{ fontSize: 24 }}>{item.sku}</Text>
-          <View className="mt-1 flex-row">
-            <View style={{ flex: 2 }}>
-              <Text style={{ fontSize: 28 }}>{formatCurrency(item.price)}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 28, textAlign: 'center' }}>{item.quantity}</Text>
-            </View>
-            <View style={{ flex: 2 }}>
-              <Text style={{ fontSize: 28, textAlign: 'right', fontWeight: 'bold' }}>
-                {formatCurrency(item.subtotal || item.price * item.quantity)}
-              </Text>
+      {items.map((item: ItemSnapshot, index: number) => {
+        const finalLineAmount = item.price * item.quantity + (item.taxAmount || 0)
+        const taxPercent = item.taxRate
+          ? item.taxRate <= 1 && item.taxRate > 0
+            ? Math.round(item.taxRate * 100)
+            : Math.round(item.taxRate)
+          : 0
+
+        return (
+          <View key={index} style={{ marginBottom: 4 }}>
+            <Text style={S.fs28}>{item.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 2.5 }}>
+                <Text style={S.fs28}>
+                  {formatCurrency(item.price)} (VAT {taxPercent}%)
+                </Text>
+              </View>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={S.fs28}>{item.quantity}</Text>
+              </View>
+              <View style={{ flex: 2 }}>
+                <Text style={{ ...S.fs28, textAlign: 'right' }}>
+                  {formatCurrency(finalLineAmount)}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      ))}
+        )
+      })}
 
       <DashedLine />
 
       {/* Totals */}
-      <View className="gap-1">
-        <View className="flex-row justify-between">
-          <Text style={{ fontSize: 32, fontWeight: 'bold' }}>Tổng tiền:</Text>
-          <Text style={{ fontSize: 32, fontWeight: 'bold' }}>{formatCurrency(total)}</Text>
-        </View>
-
-        <View className="mt-2 flex-row justify-between">
-          <Text style={{ fontSize: 28, fontWeight: 'bold' }}>Tiền khách trả:</Text>
-          <Text style={{ fontSize: 28, fontWeight: 'bold' }}>{formatCurrency(totalPaid)}</Text>
-        </View>
-        <View className="flex-row justify-between">
-          <Text style={{ fontSize: 28 }}>Tiền trả lại cho khách:</Text>
-          <Text style={{ fontSize: 28 }}>{formatCurrency(changeAmount)}</Text>
-        </View>
-
-        <View className="mt-2">
-          <Text style={{ fontSize: 28, fontWeight: 'bold' }}>Chi tiết tiền thuế:</Text>
-          <View className="ml-4 flex-row justify-between">
-            <Text style={{ fontSize: 28 }}>VAT</Text>
-            <Text style={{ fontSize: 28 }}>{formatCurrency(totalTax || 0)}</Text>
+      <View style={{ gap: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 2.5 }}>
+            <Text style={S.fs28}>Subtotal</Text>
           </View>
+          <View style={{ flex: 1.5, alignItems: 'center' }}>
+            <Text style={S.fs28}>{totalQty}</Text>
+          </View>
+          <View style={{ flex: 2 }}>
+            <Text style={{ ...S.fs28, textAlign: 'right' }}>{formatCurrency(subtotal)}</Text>
+          </View>
+        </View>
+        {totalTax > 0 && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={S.fs28}>VAT:</Text>
+            <Text style={{ ...S.fs28, textAlign: 'right' }}>{formatCurrency(totalTax)}</Text>
+          </View>
+        )}
+        {discount > 0 && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={S.fs28}>Discount:</Text>
+            <Text style={{ ...S.fs28, textAlign: 'right' }}>-{formatCurrency(discount)}</Text>
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={S.fs32b}>Total:</Text>
+          <Text style={S.fs32b}>{formatCurrency(total)}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={S.fs28}>Tendered:</Text>
+          <Text style={S.fs28}>{formatCurrency(totalPaid)}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={S.fs28n}>Change Due:</Text>
+          <Text style={S.fs28n}>{formatCurrency(changeAmount)}</Text>
         </View>
       </View>
 
       <DashedLine />
 
       <View>
-        <Text style={{ fontSize: 28, fontWeight: 'bold' }}>Chi tiết thanh toán:</Text>
+        <Text style={S.fs28}>Paid by:</Text>
         {payments.map((p: PaymentSnapshot, idx: number) => (
-          <View key={idx} className="ml-4 flex-row justify-between">
-            <Text style={{ fontSize: 28 }}>+ {PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Text>
-            <Text style={{ fontSize: 28 }}>{formatCurrency(p.amount || 0)}</Text>
+          <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={S.fs28n}>+ {PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Text>
+            <Text style={S.fs28n}>{formatCurrency(p.amount || 0)}</Text>
           </View>
         ))}
       </View>
-
-      <DashedLine />
-
-      <View className="mt-2 items-center">
-        <Text style={{ fontSize: 24, textAlign: 'center', fontStyle: 'italic' }}>
-          Quý khách vui lòng kiểm tra lại hóa đơn.
-        </Text>
-        <Text style={{ fontSize: 24, textAlign: 'center', fontStyle: 'italic', marginTop: 4 }}>
-          Xin cảm ơn và hẹn gặp lại
-        </Text>
-      </View>
-    </View>
+    </ReceiptWrapper>
   )
 }

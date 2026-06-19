@@ -6,7 +6,7 @@ import { Image, ImageBackground, StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useViceStore } from '../vice-store'
 
-const QRCODE_SIZE = 240
+const QRCODE_SIZE = 220
 
 function VicePaymentScreen() {
   const qrCodeUrl = useViceStore((state) => state.qrCodeUrl)
@@ -16,10 +16,10 @@ function VicePaymentScreen() {
     <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
       <View style={styles.overlay} />
 
-      <View className="m-4 flex-1 items-center justify-center">
-        <View className="w-[360px] items-center rounded-[24px] border border-white/20 bg-white p-5 shadow-sm">
-          {/* Phần 1: Khung QR Code */}
-          <View className="items-center justify-center rounded-[18px] border border-outline-variant bg-white p-3">
+      <View className="flex-1 items-center justify-center p-4">
+        <View className="w-[280px] gap-2 rounded-xl bg-white px-3 py-3">
+          {/* QR Code Container */}
+          <View className="w-full items-center justify-center rounded-lg bg-white p-2">
             {qrCodeUrl ? (
               qrCodeUrl.startsWith('http') ? (
                 <Image
@@ -36,27 +36,16 @@ function VicePaymentScreen() {
                 />
               )
             ) : (
-              <Shimmer
-                className="rounded-[12px]"
-                style={{ width: QRCODE_SIZE, height: QRCODE_SIZE }}
-              />
+              <Shimmer className="rounded-lg" style={{ width: QRCODE_SIZE, height: QRCODE_SIZE }} />
             )}
           </View>
 
-          <View className="my-4 w-full border-b border-outline-variant" />
+          <View className="h-px w-full bg-slate-200" />
 
-          {/* Phần 2: Số tiền cần thanh toán */}
-          <View className="w-full rounded-2xl border border-outline-variant bg-white px-4 py-3">
-            <Text className="text-center text-2xl font-bold uppercase tracking-wide text-muted">
-              Tổng thanh toán
-            </Text>
-            <Text
-              className="mt-1 text-center text-3xl font-black text-primary"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.55}
-            >
-              {formatCurrency(total)}
+          {/* Amount info */}
+          <View className="w-full flex-row items-center justify-center">
+            <Text style={styles.totalLabel}>
+              Total: <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
             </Text>
           </View>
         </View>
@@ -66,12 +55,23 @@ function VicePaymentScreen() {
 }
 
 const styles = StyleSheet.create({
-  bg: {
-    flex: 1,
-  },
+  bg: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(83, 123, 144, 0.75)',
+  },
+  totalLabel: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#1e293b',
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
+  totalValue: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#ff5c00',
+    includeFontPadding: false,
   },
 })
 

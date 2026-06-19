@@ -1,7 +1,7 @@
 import {
+  IOrder,
   OrderDetailModal,
   OrderDetailModalRef,
-  IOrder,
   OrderFilterBar,
   OrderList,
   OrderStatsFooter,
