@@ -6,11 +6,13 @@ interface OrderFilterState {
   status: OrderStatus | null
   dateFrom: Date | null
   dateTo: Date | null
+  scope: 'ALL' | 'SHIFT'
 
   setSearchQuery: (query: string) => void
   setStatus: (status: OrderStatus | null) => void
   setDateFrom: (date: Date | null) => void
   setDateTo: (date: Date | null) => void
+  setScope: (scope: 'ALL' | 'SHIFT') => void
   resetFilters: () => void
 }
 
@@ -19,16 +21,19 @@ export const useOrderFilterStore = create<OrderFilterState>((set) => ({
   status: OrderStatus.COMPLETED,
   dateFrom: null,
   dateTo: new Date(),
+  scope: 'SHIFT',
 
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setStatus: (status) => set({ status }),
   setDateFrom: (dateFrom) => set({ dateFrom }),
   setDateTo: (dateTo) => set({ dateTo }),
+  setScope: (scope) => set({ scope }),
   resetFilters: () =>
     set({
       searchQuery: '',
       status: null,
       dateFrom: null,
       dateTo: new Date(),
+      scope: 'SHIFT',
     }),
 }))

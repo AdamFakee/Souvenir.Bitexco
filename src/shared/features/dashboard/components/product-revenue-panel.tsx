@@ -69,7 +69,7 @@ export function ProductRevenuePanel() {
           style={{ backgroundColor: '#719BB0' }}
           className="flex-row items-center justify-between px-6 py-5"
         >
-          <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu</Text>
+          <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu (chưa VAT)</Text>
           <Shimmer className="h-8 w-36 bg-white/20" />
         </View>
       </View>
@@ -157,7 +157,7 @@ export function ProductRevenuePanel() {
         style={{ backgroundColor: '#719BB0' }}
         className="flex-row items-center justify-between px-6 py-5"
       >
-        <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu</Text>
+        <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu (chưa VAT)</Text>
         <Text
           adjustsFontSizeToFit
           numberOfLines={1}

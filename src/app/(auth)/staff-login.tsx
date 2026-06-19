@@ -1,5 +1,5 @@
 import { Button, ControlledInput } from '@/shared/components/ui'
-import { LogoSkydeck } from '@/shared/components/ui/icons'
+import { LogoSkystore } from '@/shared/components/ui/icons'
 import { useAppStore } from '@/shared/features/app'
 import { AuthAPI, BG_MAIN } from '@/shared/features/auth'
 import { toast } from '@/shared/store'
@@ -91,7 +91,7 @@ export default function StaffLogin() {
 
       <View style={styles.container}>
         {/* Logo top */}
-        <LogoSkydeck width={200} height={80} color="#ffffff" />
+        <LogoSkystore width={200} height={80} color="#ffffff" />
 
         {/* White card */}
         <View style={styles.card}>
@@ -151,8 +151,8 @@ const styles = StyleSheet.create({
     width: 608,
     backgroundColor: '#ffffff',
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#e0e1e2',
+    // borderWidth: 1,
+    // borderColor: '#e0e1e2',
     padding: 24,
     gap: 24,
     shadowColor: '#a8a8a8',

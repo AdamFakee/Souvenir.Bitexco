@@ -31,7 +31,6 @@ export const OrderStatsFooter = memo(function OrderStatsFooter({ stats }: OrderS
       </View>
       <View className="flex-1" />
       <View className="flex-row items-center gap-6">
-        <Text className="text-lg font-medium text-muted">(Chỉ tính đơn hàng đã hoàn thành)</Text>
         <Text className="text-3xl font-black text-primary" numberOfLines={1}>
           {formatCurrency(stats.totalRevenue)}
         </Text>

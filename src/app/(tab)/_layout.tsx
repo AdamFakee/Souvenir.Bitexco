@@ -5,7 +5,7 @@ import {
   DebtIcon,
   IconButton,
   IconButtonWithBadge,
-  LogoSkydeck,
+  LogoSkystore,
   SettingIcon,
   SettingsModal,
   SettingsModalRef,
@@ -116,7 +116,7 @@ const CustomSidebar = React.memo(
         <View>
           {/* Logo */}
           <View className="w-full items-center justify-center pb-6 pt-2">
-            <LogoSkydeck width={180} height={100} color="#ffffff" />
+            <LogoSkystore width={180} height={100} color="#ffffff" />
           </View>
 
           {/* Nav Items */}

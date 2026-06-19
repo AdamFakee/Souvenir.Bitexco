@@ -1,7 +1,7 @@
 import { formatCurrency, formatDateTime } from '@/shared/utils'
 import React from 'react'
 import { Text, View } from 'react-native'
-import { RefundReceiptData } from '../api/remote/order.remote.api'
+import { RefundReceiptData, RefundReceiptLine } from '../types'
 import { DashedLine, ReceiptWrapper, S } from './receipt-wrapper'
 
 interface RefundReceiptTemplateProps {
@@ -42,7 +42,7 @@ export function RefundReceiptTemplate({ receipt, copyNumber = 1 }: RefundReceipt
       <DashedLine />
 
       {/* Items */}
-      {receipt.lines.map((line) => (
+      {receipt.lines.map((line: RefundReceiptLine) => (
         <View key={line.productId} style={{ marginBottom: 4 }}>
           <Text style={S.fs28b}>{line.name}</Text>
           <Text style={{ ...S.fs24, lineHeight: 26 }}>{line.sku || '---'}</Text>

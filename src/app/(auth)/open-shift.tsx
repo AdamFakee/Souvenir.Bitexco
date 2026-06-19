@@ -1,5 +1,5 @@
 import { Button, Numpad } from '@/shared/components/ui'
-import { LogoSkydeck } from '@/shared/components/ui/icons'
+import { LogoSkystore } from '@/shared/components/ui/icons'
 import { COLORS, ROUTES } from '@/shared/constants'
 import { useAppContext, useAppStore } from '@/shared/features/app'
 import { AuthAPI, BG_MAIN } from '@/shared/features/auth'
@@ -107,7 +107,7 @@ export default function OpenShift() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Logo */}
-        <LogoSkydeck width={200} height={80} color="#ffffff" />
+        <LogoSkystore width={200} height={80} color="#ffffff" />
 
         {/* White card */}
         <View style={styles.card}>

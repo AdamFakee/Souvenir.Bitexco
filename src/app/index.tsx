@@ -1,4 +1,4 @@
-import { LogoSkydeck } from '@/shared/components/ui'
+import { LogoSkystore } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { ActivityIndicator, View } from 'react-native'
 
@@ -16,7 +16,7 @@ export default function Index() {
         backgroundColor: COLORS.primary.default,
       }}
     >
-      <LogoSkydeck width={240} height={120} color="#ffffff" />
+      <LogoSkystore width={240} height={120} color="#ffffff" />
       <ActivityIndicator size="large" color="#ffffff" style={{ marginTop: 24 }} />
     </View>
   )

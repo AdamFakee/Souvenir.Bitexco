@@ -17,31 +17,15 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function OrdersScreen() {
   const modalRef = useRef<OrderDetailModalRef>(null)
-  const { status, searchQuery, dateFrom, dateTo } = useOrderFilterStore()
+  const { status, searchQuery, dateFrom, dateTo, scope } = useOrderFilterStore()
 
-  const { orders } = useOrders({
+  const { orders, stats } = useOrders({
     status,
     searchQuery,
     dateFrom,
     dateTo,
+    scope,
   })
-
-  const stats = useMemo(() => {
-    let totalRevenue = 0
-    let totalItems = 0
-    orders.forEach((o) => {
-      if (o.status === OrderStatus.COMPLETED) {
-        totalRevenue += o.total
-      }
-      totalItems +=
-        o.itemsSnapshot?.reduce((acc: number, item: ItemSnapshot) => acc + item.quantity, 0) || 0
-    })
-    return {
-      totalRevenue,
-      totalItems,
-      count: orders.length,
-    }
-  }, [orders])
 
   const handleOpenDetails = (order: IOrder) => {
     modalRef.current?.open(order)

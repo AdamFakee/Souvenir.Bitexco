@@ -1,4 +1,5 @@
 import { database } from '@/shared/lib/database'
+import { useAppContext } from '@/shared/features/app'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import { OrderRemoteAPI } from '../api'
@@ -8,14 +9,16 @@ export const useOrders = (params: {
   searchQuery?: string
   dateFrom?: Date | null
   dateTo?: Date | null
+  scope?: 'ALL' | 'SHIFT'
 }) => {
-  const { status, searchQuery, dateFrom, dateTo } = params
+  const { status, searchQuery, dateFrom, dateTo, scope = 'SHIFT' } = params
+  const { cashSessionId } = useAppContext()
   const normalizedSearchQuery = searchQuery?.trim() || ''
   const dateFromKey = dateFrom?.toISOString() || null
   const dateToKey = dateTo?.toISOString() || null
 
   const query = useInfiniteQuery({
-    queryKey: ['orders', status, normalizedSearchQuery, dateFromKey, dateToKey],
+    queryKey: ['orders', status, normalizedSearchQuery, dateFromKey, dateToKey, scope],
     queryFn: async ({ pageParam = 1 }) => {
       return await OrderRemoteAPI.getOrders({
         status,
@@ -24,6 +27,7 @@ export const useOrders = (params: {
         dateTo,
         page: pageParam as number,
         limit: 20,
+        shiftId: scope === 'SHIFT' ? cashSessionId : undefined,
       })
     },
     initialPageParam: 1,
@@ -49,8 +53,18 @@ export const useOrders = (params: {
     return query.data?.pages.flatMap((page) => page.data || []) || []
   }, [query.data])
 
+  const stats = useMemo(() => {
+    const firstPageMeta = query.data?.pages[0]?.meta as any
+    return {
+      count: firstPageMeta?.total ?? 0,
+      totalItems: firstPageMeta?.totalItems ?? 0,
+      totalRevenue: firstPageMeta?.totalRevenue ?? 0,
+    }
+  }, [query.data])
+
   return {
     orders,
+    stats,
     fetchNextPage: query.fetchNextPage,
     hasNextPage: query.hasNextPage,
     isFetchingNextPage: query.isFetchingNextPage,

@@ -15,38 +15,36 @@ export const OrderStatusTabs = memo(function OrderStatusTabs({
 
   return (
     <View className="flex-row gap-0">
-      {([OrderStatus.COMPLETED, OrderStatus.REFUNDED, OrderStatus.FAILED, 'ALL'] as const).map(
-        (s) => {
-          const isActive = s === 'ALL' ? status === null : status === s
-          const config = ORDER_STATUS_CONFIG[s]
+      {([OrderStatus.COMPLETED, OrderStatus.REFUNDED, 'ALL'] as const).map((s) => {
+        const isActive = s === 'ALL' ? status === null : status === s
+        const config = ORDER_STATUS_CONFIG[s]
 
-          return (
-            <Pressable
-              key={s}
-              onPress={() => setStatus(s === 'ALL' ? null : s)}
-              className={`border-b-4 px-10 py-5 transition-all ${
-                isActive ? 'border-primary' : 'border-transparent'
-              }`}
-            >
-              <View className="flex-row items-center gap-4">
-                <Text className={`text-xl font-bold ${isActive ? 'text-primary' : 'text-muted'}`}>
-                  {config.label}
-                </Text>
-                {isActive && ordersCount !== undefined && (
-                  <View
-                    className="rounded-full px-3 py-1"
-                    style={{ backgroundColor: config.bgColor }}
-                  >
-                    <Text className="text-sm font-bold" style={{ color: config.color }}>
-                      {ordersCount}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </Pressable>
-          )
-        },
-      )}
+        return (
+          <Pressable
+            key={s}
+            onPress={() => setStatus(s === 'ALL' ? null : s)}
+            className={`border-b-4 px-10 py-5 transition-all ${
+              isActive ? 'border-primary' : 'border-transparent'
+            }`}
+          >
+            <View className="flex-row items-center gap-4">
+              <Text className={`text-xl font-bold ${isActive ? 'text-primary' : 'text-muted'}`}>
+                {config.label}
+              </Text>
+              {isActive && ordersCount !== undefined && (
+                <View
+                  className="rounded-full px-3 py-1"
+                  style={{ backgroundColor: config.bgColor }}
+                >
+                  <Text className="text-sm font-bold" style={{ color: config.color }}>
+                    {ordersCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+        )
+      })}
     </View>
   )
 })

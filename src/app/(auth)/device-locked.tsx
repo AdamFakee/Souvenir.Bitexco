@@ -1,5 +1,5 @@
 import { Button } from '@/shared/components/ui'
-import { LogoSkydeck } from '@/shared/components/ui/icons'
+import { LogoSkystore } from '@/shared/components/ui/icons'
 import { useAppStore } from '@/shared/features/app'
 import { AuthAPI, BG_MAIN } from '@/shared/features/auth'
 import { toast } from '@/shared/store'
@@ -35,7 +35,7 @@ export default function DeviceLocked() {
 
       <View style={styles.container}>
         {/* Logo top */}
-        <LogoSkydeck width={200} height={80} color="#ffffff" />
+        <LogoSkystore width={200} height={80} color="#ffffff" />
 
         {/* White card */}
         <View style={styles.card}>

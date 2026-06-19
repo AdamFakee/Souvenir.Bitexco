@@ -1,4 +1,4 @@
-import { LogoSkydeck } from '@/shared/components/ui'
+import { LogoSkystore } from '@/shared/components/ui'
 import { BG_MAIN } from '@/shared/features/auth'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
@@ -18,7 +18,7 @@ function ViceHomeScreen() {
       <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
         <View style={styles.overlay} />
         <View className="h-full w-full items-center justify-center">
-          <LogoSkydeck width={250} height={250} />
+          <LogoSkystore width={250} height={250} />
         </View>
       </ImageBackground>
     )

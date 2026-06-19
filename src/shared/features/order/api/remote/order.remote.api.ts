@@ -3,7 +3,7 @@ import { OrderStatus } from '@/shared/lib/database'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
 import { IBaseResponse, PagedResponse } from '@/shared/types/api'
 import { endOfDay, startOfDay } from '@/shared/utils'
-import { IOrder } from '../../types'
+import { IOrder, RefundReceiptData, RefundReceiptLine } from '../../types'
 
 // ─── POS Atomic Checkout ──────────────────────────────────────────────────────
 
@@ -107,6 +107,7 @@ interface OrderListApiItem {
   canReturn?: boolean
   createdAt: string | number | Date
   updatedAt: string | number | Date
+  refund?: RefundReceiptData | null
 }
 
 /**
@@ -119,6 +120,7 @@ export interface GetRemoteOrdersParams {
   dateTo?: Date | null
   page?: number
   limit?: number
+  shiftId?: string | null
 }
 
 /**
@@ -140,29 +142,6 @@ export interface RefundOrderParams {
     employeeCode: string
     pin: string
   } | null
-}
-
-export interface RefundReceiptLine {
-  productId: string
-  sku?: string
-  name: string
-  orderedQty: number
-  returnedQty: number
-  remainingQty: number
-  unitPrice: number
-  lineRefundAmount: number
-  isReturned: boolean
-}
-
-export interface RefundReceiptData {
-  orderId: string
-  orderCode?: string
-  returnId?: string
-  returnCode?: string
-  reason: string
-  refundedAt?: string
-  refundAmount: number
-  lines: RefundReceiptLine[]
 }
 
 export interface RefundOrderResult {
@@ -299,6 +278,7 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   canReturn: order.canReturn ?? order.status === OrderStatus.COMPLETED,
   createdAt: new Date(order.createdAt),
   updatedAt: new Date(order.updatedAt),
+  refund: order.refund ?? undefined,
 })
 
 export const generateGuid = (): string => {
@@ -394,7 +374,7 @@ export const OrderRemoteAPI = {
    * Lấy danh sách đơn hàng từ server.
    */
   getOrders: async (params: GetRemoteOrdersParams): Promise<IBaseResponse<IOrder[]>> => {
-    const { status, searchQuery, dateFrom, dateTo, page = 1, limit = 20 } = params
+    const { status, searchQuery, dateFrom, dateTo, page = 1, limit = 20, shiftId } = params
     const queryParams: Record<string, string | number> = { page, limit }
     const normalizedSearchQuery = searchQuery?.trim()
 
@@ -414,14 +394,22 @@ export const OrderRemoteAPI = {
       queryParams.date_to = endOfDay(dateTo).toISOString()
     }
 
+    if (shiftId) {
+      queryParams.shift_id = shiftId
+    }
+
     try {
       const response = await AxiosService.getInstance().get<PagedResponse<OrderListApiItem>>(
         '/v1/pos/orders',
         { params: queryParams },
       )
-      const { items = [], totalCount = 0 } = response.data
-      const currentPage = response.data.page || page
-      const pageSize = response.data.pageSize || limit
+      const rawData = response.data as any
+      const items = rawData.items || []
+      const totalCount = rawData.totalCount || 0
+      const totalItems = rawData.totalItems || 0
+      const totalRevenue = rawData.totalRevenue || 0
+      const currentPage = rawData.page || page
+      const pageSize = rawData.pageSize || limit
       const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0
       console.log('OrderRemoteAPI: Orders fetched:', items.length)
       return {
@@ -431,6 +419,8 @@ export const OrderRemoteAPI = {
         data: items.map(mapOrderListApiItemToIOrder),
         meta: {
           total: totalCount,
+          totalItems,
+          totalRevenue,
           page: currentPage,
           limit: pageSize,
           totalPages,
