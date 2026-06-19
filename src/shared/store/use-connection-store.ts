@@ -82,6 +82,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
             toast.error('Mất kết nối mạng internet!', 'Lỗi kết nối')
           } else {
             toast.success('Đã khôi phục kết nối mạng internet!', 'Kết nối thành công')
+            // Khi mạng phục hồi → notify machine để revalidate token/session với server
+            // (trường hợp app khởi động khi offline → restoreOffline → giờ online)
+            const appService =
+              require('@/shared/features/app/store/use-app-store').useAppStore.getState().appService
+            appService?.send({ type: 'NETWORK_RESTORED' })
           }
         }
       }

@@ -134,6 +134,10 @@ export type AppEvent =
   | { type: 'DEVICE_RESET' } // xoá device, về DEVICE_INACTIVE
   | { type: 'DEVICE_UNLOCKED' } // thiết bị được kích hoạt lại từ server
   | { type: 'PAYMENT_METHODS_UPDATED'; paymentMethods: PaymentMethodConfig[] }
+  /** Interceptor silent-refresh thành công → cập nhật accessToken mới vào context */
+  | { type: 'ACCESS_TOKEN_REFRESHED'; accessToken: string }
+  /** Network phục hồi sau khi app khởi động offline → revalidate với server */
+  | { type: 'NETWORK_RESTORED' }
 
 // ---------------------------------------------------------------------------
 // Store types

@@ -236,9 +236,11 @@ export function CalendarPopover({
                 onSelect(new Date())
                 setVisible(false)
               }}
-              className="rounded-xl px-6 py-3 active:bg-surface-100"
+              className="min-w-[120px] items-center justify-center rounded-xl px-6 py-3 active:bg-surface-100"
             >
-              <Text className="text-lg font-black text-primary">Hôm nay</Text>
+              <Text className="text-lg font-black text-primary" numberOfLines={1}>
+                Hôm nay
+              </Text>
             </Pressable>
           </View>
         </View>

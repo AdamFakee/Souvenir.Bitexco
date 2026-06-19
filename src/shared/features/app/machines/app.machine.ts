@@ -1,4 +1,5 @@
 import { storage } from '@/shared/lib/storage'
+import { AxiosError } from 'axios'
 import { assign, fromPromise, setup } from 'xstate'
 import { AuthAPI } from '../../auth/api/auth.api'
 import { PaymentRemoteAPI } from '../../payment/api/remote/payment.remote.api'
@@ -8,6 +9,17 @@ import type { AppContext, AppEvent } from '../types/app.types'
 
 /** Key MMKV để lưu refresh token — phải khớp với use-app-store.ts */
 const REFRESH_TOKEN_KEY = 'auth-refresh-token'
+
+/**
+ * Phân biệt lỗi mạng (offline/timeout) với lỗi xác thực (401/403).
+ * Network error: AxiosError không có response (request không tới server được)
+ * hoặc có error code ERR_NETWORK / ECONNABORTED / ENOTFOUND.
+ */
+function isNetworkError(error: unknown): boolean {
+  if (!(error instanceof AxiosError)) return false
+  if (!error.response) return true // Request không tới server
+  return false // Có response → server trả lỗi có chủ đích (401, 403, v.v.)
+}
 
 const DEFAULT_CONTEXT: AppContext = {
   device: null,
@@ -204,6 +216,9 @@ export const appMachine = setup({
   guards: {
     hasDevice: ({ context }) => context.device !== null,
     hasOpenSession: ({ event }) => (event as any).output?.cashSessionId !== null,
+    isNetworkError: ({ event }) => isNetworkError((event as any).error),
+    isDeviceInactive: ({ event }) => (event as any).error?.code === 'DEVICE_INACTIVE',
+    hasCachedSession: ({ context }) => context.cashSessionId !== null,
   },
 }).createMachine({
   id: 'app',
@@ -238,10 +253,19 @@ export const appMachine = setup({
         },
       }),
     },
+    /**
+     * Interceptor silent-refresh thành công → cập nhật accessToken mới vào context.
+     * Dùng assign thẳng vào context, không thay đổi state hiện tại.
+     */
+    ACCESS_TOKEN_REFRESHED: {
+      actions: assign({
+        accessToken: ({ event }) => event.accessToken,
+      }),
+    },
   },
   states: {
     /**
-     * Khởi tạo — luôn vào refreshingAuth nếu đã có device
+     * Khởi tạo — luôn vào refreshingAuth nếu đã có device.
      * (bất kể accessToken trong MMKV có hay không — có thể đã expired)
      */
     initializing: {
@@ -319,16 +343,31 @@ export const appMachine = setup({
         ],
         onError: [
           {
-            guard: ({ event }) => (event as any).error?.code === 'DEVICE_INACTIVE',
+            // Server xác nhận thiết bị bị khoá
+            guard: 'isDeviceInactive',
             target: 'deviceLockedByServer',
           },
           {
-            // Refresh token hết hạn (401) → cần đăng nhập lại
+            // Lỗi mạng (offline/timeout) → KHÔNG xoá token
+            // Restore từ context MMKV đã có, cho user dùng tiếp
+            guard: 'isNetworkError',
+            target: 'restoreOffline',
+          },
+          {
+            // Refresh token hết hạn thực sự (401/403 từ server) → logout
             target: 'unauthenticated',
             actions: 'clearAuth',
           },
         ],
       },
+    },
+
+    /**
+     * Offline khi khởi động — restore context từ MMKV, không logout.
+     * Token vẫn còn trong MMKV. Khi có mạng trở lại → NETWORK_RESTORED → refreshingAuth.
+     */
+    restoreOffline: {
+      always: [{ guard: 'hasCachedSession', target: 'shiftOpen' }, { target: 'noShift' }],
     },
 
     /**
@@ -462,6 +501,10 @@ export const appMachine = setup({
           target: 'unauthenticated',
           actions: 'clearAuth',
         },
+        // Khi mạng phục hồi sau lần khởi động offline → validate lại với server
+        NETWORK_RESTORED: {
+          target: 'refreshingAuth',
+        },
       },
     },
 
@@ -482,6 +525,10 @@ export const appMachine = setup({
         TOKEN_EXPIRED: {
           target: 'unauthenticated',
           actions: 'clearAuth',
+        },
+        // Khi mạng phục hồi sau lần khởi động offline → validate lại với server
+        NETWORK_RESTORED: {
+          target: 'refreshingAuth',
         },
       },
     },

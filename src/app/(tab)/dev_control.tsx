@@ -1,5 +1,5 @@
 import { ViceService } from '@/screens/vice-service'
-import { Container, ModalBase } from '@/shared/components/ui'
+import { Container, ModalBase, Input } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { useAppStore } from '@/shared/features/app'
@@ -19,6 +19,11 @@ import { storage } from '@/shared/lib/storage'
 import { toast } from '@/shared/store'
 import React, { useEffect, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
+import {
+  getPortablePosUrl,
+  setPortablePosUrl,
+} from '@/shared/features/payment/utils/portable-payment.service'
+import { useConnectionStore } from '@/shared/store/use-connection-store'
 
 export default function DevControlScreen() {
   const [categories, setCategories] = useState<CategoryModel[]>([])
@@ -26,6 +31,30 @@ export default function DevControlScreen() {
   const [syncResult, setSyncResult] = useState<any>(null)
   const [isSyncResultVisible, setIsSyncResultVisible] = useState(false)
   const [isFetchingChanges, setIsFetchingChanges] = useState(false)
+
+  const [posUrlInput, setPosUrlInput] = useState(getPortablePosUrl())
+  const isPosConnected = useConnectionStore((state) => state.isPosConnected)
+  const isCheckingPosConnection = useConnectionStore((state) => state.isCheckingPosConnection)
+  const checkPosConnection = useConnectionStore((state) => state.checkPosConnection)
+
+  const handleSaveAndTestPos = async () => {
+    try {
+      if (!posUrlInput.trim()) {
+        toast.warning('Vui lòng nhập POS URL hợp lệ.')
+        return
+      }
+      setPortablePosUrl(posUrlInput.trim())
+      toast.info('Đang lưu cấu hình và kết nối thử...')
+      const connected = await checkPosConnection()
+      if (connected) {
+        toast.success('Kết nối máy POS thành công!', 'Thành công')
+      } else {
+        toast.error('Không thể kết nối tới máy POS ở URL mới.', 'Kết nối thất bại')
+      }
+    } catch (error: any) {
+      toast.error('Lỗi: ' + error.message, 'Lỗi kết nối')
+    }
+  }
 
   const loadData = async () => {
     try {
@@ -372,6 +401,34 @@ export default function DevControlScreen() {
     toast.info('Đã log token state ra console. Mở Metro / Logcat để xem.', 'Token State')
   }
 
+  /**
+   * Test Silent Refresh flow:
+   * 1. Gán accessToken sai vào app machine context
+   * 2. Thực hiện gọi API (AuthAPI.getMe) để xem interceptor có tự động refresh
+   * và retry thành công hay không.
+   */
+  const handleTestSilentRefresh = async () => {
+    const appService = useAppStore.getState().appService
+    if (!appService) return toast.error('App Service chưa sẵn sàng')
+
+    toast.info('Gán Access Token không hợp lệ để test...')
+    appService.send({
+      type: 'ACCESS_TOKEN_REFRESHED',
+      accessToken: 'invalid_token_for_testing_silent_refresh',
+    })
+
+    toast.info('Đang gọi API (AuthAPI.getMe) thử...')
+    try {
+      const result = await AuthAPI.getMe()
+      toast.success(
+        `Thành công!\nAPI phản hồi: Chào ${result.displayName}.\nToken đã tự động được refresh!`,
+        'Silent Refresh OK',
+      )
+    } catch (err: any) {
+      toast.error('Lỗi khi gọi API sau refresh: ' + err.message, 'Thất bại')
+    }
+  }
+
   const handleClearNotes = () => {
     const notes = useNoteStore.getState().notes
     notes.forEach((n) => useNoteStore.getState().deleteNote(n.id))
@@ -709,13 +766,70 @@ export default function DevControlScreen() {
             />
           </View>
 
-          {/* Row 4: Force logout */}
+          {/* Row 4: Test Silent Refresh & Force Logout */}
+          <View className="flex-row gap-3">
+            <Button
+              label="Test Silent Refresh"
+              variant="outline"
+              className="flex-1 border-purple-500"
+              textClassName="text-purple-600 text-xs font-bold"
+              onPress={handleTestSilentRefresh}
+            />
+            <Button
+              label="Force LOGOUT"
+              variant="outline"
+              className="flex-1 border-error"
+              textClassName="text-error text-xs font-bold"
+              onPress={handleForceLogout}
+            />
+          </View>
+        </View>
+      </Container>
+
+      {/* Portable POS URL Configuration */}
+      <Container className="mb-6 border border-violet-600/20 bg-violet-600/5 p-4">
+        <Text className="text-title-md mb-1 font-black uppercase tracking-wider text-violet-700">
+          ⚙️ Portable POS Configuration
+        </Text>
+        <Text className="mb-4 text-body-xs text-muted">
+          Cấu hình địa chỉ Socket/HTTP kết nối tới thiết bị POS Ingenico Sandbox.
+        </Text>
+
+        <View className="gap-3">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-body-sm font-bold text-surface-on">Trạng thái kết nối POS:</Text>
+            <View className="flex-row items-center gap-1.5">
+              <View
+                className={`h-2.5 w-2.5 rounded-full ${
+                  isPosConnected === true
+                    ? 'bg-green-500'
+                    : isPosConnected === false
+                      ? 'bg-red-500'
+                      : 'bg-yellow-500'
+                }`}
+              />
+              <Text className="text-surface-onVariant text-body-xs font-bold">
+                {isPosConnected === true
+                  ? 'ĐÃ KẾT NỐI'
+                  : isPosConnected === false
+                    ? 'MẤT KẾT NỐI'
+                    : 'ĐANG CHECK/CHƯA RÕ'}
+              </Text>
+            </View>
+          </View>
+
+          <Input
+            value={posUrlInput}
+            onChangeText={setPosUrlInput}
+            placeholder="Ví dụ: http://192.168.1.100:8080"
+            className="h-[50px] bg-white text-sm"
+          />
+
           <Button
-            label="Force LOGOUT (dispatch LOGGED_OUT)"
-            variant="outline"
-            className="border-error"
-            textClassName="text-error text-xs font-bold"
-            onPress={handleForceLogout}
+            label="Lưu & Thử kết nối"
+            className="bg-violet-600"
+            loading={isCheckingPosConnection}
+            onPress={handleSaveAndTestPos}
           />
         </View>
       </Container>
