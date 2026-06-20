@@ -19,6 +19,8 @@ export const SettingsModal = forwardRef<SettingsModalRef>((_, ref) => {
     close: () => setVisible(false),
   }))
 
+  if (!visible) return null
+
   return (
     <ModalBase
       visible={visible}

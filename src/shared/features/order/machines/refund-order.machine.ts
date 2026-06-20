@@ -10,6 +10,7 @@ import {
 } from '../api/remote/order.remote.api'
 import { getOrderErrorMessage } from '../constants'
 import { IOrder } from '../types'
+import { checkCanReturn } from '../utils'
 
 export interface RefundOrderContext {
   order: IOrder | null
@@ -80,7 +81,7 @@ const getValidationMessage = (context: RefundOrderContext) => {
     return 'Không tìm thấy ca làm việc hiện tại. Vui lòng kiểm tra lại trạng thái ca.'
   if (!context.staffId) return 'Không tìm thấy nhân viên đang đăng nhập. Vui lòng đăng nhập lại.'
   if (!context.order) return 'Không tìm thấy đơn hàng cần trả.'
-  if (context.order.status !== OrderStatus.COMPLETED || context.order.canReturn === false) {
+  if (!checkCanReturn(context.order)) {
     return 'Trạng thái đơn hàng không cho phép trả hàng.'
   }
   if (!context.lookupLines || context.lookupLines.length === 0) {
@@ -199,6 +200,13 @@ export const refundOrderMachine = setup({
           const result = await OrderRemoteAPI.refundOrder(payload)
           return result
         } catch (error: any) {
+          console.log('[REFUND ORDER API ERROR] Payload:', JSON.stringify(payload, null, 2))
+          console.log('[REFUND ORDER API ERROR] Status:', error?.response?.status)
+          console.log(
+            '[REFUND ORDER API ERROR] Data:',
+            JSON.stringify(error?.response?.data, null, 2),
+          )
+          console.log('[REFUND ORDER API ERROR] Message:', error?.message)
           throw error
         }
       },
@@ -266,6 +274,7 @@ export const refundOrderMachine = setup({
     },
     notifyError: ({ event }) => {
       const error = (event as any).error
+      console.log('[REFUND MACHINE notifyError] Event error detail:', error)
       const errData = error?.response?.data
       const code = errData?.errorCode || errData?.error
       const status = error?.response?.status

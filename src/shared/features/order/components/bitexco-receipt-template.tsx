@@ -1,4 +1,4 @@
-import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment/types/payment.constants'
+import { PAYMENT_METHOD_LABELS_EN } from '@/shared/features/payment/types/payment.constants'
 import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
 import { formatDateTime } from '@/shared/utils'
 import React, { useEffect, useState } from 'react'
@@ -172,7 +172,7 @@ export const BitexcoReceiptTemplate = ({
         <Text style={S.fs28}>Paid by:</Text>
         {payments.map((p: PaymentSnapshot, idx: number) => (
           <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={S.fs28n}>+ {PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Text>
+            <Text style={S.fs28n}>+ {PAYMENT_METHOD_LABELS_EN[p.method] ?? p.method}</Text>
             <Text style={S.fs28n}>{formatCurrency(p.amount || 0)}</Text>
           </View>
         ))}

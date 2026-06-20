@@ -35,22 +35,92 @@ export const ORDER_STATUS_CONFIG: Record<
     color: COLORS.primary.onFixedVariant,
     bgColor: COLORS.primary.fixed,
   },
-  [OrderStatus.PENDING]: {
-    label: 'Chờ thanh toán',
+  DRAFT: {
+    label: 'Nháp',
+    color: '#6B7280',
+    bgColor: '#F3F4F6',
+  },
+  PENDING: {
+    label: 'Chờ xử lý',
     color: COLORS.primary.default,
     bgColor: COLORS.primary.on,
   },
-  [OrderStatus.COMPLETED]: {
+  CONFIRMED: {
+    label: 'Đã xác nhận',
+    color: '#2563EB',
+    bgColor: '#DBEAFE',
+  },
+  PAYMENT_PENDING: {
+    label: 'Chờ thanh toán',
+    color: '#D97706',
+    bgColor: '#FEF3C7',
+  },
+  PAID: {
+    label: 'Đã thanh toán',
+    color: '#059669',
+    bgColor: '#D1FAE5',
+  },
+  FULFILLING: {
+    label: 'Đang giao',
+    color: '#3B82F6',
+    bgColor: '#EFF6FF',
+  },
+  FULFILLED: {
+    label: 'Đã giao',
+    color: COLORS.success.default,
+    bgColor: COLORS.success.container,
+  },
+  INVOICED: {
+    label: 'Đã xuất HĐ',
+    color: '#0D9488',
+    bgColor: '#CCFBF1',
+  },
+  COMPLETED: {
     label: 'Hoàn thành',
     color: COLORS.success.default,
     bgColor: COLORS.success.container,
   },
-  [OrderStatus.REFUNDED]: {
-    label: 'Hoàn tiền',
+  CANCELLED: {
+    label: 'Đã huỷ',
+    color: COLORS.error.default,
+    bgColor: COLORS.error.container,
+  },
+  ON_HOLD: {
+    label: 'Tạm dừng',
+    color: '#4B5563',
+    bgColor: '#E5E7EB',
+  },
+  PAYMENT_PARTIAL: {
+    label: 'TT một phần',
+    color: '#D97706',
+    bgColor: '#FEF3C7',
+  },
+  RETURN_REQUESTED: {
+    label: 'Yêu cầu trả',
+    color: '#7C3AED',
+    bgColor: '#F5F3FF',
+  },
+  PARTIALLY_RETURNED: {
+    label: 'Trả một phần',
+    color: '#7C3AED',
+    bgColor: '#F5F3FF',
+  },
+  PARTIALLY_REFUNDED: {
+    label: 'Hoàn một phần',
+    color: '#7C3AED',
+    bgColor: '#F5F3FF',
+  },
+  RETURNED: {
+    label: 'Đã trả',
     color: COLORS.warning.default,
     bgColor: COLORS.warning.container,
   },
-  [OrderStatus.FAILED]: {
+  REFUNDED: {
+    label: 'Đã hoàn',
+    color: COLORS.warning.default,
+    bgColor: COLORS.warning.container,
+  },
+  FAILED: {
     label: 'Thất bại',
     color: COLORS.error.default,
     bgColor: COLORS.error.container,

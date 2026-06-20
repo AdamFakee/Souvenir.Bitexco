@@ -2,6 +2,12 @@
 
 Tài liệu này lưu trữ các yêu cầu thay đổi/bổ sung phía API (Backend) phục vụ cho POS.
 
+> [!CAUTION]
+> **Yêu cầu sống còn (CRITICAL REQUIREMENT) về định dạng ID đơn hàng:**
+>
+> - Trường `id`, `originalOrderId`, `orderId`, `returnId` trong toàn bộ API phản hồi liên quan đến đơn hàng **BẮT BUỘC PHẢI TRẢ VỀ MÃ SALES ORDER THÂN THIỆN** (Ví dụ: `SO-26062004080249`), KHÔNG ĐƯỢC phép trả về UUID hệ thống (ví dụ: `019ed9ea-b646-70dc-ad7e-54d181c6ac77`).
+> - Client POS sử dụng mã SO này trực tiếp để hiển thị mã đơn hàng, quét barcode tìm kiếm và in hóa đơn trực tiếp cho khách hàng. Việc Backend trả về UUID sẽ khiến cashier không thể tra cứu hóa đơn và vỡ luồng in ấn.
+
 # Bổ sung yêu cầu: Cung cấp và lọc theo Trạng thái đơn hàng của Backend (Đồng bộ với Admin)
 
 Yêu cầu Backend cung cấp thông tin trạng thái chi tiết của đơn hàng, hỗ trợ truy vấn lọc nhiều trạng thái đồng thời và bổ sung thống kê tổng hợp trực tiếp trong response metadata để Client hiển thị chính xác.
@@ -10,16 +16,17 @@ Yêu cầu Backend cung cấp thông tin trạng thái chi tiết của đơn h�
 
 ### 1.1. Các tham số Query Parameters cần bổ sung/nâng cấp
 
-| Tham số    | Kiểu dữ liệu          | Định dạng / Mô tả                                                                                                                            | Ví dụ minh họa                                                |
-| :--------- | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------ |
-| `status`   | `string` hoặc `array` | Cho phép truyền mảng trạng thái (nhiều cặp key-value `status=...` hoặc dạng chuỗi phân tách bằng dấu phẩy) để lọc nhiều trạng thái cùng lúc. | `?status=COMPLETED&status=PAID` hoặc `?status=COMPLETED,PAID` |
-| `shift_id` | `string`              | ID của ca làm việc (`cashSessionId`). Lọc toàn bộ đơn hàng phát sinh trong ca được chỉ định.                                                 | `?shift_id=cs-999-uuid`                                       |
+| Tham số    | Kiểu dữ liệu | Định dạng / Mô tả                                                                                                                             | Ví dụ minh họa                |
+| :--------- | :----------- | :-------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
+| `status`   | `string`     | Lọc nhiều trạng thái cùng lúc bằng cách truyền chuỗi các trạng thái phân tách bằng dấu phẩy (comma-separated). Không sử dụng lặp lại tham số. | `?status=FULFILLED,COMPLETED` |
+| `state`    | `string`     | Lọc nhiều trạng thái chi tiết của WMS phân tách bằng dấu phẩy (comma-separated). Cú pháp tương tự như `status`.                               | `?state=FULFILLED,COMPLETED`  |
+| `shift_id` | `string`     | ID của ca làm việc (`cashSessionId`). Lọc toàn bộ đơn hàng phát sinh trong ca được chỉ định.                                                  | `?shift_id=cs-999-uuid`       |
 
 ### 1.2. Yêu cầu về định dạng ID đơn hàng (Order ID)
 
-- **Bắt buộc trả về định dạng mã SO:** ID đơn hàng (`id`, `originalOrderId`) trả về từ API **bắt buộc phải sử dụng mã Sales Order** của hệ thống (ví dụ: `SO-2606180809F025`), không được trả về UUID hoặc số ID tự động tăng trong DB. Mã này được dùng để hiển thị và in hóa đơn trực tiếp tại POS.
+- **Bắt buộc trả về định dạng mã SO:** ID đơn hàng (`id`, `originalOrderId`) trả về từ API **bắt buộc phải sử dụng mã Sales Order** của hệ thống (ví dụ: `SO-26062004080249`), không được trả về UUID hoặc số ID tự động tăng trong DB. Mã này được dùng để hiển thị và in hóa đơn trực tiếp tại POS.
 - **Hỗ trợ tìm kiếm theo ID/Mã SO, Tên và Barcode sản phẩm:** Bên cạnh tìm kiếm theo số điện thoại, tên khách hàng... Backend **bắt buộc phải hỗ trợ lọc đơn hàng theo**:
-  - Mã định dạng Sales Order (ví dụ: gõ hoặc quét mã `SO-2606180809F025` in trên hóa đơn).
+  - Mã định dạng Sales Order (ví dụ: gõ hoặc quét mã `SO-26062004080249` in trên hóa đơn).
   - Tên sản phẩm nằm trong đơn hàng đó (ví dụ: tìm `"Magnet"` hoặc `"Postcard"` sẽ lọc ra các đơn hàng có mua mặt hàng này).
   - Mã Barcode sản phẩm (ví dụ: khi quét mã vạch sản phẩm bất kỳ, lọc ra danh sách các đơn hàng đã mua sản phẩm này).
     Tất cả các từ khóa tìm kiếm này được truyền qua tham số truy vấn tìm kiếm (Query parameter `q`).
@@ -42,20 +49,20 @@ Ngoài các trường phân trang cơ bản (`page`, `limit`, `totalPages`), tr�
 ### 2.1. Request truy vấn các đơn hàng Hoàn tiền (bao gồm `REFUNDED` và `PARTIALLY_REFUNDED`) trong ca hiện tại:
 
 ```http
-GET /v1/pos/orders?status=REFUNDED&status=PARTIALLY_REFUNDED&shift_id=cs-999-uuid&page=1&limit=20
+GET /v1/pos/orders?status=REFUNDED,PARTIALLY_REFUNDED&state=REFUNDED,PARTIALLY_REFUNDED&shift_id=cs-999-uuid&page=1&limit=20
 ```
 
 ### 2.2. Response JSON mong muốn (Xem chi tiết trường `meta`):
 
 > [!IMPORTANT]
 >
-> - Trường `id` và `originalOrderId` ở cấp độ đơn hàng **bắt buộc phải trả về mã Sales Order thân thiện với người dùng** (ví dụ: `SO-2606180809F025`), không được trả về UUID hệ thống hay ID tự động tăng trong Database. Mã này trực tiếp dùng để hiển thị và quét mã vạch/in hóa đơn.
+> - Trường `id` và `originalOrderId` ở cấp độ đơn hàng **bắt buộc phải trả về mã Sales Order thân thiện với người dùng** (ví dụ: `SO-26062004080249`), không được trả về UUID hệ thống hay ID tự động tăng trong Database. Mã này trực tiếp dùng để hiển thị và quét mã vạch/in hóa đơn.
 
 > [!NOTE]
 > Trong đối tượng `refund` dưới đây:
 >
 > - `orderId` và `orderCode` đều là mã Sales Order gốc (đơn gốc trước khi bị trả, ví dụ: `SO-2606180800A012`).
-> - `returnId` và `returnCode` đều là mã Sales Order của chính phiếu trả hàng này (ví dụ: `SO-2606180809F025`).
+> - `returnId` và `returnCode` đều là mã Sales Order của chính phiếu trả hàng này (ví dụ: `SO-26062004080249`).
 > - Client có cơ chế tự động lấy `orderCode || orderId` và `returnCode || returnId` làm mã hiển thị, nên Backend có thể truyền cùng mã SO vào cả hai trường hoặc bỏ qua `orderCode`/`returnCode` để giảm tải payload.
 
 ```json
@@ -65,7 +72,7 @@ GET /v1/pos/orders?status=REFUNDED&status=PARTIALLY_REFUNDED&shift_id=cs-999-uui
   "message": "Lấy danh sách đơn hàng thành công",
   "data": [
     {
-      "id": "SO-2606180809F025",
+      "id": "SO-26062004080249",
       "shiftId": "cs-999-uuid",
       "staffId": "staff-123-uuid",
       "status": "REFUNDED",
@@ -150,15 +157,21 @@ GET /v1/pos/orders?status=REFUNDED&status=PARTIALLY_REFUNDED&shift_id=cs-999-uui
 
 ---
 
-## 3. Danh sách trạng thái đồng bộ với Admin
+## 3. Danh sách trạng thái đồng bộ với Admin và các trạng thái Client POS gửi lên khi lọc
+
+Dưới đây là bảng đặc tả chi tiết danh sách trạng thái đơn hàng (dưới dạng chuỗi phân tách bằng dấu phẩy) mà Client POS sẽ gửi lên Backend thông qua 2 query parameters `status` và `state` tương ứng với mỗi tab bộ lọc trên giao diện POS:
+
+| Tên Tab bộ lọc trên POS | Chuỗi trạng thái gửi lên (`status` & `state`)                | Mô tả nghiệp vụ                                                                                                     |
+| :---------------------- | :----------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
+| **Hoàn thành**          | `FULFILLED,COMPLETED`                                        | Đơn hàng bán ra đã giao hàng thành công hoặc đã hoàn tất chu kỳ.                                                    |
+| **Hoàn hàng**           | `RETURNED,REFUNDED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED`    | Đơn hàng phát sinh giao dịch trả lại hàng hóa / hoàn trả một phần hoặc toàn bộ tiền mặt cho khách.                  |
+| **Đang xử lý**          | `PENDING,CONFIRMED,PAYMENT_PENDING,PAID,FULFILLING,INVOICED` | Đơn hàng đang trong trạng thái chờ xử lý thanh toán, đang chuẩn bị hàng, đã thanh toán tạm tính hoặc đang xuất kho. |
+| **Đã hủy**              | `CANCELLED,FAILED`                                           | Đơn hàng bị hủy bỏ hoặc giao dịch thanh toán thất bại.                                                              |
 
 > [!IMPORTANT]
-> **Yêu cầu Backend xác nhận và cung cấp lại chính xác:**
+> **Yêu cầu đối với Backend:**
 >
-> - Danh sách đầy đủ các mã trạng thái đơn hàng dưới dạng String enum mà backend đang sử dụng trong từng order.
-> - API `GET /v1/pos/orders` lọc theo tham số `status` phải sử dụng đúng danh sách mã String enum này.
-
-Yêu cầu Backend đồng bộ tên mã String của các trạng thái khớp hoàn toàn với giao diện Admin và cung cấp tài liệu mã String tương ứng cho Client cấu hình.
+> - API `GET /v1/pos/orders` lọc theo tham số `status` và `state` bắt buộc phải hỗ trợ tiếp nhận giá trị dạng chuỗi phân tách bằng dấu phẩy (comma-separated, ví dụ: `?status=FULFILLED,COMPLETED&state=FULFILLED,COMPLETED`) để thực hiện lọc các đơn hàng khớp với bất kỳ trạng thái nào trong danh sách (OR logic).
 
 # Bổ sung yêu cầu: Cung cấp thông tin hoàn tiền / trả hàng (Refund/Return)
 
@@ -168,19 +181,12 @@ Yêu cầu Backend đồng bộ tên mã String của các trạng thái khớp 
 
 ### 1.1 Thêm vào thông tin đơn hàng (`OrderListApiItem`)
 
-| Tên trường (camelCase) | Kiểu dữ liệu          | Bắt buộc / Optional / Nullable | Mô tả                                                                                                                                                            |
-| :--------------------- | :-------------------- | :----------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `totalRefunded`        | `number`              | **Optional**                   | Tổng số tiền đã hoàn trả cho đơn hàng tính đến hiện tại. Nếu không có, mặc định coi là `0`.                                                                      |
-| `refunds`              | `RefundHistoryItem[]` | **Optional**                   | Danh sách các đợt trả hàng/hoàn tiền liên quan đến đơn hàng này. Nếu không có, mặc định coi là mảng rỗng `[]`.                                                   |
-| `staffName`            | `string`              | **Bắt buộc / Nullable**        | Tên hiển thị của nhân viên thực hiện bán đơn hàng này (tương ứng với `staffId`).                                                                                 |
-| `refund`               | `RefundReceiptData`   | **Optional / Nullable**        | Chi tiết thông tin hoàn tiền dùng để POS kết xuất và in phiếu trả hàng trực tiếp (trong trường hợp đơn hàng có trạng thái `REFUNDED` hoặc `PARTIALLY_REFUNDED`). |
-
-### 1.2 Thêm vào thông tin chi tiết từng mặt hàng (`ItemSnapshot`)
-
-| Tên trường (camelCase) | Kiểu dữ liệu | Bắt buộc / Optional / Nullable | Mô tả                                                                                        |
-| :--------------------- | :----------- | :----------------------------- | :------------------------------------------------------------------------------------------- |
-| `returnedQty`          | `number`     | **Optional**                   | Số lượng của sản phẩm này đã bị trả lại qua các đợt. Nếu không có, mặc định coi là `0`.      |
-| `remainingQty`         | `number`     | **Optional**                   | Số lượng sản phẩm còn lại có thể thực hiện trả tiếp. Nếu không có, mặc định bằng `quantity`. |
+| Tên trường (camelCase) | Kiểu dữ liệu          | Bắt buộc / Optional / Nullable     | Mô tả                                                                                                                                              |
+| :--------------------- | :-------------------- | :--------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `totalRefunded`        | `number`              | **Optional**                       | Tổng số tiền đã hoàn trả cho đơn hàng tính đến hiện tại. Nếu không có, mặc định coi là `0`.                                                        |
+| `refunds`              | `RefundHistoryItem[]` | **Optional**                       | Danh sách các đợt trả hàng/hoàn tiền liên quan đến đơn hàng này. Nếu không có, mặc định coi là mảng rỗng `[]`.                                     |
+| `staffName`            | `string`              | **Bắt buộc / Nullable**            | Tên hiển thị của nhân viên thực hiện bán đơn hàng này (tương ứng với `staffId`).                                                                   |
+| `refund`               | `RefundReceiptData`   | **BẮT BUỘC (nếu là đơn trả hàng)** | Chi tiết thông tin hoàn tiền dùng để POS kết xuất và in phiếu trả hàng trực tiếp (khi đơn hàng ở trạng thái `REFUNDED` hoặc `PARTIALLY_REFUNDED`). |
 
 ---
 
@@ -305,3 +311,28 @@ Ví dụ minh họa cho đơn hàng có trạng thái **Hoàn tiền một phầ
   $$\text{roundedAmount} = \text{round}\left(\frac{\text{unroundedAmount}}{1000}\right) \times 1000$$
   _(Ví dụ trong Javascript/TypeScript: `Math.round(amount / 1000) _ 1000`)\*
 - **Trạng thái đơn hàng:** Đơn hàng sau khi làm tròn và nhận đủ số tiền đã làm tròn từ Client phải được chuyển sang trạng thái đã thanh toán đầy đủ (`COMPLETED`), không báo lỗi thiếu tiền hay giữ trạng thái nợ/chưa hoàn tất do chênh lệch tiền lẻ.
+
+---
+
+# Bổ sung yêu cầu: Fix lỗi không nhất quán & lỗi nghiệp vụ khi Trả/Đổi Hàng (Refund/Exchange)
+
+## 1. Đồng bộ các điều kiện validate Đổi/Trả hàng
+
+Backend cần cài đặt các quy tắc kiểm tra logic đồng bộ với Client để từ chối các yêu cầu không hợp lệ ngay từ tầng API:
+
+### 1.1 Trạng thái đơn hàng gốc hợp lệ
+
+- Chỉ cho phép Đổi/Trả đối với các đơn hàng có trạng thái **`PAID`, `FULFILLED` hoặc `COMPLETED`**.
+- Trả về mã lỗi ví dụ `order.invalid_return_status` nếu trạng thái đơn hàng gốc là `PENDING`, `FAILED`, `CANCELLED`...
+
+### 1.2 Giới hạn thời gian đổi hàng
+
+- Phía Client cấu hình giới hạn đổi hàng trong vòng **24 giờ** kể từ thời điểm tạo đơn hàng (`createdAt`).
+- Backend cần kiểm tra điều kiện này và từ chối xử lý đổi hàng nếu quá hạn, trả về mã lỗi cụ thể: `order.exchange_expired` (Ví dụ: _"Đơn hàng đã quá hạn 1 ngày (24 giờ), không được phép đổi hàng"_).
+
+### 1.3 Đơn hàng áp dụng khuyến mãi / voucher
+
+- Client không hỗ trợ đổi hàng đối với các đơn hàng có sử dụng voucher (`voucherCode` khác rỗng), giảm giá voucher (`voucherDiscount > 0`) hoặc giảm giá trực tiếp đơn hàng (`discount > 0`).
+- Backend cần kiểm tra điều kiện này và từ chối nếu vi phạm, trả về mã lỗi cụ thể: `order.exchange_discounted` (Ví dụ: _"Đơn hàng có khuyến mãi hoặc voucher không được đổi hàng"_).
+
+### 1.4 Chưa test phần nhập tài khoản admin có quyển trả để gửi reqs khi trả hàng lại

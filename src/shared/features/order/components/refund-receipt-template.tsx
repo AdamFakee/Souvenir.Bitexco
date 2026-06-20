@@ -15,27 +15,43 @@ export function RefundReceiptTemplate({ receipt, copyNumber = 1 }: RefundReceipt
   const orderCodeOrId = receipt.orderCode || receipt.orderId
 
   return (
-    <ReceiptWrapper title="PHIẾU TRẢ HÀNG" copyNumber={copyNumber}>
-      {/* Meta info — để dọc */}
+    <ReceiptWrapper title="REFUND RECEIPT" copyNumber={copyNumber}>
+      {/* Meta info */}
       <View style={{ marginTop: 4 }}>
-        <Text style={S.fs28}>{formatDateTime(refundedAt)}</Text>
-        {!!returnCodeOrId && <Text style={S.fs28}>Mã phiếu: {returnCodeOrId.toUpperCase()}</Text>}
-        <Text style={S.fs28}>Đơn gốc: {orderCodeOrId.toUpperCase()}</Text>
-        {!!receipt.reason && <Text style={S.fs28}>Lý do: {receipt.reason}</Text>}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={S.fs28}>Date:</Text>
+          <Text style={S.fs28}>{formatDateTime(refundedAt)}</Text>
+        </View>
+        {!!returnCodeOrId && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+            <Text style={S.fs28}>Return ID:</Text>
+            <Text style={S.fs28}>{returnCodeOrId.toUpperCase()}</Text>
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+          <Text style={S.fs28}>Original Sale:</Text>
+          <Text style={S.fs28}>{orderCodeOrId.toUpperCase()}</Text>
+        </View>
+        {!!receipt.reason && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+            <Text style={S.fs28}>Reason:</Text>
+            <Text style={S.fs28}>{receipt.reason}</Text>
+          </View>
+        )}
       </View>
 
       <DashedLine />
 
       {/* Table Header */}
-      <View style={{ flexDirection: 'row' }}>
-        <View style={{ flex: 2 }}>
-          <Text style={S.fs28}>Sản phẩm</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flex: 2.5 }}>
+          <Text style={S.fs28}>Unit Price</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...S.fs28, textAlign: 'center' }}>Số lượng</Text>
+        <View style={{ flex: 1.5, alignItems: 'center' }}>
+          <Text style={S.fs28}>Quantity</Text>
         </View>
         <View style={{ flex: 2 }}>
-          <Text style={{ ...S.fs28, textAlign: 'right' }}>Hoàn tiền</Text>
+          <Text style={{ ...S.fs28, textAlign: 'right' }}>Amount</Text>
         </View>
       </View>
 
@@ -44,19 +60,17 @@ export function RefundReceiptTemplate({ receipt, copyNumber = 1 }: RefundReceipt
       {/* Items */}
       {receipt.lines.map((line: RefundReceiptLine) => (
         <View key={line.productId} style={{ marginBottom: 4 }}>
-          <Text style={S.fs28b}>{line.name}</Text>
-          <Text style={{ ...S.fs24, lineHeight: 26 }}>{line.sku || '---'}</Text>
-
-          <View style={{ flexDirection: 'row' }}>
-            <View style={{ flex: 2 }}>
-              <Text style={S.fs28}>Mua: {line.orderedQty}</Text>
+          <Text style={S.fs28}>{line.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flex: 2.5 }}>
+              <Text style={S.fs28}>{formatCurrency(line.unitPrice)}</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ ...S.fs28, textAlign: 'center' }}>Trả: {line.returnedQty}</Text>
+            <View style={{ flex: 1.5, alignItems: 'center' }}>
+              <Text style={S.fs28}>{line.returnedQty}</Text>
             </View>
             <View style={{ flex: 2 }}>
               <Text style={{ ...S.fs28, textAlign: 'right' }}>
-                {line.isReturned ? `-${formatCurrency(line.lineRefundAmount)}` : 'Không trả'}
+                {line.isReturned ? `-${formatCurrency(line.lineRefundAmount)}` : 'N/A'}
               </Text>
             </View>
           </View>
@@ -66,9 +80,9 @@ export function RefundReceiptTemplate({ receipt, copyNumber = 1 }: RefundReceipt
       <DashedLine />
 
       {/* Totals */}
-      <View>
+      <View style={{ gap: 2 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={S.fs32b}>Tổng tiền hoàn:</Text>
+          <Text style={S.fs32b}>Total Refunded:</Text>
           <Text style={S.fs32b}>{formatCurrency(receipt.refundAmount)}</Text>
         </View>
       </View>

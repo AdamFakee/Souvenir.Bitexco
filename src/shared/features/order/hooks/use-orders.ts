@@ -1,5 +1,5 @@
-import { database } from '@/shared/lib/database'
 import { useAppContext } from '@/shared/features/app'
+import { database } from '@/shared/lib/database'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import { useDebounce } from 'use-debounce'

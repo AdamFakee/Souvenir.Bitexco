@@ -3,7 +3,8 @@ import { OrderStatus } from '@/shared/lib/database'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
 import { IBaseResponse, PagedResponse } from '@/shared/types/api'
 import { endOfDay, startOfDay } from '@/shared/utils'
-import { IOrder, RefundReceiptData, RefundReceiptLine } from '../../types'
+import { IOrder, RefundReceiptData } from '../../types'
+import { checkCanReturn } from '../../utils'
 
 // ─── POS Atomic Checkout ──────────────────────────────────────────────────────
 
@@ -90,7 +91,9 @@ interface OrderListApiItem {
   id: string
   shiftId: string
   staffId: string
+  staffName?: string | null
   status: OrderStatus
+  state?: string | null
   subtotal: number
   discount: number
   voucherCode?: string | null
@@ -107,6 +110,8 @@ interface OrderListApiItem {
   canReturn?: boolean
   createdAt: string | number | Date
   updatedAt: string | number | Date
+  totalRefunded?: number
+  refunds?: any[]
   refund?: RefundReceiptData | null
 }
 
@@ -114,7 +119,7 @@ interface OrderListApiItem {
  * Cấu trúc Request Params cho việc lấy danh sách đơn hàng từ xa.
  */
 export interface GetRemoteOrdersParams {
-  status?: OrderStatus | null
+  status?: any
   searchQuery?: string
   dateFrom?: Date | null
   dateTo?: Date | null
@@ -261,7 +266,9 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   id: order.id,
   shiftId: order.shiftId,
   staffId: order.staffId,
-  status: order.status,
+  staffName: order.staffName ?? null,
+  // Ưu tiên sử dụng field `state` của WMS cho việc hiển thị badge label ở FE, fallback về status
+  status: (order.state || order.status) as OrderStatus,
   subtotal: order.subtotal ?? 0,
   discount: order.discount ?? 0,
   voucherCode: order.voucherCode ?? undefined,
@@ -275,9 +282,14 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   itemsSnapshot: order.itemsSnapshot ?? [],
   paymentsSnapshot: order.paymentsSnapshot ?? [],
   isDeleted: order.isDeleted ?? false,
-  canReturn: order.canReturn ?? order.status === OrderStatus.COMPLETED,
+  // Trạng thái cho phép trả hàng theo helper thống nhất
+  canReturn:
+    order.canReturn ??
+    checkCanReturn({ status: order.state || order.status, canReturn: order.canReturn }),
   createdAt: new Date(order.createdAt),
   updatedAt: new Date(order.updatedAt),
+  totalRefunded: order.totalRefunded ?? 0,
+  refunds: order.refunds ?? [],
   refund: order.refund ?? undefined,
 })
 
@@ -363,34 +375,50 @@ export const OrderRemoteAPI = {
    */
   getOrders: async (params: GetRemoteOrdersParams): Promise<IBaseResponse<IOrder[]>> => {
     const { status, searchQuery, dateFrom, dateTo, page = 1, limit = 20, shiftId } = params
-    const queryParams: Record<string, string | number> = { page, limit }
     const normalizedSearchQuery = searchQuery?.trim()
 
-    if (status) {
-      queryParams.status = status
-    }
+    const urlParams = new URLSearchParams()
+    urlParams.append('page', String(page))
+    urlParams.append('limit', String(limit))
 
     if (normalizedSearchQuery) {
-      queryParams.q = normalizedSearchQuery
+      urlParams.append('q', normalizedSearchQuery)
     }
 
     if (dateFrom) {
-      queryParams.date_from = startOfDay(dateFrom).toISOString()
+      urlParams.append('date_from', startOfDay(dateFrom).toISOString())
     }
 
     if (dateTo) {
-      queryParams.date_to = endOfDay(dateTo).toISOString()
+      urlParams.append('date_to', endOfDay(dateTo).toISOString())
     }
 
     if (shiftId) {
-      queryParams.shift_id = shiftId
+      urlParams.append('shift_id', shiftId)
     }
+
+    if (status) {
+      const statusArray = Array.isArray(status) ? status : [status]
+      statusArray.forEach((s) => {
+        // Gửi cả state và status dưới dạng lặp lại query parameters để tương thích 100% với backend
+        urlParams.append('state', s)
+        urlParams.append('status', s)
+      })
+    }
+
+    console.log('[ORDERS QUERY PARAMS] INPUT params:', params)
+    console.log('[ORDERS QUERY PARAMS] SENDING urlParams string:', urlParams.toString())
 
     try {
       const response = await AxiosService.getInstance().get<PagedResponse<OrderListApiItem>>(
         '/v1/pos/orders',
-        { params: queryParams },
+        { params: urlParams },
       )
+
+      console.log('[ORDERS RESPONSE] URL:', `/v1/pos/orders?${urlParams.toString()}`)
+      console.log('[ORDERS RESPONSE] DATA items count:', response.data?.items?.length ?? 0)
+      console.log('[ORDERS RESPONSE] DATA:', JSON.stringify(response.data, null, 2))
+
       const rawData = response.data as any
       const items = rawData.items || []
       const totalCount = rawData.totalCount || 0

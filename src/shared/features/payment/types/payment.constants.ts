@@ -26,6 +26,13 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodCode, string> = {
   mix: 'Hỗn hợp',
 }
 
+export const PAYMENT_METHOD_LABELS_EN: Record<PaymentMethodCode, string> = {
+  cash: 'Cash',
+  qr_bidv: 'QR Code',
+  card_bidv: 'Card',
+  mix: 'Mixed',
+}
+
 // ---------------------------------------------------------------------------
 // Style map — dùng cho badge trong OrderList, Dashboard chart, v.v.
 // ---------------------------------------------------------------------------

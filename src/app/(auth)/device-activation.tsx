@@ -9,7 +9,7 @@ import {
 } from '@/shared/features/auth'
 import { toast } from '@/shared/store'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { ArrowRight } from 'lucide-react-native'
+import { ArrowRight, Key, Smartphone } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ImageBackground, StyleSheet, Text, View } from 'react-native'
@@ -65,14 +65,12 @@ export default function DeviceActivation() {
 
       <View style={styles.container}>
         {/* Logo top */}
-        <LogoSkystore width={200} height={80} color="#ffffff" />
+        <LogoSkystore width={300} height={120} color="#ffffff" />
 
-        {/* White card */}
-        <View style={styles.card}>
+        {/* Glassmorphic Form Wrapper */}
+        <View style={styles.formWrapper}>
           {/* Card header */}
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Kích hoạt thiết bị</Text>
-          </View>
+          <Text style={styles.title}>Kích hoạt thiết bị</Text>
 
           {/* Form fields */}
           <View style={styles.formGroup}>
@@ -81,25 +79,47 @@ export default function DeviceActivation() {
               name="deviceCode"
               label="Mã thiết bị"
               placeholder="Ví dụ: POS-001"
+              leftIcon={Smartphone}
+              iconColor="rgba(255, 255, 255, 0.6)"
+              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+              containerClassName="mb-0"
+              className="border-0 bg-transparent text-white"
+              containerStyle={styles.inputContainer}
+              focusedContainerStyle={styles.inputFocusedBorder}
+              labelClassName="text-white font-medium"
+              style={styles.textInput}
             />
             <ControlledInput
               control={control}
               name="activationToken"
               label="Mã kích hoạt"
               placeholder="Nhập mã kích hoạt"
+              leftIcon={Key}
+              iconColor="rgba(255, 255, 255, 0.6)"
+              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+              containerClassName="mb-0"
+              className="border-0 bg-transparent text-white"
+              containerStyle={styles.inputContainer}
+              focusedContainerStyle={styles.inputFocusedBorder}
+              labelClassName="text-white font-medium"
+              style={styles.textInput}
             />
           </View>
 
           {/* Activate option card button */}
           <Button
             label="Kích hoạt ngay"
-            variant="outline"
+            variant="primary"
             onPress={handleSubmit(onSubmit)}
             loading={loading}
             rightIcon={ArrowRight}
-            textClassName="text-[#111827] font-bold text-[20px]"
           />
         </View>
+      </View>
+
+      {/* Footer copyright */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>© 2024 Skystore. Tất cả quyền được bảo lưu.</Text>
       </View>
     </ImageBackground>
   )
@@ -117,33 +137,50 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 48,
+    gap: 40,
     paddingTop: 24,
   },
-  card: {
+  formWrapper: {
     width: 608,
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    // borderWidth: 1,
-    // borderColor: '#e0e1e2',
-    padding: 24,
     gap: 24,
-    shadowColor: '#a8a8a8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 32,
-    elevation: 8,
   },
-  cardHeader: {
-    gap: 4,
-  },
-  cardTitle: {
+  title: {
     fontFamily: 'Manrope-Bold',
-    fontSize: 32,
-    lineHeight: 44.8,
-    color: '#282929',
+    fontSize: 48,
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   formGroup: {
-    gap: 16,
+    gap: 20,
+  },
+  inputContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    height: 60,
+    paddingHorizontal: 16,
+  },
+  inputFocusedBorder: {
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  textInput: {
+    flex: 1,
+    fontFamily: 'Manrope-Medium',
+    fontSize: 16,
+    color: '#ffffff',
+    height: '100%',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 32,
+    alignSelf: 'center',
+  },
+  footerText: {
+    fontFamily: 'Manrope-Medium',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
 })

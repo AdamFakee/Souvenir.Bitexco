@@ -11,6 +11,8 @@ import React, { useImperativeHandle, useRef, useState, memo } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { IOrder } from '../types'
+import { ORDER_STATUS_CONFIG } from '../constants'
+import { checkCanExchange, checkCanReturn } from '../utils'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { ExchangeConfirmModal, ExchangeConfirmModalRef } from './exchange-confirm-modal'
 import { RefundConfirmModal, RefundConfirmModalRef } from './refund-confirm-modal'
@@ -52,32 +54,13 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
   const items = order.itemsSnapshot || []
   const payments = order.paymentsSnapshot || []
-  const canExchange =
-    order.status === OrderStatus.COMPLETED &&
-    order.canReturn !== false &&
-    !order.voucherCode &&
-    !order.voucherDiscount &&
-    !order.discount
 
-  const statusColors: Record<string, string> = {
-    PENDING: '#3b82f6',
-    COMPLETED: '#10b981',
-    REFUNDED: '#f59e0b',
-    FAILED: '#ef4444',
-  }
+  const canExchange = checkCanExchange(order)
 
-  const statusBgColors: Record<string, string> = {
-    PENDING: '#dbeafe',
-    COMPLETED: '#d1fae5',
-    REFUNDED: '#fef3c7',
-    FAILED: '#fee2e2',
-  }
-
-  const statusLabels: Record<string, string> = {
-    PENDING: 'Chờ thanh toán',
-    COMPLETED: 'Hoàn thành',
-    REFUNDED: 'Hoàn tiền',
-    FAILED: 'Thất bại',
+  const config = ORDER_STATUS_CONFIG[order.status] || {
+    label: order.status || 'Không rõ',
+    color: '#6B7280',
+    bgColor: '#F3F4F6',
   }
 
   return (
@@ -180,13 +163,13 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                       <Text className="text-lg font-bold text-muted">Trạng thái</Text>
                       <View
                         className="rounded-full px-4 py-1"
-                        style={{ backgroundColor: statusBgColors[order.status] }}
+                        style={{ backgroundColor: config.bgColor }}
                       >
                         <Text
                           className="text-base font-black uppercase tracking-widest"
-                          style={{ color: statusColors[order.status] }}
+                          style={{ color: config.color }}
                         >
-                          {statusLabels[order.status]}
+                          {config.label}
                         </Text>
                       </View>
                     </View>
@@ -283,12 +266,13 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                     }}
                   />
                   <Button
-                    label={order.status === OrderStatus.REFUNDED ? 'Đã hoàn tiền' : 'Trả hàng'}
+                    label={
+                      ['REFUNDED', 'RETURNED'].includes(order.status) ? 'Đã hoàn tiền' : 'Trả hàng'
+                    }
                     variant="outline"
                     leftIcon={Trash2}
                     className="h-16 rounded-2xl"
-                    // textClassName="text-xl text-error font-black"
-                    disabled={!order.canReturn && order.status !== OrderStatus.COMPLETED}
+                    disabled={!checkCanReturn(order)}
                     onPress={() => {
                       refundModalRef.current?.open(order)
                       setVisible(false)

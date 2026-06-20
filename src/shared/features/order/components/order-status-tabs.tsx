@@ -1,49 +1,52 @@
 import { COLORS } from '@/shared/constants'
-import { OrderStatus } from '@/shared/lib/database/models/order'
 import React, { memo, useCallback } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { ORDER_STATUS_CONFIG } from '../constants'
 import { useOrderFilterStore } from '../store'
 
-// ─── Tab definitions — static, never recreated ────────────────────────────────
-
-const TAB_KEYS = [OrderStatus.COMPLETED, OrderStatus.REFUNDED, 'ALL'] as const
-type TabKey = (typeof TAB_KEYS)[number]
-
-// ─── Individual tab — fully self-contained, subscribes to its own slice ───────
-// onPress is stable via internal useCallback so memo actually works
+// Định nghĩa mảng TABS tĩnh dùng các status của WMS
+const TABS: { key: string; label: string; statuses: string[] | null }[] = [
+  { key: 'COMPLETED', label: 'Hoàn thành', statuses: ['FULFILLED', 'COMPLETED'] },
+  {
+    key: 'RETURNED',
+    label: 'Trả hàng / Hoàn tiền',
+    statuses: ['RETURN_REQUESTED', 'PARTIALLY_RETURNED', 'RETURNED', 'REFUNDED'],
+  },
+  { key: 'ALL', label: 'Tất cả', statuses: null },
+]
 
 interface StatusTabProps {
-  tabKey: TabKey
+  tabIndex: number
 }
 
-const StatusTab = memo(function StatusTab({ tabKey }: StatusTabProps) {
+const StatusTab = memo(function StatusTab({ tabIndex }: StatusTabProps) {
   const status = useOrderFilterStore((s) => s.status)
   const setStatus = useOrderFilterStore((s) => s.setStatus)
+  const tab = TABS[tabIndex]
 
-  const isActive = tabKey === 'ALL' ? status === null : status === tabKey
-  const config = ORDER_STATUS_CONFIG[tabKey]
+  const isActive = (() => {
+    if (tab.statuses === null) return status === null
+    if (!status || !Array.isArray(status)) return false
+    return status.length === tab.statuses.length && status.every((s) => tab.statuses!.includes(s))
+  })()
 
   const handlePress = useCallback(() => {
-    setStatus(tabKey === 'ALL' ? null : tabKey)
-  }, [setStatus, tabKey])
+    setStatus(tab.statuses ? [...tab.statuses] : null)
+  }, [setStatus, tab.statuses])
 
   return (
     <Pressable onPress={handlePress} style={[styles.tab, isActive && styles.tabActive]}>
       <Text style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}>
-        {config.label}
+        {tab.label}
       </Text>
     </Pressable>
   )
 })
 
-// ─── Container — no store subscriptions, just renders static tab list ─────────
-
 export const OrderStatusTabs = memo(function OrderStatusTabs() {
   return (
     <View style={styles.container}>
-      {TAB_KEYS.map((tabKey) => (
-        <StatusTab key={tabKey} tabKey={tabKey} />
+      {TABS.map((_, index) => (
+        <StatusTab key={index} tabIndex={index} />
       ))}
     </View>
   )
@@ -71,14 +74,5 @@ const styles = StyleSheet.create({
   },
   tabTextInactive: {
     color: COLORS.muted,
-  },
-  badge: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  badgeText: {
-    fontSize: 14,
-    fontFamily: 'Manrope-Bold',
   },
 })

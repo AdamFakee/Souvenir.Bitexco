@@ -23,6 +23,9 @@ interface OrderListProps {
 const getPaymentMethodInfo = (order: IOrder) => {
   const payments = order.paymentsSnapshot || []
   if (payments.length === 0) return { label: '—', color: COLORS.muted, bg: COLORS.surface[100] }
+  if (payments.length >= 2) {
+    return getPaymentMethodStyle('mix')
+  }
   return getPaymentMethodStyle(payments[0].method)
 }
 
@@ -81,7 +84,11 @@ export const OrderList = memo(function OrderList({
         const itemsCount = item.itemsSnapshot?.length || 0
         const firstItem = item.itemsSnapshot?.[0]
         const pttt = getPaymentMethodInfo(item)
-        const config = ORDER_STATUS_CONFIG[item.status]
+        const config = ORDER_STATUS_CONFIG[item.status] || {
+          label: item.status || 'Không rõ',
+          color: '#6B7280',
+          bgColor: '#F3F4F6',
+        }
 
         return (
           <Pressable
@@ -119,7 +126,7 @@ export const OrderList = memo(function OrderList({
               )}
             </View>
 
-            <View className="mr-6 w-64 items-center">
+            <View className="mr-6 w-52 items-center">
               <View
                 className="flex-row items-center gap-2 rounded-lg px-6 py-2.5"
                 style={{ backgroundColor: pttt.bg }}
@@ -127,6 +134,7 @@ export const OrderList = memo(function OrderList({
                 <Text
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: pttt.color }}
+                  numberOfLines={1}
                 >
                   {pttt.label}
                 </Text>
@@ -139,11 +147,12 @@ export const OrderList = memo(function OrderList({
               </Text>
             </View>
 
-            <View className="mr-6 w-44 items-center">
+            <View className="mr-6 w-56 items-center">
               <View className="rounded-full px-6 py-2" style={{ backgroundColor: config.bgColor }}>
                 <Text
                   className="text-sm font-bold uppercase tracking-widest"
                   style={{ color: config.color }}
+                  numberOfLines={1}
                 >
                   {config.label}
                 </Text>

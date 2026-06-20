@@ -50,4 +50,7 @@ export interface IOrder {
   createdAt: Date
   updatedAt: Date
   refund?: RefundReceiptData
+  staffName?: string | null
+  totalRefunded?: number
+  refunds?: any[]
 }

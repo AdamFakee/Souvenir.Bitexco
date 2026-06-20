@@ -3,13 +3,13 @@ import { create } from 'zustand'
 
 interface OrderFilterState {
   searchQuery: string
-  status: OrderStatus | null
+  status: string[] | string | null
   dateFrom: Date | null
   dateTo: Date | null
   scope: 'ALL' | 'SHIFT'
 
   setSearchQuery: (query: string) => void
-  setStatus: (status: OrderStatus | null) => void
+  setStatus: (status: string[] | string | null) => void
   setDateFrom: (date: Date | null) => void
   setDateTo: (date: Date | null) => void
   setScope: (scope: 'ALL' | 'SHIFT') => void
@@ -18,7 +18,7 @@ interface OrderFilterState {
 
 export const useOrderFilterStore = create<OrderFilterState>((set) => ({
   searchQuery: '',
-  status: OrderStatus.COMPLETED,
+  status: ['FULFILLED', 'COMPLETED'],
   dateFrom: null,
   dateTo: new Date(),
   scope: 'SHIFT',
@@ -31,7 +31,7 @@ export const useOrderFilterStore = create<OrderFilterState>((set) => ({
   resetFilters: () =>
     set({
       searchQuery: '',
-      status: null,
+      status: ['FULFILLED', 'COMPLETED'],
       dateFrom: null,
       dateTo: new Date(),
       scope: 'SHIFT',

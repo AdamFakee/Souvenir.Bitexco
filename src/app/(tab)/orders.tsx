@@ -73,7 +73,7 @@ export default function OrdersScreen() {
                 Sản phẩm
               </Text>
               <Text
-                className="mr-6 w-72 text-center text-lg font-bold uppercase tracking-wider text-muted"
+                className="mr-6 w-52 text-center text-lg font-bold uppercase tracking-wider text-muted"
                 numberOfLines={1}
               >
                 Phương thức thanh toán
@@ -81,7 +81,7 @@ export default function OrdersScreen() {
               <Text className="mr-6 w-48 text-right text-lg font-bold uppercase tracking-wider text-muted">
                 Tổng cộng
               </Text>
-              <Text className="mr-6 w-44 text-center text-lg font-bold uppercase tracking-wider text-muted">
+              <Text className="mr-6 w-56 text-center text-lg font-bold uppercase tracking-wider text-muted">
                 Trạng thái
               </Text>
               <View className="w-16" />

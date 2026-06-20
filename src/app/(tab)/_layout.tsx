@@ -23,7 +23,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Q } from '@nozbe/watermelondb'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -275,7 +275,6 @@ export default function TabLayout() {
           tabBar={() => null}
           screenOptions={{
             headerShown: false,
-            lazy: false,
           }}
         >
           <Tabs.Screen name="pos" options={{ title: 'Bán hàng' }} />

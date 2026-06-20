@@ -13,6 +13,7 @@ import {
 } from '../api/remote/order.remote.api'
 import { getOrderErrorMessage } from '../constants'
 import { IOrder } from '../types'
+import { checkCanExchange } from '../utils'
 
 export interface ExchangeReplacementLine {
   variantId: string
@@ -193,15 +194,12 @@ const getValidationMessage = (context: ExchangeOrderContext) => {
     return 'Không tìm thấy ca làm việc hiện tại. Vui lòng kiểm tra lại trạng thái ca.'
   if (!context.staffId) return 'Không tìm thấy nhân viên đang đăng nhập. Vui lòng đăng nhập lại.'
   if (!context.order) return 'Không tìm thấy đơn hàng cần đổi.'
-  if (context.order.status !== OrderStatus.COMPLETED || context.order.canReturn === false) {
-    return 'Trạng thái đơn hàng không cho phép đổi hàng.'
-  }
-  if (
-    context.order.voucherCode ||
-    context.order.voucherDiscount > 0 ||
-    context.order.discount > 0
-  ) {
-    return 'Đơn hàng có khuyến mãi hoặc voucher không được đổi hàng.'
+  if (!checkCanExchange(context.order)) {
+    const isExpired = Date.now() - new Date(context.order.createdAt).getTime() > 24 * 60 * 60 * 1000
+    if (isExpired) {
+      return 'Đơn hàng đã quá hạn 1 ngày (24 giờ), không được phép đổi hàng.'
+    }
+    return 'Đơn hàng không đủ điều kiện đổi (trạng thái không hợp lệ, có voucher hoặc đã bị khóa đổi).'
   }
 
   const selectedReturnLines = context.returnedLines.filter((line) => line.qty > 0)

@@ -14,6 +14,8 @@ interface ControlledInputProps<T extends FieldValues> extends Omit<
   required?: boolean
   error?: string
   containerClassName?: string
+  labelClassName?: string
+  labelStyle?: any
   formatValue?: (value: any) => string
   onChangeText?: (text: string) => void
 }
@@ -26,6 +28,8 @@ export function ControlledInput<T extends FieldValues>({
   required,
   error: customError,
   containerClassName,
+  labelClassName,
+  labelStyle,
   formatValue,
   onChangeText: customOnChangeText,
   ...inputProps
@@ -43,7 +47,10 @@ export function ControlledInput<T extends FieldValues>({
   return (
     <View className={cn('mb-4', containerClassName)}>
       {label && (
-        <Text className="text-on-surface mb-2 text-body-base font-semibold">
+        <Text
+          className={cn('text-on-surface mb-2 text-body-base font-semibold', labelClassName)}
+          style={labelStyle}
+        >
           {label}
           {required && <Text className="text-error"> *</Text>}
         </Text>

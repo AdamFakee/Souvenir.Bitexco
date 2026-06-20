@@ -92,13 +92,13 @@ export const LogoSkystore = ({
         {/* Bottom line: SKYSTORE */}
         <SvgText
           x="101"
-          y="68"
+          y="65"
           fill={color}
           textAnchor="middle"
-          fontSize="19"
-          fontWeight="bold"
-          fontFamily="Manrope-Bold"
-          letterSpacing="0.8"
+          fontSize="13"
+          fontWeight="300"
+          fontFamily="Inter"
+          letterSpacing={4}
         >
           SKYSTORE
         </SvgText>
