@@ -25,6 +25,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  memo,
 } from 'react'
 import { useForm } from 'react-hook-form'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
@@ -53,8 +54,8 @@ interface RefundConfirmModalProps {
   onSuccess?: () => void
 }
 
-export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, RefundConfirmModalProps>(
-  ({ onSuccess }, ref) => {
+export const RefundConfirmModal = memo(
+  React.forwardRef<RefundConfirmModalRef, RefundConfirmModalProps>(({ onSuccess }, ref) => {
     const [state, send] = useMachine(refundOrderMachine)
     const [visible, setVisible] = useState(false)
     const receiptPrintRef = useRef(null)
@@ -270,236 +271,253 @@ export const RefundConfirmModal = React.forwardRef<RefundConfirmModalRef, Refund
         )}
 
         <ModalBase visible={visible} onClose={handleClose} dismissible={!isProcessing} size="90%">
-          <SafeAreaView className="flex-1">
-            <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-10 py-6">
-              <View>
-                <Text className="text-3xl font-black tracking-tight text-surface-on">Trả hàng</Text>
-                <Text className="mt-1 text-base font-bold text-muted">{getStepText()}</Text>
-              </View>
-              <IconButton
-                icon={X}
-                size={32}
-                color={COLORS.surface.onVariant}
-                onPress={handleClose}
-                disabled={isProcessing}
-              />
-            </View>
-
-            <View className="flex-1 flex-row">
-              <View className="flex-[1.6] bg-white">
-                <View className="flex-row items-center border-b border-outline-variant bg-[#f8fafc] px-10 py-5">
-                  <View className="w-12 items-center justify-center">
-                    <Checkbox
-                      checked={allSelected}
-                      onChange={handleToggleAll}
-                      disabled={!isDraft || isProcessing}
-                    />
-                  </View>
-                  <Text className="ml-6 flex-1 text-sm font-black uppercase tracking-wider text-muted">
-                    Sản phẩm
-                  </Text>
-                  <Text className="w-32 text-center text-sm font-black uppercase tracking-wider text-muted">
-                    SL mua
-                  </Text>
-                  <Text className="w-48 text-center text-sm font-black uppercase tracking-wider text-muted">
-                    SL trả
-                  </Text>
-                  <Text className="w-40 text-right text-sm font-black uppercase tracking-wider text-muted">
-                    Tạm tính
-                  </Text>
-                </View>
-
-                <FlashList<ItemSnapshot>
-                  data={order.itemsSnapshot || []}
-                  keyExtractor={(item, index) => item.productId || index.toString()}
-                  renderItem={({ item }) => {
-                    const qty = getLineQty(item.productId)
-                    const isSelected = qty > 0
-                    const lineRefundAmount =
-                      item.quantity > 0 ? (item.subtotal / item.quantity) * qty : 0
-
-                    return (
-                      <View className="flex-row items-center border-b border-outline-variant px-10 py-6">
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => handleToggleItem(item)}
-                          disabled={!isDraft || isProcessing}
-                        />
-
-                        <View className="ml-6 flex-1">
-                          <Text className="text-2xl font-black text-surface-on">{item.name}</Text>
-                          <Text className="mt-1 text-sm font-bold text-muted/60">{item.sku}</Text>
-                        </View>
-
-                        <Text className="w-32 text-center text-2xl font-black text-surface-on">
-                          x{item.quantity}
-                        </Text>
-
-                        <View className="w-48 items-center justify-center">
-                          <QuantityStepper
-                            value={qty}
-                            onChange={(newQty) => handleChangeQty(item, newQty)}
-                            disabled={!isDraft || isProcessing}
-                            min={0}
-                            max={item.quantity}
-                            editable={true}
-                          />
-                        </View>
-
-                        <Text className="w-40 text-right text-xl font-black text-error">
-                          {isSelected ? formatCurrency(lineRefundAmount) : '-'}
-                        </Text>
-                      </View>
-                    )
-                  }}
-                />
-              </View>
-
-              <View className="flex-1 justify-between border-l border-outline-variant bg-surface-50 p-10">
-                <View>
-                  <View className="mb-8 flex-row items-center justify-between">
-                    <Text className="text-xl font-black uppercase tracking-widest text-surface-on">
-                      Thông tin trả hàng
+          {visible && (
+            <>
+              <SafeAreaView className="flex-1">
+                <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-10 py-6">
+                  <View>
+                    <Text className="text-3xl font-black tracking-tight text-surface-on">
+                      Trả hàng
                     </Text>
+                    <Text className="mt-1 text-base font-bold text-muted">{getStepText()}</Text>
                   </View>
-
-                  <View className="gap-6">
-                    <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
-                      <Text className="text-xl font-bold text-muted">Tổng số món đã mua</Text>
-                      <Text className="text-xl font-black text-surface-on">{itemCount} món</Text>
-                    </View>
-
-                    <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
-                      <Text className="text-xl font-bold text-muted">Sản phẩm đã chọn</Text>
-                      <Text className="text-xl font-black text-primary">{selectedItemCount}</Text>
-                    </View>
-
-                    <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
-                      <Text className="text-xl font-bold text-muted">Hình thức hoàn</Text>
-                      <Text className="text-xl font-black text-primary">Online</Text>
-                    </View>
-
-                    <View className="mt-8 flex-row items-center justify-between gap-4 border-t-2 border-outline-variant pt-8">
-                      <Text className="text-2xl font-black uppercase tracking-tighter text-surface-on">
-                        Tổng tiền hoàn
-                      </Text>
-                      <Text className="text-6xl font-black text-error" numberOfLines={1}>
-                        {formatCurrency(displayRefundAmount)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View className="mb-6 mt-10">
-                    <Text className="mb-4 text-lg font-black uppercase tracking-widest text-muted">
-                      Lý do trả hàng
-                    </Text>
-
-                    <View className="mb-4 flex-row flex-wrap gap-4">
-                      {QUICK_REASONS.map((r) => (
-                        <Chip
-                          key={r}
-                          label={r}
-                          active={reason === r}
-                          onPress={() => send({ type: 'SET_REASON', reason: r })}
-                          className="h-18 self-start px-8 py-4"
-                          textClassName="text-xl font-black"
-                          disabled={!isDraft || isProcessing}
-                        />
-                      ))}
-                    </View>
-
-                    <TextInput
-                      multiline
-                      numberOfLines={2}
-                      placeholder="Nhập lý do nếu có..."
-                      value={reason}
-                      onChangeText={(text) => send({ type: 'SET_REASON', reason: text })}
-                      className="h-28 rounded-2xl border border-outline-variant bg-white px-6 py-4 text-xl font-bold text-surface-on"
-                      textAlignVertical="top"
-                      placeholderTextColor={COLORS.muted}
-                      editable={isDraft && !isProcessing}
-                    />
-                  </View>
-                </View>
-
-                <View className="gap-4">
-                  <Button
-                    label="Hủy bỏ"
-                    variant="outline"
-                    className="h-16 rounded-2xl"
-                    textClassName="text-xl font-black"
+                  <IconButton
+                    icon={X}
+                    size={32}
+                    color={COLORS.surface.onVariant}
                     onPress={handleClose}
                     disabled={isProcessing}
                   />
-                  <Button
-                    label={isProcessing ? getStepText() : 'XÁC NHẬN TRẢ HÀNG'}
-                    variant="error"
-                    className="h-20 rounded-2xl"
-                    textClassName="text-2xl font-black"
-                    onPress={handleConfirm}
-                    loading={isProcessing}
-                    disabled={(!isDraft && !state.matches('completed')) || selectedItemCount === 0}
-                  />
-                </View>
-              </View>
-            </View>
-          </SafeAreaView>
-
-          {/* Manager Approval Overlay */}
-          {(isWaitingManagerApproval || (isSubmitting && state.context.managerAuth !== null)) && (
-            <View style={styles.managerOverlay}>
-              <View style={styles.managerCard}>
-                <View style={styles.managerCardHeader}>
-                  <Text style={styles.managerCardTitle}>Yêu cầu Quyền Quản lý</Text>
-                  <Text style={styles.managerCardSubtitle}>
-                    {managerApprovalMessage ||
-                      'Vui lòng nhập tài khoản và mã PIN của quản lý để phê duyệt trả hàng.'}
-                  </Text>
                 </View>
 
-                <View style={styles.managerFormGroup}>
-                  <ControlledInput
-                    control={managerControl}
-                    name="employeeCode"
-                    label="Tài khoản Quản lý"
-                    placeholder="Nhập mã nhân viên quản lý"
-                  />
-                  <ControlledInput
-                    control={managerControl}
-                    name="pin"
-                    label="Mã PIN"
-                    placeholder="Nhập mã PIN/Mật khẩu"
-                    secureTextEntry
-                  />
-                </View>
+                <View className="flex-1 flex-row">
+                  <View className="flex-[1.6] bg-white">
+                    <View className="flex-row items-center border-b border-outline-variant bg-[#f8fafc] px-10 py-5">
+                      <View className="w-12 items-center justify-center">
+                        <Checkbox
+                          checked={allSelected}
+                          onChange={handleToggleAll}
+                          disabled={!isDraft || isProcessing}
+                        />
+                      </View>
+                      <Text className="ml-6 flex-1 text-sm font-black uppercase tracking-wider text-muted">
+                        Sản phẩm
+                      </Text>
+                      <Text className="w-32 text-center text-sm font-black uppercase tracking-wider text-muted">
+                        SL mua
+                      </Text>
+                      <Text className="w-48 text-center text-sm font-black uppercase tracking-wider text-muted">
+                        SL trả
+                      </Text>
+                      <Text className="w-40 text-right text-sm font-black uppercase tracking-wider text-muted">
+                        Tạm tính
+                      </Text>
+                    </View>
 
-                <View className="mt-2 flex-row gap-4">
-                  <Button
-                    label="Hủy bỏ"
-                    variant="outline"
-                    onPress={onManagerCancel}
-                    className="h-14 flex-1"
-                    textClassName="font-bold"
-                    disabled={isSubmitting}
-                  />
-                  <Button
-                    label="Xác nhận"
-                    variant="primary"
-                    onPress={handleManagerSubmit(onManagerSubmit)}
-                    className="h-14 flex-1"
-                    textClassName="font-bold"
-                    loading={isSubmitting}
-                  />
+                    <FlashList<ItemSnapshot>
+                      data={order.itemsSnapshot || []}
+                      keyExtractor={(item, index) => item.productId || index.toString()}
+                      renderItem={({ item }) => {
+                        const qty = getLineQty(item.productId)
+                        const isSelected = qty > 0
+                        const lineRefundAmount =
+                          item.quantity > 0 ? (item.subtotal / item.quantity) * qty : 0
+
+                        return (
+                          <View className="flex-row items-center border-b border-outline-variant px-10 py-6">
+                            <Checkbox
+                              checked={isSelected}
+                              onChange={() => handleToggleItem(item)}
+                              disabled={!isDraft || isProcessing}
+                            />
+
+                            <View className="ml-6 flex-1">
+                              <Text className="text-2xl font-black text-surface-on">
+                                {item.name}
+                              </Text>
+                              <Text className="mt-1 text-sm font-bold text-muted/60">
+                                {item.sku}
+                              </Text>
+                            </View>
+
+                            <Text className="w-32 text-center text-2xl font-black text-surface-on">
+                              x{item.quantity}
+                            </Text>
+
+                            <View className="w-48 items-center justify-center">
+                              <QuantityStepper
+                                value={qty}
+                                onChange={(newQty) => handleChangeQty(item, newQty)}
+                                disabled={!isDraft || isProcessing}
+                                min={0}
+                                max={item.quantity}
+                                editable={true}
+                              />
+                            </View>
+
+                            <Text className="w-40 text-right text-xl font-black text-error">
+                              {isSelected ? formatCurrency(lineRefundAmount) : '-'}
+                            </Text>
+                          </View>
+                        )
+                      }}
+                    />
+                  </View>
+
+                  <View className="flex-1 justify-between border-l border-outline-variant bg-surface-50 p-10">
+                    <View>
+                      <View className="mb-8 flex-row items-center justify-between">
+                        <Text className="text-xl font-black uppercase tracking-widest text-surface-on">
+                          Thông tin trả hàng
+                        </Text>
+                      </View>
+
+                      <View className="gap-6">
+                        <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
+                          <Text className="text-xl font-bold text-muted">Tổng số món đã mua</Text>
+                          <Text className="text-xl font-black text-surface-on">
+                            {itemCount} món
+                          </Text>
+                        </View>
+
+                        <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
+                          <Text className="text-xl font-bold text-muted">Sản phẩm đã chọn</Text>
+                          <Text className="text-xl font-black text-primary">
+                            {selectedItemCount}
+                          </Text>
+                        </View>
+
+                        <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
+                          <Text className="text-xl font-bold text-muted">Hình thức hoàn</Text>
+                          <Text className="text-xl font-black text-primary">Online</Text>
+                        </View>
+
+                        <View className="mt-8 flex-row items-center justify-between gap-4 border-t-2 border-outline-variant pt-8">
+                          <Text className="text-2xl font-black uppercase tracking-tighter text-surface-on">
+                            Tổng tiền hoàn
+                          </Text>
+                          <Text className="text-6xl font-black text-error" numberOfLines={1}>
+                            {formatCurrency(displayRefundAmount)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View className="mb-6 mt-10">
+                        <Text className="mb-4 text-lg font-black uppercase tracking-widest text-muted">
+                          Lý do trả hàng
+                        </Text>
+
+                        <View className="mb-4 flex-row flex-wrap gap-4">
+                          {QUICK_REASONS.map((r) => (
+                            <Chip
+                              key={r}
+                              label={r}
+                              active={reason === r}
+                              onPress={() => send({ type: 'SET_REASON', reason: r })}
+                              className="h-18 self-start px-8 py-4"
+                              textClassName="text-xl font-black"
+                              disabled={!isDraft || isProcessing}
+                            />
+                          ))}
+                        </View>
+
+                        <TextInput
+                          multiline
+                          numberOfLines={2}
+                          placeholder="Nhập lý do nếu có..."
+                          value={reason}
+                          onChangeText={(text) => send({ type: 'SET_REASON', reason: text })}
+                          className="h-28 rounded-2xl border border-outline-variant bg-white px-6 py-4 text-xl font-bold text-surface-on"
+                          textAlignVertical="top"
+                          placeholderTextColor={COLORS.muted}
+                          editable={isDraft && !isProcessing}
+                        />
+                      </View>
+                    </View>
+
+                    <View className="gap-4">
+                      <Button
+                        label="Hủy bỏ"
+                        variant="outline"
+                        className="h-16 rounded-2xl"
+                        textClassName="text-xl font-black"
+                        onPress={handleClose}
+                        disabled={isProcessing}
+                      />
+                      <Button
+                        label={isProcessing ? getStepText() : 'XÁC NHẬN TRẢ HÀNG'}
+                        variant="error"
+                        className="h-20 rounded-2xl"
+                        textClassName="text-2xl font-black"
+                        onPress={handleConfirm}
+                        loading={isProcessing}
+                        disabled={
+                          (!isDraft && !state.matches('completed')) || selectedItemCount === 0
+                        }
+                      />
+                    </View>
+                  </View>
                 </View>
-              </View>
-            </View>
+              </SafeAreaView>
+
+              {/* Manager Approval Overlay */}
+              {(isWaitingManagerApproval ||
+                (isSubmitting && state.context.managerAuth !== null)) && (
+                <View style={styles.managerOverlay}>
+                  <View style={styles.managerCard}>
+                    <View style={styles.managerCardHeader}>
+                      <Text style={styles.managerCardTitle}>Yêu cầu Quyền Quản lý</Text>
+                      <Text style={styles.managerCardSubtitle}>
+                        {managerApprovalMessage ||
+                          'Vui lòng nhập tài khoản và mã PIN của quản lý để phê duyệt trả hàng.'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.managerFormGroup}>
+                      <ControlledInput
+                        control={managerControl}
+                        name="employeeCode"
+                        label="Tài khoản Quản lý"
+                        placeholder="Nhập mã nhân viên quản lý"
+                      />
+                      <ControlledInput
+                        control={managerControl}
+                        name="pin"
+                        label="Mã PIN"
+                        placeholder="Nhập mã PIN/Mật khẩu"
+                        secureTextEntry
+                      />
+                    </View>
+
+                    <View className="mt-2 flex-row gap-4">
+                      <Button
+                        label="Hủy bỏ"
+                        variant="outline"
+                        onPress={onManagerCancel}
+                        className="h-14 flex-1"
+                        textClassName="font-bold"
+                        disabled={isSubmitting}
+                      />
+                      <Button
+                        label="Xác nhận"
+                        variant="primary"
+                        onPress={handleManagerSubmit(onManagerSubmit)}
+                        className="h-14 flex-1"
+                        textClassName="font-bold"
+                        loading={isSubmitting}
+                      />
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              <BusinessChecklistModal ref={businessChecklistModalRef} />
+            </>
           )}
-
-          <BusinessChecklistModal ref={businessChecklistModalRef} />
         </ModalBase>
       </>
     )
-  },
+  }),
 )
 
 RefundConfirmModal.displayName = 'RefundConfirmModal'

@@ -105,8 +105,6 @@ export const appMachine = setup({
           onTokenRotated: (newToken: string) => void
         }
       }) => {
-        console.log('[appMachine] Starting refresh flow...')
-
         if (!input.refreshToken) {
           throw new Error('No refresh token — PIN login required')
         }
@@ -128,15 +126,13 @@ export const appMachine = setup({
         try {
           const deviceContext = await AuthAPI.getDeviceContext()
           if (!deviceContext.isActive) {
-            console.warn('[appMachine] Device is inactive — locking screen')
             const err = new Error('DEVICE_INACTIVE')
             ;(err as any).code = 'DEVICE_INACTIVE'
             throw err
           }
           warehouseId = deviceContext.warehouseId
         } catch (e: any) {
-          if (e?.code === 'DEVICE_INACTIVE') throw e // re-throw để machine bắt
-          console.error('[appMachine] getDeviceContext failed, continuing:', e)
+          if (e?.code === 'DEVICE_INACTIVE') throw e
         }
 
         // 5. Check ca đang mở — CashSession[]
@@ -147,21 +143,11 @@ export const appMachine = setup({
         let paymentMethods = null
         try {
           paymentMethods = await PaymentRemoteAPI.getPaymentMethods()
-        } catch (e) {
-          console.error('[appMachine] Failed to fetch payment methods during startup:', e)
-        }
+        } catch {}
 
         // 7. Kéo dữ liệu master data ngầm (offline cache)
-        SyncService.pullMasterData().catch((e) => {
-          console.error('[appMachine] Background sync failed during startup:', e)
-        })
+        SyncService.pullMasterData().catch(() => {})
 
-        console.log('[appMachine] Refresh flow completed:', {
-          accessToken: '***',
-          employee: employee.displayName,
-          cashSessionId,
-          paymentMethodsCount: paymentMethods?.length || 0,
-        })
         return { accessToken, employee, cashSessionId, paymentMethods, warehouseId }
       },
     ),
@@ -171,23 +157,19 @@ export const appMachine = setup({
      * Tránh hardcode sang noShift — nhân viên có thể login lại khi ca vẫn còn mở
      */
     revalidateShiftFlow: fromPromise(async ({ input }: { input: { deviceId: string } }) => {
-      console.log('[appMachine] Revalidating shift after login...')
-
       // 1. Kiểm tra trạng thái kích hoạt thiết bị
       // Lỗi mạng/server → bỏ qua, chỉ chặn khi server xác nhận isActive=false
       let warehouseId: string | undefined
       try {
         const deviceContext = await AuthAPI.getDeviceContext()
         if (!deviceContext.isActive) {
-          console.warn('[appMachine] Device is inactive after login — locking screen')
           const err = new Error('DEVICE_INACTIVE')
           ;(err as any).code = 'DEVICE_INACTIVE'
           throw err
         }
         warehouseId = deviceContext.warehouseId
       } catch (e: any) {
-        if (e?.code === 'DEVICE_INACTIVE') throw e // re-throw để machine bắt
-        console.error('[appMachine] getDeviceContext failed, continuing:', e)
+        if (e?.code === 'DEVICE_INACTIVE') throw e
       }
 
       // 2. Check ca đang mở — CashSession[]
@@ -197,19 +179,11 @@ export const appMachine = setup({
       let paymentMethods = null
       try {
         paymentMethods = await PaymentRemoteAPI.getPaymentMethods()
-      } catch (e) {
-        console.error('[appMachine] Failed to fetch payment methods during revalidation:', e)
-      }
+      } catch {}
 
       // 3. Kéo dữ liệu master data ngầm (offline cache)
-      SyncService.pullMasterData().catch((e) => {
-        console.error('[appMachine] Background sync failed during revalidation:', e)
-      })
+      SyncService.pullMasterData().catch(() => {})
 
-      console.log('[appMachine] Revalidate shift result:', {
-        cashSessionId,
-        paymentMethodsCount: paymentMethods?.length || 0,
-      })
       return { cashSessionId, paymentMethods, warehouseId }
     }),
   },

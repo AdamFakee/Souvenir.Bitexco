@@ -9,9 +9,7 @@ const adapter = new SQLiteAdapter({
   schema,
   jsi: true,
   dbName: 'gold_pos',
-  onSetUpError: (error) => {
-    console.error('WatermelonDB Setup Error', error)
-  },
+  onSetUpError: (_error) => {},
 })
 
 // Instantiate the database

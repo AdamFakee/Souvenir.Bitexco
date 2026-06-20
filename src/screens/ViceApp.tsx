@@ -42,9 +42,7 @@ export default function ViceApp() {
             } else {
               parsedItems = params.items || []
             }
-          } catch (e) {
-            console.error('[ViceApp] Failed to parse itemsJson:', e)
-          }
+          } catch {}
           updateCart({
             items: parsedItems,
             subtotal: params.subtotal || 0,

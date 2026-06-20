@@ -33,7 +33,6 @@ export const PortablePaymentService = {
     if (!PaymentPortable || typeof PaymentPortable.doConnect !== 'function') {
       throw new Error('NATIVE_MODULE_UNAVAILABLE: Expo module PaymentPortable is not loaded!')
     }
-    console.log('[PortablePOS] Connecting socket directly to', posUrl)
 
     const res = await PaymentPortable.doConnect(posUrl, MERCHANT_NAME, CASHIER_ID, LICENSE)
     // console.log('[PortablePOS] Direct Connection Response:', res)

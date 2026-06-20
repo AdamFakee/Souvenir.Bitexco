@@ -77,7 +77,6 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
     sku?: string
     warehouseId?: string
   }): Promise<PosLookupResult | null> => {
-    console.log('[ProductRemoteAPI] Online Lookup:', params)
     const axios = AxiosService.getInstance()
 
     const queryParams: Record<string, string> = {}
@@ -106,7 +105,6 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
     warehouseId?: string
     limit?: number
   }): Promise<PosLookupResult[]> => {
-    console.log('[ProductRemoteAPI] Online Search:', params)
     const axios = AxiosService.getInstance()
 
     const response = await axios.get<PosLookupResult[]>('/v1/pos/search', {
@@ -131,14 +129,7 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
         const parsed = JSON.parse(rawPersist)
         warehouseId = parsed.device?.warehouseId
       }
-    } catch (e) {
-      console.error('[ProductRemoteAPI] Failed to parse warehouseId from storage:', e)
-    }
-    console.log('[ProductRemoteAPI] Fetching changes (Pull) starting...', {
-      lastPulledAt,
-      warehouseId,
-    })
-
+    } catch {}
     const axios = AxiosService.getInstance()
     let allItems: any[] = []
     let page = 0
@@ -148,7 +139,6 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
 
     try {
       while (hasMore) {
-        console.log(`[ProductRemoteAPI] Fetching products page ${page}...`)
         const response = await axios.get<{
           items: any[]
           hasMore: boolean
@@ -172,16 +162,11 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
             syncedAtFromServer =
               typeof data.syncedAt === 'string' ? new Date(data.syncedAt).getTime() : data.syncedAt
           }
-          console.log(
-            `[ProductRemoteAPI] Fetched ${data.items.length} products. hasMore=${data.hasMore}, syncedAt=${data.syncedAt}`,
-          )
         } else {
           hasMore = false
         }
         page++
       }
-
-      console.log(`[ProductRemoteAPI] Total products fetched from server: ${allItems.length}`)
 
       // Lấy danh sách IDs đã tồn tại dưới DB Local để quyết định CREATE hay UPDATE
       const existingIds = new Set<string>()
@@ -196,9 +181,6 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
             .fetch()
           existingProducts.forEach((p) => existingIds.add(p.id))
         }
-        console.log(
-          `[ProductRemoteAPI] Checked database. Found ${existingIds.size} existing products locally out of ${allItems.length} changed items.`,
-        )
       }
 
       const created: ProductRaw[] = []
@@ -235,24 +217,11 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
         }
       }
 
-      console.log(
-        `[ProductRemoteAPI] Categorized changes -> Created: ${created.length}, Updated: ${updated.length}, Deleted: ${deleted.length}`,
-      )
-
       return {
         products: { created, updated, deleted },
         syncedAt: syncedAtFromServer,
       }
-    } catch (error: any) {
-      console.error('[ProductRemoteAPI] fetchChanges API error:', error)
-      if (error.response) {
-        console.error('[ProductRemoteAPI] Error response status:', error.response.status)
-        console.error('[ProductRemoteAPI] Error response headers:', error.response.headers)
-        console.error(
-          '[ProductRemoteAPI] Error response data:',
-          JSON.stringify(error.response.data),
-        )
-      }
+    } catch (error) {
       throw error
     }
   },
@@ -262,10 +231,5 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
     if (!products) return
 
     const { created, updated, deleted } = products
-    console.log('ProductRemoteAPI: Pushing changes to server...', {
-      createdCount: created.length,
-      updatedCount: updated.length,
-      deletedCount: deleted.length,
-    })
   },
 }

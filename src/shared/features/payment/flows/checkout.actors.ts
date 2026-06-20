@@ -79,15 +79,7 @@ export const createMixCheckoutActor = fromPromise(
       customerAddress: null,
     }
 
-    console.log(
-      '[MixPayment Checkout] Sending Mix Checkout Payload:',
-      JSON.stringify(payload, null, 2),
-    )
     const checkoutResult = await OrderRemoteAPI.checkout(payload)
-    console.log(
-      '[MixPayment Checkout] Received Mix Checkout Response:',
-      JSON.stringify(checkoutResult, null, 2),
-    )
 
     if (!checkoutResult || (checkoutResult as any).error) {
       throw new Error((checkoutResult as any).error ?? 'Không thể tạo đơn thanh toán hỗn hợp')

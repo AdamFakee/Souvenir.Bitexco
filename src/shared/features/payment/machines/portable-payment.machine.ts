@@ -135,16 +135,12 @@ export const portablePaymentMachine = setup({
           customerAddress: null,
         }
 
-        console.log('[PortablePayment] Checkout payload:', JSON.stringify(payload, null, 2))
         let checkoutResult: PosCheckoutResult
         try {
           const res = await OrderRemoteAPI.checkout(payload)
           checkoutResult = res
-          console.log('[PortablePayment] Checkout result:', JSON.stringify(checkoutResult, null, 2))
+          checkoutResult = res
         } catch (err: any) {
-          const status = err?.response?.status
-          const data = err?.response?.data
-          console.error('[PortablePayment] Checkout FAILED:', status, JSON.stringify(data, null, 2))
           throw err
         }
 
@@ -223,16 +219,13 @@ export const portablePaymentMachine = setup({
       }): Promise<void> => {
         if (!input.orderId) return
         try {
-          console.log('[PortablePayment] Cancelling order on server:', input.orderId)
           await OrderRemoteAPI.cancelOrder({
             orderId: input.orderId,
             shiftId: input.shiftId,
             staffId: input.staffId,
             reason: 'cashier_cancelled_payment',
           })
-        } catch (err) {
-          console.error('[PortablePayment] Failed to cancel order:', err)
-        }
+        } catch {}
       },
     ),
 

@@ -29,7 +29,6 @@ export const ExchangeReplacementItemsList = memo(function ExchangeReplacementIte
     <FlashList
       data={lines}
       keyExtractor={(line) => line.variantId}
-      contentContainerStyle={{ paddingHorizontal: 32, paddingVertical: 20 }}
       showsVerticalScrollIndicator={true}
       ListEmptyComponent={() => (
         <EmptyState
@@ -45,9 +44,9 @@ export const ExchangeReplacementItemsList = memo(function ExchangeReplacementIte
         const lineTotal = lineSubtotal + lineVat
 
         return (
-          <View className="mb-3 flex-row items-center rounded-2xl border border-outline-variant bg-white px-5 py-4">
+          <View className="flex-row items-center border-b border-outline-variant px-8 py-5">
             <View className="flex-1 pr-4">
-              <Text className="text-lg font-black text-surface-on" numberOfLines={1}>
+              <Text className="text-xl font-black text-surface-on" numberOfLines={1}>
                 {line.name}
               </Text>
               <Text className="mt-1 text-xs font-bold text-muted/60" numberOfLines={1}>
@@ -55,26 +54,25 @@ export const ExchangeReplacementItemsList = memo(function ExchangeReplacementIte
               </Text>
             </View>
 
-            <View className="w-36 items-center">
+            <View className="w-40 items-center">
               <QuantityStepper
                 value={line.qty}
                 onChange={(qty) => onChangeQty(line.variantId, qty)}
                 disabled={!isDraft || isProcessing}
                 max={line.stock > 0 ? line.stock : undefined}
                 editable={true}
-                size="sm"
               />
             </View>
 
-            <Text className="w-40 text-right text-lg font-black text-primary" numberOfLines={1}>
+            <Text className="w-36 text-right text-xl font-black text-primary" numberOfLines={1}>
               {formatCurrency(lineTotal)}
             </Text>
 
             <IconButton
               icon={Trash2}
-              size={18}
+              size={20}
               color={COLORS.error.default}
-              className="ml-3 bg-transparent opacity-60"
+              className="ml-2 bg-transparent opacity-60"
               onPress={() => onRemoveItem(line.variantId)}
               disabled={!isDraft || isProcessing}
             />

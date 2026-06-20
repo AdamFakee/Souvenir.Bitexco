@@ -1,7 +1,7 @@
 import { EmptyState, LoadMore, SearchInput, Shimmer } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
 import { SearchX } from 'lucide-react-native'
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Keyboard, Pressable, Text, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { usePosActor, useProductSearch } from '../hooks'
@@ -12,36 +12,46 @@ export function ProductSearch() {
   const [searchText, setSearchText] = useState('')
   const { products, isLoading, isFetchingNextPage, loadMore } = useProductSearch(searchText)
 
-  const handleSelectItem = (product: UnifiedProduct) => {
-    posActor?.send({ type: 'ADD_ITEM', product: product as any })
+  const handleSelectItem = useCallback(
+    (product: UnifiedProduct) => {
+      setSearchText('')
+      Keyboard.dismiss()
+
+      // Defer sending ADD_ITEM to prevent blocking the keyboard slide-down and dropdown unmount transitions
+      setTimeout(() => {
+        posActor?.send({ type: 'ADD_ITEM', product: product as any })
+      }, 50)
+    },
+    [posActor],
+  )
+
+  const handleClear = useCallback(() => {
     setSearchText('')
     Keyboard.dismiss()
-  }
+  }, [])
 
-  const handleClear = () => {
-    setSearchText('')
-    Keyboard.dismiss()
-  }
-
-  const renderProductItem = ({ item: p }: { item: UnifiedProduct }) => (
-    <Pressable
-      key={p.id}
-      onPress={() => handleSelectItem(p)}
-      className="flex-row items-center justify-between border-b border-surface-200 px-10 py-8 active:bg-surface-100"
-    >
-      <View className="flex-1">
-        <Text className="text-2xl font-black text-surface-on">{p.name}</Text>
-        <Text className="mt-1 text-lg font-bold text-surface-on-variant">{p.sku}</Text>
-      </View>
-      <View className="items-end">
-        <Text className="text-2xl font-black text-primary" numberOfLines={1}>
-          {formatCurrency(p.price)}
-        </Text>
-        <Text className="mt-1 text-base font-bold text-surface-on-variant">
-          Kho: {p.stock} {p.unitCode}
-        </Text>
-      </View>
-    </Pressable>
+  const renderProductItem = useCallback(
+    ({ item: p }: { item: UnifiedProduct }) => (
+      <Pressable
+        key={p.id}
+        onPress={() => handleSelectItem(p)}
+        className="flex-row items-center justify-between border-b border-surface-200 px-10 py-8 active:bg-surface-100"
+      >
+        <View className="flex-1">
+          <Text className="text-2xl font-black text-surface-on">{p.name}</Text>
+          <Text className="mt-1 text-lg font-bold text-surface-on-variant">{p.sku}</Text>
+        </View>
+        <View className="items-end">
+          <Text className="text-2xl font-black text-primary" numberOfLines={1}>
+            {formatCurrency(p.price)}
+          </Text>
+          <Text className="mt-1 text-base font-bold text-surface-on-variant">
+            Kho: {p.stock} {p.unitCode}
+          </Text>
+        </View>
+      </Pressable>
+    ),
+    [handleSelectItem],
   )
 
   return (

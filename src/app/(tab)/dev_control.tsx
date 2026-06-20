@@ -216,9 +216,7 @@ export default function DevControlScreen() {
       const prods = await database.collections.get<ProductModel>('products').query().fetch()
       setCategories(cats)
       setProducts(prods)
-    } catch (error) {
-      console.error('Failed to load data:', error)
-    }
+    } catch {}
   }
 
   useEffect(() => {
@@ -265,8 +263,7 @@ export default function DevControlScreen() {
       })
       toast.success('Đã nạp dữ liệu Mock vào Local DB!', 'Thành công')
       loadData()
-    } catch (error) {
-      console.error('Seeding error:', error)
+    } catch {
       toast.error('Không thể nạp dữ liệu.', 'Lỗi')
     }
   }
@@ -309,11 +306,9 @@ export default function DevControlScreen() {
         deviceCode: 'TEST 1',
         activationToken: '500107', // Sửa lại token nếu admin cấp token khác
       })
-      console.log('✅ Activate Device Success:', JSON.stringify(response.data))
       toast.success('Kích hoạt thành công! Xem log console.')
     } catch (error: any) {
       const errData = error.response?.data
-      console.error('❌ Activate Device Error:', errData || error.message)
       toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message))
     }
   }
@@ -322,8 +317,6 @@ export default function DevControlScreen() {
     try {
       toast.info('Đang gọi API lấy Payment Methods...')
       const response = await AxiosService.getInstance().get<any[]>('/v1/payment-methods')
-      console.log('✅ Get Payment Methods Success:', JSON.stringify(response.data, null, 2))
-
       const enabledMethods = response.data.filter((m) => m.enabled)
       const appService = useAppStore.getState().appService
       if (appService) {
@@ -336,7 +329,6 @@ export default function DevControlScreen() {
       }
     } catch (error: any) {
       const errData = error.response?.data
-      console.error('❌ Get Payment Methods Error:', errData || error.message)
       toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message))
     }
   }
@@ -345,7 +337,6 @@ export default function DevControlScreen() {
     try {
       toast.info('Đang gọi GET /v1/pos/device-context...')
       const result = await AuthAPI.getDeviceContext()
-      console.log('✅ Device Context:', JSON.stringify(result, null, 2))
       toast.success(
         `isActive: ${result.isActive ? '✅ TRUE' : '❌ FALSE'}\ndeviceCode: ${result.deviceCode}\nwarehouseId: ${result.warehouseId ?? 'null'}`,
         'Device Context',
@@ -353,7 +344,6 @@ export default function DevControlScreen() {
     } catch (error: any) {
       const status = error?.response?.status
       const errData = error?.response?.data
-      console.error('❌ Device Context Error:', errData || error.message)
       toast.error(
         `${status ?? 'Network error'} — ${errData?.message || errData?.error || error.message}`,
         'Device Context Lỗi',
@@ -385,11 +375,9 @@ export default function DevControlScreen() {
 
       toast.info(`Đang tra cứu đơn hàng code/id: ${orderId}`)
       const response = await OrderRemoteAPI.lookupOrder(orderId)
-      console.log('✅ Order Lookup Success:', JSON.stringify(response, null, 2))
       toast.success('Tra cứu thành công! Xem console log.', 'Order Lookup')
     } catch (error: any) {
       const errData = error.response?.data
-      console.error('❌ Order Lookup Error:', errData || error.message)
       toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message), 'Order Lookup')
     }
   }
@@ -405,7 +393,6 @@ export default function DevControlScreen() {
       setIsSyncResultVisible(true)
       toast.success('Lấy danh sách thay đổi sản phẩm thành công!')
     } catch (error: any) {
-      console.error('❌ Fetch Changes Error:', error)
       const errMsg = error?.response?.data?.message || error.message || 'Lỗi không xác định'
       toast.error('Lỗi: ' + errMsg)
     } finally {
@@ -514,12 +501,8 @@ export default function DevControlScreen() {
     }
     toast.info('Đang gọi POST /v1/device/auth/refresh...')
     try {
-      console.log('[TokenLab] Old refreshToken:', currentRefreshToken.slice(0, 20) + '...')
       const result = await AuthAPI.refresh(currentRefreshToken)
-      // Lưu token mới vào MMKV (giống logic trong refreshAuthFlow)
       storage.set('auth-refresh-token', result.refreshToken)
-      console.log('[TokenLab] New accessToken:', result.accessToken.slice(0, 40) + '...')
-      console.log('[TokenLab] New refreshToken:', result.refreshToken.slice(0, 20) + '...')
       toast.success(
         `Rotation OK!\nNew accessToken: ${result.accessToken.slice(0, 20)}...\nNew refreshToken: ${result.refreshToken.slice(0, 12)}...`,
         'Refresh thành công',
@@ -527,7 +510,6 @@ export default function DevControlScreen() {
     } catch (err: any) {
       const status = err?.response?.status
       const msg = err?.response?.data?.error || err?.message || 'Lỗi không xác định'
-      console.error('[TokenLab] Refresh failed:', err?.response?.data || err)
       toast.error(
         status === 401
           ? `401 — Token đã bị revoke hoặc hết hạn.\n${msg}`
@@ -541,17 +523,6 @@ export default function DevControlScreen() {
    * In ra console trạng thái token hiện tại để debug.
    */
   const handleLogTokenState = () => {
-    const ctx = useAppStore.getState().appService?.getSnapshot().context
-    const refreshToken = storage.getString('auth-refresh-token')
-    console.log('======== TOKEN STATE ========')
-    console.log(
-      'accessToken (memory):',
-      ctx?.accessToken ? ctx.accessToken.slice(0, 40) + '...' : 'null',
-    )
-    console.log('refreshToken (MMKV):', refreshToken ? refreshToken.slice(0, 20) + '...' : 'null')
-    console.log('employee:', ctx?.employee?.displayName ?? 'null')
-    console.log('machineState:', useAppStore.getState().appService?.getSnapshot().value ?? 'n/a')
-    console.log('==============================')
     toast.info('Đã log token state ra console. Mở Metro / Logcat để xem.', 'Token State')
   }
 
@@ -691,7 +662,7 @@ export default function DevControlScreen() {
                 title: 'Xác nhận in lại?',
                 message: 'Bạn có chắc chắn muốn in lại hóa đơn này không?',
                 onConfirm: () => toast.success('Đang gửi lệnh in...'),
-                onCancel: () => console.log('Hủy in'),
+                onCancel: () => {},
               })
             }
           />
@@ -704,7 +675,7 @@ export default function DevControlScreen() {
               toast.infoPopup({
                 title: 'Thông báo',
                 message: 'Giao dịch đã được ghi nhận. Vui lòng hoàn tiền cho khách hàng.',
-                onConfirm: () => console.log('Đã bấm đồng ý info popup'),
+                onConfirm: () => {},
               })
             }
           />

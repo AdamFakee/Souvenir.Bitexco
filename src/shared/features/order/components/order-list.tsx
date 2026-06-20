@@ -13,6 +13,11 @@ import { IOrder } from '../types'
 
 interface OrderListProps {
   onOpenDetails: (order: IOrder) => void
+  orders: IOrder[]
+  isLoading: boolean
+  fetchNextPage: () => void
+  hasNextPage: boolean
+  isFetchingNextPage: boolean
 }
 
 const getPaymentMethodInfo = (order: IOrder) => {
@@ -48,15 +53,15 @@ const OrderSkeleton = () => (
   </View>
 )
 
-export const OrderList = memo(function OrderList({ onOpenDetails }: OrderListProps) {
-  const { status, searchQuery, dateFrom, dateTo, resetFilters } = useOrderFilterStore()
-
-  const { orders, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useOrders({
-    status,
-    searchQuery,
-    dateFrom,
-    dateTo,
-  })
+export const OrderList = memo(function OrderList({
+  onOpenDetails,
+  orders,
+  isLoading,
+  fetchNextPage,
+  hasNextPage,
+  isFetchingNextPage,
+}: OrderListProps) {
+  const resetFilters = useOrderFilterStore((s) => s.resetFilters)
 
   if (isLoading) {
     return (

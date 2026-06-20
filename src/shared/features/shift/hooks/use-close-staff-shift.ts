@@ -31,8 +31,7 @@ export const useCloseStaffShift = () => {
       // 3. Kích hoạt đồng bộ dữ liệu (Push) lần cuối trước khi đóng ca
       try {
         await SyncService.drainOutbox()
-      } catch (error) {
-        console.error('Final sync before shift closing failed:', error)
+      } catch {
         throw new Error('Đồng bộ dữ liệu thất bại. Vui lòng thử lại.')
       }
 
@@ -40,19 +39,12 @@ export const useCloseStaffShift = () => {
       const session = await ShiftRemoteAPI.getShiftById(shiftId)
       let currentVersion = session.version
 
-      console.log(
-        '[useCloseStaffShift] Starting shift closing. Current server version:',
-        currentVersion,
-      )
-
       // 5. Bước 1: Transition 'start_close' -> ca chuyển sang CLOSING
       const startCloseRes = await ShiftRemoteAPI.closeShift(shiftId, {
         action: 'start_close',
         expectedVersion: currentVersion,
       })
       currentVersion = startCloseRes.version
-      console.log('[useCloseStaffShift] start_close transition done. New version:', currentVersion)
-
       // 6. Bước 2: Transition 'submit_count' -> ca chuyển sang RECONCILING
       const submitCountRes = await ShiftRemoteAPI.closeShift(shiftId, {
         action: 'submit_count',
@@ -61,22 +53,15 @@ export const useCloseStaffShift = () => {
         notes: variables.discrepancyReason || null,
       })
       currentVersion = submitCountRes.version
-      console.log('[useCloseStaffShift] submit_count transition done. New version:', currentVersion)
-
       // 7. Bước 3: Transition 'resolve' -> ca chuyển sang CLOSED
       await ShiftRemoteAPI.closeShift(shiftId, {
         action: 'resolve',
         expectedVersion: currentVersion,
       })
-      console.log('[useCloseStaffShift] resolve transition done. Shift is now CLOSED.')
-
       // 8. Lấy dữ liệu báo cáo Z-report
       const zReportData = await ShiftRemoteAPI.getZReport(shiftId)
-      console.log('[useCloseStaffShift] Z-report loaded successfully.')
-
       return zReportData
     } catch (error: any) {
-      console.error('Close shift error:', error)
       toast.error(error?.message || 'Có lỗi xảy ra khi đóng ca')
       return null
     } finally {

@@ -29,18 +29,10 @@ export default function DeviceActivation() {
   const onSubmit = async (data: DeviceActivationFormData) => {
     setLoading(true)
     try {
-      // Gọi API POST /v1/pos-devices/activate
-      console.log('[DeviceActivation] Calling real API /v1/pos-devices/activate', {
-        deviceCode: data.deviceCode,
-        activationToken: data.activationToken,
-      })
-
       const response = await AuthAPI.activateDevice({
         deviceCode: data.deviceCode,
         activationToken: data.activationToken,
       })
-
-      console.log('[DeviceActivation] API response:', response)
 
       // activateDevice trả về DeviceInfo trực tiếp (API v1.8 — không có wrapper)
       // Nếu không throw thì là thành công
@@ -51,12 +43,6 @@ export default function DeviceActivation() {
       toast.success('Kích hoạt thiết bị thành công')
       // Navigation tự động qua useAppGate
     } catch (error: any) {
-      console.error('Activation error:', error)
-      console.error(
-        'Activation error response data:',
-        JSON.stringify(error.response?.data, null, 2),
-      )
-
       const serverData = error.response?.data
       // API v1.8: error code dạng { "error": "pos.device_not_found" }
       const message =

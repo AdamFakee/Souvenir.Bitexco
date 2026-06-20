@@ -30,7 +30,6 @@ export const useViceScreen = () => {
 
         IminViceScreen.open('ViceScreen')
       } catch (err) {
-        console.error('Vice Screen init failed:', err)
         toast.error('Không thể khởi tạo màn hình phụ!', 'Lỗi khởi tạo')
       }
     }
@@ -47,45 +46,58 @@ export const useViceScreen = () => {
     const posService = usePosStore.getState().posService
     if (!posService) return
 
-    const unsubscribe = posService.subscribe((state) => {
-      const { activeCartId, carts } = state.context
-      const activeCartActor = activeCartId ? carts[activeCartId] : null
+    let activeTask: { cancel: () => void } | null = null
 
-      if (!activeCartActor) {
-        ViceService.updateCart({ items: [], subtotal: 0, discount: 0, tax: 0, total: 0 })
-        ViceService.setOrderId('')
-        return
+    const unsubscribe = posService.subscribe((state) => {
+      if (activeTask) {
+        activeTask.cancel()
       }
 
-      const cartSnapshot = activeCartActor.getSnapshot()
-      const { items: cartItemsMap, appliedVoucher, label } = cartSnapshot.context
-      const cartItems = Object.values(cartItemsMap) as CartItem[]
+      activeTask = InteractionManager.runAfterInteractions(() => {
+        const { activeCartId, carts } = state.context
+        const activeCartActor = activeCartId ? carts[activeCartId] : null
 
-      // Chuyển đổi dữ liệu sang định dạng màn hình phụ mong đợi
-      const items = cartItems.map((cartItem: CartItem) => ({
-        id: cartItem.id,
-        name: cartItem.product.name,
-        price: cartItem.price,
-        quantity: cartItem.quantity,
-      }))
+        if (!activeCartActor) {
+          ViceService.updateCart({ items: [], subtotal: 0, discount: 0, tax: 0, total: 0 })
+          ViceService.setOrderId('')
+          return
+        }
 
-      const subtotal = cartItems.reduce(
-        (sum: number, item: any) => sum + item.product.price * item.quantity,
-        0,
-      )
-      const discount = calculateVoucherDiscount(cartItems, appliedVoucher || null)
-      const tax = cartItems.reduce(
-        (sum: number, item: any) =>
-          sum + item.product.price * (item.product.taxRate / 100) * item.quantity,
-        0,
-      )
-      const total = Math.max(0, subtotal - discount) + tax
+        const cartSnapshot = activeCartActor.getSnapshot()
+        const { items: cartItemsMap, appliedVoucher, label } = cartSnapshot.context
+        const cartItems = Object.values(cartItemsMap) as CartItem[]
 
-      // Gửi sự kiện cập nhật
-      ViceService.updateCart({ items, subtotal, discount, tax, total })
-      ViceService.setOrderId(label)
+        // Chuyển đổi dữ liệu sang định dạng màn hình phụ mong đợi
+        const items = cartItems.map((cartItem: CartItem) => ({
+          id: cartItem.id,
+          name: cartItem.product.name,
+          price: cartItem.price,
+          quantity: cartItem.quantity,
+        }))
+
+        const subtotal = cartItems.reduce(
+          (sum: number, item: any) => sum + item.product.price * item.quantity,
+          0,
+        )
+        const discount = calculateVoucherDiscount(cartItems, appliedVoucher || null)
+        const tax = cartItems.reduce(
+          (sum: number, item: any) =>
+            sum + item.product.price * (item.product.taxRate / 100) * item.quantity,
+          0,
+        )
+        const total = Math.max(0, subtotal - discount) + tax
+
+        // Gửi sự kiện cập nhật
+        ViceService.updateCart({ items, subtotal, discount, tax, total })
+        ViceService.setOrderId(label)
+      })
     })
 
-    return () => unsubscribe.unsubscribe()
+    return () => {
+      unsubscribe.unsubscribe()
+      if (activeTask) {
+        activeTask.cancel()
+      }
+    }
   }, [])
 }

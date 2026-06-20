@@ -106,27 +106,13 @@ export const refundOrderMachine = setup({
   actors: {
     lookupOrderActor: fromPromise(async ({ input }: { input: string }): Promise<any> => {
       if (!input) throw new Error('Không tìm thấy thông tin đơn hàng.')
-      console.log('[RefundMachine] Fetching order details for ID/Code:', input)
       const response = await OrderRemoteAPI.lookupOrder(input)
-      console.log(
-        '[RefundMachine] Order details fetched successfully:',
-        JSON.stringify(response, null, 2),
-      )
       return response
     }),
     refundOrderActor: fromPromise(
       async ({ input }: { input: RefundOrderContext }): Promise<RefundOrderResult> => {
         if (!input.order) throw new Error('Không tìm thấy đơn hàng cần trả.')
 
-        console.log('[RefundMachine] Mapping product ID to variant ID.')
-        console.log(
-          '[RefundMachine] Internal selection lines:',
-          JSON.stringify(input.lines, null, 2),
-        )
-        console.log(
-          '[RefundMachine] Online detail lookup lines:',
-          JSON.stringify(input.lookupLines, null, 2),
-        )
         const mappedLines: RefundOrderLineRequest[] = await Promise.all(
           input.lines
             .filter((line) => line.qty > 0)
@@ -178,25 +164,14 @@ export const refundOrderMachine = setup({
 
               // 4. Try online SKU lookup if variantId is still unknown
               if (!variantId && itemSnapshot?.sku) {
-                console.log(
-                  `[RefundMachine] Variant ID not found in lookup lines. Fetching online for SKU: ${itemSnapshot.sku}`,
-                )
                 try {
                   const remoteProduct = await ProductRemoteAPI.lookupProduct({
                     sku: itemSnapshot.sku,
                   })
                   if (remoteProduct?.variantId) {
                     variantId = remoteProduct.variantId
-                    console.log(
-                      `[RefundMachine] Online lookup resolved variant ID: ${variantId} for SKU: ${itemSnapshot.sku}`,
-                    )
                   }
-                } catch (err) {
-                  console.error(
-                    `[RefundMachine] Online lookup failed for SKU: ${itemSnapshot.sku}`,
-                    err,
-                  )
-                }
+                } catch {}
               }
 
               // Final fallback
@@ -204,20 +179,11 @@ export const refundOrderMachine = setup({
                 variantId = line.productId
               }
 
-              console.log(
-                `[RefundMachine] Line product ID: ${line.productId} (SKU: ${itemSnapshot?.sku}) -> Mapped Variant ID: ${variantId}`,
-              )
-
               return {
                 variantId,
                 qty: line.qty,
               }
             }),
-        )
-
-        console.log(
-          '[RefundMachine] Final payload mapped lines:',
-          JSON.stringify(mappedLines, null, 2),
         )
 
         const payload = {
@@ -229,23 +195,10 @@ export const refundOrderMachine = setup({
           lines: mappedLines,
           managerAuth: input.managerAuth,
         }
-        console.log(
-          '[RefundMachine] Sending refund request payload:',
-          JSON.stringify(payload, null, 2),
-        )
-
         try {
           const result = await OrderRemoteAPI.refundOrder(payload)
-          console.log('[RefundMachine] Refund response result:', JSON.stringify(result, null, 2))
           return result
         } catch (error: any) {
-          console.error('[RefundMachine] Refund error:', error)
-          if (error.response?.data) {
-            console.error(
-              '[RefundMachine] Refund error data:',
-              JSON.stringify(error.response.data, null, 2),
-            )
-          }
           throw error
         }
       },

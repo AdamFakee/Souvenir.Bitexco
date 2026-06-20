@@ -40,7 +40,6 @@ export const processPaymentActor = fromPromise(
       action: 'process',
       expectedVersion: input.paymentVersion,
     })
-    console.log('[PortablePayment Reusable] Payment → PROCESSING, version:', res.version)
     return res.version
   },
 )
@@ -48,7 +47,6 @@ export const processPaymentActor = fromPromise(
 export const connectPosActor = fromPromise(async () => {
   const resStr = await PortablePaymentService.connect()
   const parsed = JSON.parse(resStr)
-  console.log('[PortablePayment Reusable] Connect result:', parsed)
   if (parsed?.statusCode !== 0) {
     throw new Error(parsed?.statusText || 'Xảy ra lỗi khi kết nối tới máy POS thanh toán')
   }
@@ -71,7 +69,6 @@ export const sendCardSaleCommandActor = fromPromise(
     })
     const resStr = await PortablePaymentService.executeCommand(cmd)
     const parsed = JSON.parse(resStr) as PortablePaymentCommandResult
-    console.log('[PortablePayment Reusable] EDC command result:', parsed)
     if (!checkSuccessPayment(parsed)) {
       throw new Error(parsed?.message || 'Giao dịch thanh toán thất bại')
     }
@@ -84,8 +81,6 @@ export const verifyLastTransactionActor = fromPromise(
     const cmd = JSON.stringify({ command: 'last_trans', params: {} })
     const resStr = await PortablePaymentService.executeCommand(cmd)
     const parsed = JSON.parse(resStr) as PortablePaymentCommandResult
-    console.log('[PortablePayment Reusable] last_trans result:', parsed)
-
     const isSuccess = checkSuccessPayment(parsed) && parsed?.merTransId === input.paymentId
     if (!isSuccess) {
       throw new Error('Đối soát: Giao dịch cuối không khớp hoặc thất bại!')
@@ -108,7 +103,6 @@ export const cardCaptureActor = fromPromise(
       authCode: transInfo?.approvalCode || 'unknown',
       rrn: transInfo?.refNo || 'unknown',
     })
-    console.log('[PortablePayment Reusable] Card capture OK')
   },
 )
 
@@ -133,7 +127,6 @@ export const cardCaptureManualActor = fromPromise(
       authCode: input.manualDetails?.approvalCode || 'unknown',
       rrn: input.manualDetails?.referenceNumber || 'unknown',
     })
-    console.log('[PortablePayment Reusable] Manual card capture OK')
   },
 )
 
@@ -143,7 +136,6 @@ export const authorizePaymentActor = fromPromise(
       action: 'authorize',
       expectedVersion: input.paymentVersion,
     })
-    console.log('[PortablePayment Reusable] Payment → AUTHORIZED, version:', res.version)
     return res.version
   },
 )
@@ -154,7 +146,6 @@ export const capturePaymentActor = fromPromise(
       action: 'capture',
       expectedVersion: input.paymentVersion,
     })
-    console.log('[PortablePayment Reusable] Payment → CAPTURED, version:', res.version)
     return res.version
   },
 )
@@ -172,8 +163,6 @@ export const cancelPaymentActor = fromPromise(
         expectedVersion: input.paymentVersion,
         reason: 'Người dùng hủy giao dịch',
       })
-    } catch (err) {
-      console.warn('[PortablePayment Reusable] Void payment error (non-critical):', err)
-    }
+    } catch {}
   },
 )

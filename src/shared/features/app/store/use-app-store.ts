@@ -64,18 +64,14 @@ function loadRefreshToken(): string | null {
 function saveRefreshToken(token: string) {
   try {
     storage.set(REFRESH_TOKEN_KEY, token)
-  } catch (e) {
-    console.error('[AppStore] saveRefreshToken failed:', e)
-  }
+  } catch {}
 }
 
 /** Xoá refresh token khỏi MMKV (logout / 401 / employee switch). */
 function clearRefreshToken() {
   try {
     storage.remove(REFRESH_TOKEN_KEY)
-  } catch (e) {
-    console.error('[AppStore] clearRefreshToken failed:', e)
-  }
+  } catch {}
 }
 
 function saveToStorage(ctx: AppContext) {
@@ -90,9 +86,7 @@ function saveToStorage(ctx: AppContext) {
       cashSessionId: ctx.cashSessionId,
     }
     storage.set(STORAGE_KEY, JSON.stringify(toSave))
-  } catch (e) {
-    console.error('[AppStore] saveToStorage failed:', e)
-  }
+  } catch {}
 }
 
 // ---------------------------------------------------------------------------

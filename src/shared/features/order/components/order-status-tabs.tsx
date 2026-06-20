@@ -1,50 +1,84 @@
+import { COLORS } from '@/shared/constants'
 import { OrderStatus } from '@/shared/lib/database/models/order'
-import React, { memo } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import React, { memo, useCallback } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ORDER_STATUS_CONFIG } from '../constants'
 import { useOrderFilterStore } from '../store'
 
-interface OrderStatusTabsProps {
-  ordersCount?: number
+// ─── Tab definitions — static, never recreated ────────────────────────────────
+
+const TAB_KEYS = [OrderStatus.COMPLETED, OrderStatus.REFUNDED, 'ALL'] as const
+type TabKey = (typeof TAB_KEYS)[number]
+
+// ─── Individual tab — fully self-contained, subscribes to its own slice ───────
+// onPress is stable via internal useCallback so memo actually works
+
+interface StatusTabProps {
+  tabKey: TabKey
 }
 
-export const OrderStatusTabs = memo(function OrderStatusTabs({
-  ordersCount,
-}: OrderStatusTabsProps) {
-  const { status, setStatus } = useOrderFilterStore()
+const StatusTab = memo(function StatusTab({ tabKey }: StatusTabProps) {
+  const status = useOrderFilterStore((s) => s.status)
+  const setStatus = useOrderFilterStore((s) => s.setStatus)
+
+  const isActive = tabKey === 'ALL' ? status === null : status === tabKey
+  const config = ORDER_STATUS_CONFIG[tabKey]
+
+  const handlePress = useCallback(() => {
+    setStatus(tabKey === 'ALL' ? null : tabKey)
+  }, [setStatus, tabKey])
 
   return (
-    <View className="flex-row gap-0">
-      {([OrderStatus.COMPLETED, OrderStatus.REFUNDED, 'ALL'] as const).map((s) => {
-        const isActive = s === 'ALL' ? status === null : status === s
-        const config = ORDER_STATUS_CONFIG[s]
+    <Pressable onPress={handlePress} style={[styles.tab, isActive && styles.tabActive]}>
+      <Text style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}>
+        {config.label}
+      </Text>
+    </Pressable>
+  )
+})
 
-        return (
-          <Pressable
-            key={s}
-            onPress={() => setStatus(s === 'ALL' ? null : s)}
-            className={`border-b-4 px-10 py-5 transition-all ${
-              isActive ? 'border-primary' : 'border-transparent'
-            }`}
-          >
-            <View className="flex-row items-center gap-4">
-              <Text className={`text-xl font-bold ${isActive ? 'text-primary' : 'text-muted'}`}>
-                {config.label}
-              </Text>
-              {isActive && ordersCount !== undefined && (
-                <View
-                  className="rounded-full px-3 py-1"
-                  style={{ backgroundColor: config.bgColor }}
-                >
-                  <Text className="text-sm font-bold" style={{ color: config.color }}>
-                    {ordersCount}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </Pressable>
-        )
-      })}
+// ─── Container — no store subscriptions, just renders static tab list ─────────
+
+export const OrderStatusTabs = memo(function OrderStatusTabs() {
+  return (
+    <View style={styles.container}>
+      {TAB_KEYS.map((tabKey) => (
+        <StatusTab key={tabKey} tabKey={tabKey} />
+      ))}
     </View>
   )
+})
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+  },
+  tab: {
+    paddingHorizontal: 40,
+    paddingVertical: 20,
+    borderBottomWidth: 4,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: COLORS.primary.default,
+  },
+  tabText: {
+    fontSize: 20,
+    fontFamily: 'Manrope-Bold',
+  },
+  tabTextActive: {
+    color: COLORS.primary.default,
+  },
+  tabTextInactive: {
+    color: COLORS.muted,
+  },
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  badgeText: {
+    fontSize: 14,
+    fontFamily: 'Manrope-Bold',
+  },
 })

@@ -38,9 +38,7 @@ export function useScanLookup() {
                   barcode: remoteResult.barcode,
                 } as any
               }
-            } catch (error) {
-              console.warn('[useScanLookup] Online lookup failed, trying local DB:', error)
-            }
+            } catch {}
           }
 
           // 2. Luồng Offline Fallback

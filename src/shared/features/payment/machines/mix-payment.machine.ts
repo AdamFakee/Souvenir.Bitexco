@@ -260,20 +260,10 @@ export const mixPaymentMachine = setup({
     recordError: assign({
       error: ({ event }) => {
         const err = (event as any).error
-        console.error('[MixPaymentMachine Error Action]', err)
-
         let errMsg = 'Đã xảy ra lỗi hệ thống khi xử lý thanh toán hỗn hợp!'
         if (err && typeof err === 'object') {
           const axiosErr = err as any
           if (axiosErr.response) {
-            console.error(
-              '[MixPaymentMachine Error Action] Axios Response Status:',
-              axiosErr.response.status,
-            )
-            console.error(
-              '[MixPaymentMachine Error Action] Axios Response Data:',
-              JSON.stringify(axiosErr.response.data, null, 2),
-            )
             errMsg = axiosErr.response.data?.error || axiosErr.response.data?.message || errMsg
           }
         }

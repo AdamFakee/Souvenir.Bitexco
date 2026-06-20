@@ -2,6 +2,7 @@ import { database } from '@/shared/lib/database'
 import { useAppContext } from '@/shared/features/app'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
+import { useDebounce } from 'use-debounce'
 import { OrderRemoteAPI } from '../api'
 
 export const useOrders = (params: {
@@ -14,15 +15,16 @@ export const useOrders = (params: {
   const { status, searchQuery, dateFrom, dateTo, scope = 'SHIFT' } = params
   const { cashSessionId } = useAppContext()
   const normalizedSearchQuery = searchQuery?.trim() || ''
+  const [debouncedSearchQuery] = useDebounce(normalizedSearchQuery, 300)
   const dateFromKey = dateFrom?.toISOString() || null
   const dateToKey = dateTo?.toISOString() || null
 
   const query = useInfiniteQuery({
-    queryKey: ['orders', status, normalizedSearchQuery, dateFromKey, dateToKey, scope],
+    queryKey: ['orders', status, debouncedSearchQuery, dateFromKey, dateToKey, scope],
     queryFn: async ({ pageParam = 1 }) => {
       return await OrderRemoteAPI.getOrders({
         status,
-        searchQuery: normalizedSearchQuery,
+        searchQuery: debouncedSearchQuery,
         dateFrom,
         dateTo,
         page: pageParam as number,
@@ -35,6 +37,7 @@ export const useOrders = (params: {
       const meta = lastPage.meta as any
       return meta?.hasNextPage ? Number(meta.page || 1) + 1 : undefined
     },
+    staleTime: 30000, // 30 seconds stale time
     networkMode: 'always',
   })
 

@@ -31,9 +31,11 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
 
   const handleSelectProduct = useCallback(
     (product: UnifiedProduct) => {
-      onSelectProduct(product)
       setSearchText('')
       Keyboard.dismiss()
+      setTimeout(() => {
+        onSelectProduct(product)
+      }, 60)
     },
     [onSelectProduct],
   )

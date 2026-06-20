@@ -54,12 +54,7 @@ export function useProductSearch(searchText: string) {
               taxRate: (r as any).taxRate ?? (r as any).tax_rate ?? 0,
               barcode: r.barcode,
             }))
-          } catch (error) {
-            console.warn(
-              '[useProductSearch] Online search failed, trying offline local database...',
-              error,
-            )
-          }
+          } catch {}
         }
 
         // 2. Luồng Offline Fallback
@@ -80,8 +75,7 @@ export function useProductSearch(searchText: string) {
           taxRate: p.taxRate || 0,
           barcode: p.barcode,
         }))
-      } catch (error) {
-        console.error('Search error:', error)
+      } catch {
         toast.error('Không thể tìm kiếm sản phẩm. Vui lòng thử lại!', 'Lỗi tìm kiếm')
         return []
       }

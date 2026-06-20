@@ -345,8 +345,7 @@ export const OrderLocalAPI = {
         .query(Q.where('is_synced', false))
         .fetch()
       return unsyncedOrders.length
-    } catch (error) {
-      console.error('Failed to count unsynced orders:', error)
+    } catch {
       return 0
     }
   },

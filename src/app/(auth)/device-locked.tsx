@@ -20,8 +20,7 @@ export default function DeviceLocked() {
       } else {
         toast.error('Thiết bị vẫn chưa được kích hoạt. Vui lòng liên hệ quản trị viên.')
       }
-    } catch (e) {
-      console.error('[DeviceLocked] Failed to check device context:', e)
+    } catch {
       toast.error('Không thể kết nối đến máy chủ. Vui lòng thử lại.')
     } finally {
       setLoading(false)

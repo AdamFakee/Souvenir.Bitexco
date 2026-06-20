@@ -118,9 +118,7 @@ export const qrPaymentMachine = setup({
         customerAddress: null,
       }
 
-      console.log('[QR Checkout] Sending Checkout Payload:', JSON.stringify(payload, null, 2))
       const response = await OrderRemoteAPI.checkout(payload)
-      console.log('[QR Checkout] Received Response:', JSON.stringify(response, null, 2))
 
       if (!response || (response as any).error) {
         throw new Error((response as any).error || 'Khởi tạo đơn hàng QR thất bại!')
@@ -200,15 +198,10 @@ export const qrPaymentMachine = setup({
     recordError: assign({
       error: ({ event }) => {
         const err = (event as any).error
-        console.error('[QR Payment Machine Error] Captured event error:', err)
         let errMsg = 'Đã xảy ra lỗi trong quá trình thanh toán. Vui lòng thử lại!'
         if (err && typeof err === 'object') {
           const axiosErr = err as any
           if (axiosErr.response?.data) {
-            console.error(
-              '[QR Payment Machine Error] Axios Response Data:',
-              JSON.stringify(axiosErr.response.data, null, 2),
-            )
             errMsg = axiosErr.response.data.error || axiosErr.response.data.message || errMsg
           }
         }
@@ -218,7 +211,6 @@ export const qrPaymentMachine = setup({
         ) {
           errMsg = err.message
         }
-        console.error('[QR Payment Machine Error] Processed message:', errMsg)
         return errMsg
       },
       errorCode: () => PAYMENT_ERROR_CODES.SYSTEM_ERROR,
@@ -284,7 +276,7 @@ export const qrPaymentMachine = setup({
       toast.error('Giao dịch đã hết hạn thanh toán (5 phút)')
     },
     notifyCancel: () => {
-      toast.info('Giao dịch đã bị hủy')
+      // toast.info('Giao dịch đã bị hủy')
     },
   },
   delays: {

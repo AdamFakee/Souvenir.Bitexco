@@ -22,30 +22,33 @@ export const useAppGate = () => {
   const segments = useSegments()
   const rootNavigationState = useRootNavigationState()
 
+  // Destructure primitive values to avoid referencing a new array on every render
+  const segment0 = segments[0]
+  const segment1 = segments[1]
+
   useEffect(() => {
     if (!rootNavigationState?.key) return
     if (!appService) return
 
-    const currentRoute = segments[1] // 'pos', 'open-shift', 'staff-login', etc.
-    const inTabGroup = segments[0] === '(tab)'
+    const inTabGroup = segment0 === '(tab)'
 
     switch (stateValue) {
       case 'deviceInactive':
-        if (currentRoute !== 'device-activation') router.replace(ROUTES.DEVICE_ACTIVATION.path())
+        if (segment1 !== 'device-activation') router.replace(ROUTES.DEVICE_ACTIVATION.path())
         break
       case 'deviceLockedByServer':
-        if (currentRoute !== 'device-locked') router.replace(ROUTES.DEVICE_LOCKED.path())
+        if (segment1 !== 'device-locked') router.replace(ROUTES.DEVICE_LOCKED.path())
         break
       case 'unauthenticated':
-        if (currentRoute !== 'staff-login') router.replace(ROUTES.STAFF_LOGIN.path())
+        if (segment1 !== 'staff-login') router.replace(ROUTES.STAFF_LOGIN.path())
         break
       case 'noShift':
-        if (currentRoute !== 'open-shift') router.replace(ROUTES.OPEN_SHIFT.path())
+        if (segment1 !== 'open-shift') router.replace(ROUTES.OPEN_SHIFT.path())
         break
       case 'shiftOpen':
         // Chỉ redirect vào tab khi đang ở ngoài — không can thiệp navigation trong tab
         if (!inTabGroup) router.replace(ROUTES.POS.path())
         break
     }
-  }, [stateValue, segments, rootNavigationState?.key, appService])
+  }, [stateValue, segment0, segment1, rootNavigationState?.key, appService, router])
 }

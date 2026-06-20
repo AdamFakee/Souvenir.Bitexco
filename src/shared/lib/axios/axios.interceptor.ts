@@ -1,6 +1,6 @@
 import { API_CONSTANT } from '@/shared/constants'
 import type { useAppStore as UseAppStoreType } from '@/shared/features/app/store/use-app-store'
-import { AuthAPI } from '@/shared/features/auth'
+import type { AuthAPI as AuthAPIType } from '@/shared/features/auth/api/auth.api'
 import { storage } from '@/shared/lib/storage'
 import { toast } from '@/shared/store'
 import {
@@ -18,6 +18,8 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 // Lazy getter — chỉ resolve lúc runtime, tránh circular import lúc module load
 const getAppStore = (): typeof UseAppStoreType =>
   require('@/shared/features/app/store/use-app-store').useAppStore
+
+const getAuthAPI = (): typeof AuthAPIType => require('@/shared/features/auth/api/auth.api').AuthAPI
 
 // ---------------------------------------------------------------------------
 // Silent Refresh Queue
@@ -111,7 +113,7 @@ const onResponseError = async (error: AxiosError): Promise<any> => {
 
   try {
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
-      await AuthAPI.refresh(refreshToken)
+      await getAuthAPI().refresh(refreshToken)
 
     // Lưu refresh token mới (rotation)
     storage.set(REFRESH_TOKEN_KEY, newRefreshToken)

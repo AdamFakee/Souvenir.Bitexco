@@ -25,9 +25,6 @@ export const SyncService = {
         pullChanges: async ({ lastPulledAt }) => {
           const timestamp = lastPulledAt ?? null
 
-          console.log(
-            `[SyncService] pullMasterData started with lastPulledAt timestamp: ${timestamp}`,
-          )
           // Luôn lấy đầy đủ thay đổi của Product và Category
           const [product, category] = await Promise.all([
             ProductRemoteAPI.fetchChanges!({ lastPulledAt: timestamp }),
@@ -40,10 +37,6 @@ export const SyncService = {
           }
 
           const nextTimestamp = product?.syncedAt || category?.syncedAt || Date.now()
-          console.log(
-            `[SyncService] pullMasterData complete. New timestamp to store: ${nextTimestamp}`,
-          )
-
           return { changes, timestamp: nextTimestamp }
         },
         pushChanges: async () => {
@@ -51,7 +44,6 @@ export const SyncService = {
         },
       })
     } catch (error) {
-      console.error('--- PULL MASTER DATA FAILED ---', error)
       throw error
     }
   },
@@ -68,8 +60,6 @@ export const SyncService = {
       if (unsyncedOrders.length === 0) {
         return // Không có gì để sync
       }
-
-      console.log(`[SyncService] Draining ${unsyncedOrders.length} offline orders...`)
 
       // 2. Chuyển đổi sang định dạng OrderRaw thô (raw JSON)
       const rawOrders: OrderRaw[] = unsyncedOrders.map((o) => ({
@@ -93,7 +83,6 @@ export const SyncService = {
         created_at: o.createdAt.getTime(),
         updated_at: o.updatedAt.getTime(),
       }))
-      console.log('[SyncService] raw orders:', JSON.stringify(rawOrders, null, 2))
       // 3. Chia nhỏ (Chunking) thành từng cụm nhỏ (10 đơn/lần) để tránh quá tải payload
       const CHUNK_SIZE = 10
       for (let i = 0; i < rawOrders.length; i += CHUNK_SIZE) {
@@ -105,18 +94,11 @@ export const SyncService = {
           // 4. Đánh dấu các đơn trong chunk này đã đồng bộ thành công
           const chunkIds = chunk.map((o) => o.id)
           await OrderLocalAPI.markOrdersAsSynced(chunkIds)
-          console.log(`[SyncService] Synced chunk ${i / CHUNK_SIZE + 1} (${chunk.length} orders)`)
-        } catch (chunkError) {
-          console.error(`[SyncService] Failed to sync chunk ${i / CHUNK_SIZE + 1}`, chunkError)
-          // Tùy chiến thuật: Có thể break để dừng lại và thử lại sau,
-          // hoặc continue để ráng đẩy các chunk tiếp theo. Ở đây ta break để giữ thứ tự FIFO.
+        } catch {
           break
         }
       }
-
-      console.log('[SyncService] Offline orders drain process completed.')
     } catch (error) {
-      console.error('--- DRAIN OUTBOX FAILED ---', error)
       throw error
     }
   },

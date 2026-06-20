@@ -23,7 +23,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Q } from '@nozbe/watermelondb'
 import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -40,6 +40,68 @@ const MENU_ITEMS: MenuItem[] = [
   { name: 'dev_control', label: 'Dev Control', icon: Terminal },
 ]
 
+const NoteSidebarButton = React.memo(() => {
+  const handoverNotesModalRef = useRef<HandoverNotesModalRef>(null)
+  const { notes, loadNotes } = useNoteStore()
+  const pendingNotesCount = useMemo(() => notes.filter((n) => !n.isCompleted).length, [notes])
+
+  useEffect(() => {
+    loadNotes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <>
+      <IconButtonWithBadge
+        icon={ClipboardList}
+        variant="xl"
+        color={COLORS.surface[50]}
+        onPress={() => handoverNotesModalRef.current?.open()}
+        className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+        badgeCount={pendingNotesCount}
+        containerClassName="flex-1"
+      />
+      <HandoverNotesModal ref={handoverNotesModalRef} />
+    </>
+  )
+})
+NoteSidebarButton.displayName = 'NoteSidebarButton'
+
+const SyncSidebarButton = React.memo(() => {
+  const { syncNow, isSyncing } = useSync()
+  const [unsyncedOrdersCount, setUnsyncedOrdersCount] = useState(0)
+
+  useEffect(() => {
+    const subscription = database
+      .get<OrderModel>('orders')
+      .query(Q.where('is_synced', false))
+      .observeCount()
+      .subscribe({
+        next: (count) => {
+          setUnsyncedOrdersCount(count)
+        },
+        error: (_err) => {},
+      })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  return (
+    <IconButtonWithBadge
+      icon={isSyncing ? undefined : RefreshCw}
+      variant="xl"
+      color={COLORS.surface[50]}
+      onPress={syncNow}
+      className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+      disabled={isSyncing}
+      badgeCount={unsyncedOrdersCount}
+      containerClassName="flex-1"
+    >
+      {isSyncing && <ActivityIndicator size="small" color={COLORS.surface[50]} />}
+    </IconButtonWithBadge>
+  )
+})
+SyncSidebarButton.displayName = 'SyncSidebarButton'
+
 const CustomSidebar = React.memo(
   ({
     onOpenCloseShift,
@@ -51,11 +113,12 @@ const CustomSidebar = React.memo(
     const insets = useSafeAreaInsets()
     const { employee } = useAppContext()
     const router = useRouter()
-    const segments = useSegments()
-    const { syncNow, isSyncing } = useSync()
     const { confirm } = useAlertStore()
 
-    const handleLogout = () => {
+    const segments = useSegments()
+    const activeTab = useMemo(() => segments[1] || 'pos', [segments[1]])
+
+    const handleLogout = useCallback(() => {
       confirm({
         title: 'Đăng xuất tài khoản',
         message: 'Bạn có chắc chắn muốn đăng xuất và đổi nhân viên khác không?',
@@ -76,37 +139,7 @@ const CustomSidebar = React.memo(
           }, 150)
         },
       })
-    }
-
-    // Determine active route based on segments
-    const activeTab = segments[1] || 'pos'
-
-    // Handover Notes store integration and ref
-    const handoverNotesModalRef = useRef<HandoverNotesModalRef>(null)
-    const { notes, loadNotes } = useNoteStore()
-    const pendingNotesCount = useMemo(() => notes.filter((n) => !n.isCompleted).length, [notes])
-    const [unsyncedOrdersCount, setUnsyncedOrdersCount] = useState(0)
-
-    useEffect(() => {
-      loadNotes()
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-
-    useEffect(() => {
-      const subscription = database
-        .get<OrderModel>('orders')
-        .query(Q.where('is_synced', false))
-        .observeCount()
-        .subscribe({
-          next: (count) => {
-            setUnsyncedOrdersCount(count)
-          },
-          error: (err) => {
-            console.error('Failed to observe unsynced orders count:', err)
-          },
-        })
-      return () => subscription.unsubscribe()
-    }, [])
+    }, [confirm])
 
     return (
       <View
@@ -160,15 +193,7 @@ const CustomSidebar = React.memo(
           {/* Actions Row */}
           <View className="flex-row items-center justify-between gap-3">
             {/* Note Button */}
-            <IconButtonWithBadge
-              icon={ClipboardList}
-              variant="xl"
-              color={COLORS.surface[50]}
-              onPress={() => handoverNotesModalRef.current?.open()}
-              className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
-              badgeCount={pendingNotesCount}
-              containerClassName="flex-1"
-            />
+            <NoteSidebarButton />
 
             {/* Settings Button */}
             <View className="flex-1">
@@ -182,18 +207,7 @@ const CustomSidebar = React.memo(
             </View>
 
             {/* Sync Button */}
-            <IconButtonWithBadge
-              icon={isSyncing ? undefined : RefreshCw}
-              variant="xl"
-              color={COLORS.surface[50]}
-              onPress={syncNow}
-              className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
-              disabled={isSyncing}
-              badgeCount={unsyncedOrdersCount}
-              containerClassName="flex-1"
-            >
-              {isSyncing && <ActivityIndicator size="small" color={COLORS.surface[50]} />}
-            </IconButtonWithBadge>
+            <SyncSidebarButton />
 
             {/* Logout Button */}
             <View className="flex-1">
@@ -206,8 +220,6 @@ const CustomSidebar = React.memo(
               />
             </View>
           </View>
-
-          <HandoverNotesModal ref={handoverNotesModalRef} />
 
           <Button
             label="KẾT CA"
@@ -246,18 +258,24 @@ export default function TabLayout() {
   const closeShiftModalRef = useRef<CloseShiftModalRef>(null)
   const settingsModalRef = useRef<SettingsModalRef>(null)
 
+  const handleOpenCloseShift = useCallback(() => {
+    closeShiftModalRef.current?.open()
+  }, [])
+
+  const handleOpenSettings = useCallback(() => {
+    settingsModalRef.current?.open()
+  }, [])
+
   return (
     <View className="flex-1 flex-row">
-      <CustomSidebar
-        onOpenCloseShift={() => closeShiftModalRef.current?.open()}
-        onOpenSettings={() => settingsModalRef.current?.open()}
-      />
+      <CustomSidebar onOpenCloseShift={handleOpenCloseShift} onOpenSettings={handleOpenSettings} />
 
       <View className="flex-1">
         <Tabs
           tabBar={() => null}
           screenOptions={{
             headerShown: false,
+            lazy: false,
           }}
         >
           <Tabs.Screen name="pos" options={{ title: 'Bán hàng' }} />

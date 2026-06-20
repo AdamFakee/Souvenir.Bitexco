@@ -35,7 +35,6 @@ export const PaymentRemoteAPI = {
         (method) => method.enabled && ALLOWED_PAYMENT_METHOD_CODES.includes(method.code),
       )
     } catch (error) {
-      console.error('[PaymentRemoteAPI] getPaymentMethods failed:', error)
       throw error
     }
   },

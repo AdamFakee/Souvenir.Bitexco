@@ -21,9 +21,7 @@ export const useOpenStaffShift = () => {
       // 2. Kích hoạt đồng bộ dữ liệu (Pull các thay đổi khác nếu có)
       try {
         await SyncService.pullMasterData()
-      } catch (error) {
-        console.error('Sync after shift opening failed:', error)
-      }
+      } catch {}
 
       // Update machine state
       const appService = useAppStore.getState().appService
@@ -33,7 +31,6 @@ export const useOpenStaffShift = () => {
 
       return shiftId
     } catch (error) {
-      console.error('Open shift error:', error)
       throw error
     } finally {
       setIsLoading(false)

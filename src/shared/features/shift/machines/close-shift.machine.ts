@@ -94,13 +94,6 @@ export const closeShiftMachine = setup({
         let currentVersion = session.version
         let currentState = session.state
 
-        console.log(
-          '[closeShiftActor] Bắt đầu đóng ca với server state:',
-          currentState,
-          'version:',
-          currentVersion,
-        )
-
         // Bước 1: transition 'start_close' -> chỉ gọi nếu ca đang OPEN
         if (currentState === 'OPEN') {
           await ShiftRemoteAPI.closeShift(input.shiftId, {
@@ -111,12 +104,6 @@ export const closeShiftMachine = setup({
           const updated = await ShiftRemoteAPI.getShiftById(input.shiftId)
           currentVersion = updated.version
           currentState = updated.state
-          console.log(
-            '[closeShiftActor] start_close hoàn tất. Trạng thái mới:',
-            currentState,
-            'version:',
-            currentVersion,
-          )
         }
 
         // Bước 2: transition 'submit_count' -> gọi nếu ca đang CLOSING
@@ -131,12 +118,6 @@ export const closeShiftMachine = setup({
           const updated = await ShiftRemoteAPI.getShiftById(input.shiftId)
           currentVersion = updated.version
           currentState = updated.state
-          console.log(
-            '[closeShiftActor] submit_count hoàn tất. Trạng thái mới:',
-            currentState,
-            'version:',
-            currentVersion,
-          )
         }
 
         // Bước 3: transition 'resolve' -> gọi nếu ca đang RECONCILING
@@ -146,7 +127,6 @@ export const closeShiftMachine = setup({
             expectedVersion: currentVersion,
           })
           currentState = 'CLOSED'
-          console.log('[closeShiftActor] resolve hoàn tất. Ca đã CLOSED trực tuyến.')
         }
 
         return null
@@ -173,7 +153,6 @@ export const closeShiftMachine = setup({
     recordError: assign({
       error: ({ event }) => {
         const err = (event as { error?: unknown }).error
-        console.error('[closeShiftMachine] FAILED with raw error:', err)
         let errMsg = 'Có lỗi xảy ra'
         if (err && typeof err === 'object') {
           const axiosErr = err as any
@@ -181,10 +160,6 @@ export const closeShiftMachine = setup({
             return 'Bạn không có quyền kết ca.'
           }
           if (axiosErr.response?.data) {
-            console.error(
-              '[closeShiftMachine] Axios error response data:',
-              JSON.stringify(axiosErr.response.data, null, 2),
-            )
             const serverData = axiosErr.response.data
             errMsg = serverData.error || serverData.message || errMsg
           }

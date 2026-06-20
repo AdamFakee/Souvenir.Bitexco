@@ -18,7 +18,7 @@ import { formatCurrency } from '@/shared/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { PenSquare, Ticket, XCircle } from 'lucide-react-native'
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { KeyboardStickyView } from 'react-native-keyboard-controller'
 import { useActiveCart, usePosActor } from '../hooks'
@@ -123,26 +123,26 @@ export default function CheckoutPanel() {
   const posActor = usePosActor()
   const queryClient = useQueryClient()
 
-  const handleCheckoutSuccess = () => {
+  const handleCheckoutSuccess = useCallback(() => {
     if (activeSessionId) {
       posActor?.send({ type: 'REMOVE_TAB', id: activeSessionId })
     }
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     queryClient.invalidateQueries({ queryKey: ['orders'] })
     toast.success('Thanh toán thành công!')
-  }
+  }, [activeSessionId, posActor, queryClient])
 
   /** Mở popup tương ứng với phương thức thanh toán */
-  const handleStartPayment = (methodType: string) => {
+  const handleStartPayment = useCallback((methodType: string) => {
     const popupRef = popupRefs.current[methodType]
     if (popupRef) {
       popupRef.open()
     } else {
       toast.error('Phương thức thanh toán này chưa được hỗ trợ')
     }
-  }
+  }, [])
 
-  const handleApplyVoucher = async () => {
+  const handleApplyVoucher = useCallback(async () => {
     if (!voucherInput.trim()) return
 
     try {
@@ -155,12 +155,12 @@ export default function CheckoutPanel() {
     } catch (error: any) {
       toast.error(error.message || 'Mã giảm giá không hợp lệ')
     }
-  }
+  }, [voucherInput, applyVoucherMutation, cartActor])
 
-  const handleRemoveVoucher = () => {
+  const handleRemoveVoucher = useCallback(() => {
     cartActor?.send({ type: 'REMOVE_VOUCHER' })
     // toast.info(' Đã gỡ mã giảm giá')
-  }
+  }, [cartActor])
 
   return (
     <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>

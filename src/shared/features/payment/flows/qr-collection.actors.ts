@@ -23,7 +23,6 @@ export const fetchQrActor = fromPromise(
 
     try {
       const qrData = await PaymentRemoteAPI.generateQrCode(input.paymentId, params)
-      console.log('[QR Fetch Reusable] Received QR Response:', JSON.stringify(qrData, null, 2))
       if (qrData && (qrData.qrPayload || qrData.qrUrl)) {
         return qrData
       }
@@ -80,15 +79,8 @@ export const voidPaymentActor = fromPromise(
   async ({ input }: { input: { paymentId: string | null } }): Promise<void> => {
     if (!input.paymentId) return
     try {
-      console.log('[QR Actor] Checking payment status before voiding for ID:', input.paymentId)
       const payment = await PaymentRemoteAPI.getPaymentStatus(input.paymentId)
       if (['INITIATED', 'PROCESSING', 'AUTHORIZED'].includes(payment.state)) {
-        console.log(
-          '[QR Actor] Voiding payment on server:',
-          input.paymentId,
-          'version:',
-          payment.version,
-        )
         await PaymentRemoteAPI.transitionPayment(input.paymentId, {
           action: 'void',
           expectedVersion: payment.version,
@@ -96,7 +88,6 @@ export const voidPaymentActor = fromPromise(
         })
       }
     } catch (err) {
-      console.error('[QR Actor] Failed to void payment:', err)
       throw err
     }
   },

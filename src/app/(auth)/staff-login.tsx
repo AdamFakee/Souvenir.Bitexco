@@ -39,20 +39,11 @@ export default function StaffLogin() {
         return
       }
 
-      // Gọi API POST /v1/device/auth/login
-      console.log('[StaffLogin] Calling API login with', {
-        deviceId,
-        employeeCode: data.employeeCode,
-        pin: data.pin,
-      })
-
       const response = await AuthAPI.login({
         deviceId,
         employeeCode: data.employeeCode,
         pin: data.pin,
       })
-
-      console.log('[StaffLogin] API response:', { ...response, refreshToken: '***' })
 
       // Lưu refreshToken vào MMKV NGAY TRƯỚC khi dispatch — machine cần nó ở refreshAuthFlow
       useAppStore.getState().saveRefreshToken(response.refreshToken)
@@ -67,8 +58,6 @@ export default function StaffLogin() {
       toast.success('Đăng nhập thành công')
       // Navigation tự động qua useAppGate
     } catch (error: any) {
-      console.error('Login error:', error)
-
       const serverData = error.response?.data
       // API v1.8 format: { "error": "auth.employee_not_found" } hoặc tương tự
       const message =

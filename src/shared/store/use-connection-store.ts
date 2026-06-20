@@ -34,14 +34,14 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         if (prevConnected === null) {
           // Lần kiểm tra đầu tiên khi khởi chạy ứng dụng
           if (!connected) {
-            toast.error('Không tìm thấy máy POS thanh toán. Vui lòng kiểm tra lại!', 'Lỗi thiết bị')
+            // toast.error('Không tìm thấy máy POS thanh toán. Vui lòng kiểm tra lại!', 'Lỗi thiết bị')
           }
         } else {
           // Các lần thay đổi trạng thái tiếp theo
           if (!connected) {
-            toast.error('Mất kết nối máy POS thanh toán!', 'Lỗi kết nối')
+            // toast.error('Mất kết nối máy POS thanh toán!', 'Lỗi kết nối')
           } else {
-            toast.success('Đã kết nối máy POS thanh toán thành công!', 'Kết nối thành công')
+            // toast.success('Đã kết nối máy POS thanh toán thành công!', 'Kết nối thành công')
           }
         }
       }
@@ -52,9 +52,9 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
       if (prevConnected !== false) {
         if (prevConnected === null) {
-          toast.error('Không tìm thấy máy POS thanh toán. Vui lòng kiểm tra lại!', 'Lỗi thiết bị')
+          // toast.error('Không tìm thấy máy POS thanh toán. Vui lòng kiểm tra lại!', 'Lỗi thiết bị')
         } else {
-          toast.error('Mất kết nối máy POS thanh toán!', 'Lỗi kết nối')
+          // toast.error('Mất kết nối máy POS thanh toán!', 'Lỗi kết nối')
         }
       }
       return false

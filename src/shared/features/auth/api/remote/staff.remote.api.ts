@@ -44,8 +44,6 @@ export const StaffRemoteAPI = {
    * Đăng nhập từ xa bằng Username & Password
    */
   login: async (payload: LoginPayload): Promise<IBaseResponse<LoginResponse>> => {
-    console.log('StaffRemoteAPI: Logging in...', payload.username)
-
     // GIẢ LẬP: Tìm nhân viên trong mock data
     const foundStaff = mockStaffData.staffs.find(
       (s: any) => s.username === payload.username && s.password === payload.password,
@@ -91,8 +89,6 @@ export const StaffRemoteAPI = {
    * Làm mới Access Token
    */
   refreshToken: async (payload: RefreshTokenPayload): Promise<IBaseResponse<AuthTokens>> => {
-    console.log('StaffRemoteAPI: Refreshing token...')
-
     return {
       success: true,
       status_code: 200,
@@ -110,8 +106,6 @@ export const StaffRemoteAPI = {
    * Lấy toàn bộ danh sách nhân viên từ Server (Dùng cho sync initial)
    */
   getAllStaffs: async (): Promise<Staff[]> => {
-    console.log('StaffRemoteAPI: Loading staffs from mock-staff.json...')
-
     return mockStaffData.staffs.map((s: any) => ({
       id: s.id,
       username: s.username,
@@ -124,8 +118,6 @@ export const StaffRemoteAPI = {
   },
 
   fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<any> => {
-    console.log('StaffRemoteAPI: Fetching changes (Pull)...', { lastPulledAt })
-
     return {
       staff: { created: [], updated: [], deleted: [] },
     }

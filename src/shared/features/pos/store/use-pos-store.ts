@@ -55,9 +55,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           }
         })
         posStorage.save(cartsToSave)
-      } catch (e) {
-        console.error('Error in persistence subscription:', e)
-      }
+      } catch {}
     })
 
     set({ posService: service })

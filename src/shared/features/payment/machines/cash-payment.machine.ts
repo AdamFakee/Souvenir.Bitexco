@@ -136,7 +136,6 @@ export const cashPaymentMachine = setup({
           const response = await OrderRemoteAPI.checkout(payload)
 
           if (!response || (response as any).error) {
-            console.log(response)
             throw new Error((response as any).error ?? 'Lỗi thanh toán trực tuyến từ server!')
           }
 

@@ -54,9 +54,7 @@ let reminderTimeout: ReturnType<typeof setTimeout> | null = null
 const saveNotesToStorage = (notes: HandoverNote[]) => {
   try {
     storage.set(STORAGE_KEY, JSON.stringify(notes))
-  } catch (error) {
-    console.error('[NoteStore] saveNotesToStorage failed:', error)
-  }
+  } catch {}
 }
 
 export const useNoteStore = create<NoteState>((set, get) => ({
@@ -69,8 +67,7 @@ export const useNoteStore = create<NoteState>((set, get) => ({
       const notes = raw ? (JSON.parse(raw) as HandoverNote[]) : []
       set({ notes })
       get().scheduleNextReminder()
-    } catch (error) {
-      console.error('[NoteStore] loadNotes failed:', error)
+    } catch {
       set({ notes: [] })
     }
   },

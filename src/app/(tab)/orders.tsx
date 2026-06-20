@@ -9,22 +9,33 @@ import {
   useOrderFilterStore,
 } from '@/shared/features/order'
 import { useOrders } from '@/shared/features/order/hooks'
-import { OrderStatus } from '@/shared/lib/database'
-import { ItemSnapshot } from '@/shared/lib/database/types'
-import React, { useMemo, useRef } from 'react'
+import React, { useDeferredValue, useRef } from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function OrdersScreen() {
   const modalRef = useRef<OrderDetailModalRef>(null)
-  const { status, searchQuery, dateFrom, dateTo, scope } = useOrderFilterStore()
 
-  const { orders, stats } = useOrders({
-    status,
-    searchQuery,
-    dateFrom,
-    dateTo,
-    scope,
+  const status = useOrderFilterStore((s) => s.status)
+  const searchQuery = useOrderFilterStore((s) => s.searchQuery)
+  const dateFrom = useOrderFilterStore((s) => s.dateFrom)
+  const dateTo = useOrderFilterStore((s) => s.dateTo)
+  const scope = useOrderFilterStore((s) => s.scope)
+
+  // Defer ALL filter values so every visual update (tab highlight, toggle, etc.)
+  // is instant while the heavy network fetch is deferred as low-priority work
+  const deferredStatus = useDeferredValue(status)
+  const deferredSearchQuery = useDeferredValue(searchQuery)
+  const deferredScope = useDeferredValue(scope)
+  const deferredDateFrom = useDeferredValue(dateFrom)
+  const deferredDateTo = useDeferredValue(dateTo)
+
+  const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useOrders({
+    status: deferredStatus,
+    searchQuery: deferredSearchQuery,
+    dateFrom: deferredDateFrom,
+    dateTo: deferredDateTo,
+    scope: deferredScope,
   })
 
   const handleOpenDetails = (order: IOrder) => {
@@ -44,7 +55,7 @@ export default function OrdersScreen() {
 
           <OrderFilterBar />
 
-          <OrderStatusTabs ordersCount={orders.length} />
+          <OrderStatusTabs />
         </View>
 
         {/* Orders Table Area */}
@@ -76,7 +87,14 @@ export default function OrdersScreen() {
               <View className="w-16" />
             </View>
 
-            <OrderList onOpenDetails={handleOpenDetails} />
+            <OrderList
+              onOpenDetails={handleOpenDetails}
+              orders={orders}
+              isLoading={isLoading}
+              fetchNextPage={fetchNextPage}
+              hasNextPage={!!hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+            />
 
             <OrderStatsFooter stats={stats} />
           </View>

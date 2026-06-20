@@ -314,9 +314,6 @@ export const OrderRemoteAPI = {
     if (!orders || orders.length === 0) {
       return
     }
-
-    console.log(`OrderRemoteAPI: Syncing ${orders.length} offline orders to server...`)
-
     try {
       const payload = {
         orders: orders.map((order) => ({
@@ -355,17 +352,8 @@ export const OrderRemoteAPI = {
           })),
         })),
       }
-      console.log('OrderRemoteAPI: Sync payload:', JSON.stringify(payload, null, 2))
       await AxiosService.getInstance().post('/v1/pos/sync/orders', payload)
     } catch (error: any) {
-      console.error('OrderRemoteAPI: Failed to sync offline orders', error)
-      if (error.response) {
-        console.log('[OrderRemoteAPI] Sync offline orders error status:', error.response.status)
-        console.log(
-          '[OrderRemoteAPI] Sync offline orders error data:',
-          JSON.stringify(error.response.data),
-        )
-      }
       throw error
     }
   },
@@ -411,7 +399,6 @@ export const OrderRemoteAPI = {
       const currentPage = rawData.page || page
       const pageSize = rawData.pageSize || limit
       const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0
-      console.log('OrderRemoteAPI: Orders fetched:', items.length)
       return {
         success: true,
         status_code: 200,
@@ -544,7 +531,6 @@ export const OrderRemoteAPI = {
             : {}),
         },
       )
-      console.log('OrderRemoteAPI: Cancel order response', res.data)
       return res.data
     } catch (error) {
       throw error
@@ -555,12 +541,10 @@ export const OrderRemoteAPI = {
    * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
    */
   checkout: async (payload: PosCheckoutRequest): Promise<PosCheckoutResult> => {
-    console.log('[OrderRemoteAPI] checkout payload', payload)
     const res = await AxiosService.getInstance().post<PosCheckoutResult>(
       '/v1/pos/checkout',
       payload,
     )
-    console.log('[OrderRemoteAPI] checkout response', res.data)
     return res.data
   },
 }

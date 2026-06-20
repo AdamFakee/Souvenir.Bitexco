@@ -49,7 +49,6 @@ export interface ZReportResponse {
 
 export const ShiftRemoteAPI = {
   getOpenSessions: async (posDeviceId: string): Promise<CashSession[]> => {
-    console.log('[ShiftRemoteAPI] Checking active sessions...', { posDeviceId })
     const axios = AxiosService.getInstance()
 
     try {
@@ -76,9 +75,7 @@ export const ShiftRemoteAPI = {
       if (reconcilingRes.data && reconcilingRes.data.length > 0) {
         return reconcilingRes.data
       }
-    } catch (error) {
-      console.error('[ShiftRemoteAPI] Error checking active sessions:', error)
-    }
+    } catch {}
 
     return []
   },
@@ -88,7 +85,6 @@ export const ShiftRemoteAPI = {
    * POST /v1/cash-sessions
    */
   openShift: async (payload: OpenShiftPayload): Promise<CashSession> => {
-    console.log('[ShiftRemoteAPI] Opening shift...', payload)
     const axios = AxiosService.getInstance()
     const response = await axios.post<CashSession>('/v1/cash-sessions', payload)
     return response.data
@@ -99,7 +95,6 @@ export const ShiftRemoteAPI = {
    * GET /v1/cash-sessions/{id}
    */
   getShiftById: async (shiftId: string): Promise<CashSession> => {
-    console.log('[ShiftRemoteAPI] Getting shift detail...', { shiftId })
     const axios = AxiosService.getInstance()
     const response = await axios.get<{ session: CashSession }>(`/v1/cash-sessions/${shiftId}`)
     return response.data.session
@@ -110,7 +105,6 @@ export const ShiftRemoteAPI = {
    * Chi tiết ca: GET /v1/cash-sessions/{id}
    */
   getShiftStatistics: async (shiftId: string): Promise<ShiftStatistics> => {
-    console.log('[ShiftRemoteAPI] Getting shift stats...', { shiftId })
     const axios = AxiosService.getInstance()
     const response = await axios.get<{ session: CashSession }>(`/v1/cash-sessions/${shiftId}`)
     const session = response.data.session
@@ -125,7 +119,6 @@ export const ShiftRemoteAPI = {
    * Server trả về StateResponse<CashSession> — unwrap .data để lấy inner CashSession với .state đúng
    */
   closeShift: async (shiftId: string, payload: CloseShiftPayload): Promise<CashSession> => {
-    console.log('[ShiftRemoteAPI] Transitioning shift...', { shiftId, payload })
     const axios = AxiosService.getInstance()
     const response = await axios.post<StateResponse<CashSession>>(
       `/v1/cash-sessions/${shiftId}/transitions`,
@@ -141,7 +134,6 @@ export const ShiftRemoteAPI = {
    * GET /v1/cash-sessions/{id}/z-report
    */
   getZReport: async (shiftId: string): Promise<ZReportResponse> => {
-    console.log('[ShiftRemoteAPI] Fetching Z-report...', { shiftId })
     const axios = AxiosService.getInstance()
     const response = await axios.get<ZReportResponse>(`/v1/cash-sessions/${shiftId}/z-report`)
     return response.data

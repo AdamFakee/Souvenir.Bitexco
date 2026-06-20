@@ -29,8 +29,6 @@ export interface CategorySyncChanges {
  */
 export const CategoryRemoteAPI: FeatureRemoteAPI = {
   fetchChanges: async ({ lastPulledAt }: PullChangesParams): Promise<CategorySyncChanges> => {
-    console.log('CategoryRemoteAPI: Fetching changes (Pull)...', { lastPulledAt })
-
     // GIẢ LẬP: Trả về rỗng (Thường được pull từ Server)
     return {
       categories: { created: [], updated: [], deleted: [] },
