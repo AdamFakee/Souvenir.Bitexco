@@ -89,6 +89,15 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
             appService?.send({ type: 'NETWORK_RESTORED' })
           }
         }
+
+        // Tự động đồng bộ các đơn hàng offline ngầm khi thiết bị có kết nối mạng
+        if (isConnected) {
+          try {
+            toast.success('Đã khôi phục!', 'Kết nối thành công')
+            const { SyncService } = require('@/shared/lib/database/sync/sync.service')
+            SyncService.drainOutbox().catch(() => {})
+          } catch {}
+        }
       }
     })
 
