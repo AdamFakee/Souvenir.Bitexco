@@ -5,11 +5,11 @@ import { useOrderFilterStore } from '../store'
 
 // Định nghĩa mảng TABS tĩnh dùng các status của WMS
 const TABS: { key: string; label: string; statuses: string[] | null }[] = [
-  { key: 'COMPLETED', label: 'Hoàn thành', statuses: ['FULFILLED', 'COMPLETED'] },
+  { key: 'COMPLETED', label: 'Hoàn thành', statuses: ['FULFILLED', 'CONFIRMED'] },
   {
     key: 'RETURNED',
-    label: 'Trả hàng / Hoàn tiền',
-    statuses: ['RETURN_REQUESTED', 'PARTIALLY_RETURNED', 'RETURNED', 'REFUNDED'],
+    label: 'Hoàn hàng',
+    statuses: ['RETURNED', 'REFUNDED', 'PARTIALLY_RETURNED', 'PARTIALLY_REFUNDED'],
   },
   { key: 'ALL', label: 'Tất cả', statuses: null },
 ]

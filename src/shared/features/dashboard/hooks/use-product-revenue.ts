@@ -5,14 +5,15 @@ import { ProductRevenueResponse } from '../types'
 
 const LIMIT = 10
 
-export function useProductRevenue(shiftId?: string) {
+export function useProductRevenue(shiftId?: string, staffId?: string | null) {
   const query = useInfiniteQuery({
-    queryKey: ['dashboard', 'product-revenue', shiftId],
+    queryKey: ['dashboard', 'product-revenue', shiftId, staffId],
     queryFn: ({ pageParam = 0 }): Promise<ProductRevenueResponse> => {
       return DashboardRemoteAPI.fetchProductRevenueReport({
         shiftId: shiftId!,
         page: pageParam as number,
         limit: LIMIT,
+        staffId,
       })
     },
     initialPageParam: 0,
@@ -29,8 +30,13 @@ export function useProductRevenue(shiftId?: string) {
     return query.data?.pages.flatMap((page) => page.items) || []
   }, [query.data?.pages])
 
+  const totalRevenue = query.data?.pages[0]?.totalRevenue
+  const totalItems = query.data?.pages[0]?.totalItems
+
   return {
     products,
+    totalRevenue,
+    totalItems,
     isLoading: query.isLoading,
     isFetchingNextPage: query.isFetchingNextPage,
     hasMore: !!query.hasNextPage,

@@ -1,6 +1,8 @@
 export interface PaymentMethodItem {
-  name: string
-  value: number
+  name?: string
+  value?: number
+  method?: string
+  amount?: number
 }
 
 export interface ProductRevenueItem {
@@ -27,4 +29,6 @@ export interface ProductRevenueResponse {
   totalCount: number
   page: number
   pageSize: number
+  totalItems?: number
+  totalRevenue?: number
 }

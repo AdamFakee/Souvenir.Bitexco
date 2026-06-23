@@ -31,6 +31,17 @@ export interface CloseShiftPayload {
   notes?: string | null
 }
 
+export interface ZReportStaffItem {
+  staffId: string
+  staffName: string
+  staffCode: string
+  orderCount: number
+  cashAmount: number
+  qrAmount: number
+  cardAmount: number
+  totalRevenue: number
+}
+
 export interface ZReportResponse {
   session: CashSession
   cashierName: string
@@ -45,6 +56,7 @@ export interface ZReportResponse {
     method: string
     amount: number
   }[]
+  staffs?: ZReportStaffItem[]
 }
 
 export const ShiftRemoteAPI = {

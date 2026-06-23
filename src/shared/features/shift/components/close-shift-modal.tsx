@@ -13,6 +13,10 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
 import { closeShiftMachine } from '../machines/close-shift.machine'
 import { closeShiftSchema, type CloseShiftInput } from '../validations/close-shift.validation'
+import {
+  CloseShiftReceiptTemplate,
+  type CloseShiftReceiptData,
+} from '@/shared/features/order/components/close-shift-receipt-template'
 
 export interface CloseShiftModalRef {
   open: () => void
@@ -50,11 +54,13 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
     }
   }, [visible])
 
+  const printRef = useRef<View>(null)
+
   // Khởi tạo XState Machine
   const [state, send] = useMachine(closeShiftMachine, {
     input: {
       shiftId: shiftId || '',
-      printRef: { current: null },
+      printRef,
     },
   })
 
@@ -357,6 +363,49 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
           <ActivityIndicator size="large" color={COLORS.primary.default} />
         </View>
       )}
+
+      {/* Hidden container for printing Z-Report */}
+      {state.context.zReportData && (
+        <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+          <View collapsable={false} ref={printRef}>
+            <CloseShiftReceiptTemplate data={mapZReportToReceiptData(state.context.zReportData)} />
+          </View>
+        </View>
+      )}
     </ModalBase>
   )
+}
+
+const mapZReportToReceiptData = (zReport: any): CloseShiftReceiptData => {
+  const session = zReport?.session || {}
+  const paymentBreakdown = zReport?.paymentBreakdown || []
+
+  const grandCash = paymentBreakdown.find((p: any) => p.method === 'cash')?.amount || 0
+  const grandQr = paymentBreakdown.find((p: any) => p.method === 'qr_bidv')?.amount || 0
+  const grandCard = paymentBreakdown.find((p: any) => p.method === 'card_bidv')?.amount || 0
+  const grandTotal = grandCash + grandQr + grandCard
+
+  const staffSummaries = (zReport?.staffs || []).map((s: any) => ({
+    staffName: s.staffName || '',
+    staffCode: s.staffCode || '',
+    orderCount: s.orderCount || 0,
+    cashAmount: s.cashAmount || 0,
+    qrAmount: s.qrAmount || 0,
+    cardAmount: s.cardAmount || 0,
+    totalRevenue: s.totalRevenue || 0,
+  }))
+
+  return {
+    shiftCode: session.code || '',
+    shiftTime: '---',
+    openedAt: session.openedAt || new Date().toISOString(),
+    closedAt: session.closedAt || new Date().toISOString(),
+    posDeviceName: zReport?.posDeviceName || 'Máy POS',
+    totalOrders: zReport?.orderCount || 0,
+    staffSummaries,
+    grandCash,
+    grandQr,
+    grandCard,
+    grandTotal,
+  }
 }

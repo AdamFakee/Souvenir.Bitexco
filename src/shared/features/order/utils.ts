@@ -29,15 +29,18 @@ const ALLOWED_STATUSES: (WmsOrderStatus | OrderStatus | string)[] = [
   'COMPLETED',
 ]
 
-/**
- * Kiểm tra đơn hàng có đủ điều kiện trả hàng hay không.
- */
 export const checkCanReturn = (order: {
-  status: WmsOrderStatus | OrderStatus | string
+  status?: WmsOrderStatus | OrderStatus | string
   canReturn?: boolean
 }): boolean => {
   if (order.canReturn === false) return false
-  return ALLOWED_STATUSES.includes(order.status)
+  if (order.canReturn === true) return true
+
+  const status = order.status
+  if (!status) return true
+
+  const eligibleStatuses = ['PAID', 'FULFILLED', 'COMPLETED', 'CONFIRMED']
+  return eligibleStatuses.includes(status)
 }
 
 /**

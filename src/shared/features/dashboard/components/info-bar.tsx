@@ -1,12 +1,17 @@
 import React from 'react'
 import { Text, View } from 'react-native'
+import { Users } from 'lucide-react-native'
 import { Shimmer } from '@/shared/components/ui/shimmer'
 import { useAppContext } from '@/shared/features/app'
 import { useDashboardOverview } from '../hooks'
 
-export function DashboardInfoBar() {
+interface DashboardInfoBarProps {
+  staffId?: string | null
+}
+
+export function DashboardInfoBar({ staffId }: DashboardInfoBarProps) {
   const { cashSessionId } = useAppContext()
-  const { overview, isLoading } = useDashboardOverview(cashSessionId ?? undefined)
+  const { overview, isLoading } = useDashboardOverview(cashSessionId ?? undefined, staffId)
 
   if (isLoading || !overview) {
     return (
@@ -35,23 +40,34 @@ export function DashboardInfoBar() {
     )
   }
 
+  const isAllStaff = !staffId
+
   return (
     <View className="mb-6 flex-row items-center justify-between rounded-2xl border border-neutral-100 bg-[#f9fafb] px-6 py-5">
       {/* User Info (Left) */}
       <View className="flex-row items-center gap-4">
-        <View className="relative h-16 w-16 items-center justify-center rounded-full bg-[#f3f4f6]">
-          <Text className="text-2xl font-black text-[#111827]">
-            {overview.employeeName.charAt(0).toUpperCase()}
-          </Text>
-          {/* Active Green Badge */}
-          <View className="absolute bottom-0 right-0 h-[16px] w-[16px] rounded-full border-2 border-white bg-green-500" />
-        </View>
+        {isAllStaff ? (
+          <View
+            style={{ backgroundColor: 'rgba(0, 125, 85, 0.1)' }}
+            className="h-16 w-16 items-center justify-center rounded-full"
+          >
+            <Users size={28} color="#007D55" />
+          </View>
+        ) : (
+          <View className="relative h-16 w-16 items-center justify-center rounded-full bg-[#f3f4f6]">
+            <Text className="text-2xl font-black text-[#111827]">
+              {overview.employeeName ? overview.employeeName.charAt(0).toUpperCase() : 'U'}
+            </Text>
+            {/* Active Green Badge */}
+            <View className="absolute bottom-0 right-0 h-[16px] w-[16px] rounded-full border-2 border-white bg-green-500" />
+          </View>
+        )}
         <View className="flex-col">
           <Text className="text-[22px] font-black leading-tight text-[#111827]">
-            {overview.employeeName}
+            {isAllStaff ? 'Tất cả nhân viên' : overview.employeeName}
           </Text>
           <Text className="mt-0.5 text-[15px] font-bold text-[#6b7280]">
-            Mã NV {overview.employeeCode}
+            {isAllStaff ? 'Báo cáo tổng hợp ca' : `Mã NV: ${overview.employeeCode}`}
           </Text>
         </View>
       </View>

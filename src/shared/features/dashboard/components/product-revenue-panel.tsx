@@ -1,15 +1,18 @@
-import React from 'react'
-import { FlatList, Text, View } from 'react-native'
-import { formatCurrency } from '@/shared/utils'
 import { Shimmer } from '@/shared/components/ui/shimmer'
 import { useAppContext } from '@/shared/features/app'
+import { formatCurrency } from '@/shared/utils'
+import React from 'react'
+import { FlatList, Text, View } from 'react-native'
 import { useProductRevenue } from '../hooks'
 
-export function ProductRevenuePanel() {
+interface ProductRevenuePanelProps {
+  staffId?: string | null
+}
+
+export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
   const { cashSessionId } = useAppContext()
-  const { products, isLoading, isFetchingNextPage, hasMore, loadMore } = useProductRevenue(
-    cashSessionId ?? undefined,
-  )
+  const { products, totalRevenue, totalItems, isLoading, isFetchingNextPage, hasMore, loadMore } =
+    useProductRevenue(cashSessionId ?? undefined, staffId)
 
   if (isLoading) {
     return (
@@ -69,7 +72,7 @@ export function ProductRevenuePanel() {
           style={{ backgroundColor: '#719BB0' }}
           className="flex-row items-center justify-between px-6 py-5"
         >
-          <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu (chưa VAT)</Text>
+          <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu (đã VAT)</Text>
           <Shimmer className="h-8 w-36 bg-white/20" />
         </View>
       </View>
@@ -78,6 +81,10 @@ export function ProductRevenuePanel() {
 
   // Compute overall total sum from the product revenue report rows
   const computedTotalRevenue = products.reduce((acc, curr) => acc + curr.total, 0)
+  const displayTotalRevenue = totalRevenue ?? computedTotalRevenue
+
+  const computedTotalItems = products.reduce((acc, curr) => acc + curr.qty, 0)
+  const displayTotalItems = totalItems ?? computedTotalItems
 
   return (
     <View
@@ -86,10 +93,15 @@ export function ProductRevenuePanel() {
     >
       <View className="w-full flex-1 flex-col">
         {/* Header */}
-        <View className="px-6 py-5">
+        <View className="flex-row items-center justify-between px-6 py-5">
           <Text className="text-[18px] font-extrabold text-[#1f2937]">
             Chi tiết doanh thu theo sản phẩm
           </Text>
+          {displayTotalItems !== undefined && (
+            <Text className="text-[15px] font-bold text-[#4b5563]">
+              Số lượng: {displayTotalItems}
+            </Text>
+          )}
         </View>
 
         {/* Product Table */}
@@ -157,14 +169,14 @@ export function ProductRevenuePanel() {
         style={{ backgroundColor: '#719BB0' }}
         className="flex-row items-center justify-between px-6 py-5"
       >
-        <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu (chưa VAT)</Text>
+        <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu (đã VAT)</Text>
         <Text
           adjustsFontSizeToFit
           numberOfLines={1}
           className="font-black text-white"
-          style={{ fontSize: formatCurrency(computedTotalRevenue).length > 15 ? 18 : 24 }}
+          style={{ fontSize: formatCurrency(displayTotalRevenue).length > 15 ? 18 : 24 }}
         >
-          {formatCurrency(computedTotalRevenue)}
+          {formatCurrency(displayTotalRevenue)}
         </Text>
       </View>
     </View>

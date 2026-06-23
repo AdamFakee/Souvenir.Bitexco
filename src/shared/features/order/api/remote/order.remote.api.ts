@@ -3,7 +3,16 @@ import { OrderStatus } from '@/shared/lib/database'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
 import { IBaseResponse, PagedResponse } from '@/shared/types/api'
 import { endOfDay, startOfDay } from '@/shared/utils'
-import { IOrder, RefundReceiptData } from '../../types'
+import {
+  IOrder,
+  RefundReceiptData,
+  OrderState,
+  OrderPaymentStatus,
+  OrderFulfillmentStatus,
+  OrderInvoiceStatus,
+  OrderReturnStatus,
+  OrderStatusType,
+} from '../../types'
 import { checkCanReturn } from '../../utils'
 
 // ─── POS Atomic Checkout ──────────────────────────────────────────────────────
@@ -89,20 +98,27 @@ export interface OrderRaw {
 
 interface OrderListApiItem {
   id: string
+  code?: string | null
   shiftId: string
   staffId: string
   staffName?: string | null
-  status: OrderStatus
-  state?: string | null
+  status: OrderStatusType
+  state?: OrderState | null
+  paymentStatus?: OrderPaymentStatus | null
+  fulfillmentStatus?: OrderFulfillmentStatus | null
+  invoiceStatus?: OrderInvoiceStatus | null
+  returnStatus?: OrderReturnStatus | null
   subtotal: number
   discount: number
   voucherCode?: string | null
   voucherDiscount: number
   total: number
   totalTax: number
+  paidTotal?: number
   note?: string | null
   refundReason?: string | null
   originalOrderId?: string | null
+  originalOrderCode?: string | null
   customerTaxInfo: TaxInfo | null
   itemsSnapshot?: ItemSnapshot[] | null
   paymentsSnapshot?: PaymentSnapshot[] | null
@@ -125,6 +141,9 @@ export interface GetRemoteOrdersParams {
   dateTo?: Date | null
   page?: number
   limit?: number
+  /** Mã nhân viên để lọc đơn hàng. null hoặc undefined = tất cả nhân viên */
+  staffId?: string | null
+  /** ID của ca làm việc để lọc đơn hàng */
   shiftId?: string | null
 }
 
@@ -264,20 +283,28 @@ export interface OrderSyncChanges {
 
 const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   id: order.id,
+  code: order.code ?? null,
   shiftId: order.shiftId,
   staffId: order.staffId,
   staffName: order.staffName ?? null,
-  // Ưu tiên sử dụng field `state` của WMS cho việc hiển thị badge label ở FE, fallback về status
-  status: (order.state || order.status) as OrderStatus,
+  // Ưu tiên sử dụng field `status` cho việc hiển thị badge label ở FE, fallback về state
+  status: (order.status || order.state) as OrderStatusType,
+  state: order.state ?? null,
+  paymentStatus: order.paymentStatus ?? null,
+  fulfillmentStatus: order.fulfillmentStatus ?? null,
+  invoiceStatus: order.invoiceStatus ?? null,
+  returnStatus: order.returnStatus ?? null,
   subtotal: order.subtotal ?? 0,
   discount: order.discount ?? 0,
   voucherCode: order.voucherCode ?? undefined,
   voucherDiscount: order.voucherDiscount ?? 0,
   total: order.total ?? 0,
   totalTax: order.totalTax ?? 0,
+  paidTotal: order.paidTotal,
   note: order.note ?? undefined,
   refundReason: order.refundReason ?? undefined,
   originalOrderId: order.originalOrderId ?? undefined,
+  originalOrderCode: order.originalOrderCode ?? null,
   customerTaxInfo: order.customerTaxInfo ?? null,
   itemsSnapshot: order.itemsSnapshot ?? [],
   paymentsSnapshot: order.paymentsSnapshot ?? [],
@@ -285,7 +312,7 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   // Trạng thái cho phép trả hàng theo helper thống nhất
   canReturn:
     order.canReturn ??
-    checkCanReturn({ status: order.state || order.status, canReturn: order.canReturn }),
+    checkCanReturn({ status: order.status || order.state, canReturn: order.canReturn }),
   createdAt: new Date(order.createdAt),
   updatedAt: new Date(order.updatedAt),
   totalRefunded: order.totalRefunded ?? 0,
@@ -374,7 +401,7 @@ export const OrderRemoteAPI = {
    * Lấy danh sách đơn hàng từ server.
    */
   getOrders: async (params: GetRemoteOrdersParams): Promise<IBaseResponse<IOrder[]>> => {
-    const { status, searchQuery, dateFrom, dateTo, page = 1, limit = 20, shiftId } = params
+    const { status, searchQuery, dateFrom, dateTo, page = 1, limit = 20, staffId, shiftId } = params
     const normalizedSearchQuery = searchQuery?.trim()
 
     const urlParams = new URLSearchParams()
@@ -393,40 +420,52 @@ export const OrderRemoteAPI = {
       urlParams.append('date_to', endOfDay(dateTo).toISOString())
     }
 
+    if (staffId) {
+      urlParams.append('staff_id', staffId)
+    }
+
     if (shiftId) {
       urlParams.append('shift_id', shiftId)
     }
 
     if (status) {
       const statusArray = Array.isArray(status) ? status : [status]
-      statusArray.forEach((s) => {
-        // Gửi cả state và status dưới dạng lặp lại query parameters để tương thích 100% với backend
-        urlParams.append('state', s)
-        urlParams.append('status', s)
-      })
+      if (statusArray.length > 0) {
+        const joinedStatus = statusArray.join(',')
+        urlParams.append('status', joinedStatus)
+        urlParams.append('state', joinedStatus)
+      }
     }
-
-    console.log('[ORDERS QUERY PARAMS] INPUT params:', params)
-    console.log('[ORDERS QUERY PARAMS] SENDING urlParams string:', urlParams.toString())
-
     try {
       const response = await AxiosService.getInstance().get<PagedResponse<OrderListApiItem>>(
         '/v1/pos/orders',
         { params: urlParams },
       )
 
-      console.log('[ORDERS RESPONSE] URL:', `/v1/pos/orders?${urlParams.toString()}`)
-      console.log('[ORDERS RESPONSE] DATA items count:', response.data?.items?.length ?? 0)
-      console.log('[ORDERS RESPONSE] DATA:', JSON.stringify(response.data, null, 2))
-
       const rawData = response.data as any
-      const items = rawData.items || []
-      const totalCount = rawData.totalCount || 0
-      const totalItems = rawData.totalItems || 0
-      const totalRevenue = rawData.totalRevenue || 0
-      const currentPage = rawData.page || page
-      const pageSize = rawData.pageSize || limit
-      const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0
+      const items = rawData.items || rawData.data || (Array.isArray(rawData) ? rawData : [])
+
+      const meta = rawData.meta || {}
+
+      const totalCount =
+        meta.total ?? meta.totalCount ?? rawData.totalCount ?? rawData.total ?? items.length
+      const totalItems =
+        meta.totalItems ?? meta.total_items ?? rawData.totalItems ?? rawData.total_items ?? 0
+      const totalRevenue =
+        meta.totalRevenue ??
+        meta.total_revenue ??
+        rawData.totalRevenue ??
+        rawData.total_revenue ??
+        0
+
+      const currentPage = meta.page ?? rawData.page ?? page
+      const pageSize = meta.limit ?? meta.pageSize ?? rawData.pageSize ?? rawData.limit ?? limit
+      const totalPages =
+        meta.totalPages ??
+        rawData.totalPages ??
+        (pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0)
+      const hasNextPage = meta.hasNextPage ?? rawData.hasNextPage ?? currentPage < totalPages
+
       return {
         success: true,
         status_code: 200,
@@ -439,7 +478,7 @@ export const OrderRemoteAPI = {
           page: currentPage,
           limit: pageSize,
           totalPages,
-          hasNextPage: currentPage < totalPages,
+          hasNextPage,
           timestamp: Date.now(),
         },
         error: null,

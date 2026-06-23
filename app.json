@@ -33,7 +33,7 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_EXTERNAL_STORAGE"
       ],
-      "versionCode": 8
+      "versionCode": 9
     },
     "plugins": [
       "./scripts/withAndroidSigning",

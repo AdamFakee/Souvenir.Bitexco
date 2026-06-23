@@ -7,9 +7,13 @@ import { useAppContext } from '@/shared/features/app'
 import { MoneyBagIcon, GiftBoxIcon } from '../icons'
 import { useDashboardOverview } from '../hooks'
 
-export function DashboardStatsCards() {
+interface DashboardStatsCardsProps {
+  staffId?: string | null
+}
+
+export function DashboardStatsCards({ staffId }: DashboardStatsCardsProps) {
   const { cashSessionId } = useAppContext()
-  const { overview, isLoading } = useDashboardOverview(cashSessionId ?? undefined)
+  const { overview, isLoading } = useDashboardOverview(cashSessionId ?? undefined, staffId)
 
   if (isLoading || !overview) {
     return (

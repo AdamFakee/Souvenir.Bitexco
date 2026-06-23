@@ -1,8 +1,8 @@
 import { COLORS } from '@/shared/constants'
 import { getVietnameseMonth } from '@/shared/utils'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
-import React, { useImperativeHandle, useState } from 'react'
-import { Dimensions, Modal, Pressable, Text, View } from 'react-native'
+import React, { useCallback, useImperativeHandle, useMemo, useState } from 'react'
+import { Modal, Pressable, Text, View, useWindowDimensions } from 'react-native'
 import { GlobalToast } from './global-toast'
 
 /**
@@ -10,24 +10,17 @@ import { GlobalToast } from './global-toast'
  * Dùng để tính toán vị trí hiển thị popover ngay bên dưới component đó.
  */
 export interface AnchorPosition {
-  x: number // Tọa độ x trong cửa sổ (window)
-  y: number // Tọa độ y trong cửa sổ (window)
-  width: number // Chiều rộng của component trigger
-  height: number // Chiều cao của component trigger
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 /**
  * Interface cho ref của CalendarPopover
- * Cho phép component cha điều khiển việc đóng/mở bộ lịch một cách chủ động (imperative)
  */
 export interface CalendarPopoverRef {
-  /**
-   * Mở bộ lịch tại vị trí của component trigger (anchor)
-   */
   open: (anchor: AnchorPosition) => void
-  /**
-   * Đóng bộ lịch
-   */
   close: () => void
 }
 
@@ -40,6 +33,7 @@ interface CalendarPopoverProps {
 }
 
 const DAYS_OF_WEEK = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+const POPOVER_WIDTH = 420
 
 export function CalendarPopover({
   onSelect,
@@ -51,6 +45,81 @@ export function CalendarPopover({
   const [visible, setVisible] = useState(false)
   const [anchorPosition, setAnchorPosition] = useState<AnchorPosition | null>(null)
   const [viewDate, setViewDate] = useState(new Date())
+
+  const { width: windowWidth } = useWindowDimensions()
+
+  // Tất cả useMemo / useCallback phải gọi trước return null
+  const { days, today, year, month } = useMemo(() => {
+    const y = viewDate.getFullYear()
+    const m = viewDate.getMonth()
+    const totalDays = new Date(y, m + 1, 0).getDate()
+    const firstDay = (() => {
+      const d = new Date(y, m, 1).getDay()
+      return d === 0 ? 6 : d - 1
+    })()
+
+    const d: (number | null)[] = []
+    for (let i = 0; i < firstDay; i++) d.push(null)
+    for (let i = 1; i <= totalDays; i++) d.push(i)
+
+    const now = new Date()
+    return {
+      days: d,
+      today: { d: now.getDate(), m: now.getMonth(), y: now.getFullYear() },
+      year: y,
+      month: m,
+    }
+  }, [viewDate])
+
+  const isToday = useCallback(
+    (day: number) => day === today.d && month === today.m && year === today.y,
+    [today, year, month],
+  )
+
+  const isSelected = useCallback(
+    (day: number) =>
+      !!selectedDate &&
+      day === selectedDate.getDate() &&
+      month === selectedDate.getMonth() &&
+      year === selectedDate.getFullYear(),
+    [selectedDate, year, month],
+  )
+
+  const isDisabled = useCallback(
+    (day: number) => {
+      const d = new Date(year, month, day)
+      if (minDate) {
+        const min = new Date(minDate)
+        min.setHours(0, 0, 0, 0)
+        if (d < min) return true
+      }
+      if (maxDate) {
+        const max = new Date(maxDate)
+        max.setHours(23, 59, 59, 999)
+        if (d > max) return true
+      }
+      return false
+    },
+    [year, month, minDate, maxDate],
+  )
+
+  const changeMonth = useCallback(
+    (offset: number) => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + offset, 1)),
+    [],
+  )
+
+  const handleSelect = useCallback(
+    (day: number) => {
+      onSelect(new Date(year, month, day))
+      setVisible(false)
+    },
+    [onSelect, year, month],
+  )
+
+  const handleToday = useCallback(() => {
+    onSelect(new Date())
+    setVisible(false)
+  }, [onSelect])
 
   useImperativeHandle(ref, () => ({
     open: (anchor: AnchorPosition) => {
@@ -64,80 +133,10 @@ export function CalendarPopover({
 
   if (!anchorPosition) return null
 
-  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
-  const firstDayOfMonth = (year: number, month: number) => {
-    const day = new Date(year, month, 1).getDay()
-    return day === 0 ? 6 : day - 1
-  }
-
-  const generateDays = () => {
-    const year = viewDate.getFullYear()
-    const month = viewDate.getMonth()
-    const days: (number | null)[] = []
-
-    const firstDay = firstDayOfMonth(year, month)
-    const totalDays = daysInMonth(year, month)
-
-    for (let i = 0; i < firstDay; i++) {
-      days.push(null)
-    }
-
-    for (let i = 1; i <= totalDays; i++) {
-      days.push(i)
-    }
-
-    return days
-  }
-
-  const changeMonth = (offset: number) => {
-    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + offset, 1))
-  }
-
-  const handleSelect = (day: number) => {
-    const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day)
-    onSelect(newDate)
-    setVisible(false)
-  }
-
-  const isToday = (day: number) => {
-    const today = new Date()
-    return (
-      day === today.getDate() &&
-      viewDate.getMonth() === today.getMonth() &&
-      viewDate.getFullYear() === today.getFullYear()
-    )
-  }
-
-  const isSelected = (day: number) => {
-    return (
-      selectedDate &&
-      day === selectedDate.getDate() &&
-      viewDate.getMonth() === selectedDate.getMonth() &&
-      viewDate.getFullYear() === selectedDate.getFullYear()
-    )
-  }
-
-  const isDisabled = (day: number) => {
-    const d = new Date(viewDate.getFullYear(), viewDate.getMonth(), day)
-    if (minDate) {
-      const min = new Date(minDate)
-      min.setHours(0, 0, 0, 0)
-      if (d < min) return true
-    }
-    if (maxDate) {
-      const max = new Date(maxDate)
-      max.setHours(23, 59, 59, 999)
-      if (d > max) return true
-    }
-    return false
-  }
-
   // Calculate position: below the anchor
-  const windowWidth = Dimensions.get('window').width
-  const popoverWidth = 420
   let left = anchorPosition.x
-  if (left + popoverWidth > windowWidth - 20) {
-    left = windowWidth - popoverWidth - 20
+  if (left + POPOVER_WIDTH > windowWidth - 20) {
+    left = windowWidth - POPOVER_WIDTH - 20
   }
 
   return (
@@ -153,7 +152,7 @@ export function CalendarPopover({
           style={{
             top: anchorPosition.y + anchorPosition.height + 12,
             left: left,
-            width: popoverWidth,
+            width: POPOVER_WIDTH,
           }}
           onStartShouldSetResponder={() => true}
           onTouchEnd={(e) => e.stopPropagation()}
@@ -192,7 +191,7 @@ export function CalendarPopover({
 
             {/* Days */}
             <View className="flex-row flex-wrap">
-              {generateDays().map((day, index) => {
+              {days.map((day, index) => {
                 const disabled = day ? isDisabled(day) : false
                 return (
                   <View key={index} style={{ width: '14.28%', aspectRatio: 1 }}>
@@ -232,10 +231,7 @@ export function CalendarPopover({
           {/* Footer */}
           <View className="flex-row justify-end border-t border-outline-variant p-3">
             <Pressable
-              onPress={() => {
-                onSelect(new Date())
-                setVisible(false)
-              }}
+              onPress={handleToday}
               className="min-w-[120px] items-center justify-center rounded-xl px-6 py-3 active:bg-surface-100"
             >
               <Text className="text-lg font-black text-primary" numberOfLines={1}>

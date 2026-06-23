@@ -88,7 +88,7 @@ export const useDashboardStats = (shiftId?: string) => {
         })
       })
 
-      const totalRevenue = revCash + revQr
+      const totalRevenue = revCash + revQr + revCard
 
       const topProducts = Object.values(productCounts)
         .sort((a, b) => b.qty - a.qty)
@@ -108,7 +108,7 @@ export const useDashboardStats = (shiftId?: string) => {
         totalRevenue,
         revCash,
         revQr,
-        revCard: 0, // TODO: Tính card từ payment.method === 'card_bidv'
+        revCard,
         completedOrders: completed.length,
         cancelledOrders: cancelled.length,
         totalProducts,

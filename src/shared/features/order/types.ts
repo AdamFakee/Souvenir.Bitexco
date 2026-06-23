@@ -24,24 +24,86 @@ export interface RefundReceiptData {
   lines: RefundReceiptLine[]
 }
 
+export type OrderStatusType =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PAYMENT_PENDING'
+  | 'PAID'
+  | 'FULFILLING'
+  | 'INVOICED'
+  | 'FULFILLED'
+  | 'COMPLETED'
+  | 'RETURNED'
+  | 'REFUNDED'
+  | 'PARTIALLY_RETURNED'
+  | 'PARTIALLY_REFUNDED'
+  | 'CANCELLED'
+  | 'FAILED'
+
+export type OrderState =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PAYMENT_PENDING'
+  | 'PAID'
+  | 'FULFILLING'
+  | 'INVOICED'
+  | 'FULFILLED'
+  | 'COMPLETED'
+  | 'RETURNED'
+  | 'REFUNDED'
+  | 'PARTIALLY_RETURNED'
+  | 'PARTIALLY_REFUNDED'
+  | 'CANCELLED'
+  | 'FAILED'
+  | 'PROCESSING'
+
+export type OrderPaymentStatus =
+  | 'PENDING'
+  | 'PAID'
+  | 'PARTIALLY_PAID'
+  | 'REFUNDED'
+  | 'CANCELLED'
+  | 'FAILED'
+  | 'PAYMENT_PENDING'
+  | 'PAYMENT_PARTIAL'
+
+export type OrderFulfillmentStatus =
+  | 'PENDING'
+  | 'FULFILLED'
+  | 'PARTIALLY_FULFILLED'
+  | 'FULFILLING'
+  | 'CANCELLED'
+
+export type OrderInvoiceStatus = 'NONE' | 'PENDING' | 'ISSUED' | 'CANCELLED' | 'FAILED' | 'INVOICED'
+
+export type OrderReturnStatus = 'NONE' | 'PARTIALLY_RETURNED' | 'RETURNED' | 'RETURN_REQUESTED'
+
 /**
  * IOrder - Standard interface for Orders used in the UI.
  * Compatible with both remote API response and local models.
  */
 export interface IOrder {
   id: string
+  code?: string | null
   shiftId: string
   staffId: string
-  status: OrderStatus
+  status: OrderStatusType
+  state?: OrderState | null
+  paymentStatus?: OrderPaymentStatus | null
+  fulfillmentStatus?: OrderFulfillmentStatus | null
+  invoiceStatus?: OrderInvoiceStatus | null
+  returnStatus?: OrderReturnStatus | null
   subtotal: number
   discount: number
   voucherCode?: string
   voucherDiscount: number
   total: number
   totalTax: number
+  paidTotal?: number
   note?: string
   refundReason?: string
   originalOrderId?: string
+  originalOrderCode?: string | null
   customerTaxInfo: TaxInfo | null
   itemsSnapshot: ItemSnapshot[]
   paymentsSnapshot: PaymentSnapshot[]

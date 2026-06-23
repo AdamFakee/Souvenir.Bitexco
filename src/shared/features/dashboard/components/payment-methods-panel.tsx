@@ -1,14 +1,23 @@
 import { Shimmer } from '@/shared/components/ui/shimmer'
 import { useAppContext } from '@/shared/features/app'
+import {
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_CHART_COLORS,
+  type PaymentMethodCode,
+} from '@/shared/features/payment/types/payment.constants'
 import { formatCurrency } from '@/shared/utils'
 import React from 'react'
 import { Text, View } from 'react-native'
 import { PieChart } from 'react-native-gifted-charts'
 import { useDashboardOverview } from '../hooks'
 
-export function PaymentMethodsPanel() {
+interface PaymentMethodsPanelProps {
+  staffId?: string | null
+}
+
+export function PaymentMethodsPanel({ staffId }: PaymentMethodsPanelProps) {
   const { cashSessionId } = useAppContext()
-  const { overview, isLoading } = useDashboardOverview(cashSessionId ?? undefined)
+  const { overview, isLoading } = useDashboardOverview(cashSessionId ?? undefined, staffId)
 
   if (isLoading || !overview) {
     return (
@@ -57,17 +66,22 @@ export function PaymentMethodsPanel() {
   }
 
   // FE mapping colors and keys based on the API name
-  const colorMap: Record<string, string> = {
-    'Thẻ tín dụng': '#6366f1',
-    'Tiền mặt': '#f97316',
-    QR: '#0ea5e9',
-  }
   const defaultColors = ['#6366f1', '#f97316', '#0ea5e9', '#ec4899', '#8b5cf6']
 
-  const mappedPaymentMethods = overview.paymentMethods.map((pm, idx) => ({
-    ...pm,
-    color: colorMap[pm.name] || defaultColors[idx % defaultColors.length],
-  }))
+  const mappedPaymentMethods = overview.paymentMethods.map((pm, idx) => {
+    const rawName = pm.name || pm.method || ''
+    const rawValue = pm.value !== undefined ? pm.value : pm.amount !== undefined ? pm.amount : 0
+
+    const code = rawName.toLowerCase() as PaymentMethodCode
+    const displayName = PAYMENT_METHOD_LABELS[code] || rawName
+    const color = PAYMENT_CHART_COLORS[code] || defaultColors[idx % defaultColors.length]
+
+    return {
+      name: displayName,
+      value: rawValue,
+      color,
+    }
+  })
 
   // Pie chart data formatting
   const pieData = mappedPaymentMethods.map((pm) => ({

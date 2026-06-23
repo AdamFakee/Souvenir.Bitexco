@@ -5,10 +5,15 @@ export const DashboardRemoteAPI = {
   /**
    * Lấy tổng quan báo cáo doanh thu ca (Aggregate)
    */
-  fetchDashboardOverview: async (shiftId: string): Promise<DashboardOverviewResponse> => {
+  fetchDashboardOverview: async (
+    shiftId: string,
+    staffId?: string | null,
+  ): Promise<DashboardOverviewResponse> => {
     const axios = AxiosService.getInstance()
-    const response = await axios.get<DashboardOverviewResponse>('/v1/dashboard/overview', {
-      params: { shiftId },
+    const params: Record<string, string> = { shiftId }
+    if (staffId) params.staffId = staffId
+    const response = await axios.get<DashboardOverviewResponse>('/v1/pos/dashboard/overview', {
+      params,
     })
     return response.data
   },
@@ -20,11 +25,14 @@ export const DashboardRemoteAPI = {
     shiftId: string
     page?: number
     limit?: number
+    staffId?: string | null
   }): Promise<ProductRevenueResponse> => {
-    const { shiftId, page = 0, limit = 10 } = params
+    const { shiftId, page = 0, limit = 10, staffId } = params
     const axios = AxiosService.getInstance()
-    const response = await axios.get<ProductRevenueResponse>('/v1/dashboard/product-revenue', {
-      params: { shiftId, page, limit },
+    const queryParams: Record<string, string | number> = { shiftId, page, limit }
+    if (staffId) queryParams.staffId = staffId
+    const response = await axios.get<ProductRevenueResponse>('/v1/pos/dashboard/product-revenue', {
+      params: queryParams,
     })
     return response.data
   },

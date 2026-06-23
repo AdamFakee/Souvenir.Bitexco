@@ -1,19 +1,27 @@
 import { DatePicker } from '@/shared/components/ui'
 import React, { memo } from 'react'
 import { Text, View } from 'react-native'
-import { useOrderFilterStore } from '../store'
 
-export const OrderDateFilter = memo(function OrderDateFilter() {
-  const dateFrom = useOrderFilterStore((s) => s.dateFrom)
-  const setDateFrom = useOrderFilterStore((s) => s.setDateFrom)
-  const dateTo = useOrderFilterStore((s) => s.dateTo)
-  const setDateTo = useOrderFilterStore((s) => s.setDateTo)
+export interface DateRangeFilterProps {
+  dateFrom: Date | null
+  dateTo: Date | null
+  onDateFromChange: (date: Date) => void
+  onDateToChange: (date: Date) => void
+  className?: string
+}
 
+export const DateRangeFilter = memo(function DateRangeFilter({
+  dateFrom,
+  dateTo,
+  onDateFromChange,
+  onDateToChange,
+  className,
+}: DateRangeFilterProps) {
   return (
-    <View className="flex-row items-center gap-4">
+    <View className={`flex-row items-center gap-4 ${className ?? ''}`}>
       <DatePicker
         value={dateFrom}
-        onChange={setDateFrom}
+        onChange={onDateFromChange}
         placeholder="Từ ngày"
         className="w-64"
         maxDate={dateTo || undefined}
@@ -21,7 +29,7 @@ export const OrderDateFilter = memo(function OrderDateFilter() {
       <Text className="text-xl font-bold text-muted">đến</Text>
       <DatePicker
         value={dateTo}
-        onChange={setDateTo}
+        onChange={onDateToChange}
         placeholder="Đến ngày"
         className="w-64"
         minDate={dateFrom || undefined}

@@ -1,6 +1,8 @@
 export { default as OrderDetailModal, type OrderDetailModalRef } from './order-detail-modal'
+export * from './close-shift-receipt-template'
 export * from './order-filter-bar'
 export * from './order-list'
+export * from './order-staff-select'
 export * from './order-stats-footer'
 export * from './order-status-tabs'
 export * from './dashboard-charts'

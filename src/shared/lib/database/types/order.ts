@@ -24,6 +24,10 @@ export interface ItemSnapshot {
   discountAmount: number
   /** Ghi chú món ăn */
   note?: string
+  /** Số lượng đã trả */
+  returnedQty?: number
+  /** Số lượng còn lại */
+  remainingQty?: number
 }
 
 /**
@@ -43,5 +47,7 @@ export const sanitizeItemsSnapshot = (rawItems: any): ItemSnapshot[] => {
     taxAmount: Number(item.taxAmount || item.tax_amount || 0),
     discountAmount: Number(item.discountAmount || item.discount_amount || 0),
     note: item.note ? String(item.note) : undefined,
+    returnedQty: item.returnedQty !== undefined ? Number(item.returnedQty || 0) : undefined,
+    remainingQty: item.remainingQty !== undefined ? Number(item.remainingQty || 0) : undefined,
   }))
 }

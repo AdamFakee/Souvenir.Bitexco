@@ -1,3 +1,4 @@
+import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { PullChangesParams } from '@/shared/lib/database/sync'
 import { IBaseResponse } from '@/shared/types/api'
 import {
@@ -9,6 +10,13 @@ import {
   StaffRole,
 } from '../../types'
 import mockStaffData from './mock-staff.json'
+
+export interface EmployeeItem {
+  id: string
+  displayName: string
+  email: string
+  status: 'active' | 'inactive'
+}
 
 /**
  * StaffRaw - Cấu trúc dữ liệu Nhân viên khớp với Backend/Database
@@ -99,6 +107,23 @@ export const StaffRemoteAPI = {
       },
       meta: { timestamp: Date.now() },
       error: null,
+    }
+  },
+
+  /**
+   * Lấy danh sách nhân viên.
+   * - Không shiftId → GET /v1/pos/employees → toàn bộ cửa hàng
+   * - Có shiftId   → GET /v1/pos/employees?shiftId=xxx → nhân viên trong ca
+   */
+  getEmployees: async (shiftId?: string): Promise<any> => {
+    try {
+      const axios = AxiosService.getInstance()
+      const params: Record<string, string> = {}
+      if (shiftId) params.shiftId = shiftId
+      const response = await axios.get<any>('/v1/pos/employees', { params })
+      return response.data
+    } catch {
+      return null
     }
   },
 

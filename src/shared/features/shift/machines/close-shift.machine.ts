@@ -129,9 +129,19 @@ export const closeShiftMachine = setup({
           currentState = 'CLOSED'
         }
 
-        return null
+        const zReportData = await ShiftRemoteAPI.getZReport(input.shiftId)
+        return zReportData
       },
     ),
+    printZReport: fromPromise(async ({ input }: { input: { printRef: React.RefObject<any> } }) => {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      if (input.printRef && input.printRef.current) {
+        console.log('Printing Z-report via machine actor...')
+        await PrinterService.printComponent(input.printRef)
+      } else {
+        console.warn('printRef.current is null, skipping print')
+      }
+    }),
   },
   actions: {
     assignSyncStatusAndStats: assign({
@@ -328,10 +338,28 @@ export const closeShiftMachine = setup({
           discrepancyReason: context.discrepancyReason,
         }),
         onDone: {
-          target: 'success',
+          target: 'printingZReport',
+          actions: 'assignZReportData',
         },
         onError: {
           target: 'readyToClose',
+          actions: ['recordError', 'toastError'],
+        },
+      },
+    },
+
+    printingZReport: {
+      invoke: {
+        id: 'printZReport',
+        src: 'printZReport',
+        input: ({ context }) => ({
+          printRef: context.printRef,
+        }),
+        onDone: {
+          target: 'success',
+        },
+        onError: {
+          target: 'success',
           actions: ['recordError', 'toastError'],
         },
       },

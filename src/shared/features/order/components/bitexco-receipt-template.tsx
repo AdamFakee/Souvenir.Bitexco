@@ -37,6 +37,7 @@ export const BitexcoReceiptTemplate = ({
 
   const {
     id: orderId,
+    code,
     createdAt,
     total,
     subtotal,
@@ -73,7 +74,7 @@ export const BitexcoReceiptTemplate = ({
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
           <Text style={S.fs28}>Receipt:</Text>
-          <Text style={S.fs28}>{orderId ? orderId.toUpperCase() : '---'}</Text>
+          <Text style={S.fs28}>{code || orderId ? (code || orderId).toUpperCase() : '---'}</Text>
         </View>
       </View>
 

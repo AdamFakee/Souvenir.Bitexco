@@ -1,5 +1,4 @@
 import { COLORS } from '@/shared/constants'
-import { OrderStatus } from '@/shared/lib/database/models/order'
 
 export const ORDER_ERROR_MESSAGES: Record<string, string> = {
   'pos.session_not_found': 'Không tìm thấy ca làm việc hiện tại.',
@@ -41,7 +40,7 @@ export const ORDER_STATUS_CONFIG: Record<
     bgColor: '#F3F4F6',
   },
   PENDING: {
-    label: 'Chờ xử lý',
+    label: 'Chờ xác nhận',
     color: COLORS.primary.default,
     bgColor: COLORS.primary.on,
   },
@@ -59,6 +58,16 @@ export const ORDER_STATUS_CONFIG: Record<
     label: 'Đã thanh toán',
     color: '#059669',
     bgColor: '#D1FAE5',
+  },
+  UNPAID: {
+    label: 'Chưa thanh toán',
+    color: '#DC2626',
+    bgColor: '#FEE2E2',
+  },
+  PARTIALLY_PAID: {
+    label: 'TT một phần',
+    color: '#D97706',
+    bgColor: '#FEF3C7',
   },
   FULFILLING: {
     label: 'Đang giao',
@@ -95,6 +104,16 @@ export const ORDER_STATUS_CONFIG: Record<
     color: '#D97706',
     bgColor: '#FEF3C7',
   },
+  PARTIAL: {
+    label: 'TT hỗn hợp',
+    color: '#D97706',
+    bgColor: '#FEF3C7',
+  },
+  PARTIAL_REFUNDED: {
+    label: 'Hoàn một phần',
+    color: '#7C3AED',
+    bgColor: '#F5F3FF',
+  },
   RETURN_REQUESTED: {
     label: 'Yêu cầu trả',
     color: '#7C3AED',
@@ -124,5 +143,10 @@ export const ORDER_STATUS_CONFIG: Record<
     label: 'Thất bại',
     color: COLORS.error.default,
     bgColor: COLORS.error.container,
+  },
+  PARTIALLY_FULFILLED: {
+    label: 'Giao một phần',
+    color: '#3B82F6',
+    bgColor: '#EFF6FF',
   },
 }

@@ -7,6 +7,10 @@ import mockCategories from '@/shared/features/category/api/remote/mock-categorie
 import { useNoteStore } from '@/shared/features/note'
 import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
+import {
+  CloseShiftReceiptTemplate,
+  type CloseShiftReceiptData,
+} from '@/shared/features/order/components/close-shift-receipt-template'
 import { RefundReceiptTemplate } from '@/shared/features/order/components/refund-receipt-template'
 import {
   getPortablePosUrl,
@@ -37,6 +41,7 @@ export default function DevControlScreen() {
   const receiptPrintRef3 = useRef<View>(null)
   const receiptPrintRef10 = useRef<View>(null)
   const refundPrintRef = useRef<View>(null)
+  const closeShiftPrintRef = useRef<View>(null)
 
   const [posUrlInput, setPosUrlInput] = useState(getPortablePosUrl())
   const isPosConnected = useConnectionStore((state) => state.isPosConnected)
@@ -1359,6 +1364,79 @@ export default function DevControlScreen() {
               } as any
             }
             staffName="Nguyễn Huỳnh Trâm Anh"
+          />
+        </View>
+      </View>
+
+      {/* 3.5 Close Shift Receipt Preview */}
+      <Text className="text-headline-sm mb-4 font-bold text-primary">
+        Close Shift Receipt Preview
+      </Text>
+      <View className="mb-12 items-center justify-center rounded-[32px] bg-surface-100 py-10 shadow-sm">
+        <View
+          collapsable={false}
+          ref={closeShiftPrintRef}
+          className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-xl"
+        >
+          <CloseShiftReceiptTemplate
+            data={
+              {
+                shiftCode: 'SHIFT-260622-001',
+                shiftTime: 'Ca sáng',
+                openedAt: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
+                closedAt: new Date().toISOString(),
+                posDeviceName: 'POS Quầy 1',
+                totalOrders: 47,
+                staffSummaries: [
+                  {
+                    staffName: 'Nguyễn Văn A',
+                    staffCode: 'NV001',
+                    orderCount: 25,
+                    cashAmount: 5200000,
+                    qrAmount: 1800000,
+                    cardAmount: 3500000,
+                    totalRevenue: 10500000,
+                  },
+                  {
+                    staffName: 'Trần Thị B',
+                    staffCode: 'NV002',
+                    orderCount: 22,
+                    cashAmount: 4100000,
+                    qrAmount: 2200000,
+                    cardAmount: 2800000,
+                    totalRevenue: 9100000,
+                  },
+                ],
+                grandCash: 9300000,
+                grandQr: 4000000,
+                grandCard: 6300000,
+                grandTotal: 19600000,
+              } satisfies CloseShiftReceiptData
+            }
+          />
+        </View>
+        <Text className="text-surface-onVariant mt-4 text-xs font-bold uppercase tracking-widest">
+          Mẫu bill kết ca có breakdown từng nhân viên (Width: 576px)
+        </Text>
+
+        <View className="mt-4 w-full flex-row gap-3 px-6">
+          <Button
+            label="In Bill Kết Ca"
+            variant="outline"
+            className="flex-1 border-primary"
+            textClassName="text-primary font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrint(closeShiftPrintRef, 'bill kết ca')}
+          />
+          <Button
+            label="In 2 Liên"
+            variant="primary"
+            className="flex-1 bg-primary"
+            textClassName="text-white font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrintDoubleCopy(closeShiftPrintRef, 'bill kết ca')}
           />
         </View>
       </View>
