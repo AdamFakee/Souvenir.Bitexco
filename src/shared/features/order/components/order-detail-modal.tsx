@@ -1,18 +1,16 @@
-import { Button, ModalBase } from '@/shared/components/ui'
+import { Button, IconButton, ModalBase } from '@/shared/components/ui'
 import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment'
 import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, Copy, Printer, Repeat2, Trash2 } from 'lucide-react-native'
+import { Copy, Printer, Repeat2, Trash2, X } from 'lucide-react-native'
 import React, { memo, useImperativeHandle, useRef, useState } from 'react'
 import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
 import { IOrder } from '../types'
 import { checkCanExchange, checkCanReturn, getOrderDisplayStatus } from '../utils'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
-import { ExchangeConfirmModal, ExchangeConfirmModalRef } from './exchange-confirm-modal'
-import { RefundConfirmModal, RefundConfirmModalRef } from './refund-confirm-modal'
 import { RefundReceiptTemplate } from './refund-receipt-template'
 
 const BRAND = '#1C4E68'
@@ -27,14 +25,18 @@ export interface OrderDetailModalRef {
 
 interface OrderDetailModalProps {
   ref?: React.Ref<OrderDetailModalRef>
+  onExchange?: (order: IOrder) => void
+  onRefund?: (order: IOrder) => void
 }
 
-export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDetailModalProps) {
+export const OrderDetailModal = memo(function OrderDetailModal({
+  ref,
+  onExchange,
+  onRefund,
+}: OrderDetailModalProps) {
   const queryClient = useQueryClient()
   const [visible, setVisible] = useState(false)
   const [order, setOrder] = useState<IOrder | null>(null)
-  const refundModalRef = useRef<RefundConfirmModalRef>(null)
-  const exchangeModalRef = useRef<ExchangeConfirmModalRef>(null)
   const printRef = useRef(null)
 
   useImperativeHandle(ref, () => ({
@@ -150,14 +152,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
             className="flex-row items-center justify-between px-6 py-5"
             style={{ borderBottomWidth: 1, borderColor: BORDER }}
           >
-            <View className="flex-row items-center gap-3">
-              <Pressable
-                onPress={() => setVisible(false)}
-                className="h-10 w-10 items-center justify-center rounded-xl border"
-                style={{ borderColor: BORDER }}
-              >
-                <ChevronLeft size={22} color={TEXT_PRIMARY} />
-              </Pressable>
+            <View className="flex-1">
               <View>
                 <Text
                   className="text-2xl font-extrabold"
@@ -183,6 +178,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                 </Pressable>
               </View>
             </View>
+            <IconButton icon={X} size={28} color={TEXT_MUTED} onPress={() => setVisible(false)} />
           </View>
 
           {/* ── Body: 2-column ── */}
@@ -548,6 +544,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                       <Text
                         className="text-lg font-extrabold"
                         style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                        numberOfLines={1}
                       >
                         {formatCurrency(computedTax)}
                       </Text>
@@ -590,7 +587,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                   className="h-14 rounded-xl"
                   disabled={!canExchange}
                   onPress={() => {
-                    exchangeModalRef.current?.open(order)
+                    onExchange?.(order)
                     setVisible(false)
                   }}
                 />
@@ -603,7 +600,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                   className="h-14 rounded-xl"
                   disabled={!checkCanReturn(order)}
                   onPress={() => {
-                    refundModalRef.current?.open(order)
+                    onRefund?.(order)
                     setVisible(false)
                   }}
                 />
@@ -625,21 +622,6 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
           </View>
         </View>
       </ModalBase>
-
-      <RefundConfirmModal
-        ref={refundModalRef}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['orders'] })
-          setVisible(false)
-        }}
-      />
-      <ExchangeConfirmModal
-        ref={exchangeModalRef}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['orders'] })
-          setVisible(false)
-        }}
-      />
     </>
   )
 })

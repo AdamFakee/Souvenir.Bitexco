@@ -1,22 +1,27 @@
 import { Select } from '@/shared/components/ui/select'
 import {
+  ExchangeConfirmModal,
+  ExchangeConfirmModalRef,
   IOrder,
   OrderDetailModal,
   OrderDetailModalRef,
   OrderFilterBar,
   OrderList,
   OrderStatsFooter,
+  Partner,
   ReconciliationModal,
   ReconciliationModalRef,
+  RefundConfirmModal,
+  RefundConfirmModalRef,
   useOrderFilterStore,
-  Partner,
 } from '@/shared/features/order'
 import { OrderRemoteAPI } from '@/shared/features/order/api'
 import { Affiliate } from '@/shared/features/pos'
 
+import { COLORS } from '@/shared/constants'
 import { useOrders } from '@/shared/features/order/hooks'
 import { toast } from '@/shared/store'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import React, { memo, useCallback, useDeferredValue, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -66,7 +71,7 @@ interface TopTabsProps {
 
 const TopTabs = memo(function TopTabs({ mode, setMode }: TopTabsProps) {
   return (
-    <View className="flex-row px-4 pt-3">
+    <View className="flex-row gap-2 px-4 pt-3">
       {MODE_TABS.map((tab) => {
         const active = mode === tab.value
         return (
@@ -76,7 +81,7 @@ const TopTabs = memo(function TopTabs({ mode, setMode }: TopTabsProps) {
             className="items-center justify-center rounded-t-2xl px-6 py-4"
             style={{
               width: 183,
-              backgroundColor: active ? '#fff' : TAB_INACTIVE,
+              backgroundColor: active ? COLORS.surface.variant : TAB_INACTIVE,
               shadowColor: active ? '#DBDBDB' : undefined,
               shadowOffset: active ? { width: 0, height: 10 } : undefined,
               shadowOpacity: active ? 0.24 : 0,
@@ -99,8 +104,11 @@ const TopTabs = memo(function TopTabs({ mode, setMode }: TopTabsProps) {
 
 // ── Main Screen ──
 export default function OrdersScreen() {
+  const queryClient = useQueryClient()
   const modalRef = useRef<OrderDetailModalRef>(null)
   const reconciliationModalRef = useRef<ReconciliationModalRef>(null)
+  const refundModalRef = useRef<RefundConfirmModalRef>(null)
+  const exchangeModalRef = useRef<ExchangeConfirmModalRef>(null)
 
   const [mode, setMode] = useState<OrderMode>('pos')
   const [selectedAffiliateId, setSelectedAffiliateId] = useState<string | null>(null)
@@ -308,8 +316,24 @@ export default function OrdersScreen() {
           </View>
         </View>
 
-        <OrderDetailModal ref={modalRef} />
+        <OrderDetailModal
+          ref={modalRef}
+          onExchange={exchangeModalRef.current?.open}
+          onRefund={refundModalRef.current?.open}
+        />
         <ReconciliationModal ref={reconciliationModalRef} />
+        <RefundConfirmModal
+          ref={refundModalRef}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['orders'] })
+          }}
+        />
+        <ExchangeConfirmModal
+          ref={exchangeModalRef}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['orders'] })
+          }}
+        />
       </View>
     </SafeAreaView>
   )

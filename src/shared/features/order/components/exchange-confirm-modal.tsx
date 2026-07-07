@@ -1,6 +1,5 @@
 import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { IconButton, ModalBase } from '@/shared/components/ui'
-import { COLORS } from '@/shared/constants'
 import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { UnifiedProduct } from '@/shared/features/pos/hooks/use-product-search'
 import { ItemSnapshot } from '@/shared/lib/database/types'
@@ -309,25 +308,43 @@ export const ExchangeConfirmModal = memo(
           </View>
         )}
 
-        <ModalBase visible={visible} onClose={handleClose} dismissible={!isProcessing} size="90%">
+        <ModalBase
+          visible={visible}
+          onClose={handleClose}
+          dismissible={!isProcessing}
+          size="90%"
+          className="overflow-hidden rounded-2xl bg-white"
+        >
           {visible && (
             <>
-              <SafeAreaView className="flex-1">
+              <View className="flex-1">
                 {visible && (
                   <HardwareBarcodeScanner onScan={(codes) => send({ type: 'SCAN_CODES', codes })} />
                 )}
 
-                <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-10 py-6">
+                {/* Header */}
+                <View
+                  className="flex-row items-center justify-between px-6 py-5"
+                  style={{ borderBottomWidth: 1, borderColor: '#DFE0E1' }}
+                >
                   <View>
-                    <Text className="text-3xl font-black tracking-tight text-surface-on">
+                    <Text
+                      className="text-2xl font-extrabold"
+                      style={{ color: '#1C4E68', fontFamily: 'Manrope-Bold' }}
+                    >
                       Đổi hàng
                     </Text>
-                    <Text className="mt-1 text-base font-bold text-muted">{stepText}</Text>
+                    <Text
+                      className="mt-1 text-base font-bold"
+                      style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+                    >
+                      {stepText}
+                    </Text>
                   </View>
                   <IconButton
                     icon={X}
-                    size={32}
-                    color={COLORS.surface.onVariant}
+                    size={28}
+                    color="#747475"
                     onPress={handleClose}
                     disabled={isProcessing}
                   />
@@ -375,7 +392,7 @@ export const ExchangeConfirmModal = memo(
                     />
                   </View>
                 </View>
-              </SafeAreaView>
+              </View>
               <BusinessChecklistModal ref={businessChecklistModalRef} />
             </>
           )}

@@ -7,7 +7,6 @@ import {
   ModalBase,
   QuantityStepper,
 } from '@/shared/components/ui'
-import { COLORS } from '@/shared/constants'
 import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { roundCashAmount } from '@/shared/features/payment/utils/cash.utils'
 import { ItemSnapshot } from '@/shared/lib/database/types'
@@ -72,7 +71,8 @@ export const RefundConfirmModal = memo(
       state.matches('submittingReturn') ||
       state.matches('receivingReturnedItems') ||
       state.matches('refundProcessing') ||
-      isFetchingOrder
+      isFetchingOrder ||
+      isSubmitting
     const isDraft = state.matches('draft')
     const isCompleted = state.matches('completed')
     const receipt = result?.receipt
@@ -287,21 +287,39 @@ export const RefundConfirmModal = memo(
           </View>
         )}
 
-        <ModalBase visible={visible} onClose={handleClose} dismissible={!isProcessing} size="90%">
+        <ModalBase
+          visible={visible}
+          onClose={handleClose}
+          dismissible={!isProcessing}
+          size="90%"
+          className="overflow-hidden rounded-2xl bg-white"
+        >
           {visible && (
             <>
-              <SafeAreaView className="flex-1">
-                <View className="flex-row items-center justify-between border-b border-outline-variant bg-white px-10 py-6">
+              <View className="flex-1">
+                {/* Header */}
+                <View
+                  className="flex-row items-center justify-between px-6 py-5"
+                  style={{ borderBottomWidth: 1, borderColor: '#DFE0E1' }}
+                >
                   <View>
-                    <Text className="text-3xl font-black tracking-tight text-surface-on">
+                    <Text
+                      className="text-2xl font-extrabold"
+                      style={{ color: '#1C4E68', fontFamily: 'Manrope-Bold' }}
+                    >
                       Trả hàng
                     </Text>
-                    <Text className="mt-1 text-base font-bold text-muted">{getStepText()}</Text>
+                    <Text
+                      className="mt-1 text-base font-bold"
+                      style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+                    >
+                      {getStepText()}
+                    </Text>
                   </View>
                   <IconButton
                     icon={X}
-                    size={32}
-                    color={COLORS.surface.onVariant}
+                    size={28}
+                    color="#747475"
                     onPress={handleClose}
                     disabled={isProcessing}
                   />
@@ -309,7 +327,15 @@ export const RefundConfirmModal = memo(
 
                 <View className="flex-1 flex-row">
                   <View className="flex-[1.6] bg-white">
-                    <View className="flex-row items-center border-b border-outline-variant bg-[#f8fafc] px-10 py-5">
+                    {/* Table header */}
+                    <View
+                      className="flex-row items-center px-5 py-3"
+                      style={{
+                        borderBottomWidth: 1,
+                        borderColor: '#DFE0E1',
+                        backgroundColor: '#FAFAFB',
+                      }}
+                    >
                       <View className="w-12 items-center justify-center">
                         <Checkbox
                           checked={allSelected}
@@ -317,16 +343,28 @@ export const RefundConfirmModal = memo(
                           disabled={!isDraft || isProcessing || !hasReturnableItems}
                         />
                       </View>
-                      <Text className="ml-6 flex-1 text-sm font-black uppercase tracking-wider text-muted">
+                      <Text
+                        className="ml-4 flex-1 text-sm font-extrabold uppercase tracking-wider"
+                        style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+                      >
                         Sản phẩm
                       </Text>
-                      <Text className="w-32 text-center text-sm font-black uppercase tracking-wider text-muted">
+                      <Text
+                        className="w-24 text-center text-sm font-extrabold uppercase tracking-wider"
+                        style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+                      >
                         SL mua
                       </Text>
-                      <Text className="w-48 text-center text-sm font-black uppercase tracking-wider text-muted">
+                      <Text
+                        className="w-40 text-center text-sm font-extrabold uppercase tracking-wider"
+                        style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+                      >
                         SL trả
                       </Text>
-                      <Text className="w-40 text-right text-sm font-black uppercase tracking-wider text-muted">
+                      <Text
+                        className="w-32 text-right text-sm font-extrabold uppercase tracking-wider"
+                        style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+                      >
                         Tạm tính
                       </Text>
                     </View>
@@ -348,41 +386,63 @@ export const RefundConfirmModal = memo(
                             : item.quantity - returnedQty
 
                         return (
-                          <View className="flex-row items-center border-b border-outline-variant px-10 py-6">
+                          <View
+                            className="flex-row items-center px-5 py-4"
+                            style={{ borderBottomWidth: 0.5, borderColor: '#DFE0E1' }}
+                          >
                             <Checkbox
                               checked={isSelected}
                               onChange={() => handleToggleItem(item)}
                               disabled={!isDraft || isProcessing || maxRefundableQty <= 0}
                             />
-
-                            <View className="ml-6 flex-1">
-                              <Text className="text-2xl font-black text-surface-on">
+                            <View className="ml-4 flex-1">
+                              <Text
+                                className="text-lg font-extrabold"
+                                style={{ color: '#303036', fontFamily: 'Manrope-Bold' }}
+                                numberOfLines={2}
+                              >
                                 {item.name}
                               </Text>
-                              <Text className="mt-1 text-sm font-bold text-muted/60">
+                              <Text
+                                className="mt-0.5 text-sm font-bold"
+                                style={{ color: '#747475', fontFamily: 'Manrope-Medium' }}
+                              >
                                 {item.sku}
                               </Text>
                               {returnedQty > 0 && (
                                 <View className="mt-2 flex-row items-center gap-2">
-                                  <View className="rounded bg-error/10 px-2 py-0.5">
-                                    <Text className="text-xs font-bold text-error">
+                                  <View
+                                    className="rounded px-2 py-0.5"
+                                    style={{ backgroundColor: 'rgba(220,38,38,0.1)' }}
+                                  >
+                                    <Text
+                                      className="text-xs font-bold"
+                                      style={{ color: '#DC2626' }}
+                                    >
                                       Đã trả: {returnedQty}
                                     </Text>
                                   </View>
-                                  <View className="rounded bg-primary/10 px-2 py-0.5">
-                                    <Text className="text-xs font-bold text-primary-dark">
+                                  <View
+                                    className="rounded px-2 py-0.5"
+                                    style={{ backgroundColor: 'rgba(28,78,104,0.1)' }}
+                                  >
+                                    <Text
+                                      className="text-xs font-bold"
+                                      style={{ color: '#1C4E68' }}
+                                    >
                                       Còn lại: {maxRefundableQty}
                                     </Text>
                                   </View>
                                 </View>
                               )}
                             </View>
-
-                            <Text className="w-32 text-center text-2xl font-black text-surface-on">
+                            <Text
+                              className="w-24 text-center text-lg font-extrabold"
+                              style={{ color: '#303036', fontFamily: 'Manrope-Bold' }}
+                            >
                               x{item.quantity}
                             </Text>
-
-                            <View className="w-48 items-center justify-center">
+                            <View className="w-40 items-center justify-center">
                               <QuantityStepper
                                 value={qty}
                                 onChange={(newQty) => handleChangeQty(item, newQty)}
@@ -392,8 +452,10 @@ export const RefundConfirmModal = memo(
                                 editable={true}
                               />
                             </View>
-
-                            <Text className="w-40 text-right text-xl font-black text-error">
+                            <Text
+                              className="w-32 text-right text-lg font-extrabold"
+                              style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+                            >
                               {isSelected ? formatCurrency(lineRefundAmount) : '-'}
                             </Text>
                           </View>
@@ -402,58 +464,63 @@ export const RefundConfirmModal = memo(
                     />
                   </View>
 
-                  <View className="flex-1 justify-between border-l border-outline-variant bg-surface-50 p-10">
+                  <View className="flex-1 justify-between bg-gray-50 p-6">
                     <View>
-                      <View className="mb-8 flex-row items-center justify-between">
-                        <Text className="text-xl font-black uppercase tracking-widest text-surface-on">
-                          Thông tin trả hàng
-                        </Text>
+                      <Text
+                        className="mb-6 text-lg font-extrabold uppercase tracking-widest"
+                        style={{ color: '#303036', fontFamily: 'Manrope-Bold' }}
+                      >
+                        Thông tin trả hàng
+                      </Text>
+
+                      <View style={{ gap: 4 }}>
+                        <RefundInfoRow label="Tổng số món đã mua" value={`${itemCount} món`} />
+                        <RefundInfoRow
+                          label="Sản phẩm đã chọn"
+                          value={`${selectedItemCount}`}
+                          valueColor="#1C4E68"
+                        />
+                        <RefundInfoRow label="Hình thức hoàn" value="Online" valueColor="#1C4E68" />
+
+                        <View
+                          className="mt-8"
+                          style={{ borderTopWidth: 2, borderColor: '#DFE0E1', paddingTop: 20 }}
+                        >
+                          <View className="flex-row items-center justify-between">
+                            <Text
+                              className="text-xl font-extrabold uppercase tracking-tight"
+                              style={{ color: '#303036', fontFamily: 'Manrope-Bold' }}
+                            >
+                              Tổng tiền hoàn
+                            </Text>
+                            <Text
+                              className="text-3xl font-extrabold"
+                              style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+                              numberOfLines={1}
+                            >
+                              {formatCurrency(displayRefundAmount)}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
 
-                      <View className="gap-6">
-                        <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
-                          <Text className="text-xl font-bold text-muted">Tổng số món đã mua</Text>
-                          <Text className="text-xl font-black text-surface-on">
-                            {itemCount} món
-                          </Text>
-                        </View>
-
-                        <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
-                          <Text className="text-xl font-bold text-muted">Sản phẩm đã chọn</Text>
-                          <Text className="text-xl font-black text-primary">
-                            {selectedItemCount}
-                          </Text>
-                        </View>
-
-                        <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-6">
-                          <Text className="text-xl font-bold text-muted">Hình thức hoàn</Text>
-                          <Text className="text-xl font-black text-primary">Online</Text>
-                        </View>
-
-                        <View className="mt-8 flex-row items-center justify-between gap-4 border-t-2 border-outline-variant pt-8">
-                          <Text className="text-2xl font-black uppercase tracking-tighter text-surface-on">
-                            Tổng tiền hoàn
-                          </Text>
-                          <Text className="text-6xl font-black text-error" numberOfLines={1}>
-                            {formatCurrency(displayRefundAmount)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View className="mb-6 mt-10">
-                        <Text className="mb-4 text-lg font-black uppercase tracking-widest text-muted">
+                      <View className="mt-8">
+                        <Text
+                          className="mb-4 text-base font-extrabold uppercase tracking-wider"
+                          style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+                        >
                           Lý do trả hàng
                         </Text>
 
-                        <View className="mb-4 flex-row flex-wrap gap-4">
+                        <View className="mb-4 flex-row flex-wrap gap-3">
                           {QUICK_REASONS.map((r) => (
                             <Chip
                               key={r}
                               label={r}
                               active={reason === r}
                               onPress={() => send({ type: 'SET_REASON', reason: r })}
-                              className="h-18 self-start px-8 py-4"
-                              textClassName="text-xl font-black"
+                              className="h-14 self-start px-6 py-3"
+                              textClassName="text-base font-bold"
                               disabled={!isDraft || isProcessing}
                             />
                           ))}
@@ -465,28 +532,32 @@ export const RefundConfirmModal = memo(
                           placeholder="Nhập lý do nếu có..."
                           value={reason}
                           onChangeText={(text) => send({ type: 'SET_REASON', reason: text })}
-                          className="h-28 rounded-2xl border border-outline-variant bg-white px-6 py-4 text-xl font-bold text-surface-on"
+                          className="h-24 rounded-xl border px-5 py-4 text-base font-bold"
+                          style={{
+                            borderColor: '#DFE0E1',
+                            backgroundColor: '#fff',
+                            color: '#303036',
+                            fontFamily: 'Manrope-Bold',
+                          }}
                           textAlignVertical="top"
-                          placeholderTextColor={COLORS.muted}
+                          placeholderTextColor="#747475"
                           editable={isDraft && !isProcessing}
                         />
                       </View>
                     </View>
 
-                    <View className="gap-4">
+                    <View className="gap-3">
                       <Button
                         label="Hủy bỏ"
                         variant="outline"
-                        className="h-16 rounded-2xl"
-                        textClassName="text-xl font-black"
+                        className="h-14 rounded-xl"
                         onPress={handleClose}
                         disabled={isProcessing}
                       />
                       <Button
                         label={isProcessing ? getStepText() : 'XÁC NHẬN TRẢ HÀNG'}
                         variant="error"
-                        className="h-20 rounded-2xl"
-                        textClassName="text-2xl font-black"
+                        className="h-16 rounded-xl"
                         onPress={handleConfirm}
                         loading={isProcessing}
                         disabled={
@@ -496,7 +567,7 @@ export const RefundConfirmModal = memo(
                     </View>
                   </View>
                 </View>
-              </SafeAreaView>
+              </View>
 
               {/* Manager Approval Overlay */}
               {(isWaitingManagerApproval ||
@@ -557,6 +628,37 @@ export const RefundConfirmModal = memo(
     )
   }),
 )
+
+// ── Info row helper ──
+function RefundInfoRow({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string
+  value: string
+  valueColor?: string
+}) {
+  return (
+    <View
+      className="flex-row items-center justify-between py-2"
+      style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
+    >
+      <Text
+        className="text-base font-bold"
+        style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+      >
+        {label}
+      </Text>
+      <Text
+        className="text-base font-extrabold"
+        style={{ color: valueColor || '#303036', fontFamily: 'Manrope-Bold' }}
+      >
+        {value}
+      </Text>
+    </View>
+  )
+}
 
 RefundConfirmModal.displayName = 'RefundConfirmModal'
 
