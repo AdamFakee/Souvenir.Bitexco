@@ -490,14 +490,20 @@ export const OrderRemoteAPI = {
 
     if (params.paymentMethod) urlParams.append('payment_method', params.paymentMethod)
 
-    // if (status) {
-    //   const statusArray = Array.isArray(status) ? status : [status]
-    //   if (statusArray.length > 0) {
-    //     const joinedStatus = statusArray.join(',')
-    //     urlParams.append('status', joinedStatus)
-    //     urlParams.append('state', joinedStatus)
-    //   }
-    // }
+    if (status) {
+      if (Array.isArray(status)) {
+        status.forEach((s) => {
+          if (s) urlParams.append('status', s)
+        })
+      } else if (typeof status === 'string' && status.includes(',')) {
+        status.split(',').forEach((s) => {
+          const trimmed = s.trim()
+          if (trimmed) urlParams.append('status', trimmed)
+        })
+      } else {
+        urlParams.append('status', status)
+      }
+    }
     try {
       console.log('---------------------------------------')
       console.log(`[getOrders REQUEST URL] /v1/pos/orders?${urlParams.toString()}`)

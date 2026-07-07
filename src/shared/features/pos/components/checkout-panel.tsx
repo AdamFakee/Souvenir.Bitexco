@@ -287,12 +287,6 @@ export default function CheckoutPanel() {
               ) : (
                 <View className="flex-row gap-2">
                   <Button
-                    label="Test"
-                    variant="outline"
-                    className="h-16 rounded-[20px]"
-                    onPress={() => setVoucherInput('XXXXXXXXXX')}
-                  />
-                  <Button
                     label="Áp dụng"
                     className="h-16 min-w-[120px] rounded-[20px]"
                     textClassName="text-lg font-black"

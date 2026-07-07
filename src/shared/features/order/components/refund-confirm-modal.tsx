@@ -19,13 +19,13 @@ import { FlashList } from '@shopify/flash-list'
 import { useMachine } from '@xstate/react'
 import { X } from 'lucide-react-native'
 import React, {
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
-  memo,
 } from 'react'
 import { useForm } from 'react-hook-form'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
@@ -230,9 +230,26 @@ export const RefundConfirmModal = memo(
       send({ type: 'SET_LINE_QTY', productId: item.productId, qty: 1 })
     }
 
+    const hasReturnableItems = useMemo(() => {
+      if (!order || !order.itemsSnapshot || order.itemsSnapshot.length === 0) return false
+      return order.itemsSnapshot.some((item) => {
+        const returnedQty = typeof item.returnedQty === 'number' ? item.returnedQty : 0
+        const maxRefundableQty =
+          typeof item.remainingQty === 'number' ? item.remainingQty : item.quantity - returnedQty
+        return maxRefundableQty > 0
+      })
+    }, [order])
+
     const allSelected = useMemo(() => {
       if (!order || !order.itemsSnapshot || order.itemsSnapshot.length === 0) return false
-      return order.itemsSnapshot.every((item) => getLineQty(item.productId) > 0)
+      const returnableItems = order.itemsSnapshot.filter((item) => {
+        const returnedQty = typeof item.returnedQty === 'number' ? item.returnedQty : 0
+        const maxRefundableQty =
+          typeof item.remainingQty === 'number' ? item.remainingQty : item.quantity - returnedQty
+        return maxRefundableQty > 0
+      })
+      if (returnableItems.length === 0) return false
+      return returnableItems.every((item) => getLineQty(item.productId) > 0)
     }, [order, getLineQty])
 
     const handleToggleAll = () => {
@@ -297,7 +314,7 @@ export const RefundConfirmModal = memo(
                         <Checkbox
                           checked={allSelected}
                           onChange={handleToggleAll}
-                          disabled={!isDraft || isProcessing}
+                          disabled={!isDraft || isProcessing || !hasReturnableItems}
                         />
                       </View>
                       <Text className="ml-6 flex-1 text-sm font-black uppercase tracking-wider text-muted">
@@ -323,12 +340,19 @@ export const RefundConfirmModal = memo(
                         const lineRefundAmount =
                           item.quantity > 0 ? (item.subtotal / item.quantity) * qty : 0
 
+                        const returnedQty =
+                          typeof item.returnedQty === 'number' ? item.returnedQty : 0
+                        const maxRefundableQty =
+                          typeof item.remainingQty === 'number'
+                            ? item.remainingQty
+                            : item.quantity - returnedQty
+
                         return (
                           <View className="flex-row items-center border-b border-outline-variant px-10 py-6">
                             <Checkbox
                               checked={isSelected}
                               onChange={() => handleToggleItem(item)}
-                              disabled={!isDraft || isProcessing}
+                              disabled={!isDraft || isProcessing || maxRefundableQty <= 0}
                             />
 
                             <View className="ml-6 flex-1">
@@ -338,6 +362,20 @@ export const RefundConfirmModal = memo(
                               <Text className="mt-1 text-sm font-bold text-muted/60">
                                 {item.sku}
                               </Text>
+                              {returnedQty > 0 && (
+                                <View className="mt-2 flex-row items-center gap-2">
+                                  <View className="rounded bg-error/10 px-2 py-0.5">
+                                    <Text className="text-xs font-bold text-error">
+                                      Đã trả: {returnedQty}
+                                    </Text>
+                                  </View>
+                                  <View className="rounded bg-primary/10 px-2 py-0.5">
+                                    <Text className="text-xs font-bold text-primary-dark">
+                                      Còn lại: {maxRefundableQty}
+                                    </Text>
+                                  </View>
+                                </View>
+                              )}
                             </View>
 
                             <Text className="w-32 text-center text-2xl font-black text-surface-on">
@@ -348,9 +386,9 @@ export const RefundConfirmModal = memo(
                               <QuantityStepper
                                 value={qty}
                                 onChange={(newQty) => handleChangeQty(item, newQty)}
-                                disabled={!isDraft || isProcessing}
+                                disabled={!isDraft || isProcessing || maxRefundableQty <= 0}
                                 min={0}
-                                max={item.quantity}
+                                max={maxRefundableQty}
                                 editable={true}
                               />
                             </View>

@@ -62,43 +62,15 @@ export type OrderStatusType =
   | 'CANCELLED'
   | 'FAILED'
 
-export type OrderState =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'PAYMENT_PENDING'
-  | 'PAID'
-  | 'FULFILLING'
-  | 'INVOICED'
-  | 'FULFILLED'
-  | 'COMPLETED'
-  | 'RETURNED'
-  | 'REFUNDED'
-  | 'PARTIALLY_RETURNED'
-  | 'PARTIALLY_REFUNDED'
-  | 'CANCELLED'
-  | 'FAILED'
-  | 'PROCESSING'
+export type OrderState = 'DRAFT' | 'CONFIRMED' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
 
-export type OrderPaymentStatus =
-  | 'PENDING'
-  | 'PAID'
-  | 'PARTIALLY_PAID'
-  | 'REFUNDED'
-  | 'CANCELLED'
-  | 'FAILED'
-  | 'PAYMENT_PENDING'
-  | 'PAYMENT_PARTIAL'
+export type OrderPaymentStatus = 'UNPAID' | 'PARTIAL' | 'PAID'
 
-export type OrderFulfillmentStatus =
-  | 'PENDING'
-  | 'FULFILLED'
-  | 'PARTIALLY_FULFILLED'
-  | 'FULFILLING'
-  | 'CANCELLED'
+export type OrderFulfillmentStatus = 'PENDING' | 'PARTIAL' | 'FULFILLED'
 
-export type OrderInvoiceStatus = 'NONE' | 'PENDING' | 'ISSUED' | 'CANCELLED' | 'FAILED' | 'INVOICED'
+export type OrderInvoiceStatus = 'NONE' | 'PARTIAL' | 'INVOICED'
 
-export type OrderReturnStatus = 'NONE' | 'PARTIALLY_RETURNED' | 'RETURNED' | 'RETURN_REQUESTED'
+export type OrderReturnStatus = 'NONE' | 'PARTIAL' | 'RETURNED'
 
 /**
  * IOrder - Standard interface for Orders used in the UI.

@@ -40,128 +40,75 @@ export const getOrderErrorMessage = (errorCode?: string, status?: number) => {
   return 'Có lỗi xảy ra khi xử lý trả hàng.'
 }
 
+export const ORDER_STATE_CONFIG: Record<string, { label: string; color: string; bgColor: string }> =
+  {
+    DRAFT: { label: 'Nháp', color: '#6B7280', bgColor: '#F3F4F6' },
+    CONFIRMED: { label: 'Đã xác nhận', color: '#2563EB', bgColor: '#DBEAFE' },
+    ON_HOLD: { label: 'Tạm giữ', color: '#D97706', bgColor: '#FEF3C7' },
+    COMPLETED: { label: 'Hoàn thành', color: '#059669', bgColor: '#D1FAE5' },
+    CANCELLED: { label: 'Đã huỷ', color: '#DC2626', bgColor: '#FEE2E2' },
+  }
+
+export const ORDER_PAYMENT_STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bgColor: string }
+> = {
+  UNPAID: { label: 'Chưa thu', color: '#6B7280', bgColor: '#F3F4F6' },
+  PARTIAL: { label: 'Thu một phần', color: '#D97706', bgColor: '#FEF3C7' },
+  PAID: { label: 'Đã thu đủ', color: '#059669', bgColor: '#D1FAE5' },
+}
+
+export const ORDER_FULFILLMENT_STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bgColor: string }
+> = {
+  PENDING: { label: 'Chưa giao', color: '#6B7280', bgColor: '#F3F4F6' },
+  PARTIAL: { label: 'Giao một phần', color: '#D97706', bgColor: '#FEF3C7' },
+  FULFILLED: { label: 'Đã giao', color: '#059669', bgColor: '#D1FAE5' },
+}
+
+export const ORDER_INVOICE_STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bgColor: string }
+> = {
+  NONE: { label: 'Chưa xuất HĐ', color: '#6B7280', bgColor: '#F3F4F6' },
+  PARTIAL: { label: 'Xuất HĐ một phần', color: '#D97706', bgColor: '#FEF3C7' },
+  INVOICED: { label: 'Đã xuất HĐ', color: '#0D9488', bgColor: '#CCFBF1' },
+}
+
+export const ORDER_RETURN_STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bgColor: string }
+> = {
+  NONE: { label: 'Không trả', color: '#6B7280', bgColor: '#F3F4F6' },
+  PARTIAL: { label: 'Trả một phần', color: '#D97706', bgColor: '#FEF3C7' },
+  RETURNED: { label: 'Đã trả hết', color: '#DC2626', bgColor: '#FEE2E2' },
+}
+
+export const ORDER_LIST_STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bgColor: string }
+> = {
+  PENDING: { label: 'Đang xử lý', color: '#D97706', bgColor: '#FEF3C7' },
+  COMPLETED: { label: 'Hoàn tất', color: '#059669', bgColor: '#D1FAE5' },
+  REFUNDED: { label: 'Đã hoàn', color: '#2563EB', bgColor: '#DBEAFE' },
+  FAILED: { label: 'Đã huỷ', color: '#DC2626', bgColor: '#FEE2E2' },
+}
+
+// Fallback compatibility layer for legacy code
 export const ORDER_STATUS_CONFIG: Record<
   string,
   { label: string; color: string; bgColor: string }
 > = {
+  ...ORDER_LIST_STATUS_CONFIG,
+  ...ORDER_STATE_CONFIG,
+  ...ORDER_PAYMENT_STATUS_CONFIG,
+  ...ORDER_FULFILLMENT_STATUS_CONFIG,
+  ...ORDER_INVOICE_STATUS_CONFIG,
+  ...ORDER_RETURN_STATUS_CONFIG,
   ALL: {
     label: 'Tất cả',
     color: COLORS.primary.onFixedVariant,
     bgColor: COLORS.primary.fixed,
-  },
-  DRAFT: {
-    label: 'Nháp',
-    color: '#6B7280',
-    bgColor: '#F3F4F6',
-  },
-  PENDING: {
-    label: 'Chờ xác nhận',
-    color: COLORS.primary.default,
-    bgColor: COLORS.primary.on,
-  },
-  CONFIRMED: {
-    label: 'Đã xác nhận',
-    color: '#2563EB',
-    bgColor: '#DBEAFE',
-  },
-  PAYMENT_PENDING: {
-    label: 'Chờ thanh toán',
-    color: '#D97706',
-    bgColor: '#FEF3C7',
-  },
-  PAID: {
-    label: 'Đã thanh toán',
-    color: '#059669',
-    bgColor: '#D1FAE5',
-  },
-  UNPAID: {
-    label: 'Chưa thanh toán',
-    color: '#DC2626',
-    bgColor: '#FEE2E2',
-  },
-  PARTIALLY_PAID: {
-    label: 'TT một phần',
-    color: '#D97706',
-    bgColor: '#FEF3C7',
-  },
-  FULFILLING: {
-    label: 'Đang giao',
-    color: '#3B82F6',
-    bgColor: '#EFF6FF',
-  },
-  FULFILLED: {
-    label: 'Đã giao',
-    color: COLORS.success.default,
-    bgColor: COLORS.success.container,
-  },
-  INVOICED: {
-    label: 'Đã xuất HĐ',
-    color: '#0D9488',
-    bgColor: '#CCFBF1',
-  },
-  COMPLETED: {
-    label: 'Hoàn thành',
-    color: COLORS.success.default,
-    bgColor: COLORS.success.container,
-  },
-  CANCELLED: {
-    label: 'Đã huỷ',
-    color: COLORS.error.default,
-    bgColor: COLORS.error.container,
-  },
-  ON_HOLD: {
-    label: 'Tạm dừng',
-    color: '#4B5563',
-    bgColor: '#E5E7EB',
-  },
-  PAYMENT_PARTIAL: {
-    label: 'TT một phần',
-    color: '#D97706',
-    bgColor: '#FEF3C7',
-  },
-  PARTIAL: {
-    label: 'TT hỗn hợp',
-    color: '#D97706',
-    bgColor: '#FEF3C7',
-  },
-  PARTIAL_REFUNDED: {
-    label: 'Hoàn một phần',
-    color: '#7C3AED',
-    bgColor: '#F5F3FF',
-  },
-  RETURN_REQUESTED: {
-    label: 'Yêu cầu trả',
-    color: '#7C3AED',
-    bgColor: '#F5F3FF',
-  },
-  PARTIALLY_RETURNED: {
-    label: 'Trả một phần',
-    color: '#7C3AED',
-    bgColor: '#F5F3FF',
-  },
-  PARTIALLY_REFUNDED: {
-    label: 'Hoàn một phần',
-    color: '#7C3AED',
-    bgColor: '#F5F3FF',
-  },
-  RETURNED: {
-    label: 'Đã trả',
-    color: COLORS.warning.default,
-    bgColor: COLORS.warning.container,
-  },
-  REFUNDED: {
-    label: 'Đã hoàn',
-    color: COLORS.warning.default,
-    bgColor: COLORS.warning.container,
-  },
-  FAILED: {
-    label: 'Thất bại',
-    color: COLORS.error.default,
-    bgColor: COLORS.error.container,
-  },
-  PARTIALLY_FULFILLED: {
-    label: 'Giao một phần',
-    color: '#3B82F6',
-    bgColor: '#EFF6FF',
   },
 }

@@ -56,10 +56,13 @@ export const QuantityStepper = memo(function QuantityStepper({
     }
   }, [inputValue, min, value])
 
-  const buttonClassName =
-    size === 'sm'
-      ? 'h-10 w-10 items-center justify-center rounded-xl bg-surface-100'
-      : 'h-11 w-11 items-center justify-center rounded-xl bg-surface-100'
+  const getButtonClass = (isEnabled: boolean) => {
+    const base =
+      size === 'sm'
+        ? 'h-10 w-10 items-center justify-center rounded-xl'
+        : 'h-11 w-11 items-center justify-center rounded-xl'
+    return `${base} ${isEnabled ? 'bg-surface-100 active:bg-surface-200' : 'bg-surface-50'}`
+  }
   const inputClassName = 'w-8 text-center text-xl font-black text-surface-on'
   const iconSize = size === 'sm' ? 20 : 22
   const canDecrease = !disabled && value > min
@@ -68,11 +71,16 @@ export const QuantityStepper = memo(function QuantityStepper({
   return (
     <View className="flex-row items-center justify-center gap-2">
       <Pressable
-        className={buttonClassName}
+        className={getButtonClass(canDecrease)}
+        style={!canDecrease ? { opacity: 0.4 } : undefined}
         onPress={() => onChange(value - 1)}
         disabled={!canDecrease}
       >
-        <Minus size={iconSize} color={COLORS.surface.on} strokeWidth={4} />
+        <Minus
+          size={iconSize}
+          color={canDecrease ? COLORS.surface.on : COLORS.neutral[300]}
+          strokeWidth={4}
+        />
       </Pressable>
 
       {editable ? (
@@ -91,11 +99,16 @@ export const QuantityStepper = memo(function QuantityStepper({
       )}
 
       <Pressable
-        className={buttonClassName}
+        className={getButtonClass(canIncrease)}
+        style={!canIncrease ? { opacity: 0.4 } : undefined}
         onPress={() => onChange(value + 1)}
         disabled={!canIncrease}
       >
-        <Plus size={iconSize} color={COLORS.surface.on} strokeWidth={4} />
+        <Plus
+          size={iconSize}
+          color={canIncrease ? COLORS.surface.on : COLORS.neutral[300]}
+          strokeWidth={4}
+        />
       </Pressable>
     </View>
   )

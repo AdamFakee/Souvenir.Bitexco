@@ -1,5 +1,4 @@
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
-import { OrderStatus } from '@/shared/lib/database'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { assign, fromPromise, setup } from 'xstate'
@@ -64,6 +63,15 @@ const getOriginalQuantity = (order: IOrder | null, productId: string) => {
   return order?.itemsSnapshot?.find((item) => item.productId === productId)?.quantity ?? 0
 }
 
+const getMaxRefundableQuantity = (order: IOrder | null, productId: string) => {
+  const item = order?.itemsSnapshot?.find((item) => item.productId === productId)
+  if (!item) return 0
+  const returnedQty = typeof item.returnedQty === 'number' ? item.returnedQty : 0
+  const maxRefundableQty =
+    typeof item.remainingQty === 'number' ? item.remainingQty : item.quantity - returnedQty
+  return Math.max(0, maxRefundableQty)
+}
+
 const upsertLineQuantity = (
   lines: { productId: string; qty: number }[],
   productId: string,
@@ -91,8 +99,8 @@ const getValidationMessage = (context: RefundOrderContext) => {
   if (selectedLines.length === 0) return 'Vui lòng chọn ít nhất 1 sản phẩm để trả hàng.'
 
   const hasInvalidQty = selectedLines.some((line) => {
-    const originalQuantity = getOriginalQuantity(context.order, line.productId)
-    return line.qty <= 0 || line.qty > originalQuantity
+    const maxRefundableQty = getMaxRefundableQuantity(context.order, line.productId)
+    return line.qty <= 0 || line.qty > maxRefundableQty
   })
 
   if (hasInvalidQty) return 'Số lượng trả hàng không hợp lệ.'
@@ -232,7 +240,7 @@ export const refundOrderMachine = setup({
     }),
     setLineQuantity: assign(({ context, event }) => {
       if (event.type !== 'SET_LINE_QTY' || !context.lookupLines?.length) return {}
-      const maxQuantity = getOriginalQuantity(context.order, event.productId)
+      const maxQuantity = getMaxRefundableQuantity(context.order, event.productId)
       const qty = Math.min(Math.max(0, Math.floor(Number(event.qty) || 0)), maxQuantity)
       return {
         lines: upsertLineQuantity(context.lines, event.productId, qty),
@@ -243,10 +251,15 @@ export const refundOrderMachine = setup({
       if (!context.lookupLines?.length) return {}
       return {
         lines:
-          context.order?.itemsSnapshot?.map((item) => ({
-            productId: item.productId,
-            qty: item.quantity,
-          })) ?? [],
+          context.order?.itemsSnapshot
+            ?.map((item) => {
+              const maxQty = getMaxRefundableQuantity(context.order, item.productId)
+              return {
+                productId: item.productId,
+                qty: maxQty,
+              }
+            })
+            .filter((line) => line.qty > 0) ?? [],
         error: null,
       }
     }),

@@ -5,13 +5,13 @@ import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
+import { useQueryClient } from '@tanstack/react-query'
 import { Printer, Repeat2, Trash2, X } from 'lucide-react-native'
 import React, { memo, useImperativeHandle, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ORDER_STATUS_CONFIG } from '../constants'
 import { IOrder } from '../types'
-import { checkCanExchange, checkCanReturn } from '../utils'
+import { checkCanExchange, checkCanReturn, getOrderDisplayStatus } from '../utils'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { ExchangeConfirmModal, ExchangeConfirmModalRef } from './exchange-confirm-modal'
 import { RefundConfirmModal, RefundConfirmModalRef } from './refund-confirm-modal'
@@ -27,6 +27,7 @@ interface OrderDetailModalProps {
 }
 
 export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDetailModalProps) {
+  const queryClient = useQueryClient()
   const [visible, setVisible] = useState(false)
   const [order, setOrder] = useState<IOrder | null>(null)
   const refundModalRef = useRef<RefundConfirmModalRef>(null)
@@ -58,6 +59,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
   const items = order.itemsSnapshot || []
   const payments = order.paymentsSnapshot || []
   const refundLines = order.refund?.lines || []
+  const hasRefunds = !!order.refund || items.some((it) => (it.returnedQty || 0) > 0)
 
   // Dùng itemsSnapshot.returnedQty — có sẵn trong data API
   const getReturnedQty = (item: any): number => {
@@ -70,7 +72,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
   // Với đơn hoàn hàng (RT-), order.subtotal/total là của đơn gốc → dùng refundAmount.
   // Đơn thường (SO-) dùng order gốc vì đã bao gồm thuế.
-  const isReturnOrder = !!order.refund
+  const isReturnOrder = !!order.refund || order.code?.startsWith('RT')
   const computedSubtotal = isReturnOrder
     ? items.reduce((sum, it) => sum + (it.subtotal || 0), 0)
     : order.subtotal
@@ -80,16 +82,10 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
   const computedDiscount = isReturnOrder
     ? items.reduce((sum, it) => sum + (it.discountAmount || 0), 0)
     : order.discount
-  const computedTotal = isReturnOrder ? order.refund!.refundAmount : order.total
+  const computedTotal = isReturnOrder ? (order.refund?.refundAmount ?? order.total) : order.total
 
+  const displayStatus = getOrderDisplayStatus(order)
   const canExchange = checkCanExchange(order)
-
-  const displayStatus = order.status || 'PENDING'
-  const config = ORDER_STATUS_CONFIG[displayStatus] || {
-    label: displayStatus || 'Không rõ',
-    color: '#6B7280',
-    bgColor: '#F3F4F6',
-  }
 
   const isRT = !!order.refund || order.code?.startsWith('RT')
   const resolvedRefund =
@@ -168,10 +164,10 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                   <Text className="flex-1 text-sm font-black uppercase tracking-wider text-muted">
                     Sản phẩm
                   </Text>
-                  {refundLines.length > 0 ? (
+                  {hasRefunds ? (
                     <>
                       <Text className="w-24 text-center text-sm font-black uppercase tracking-wider text-muted">
-                        Mua gốc
+                        Đã mua
                       </Text>
                       <Text className="w-24 text-center text-sm font-black uppercase tracking-wider text-error">
                         Đã trả
@@ -206,11 +202,16 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                   keyExtractor={(_, index) => index.toString()}
                   renderItem={({ item, index }) => {
                     const returnedQty = getReturnedQty(item)
-                    const isRT = !!order.refund
+                    const isRT = isReturnOrder
+                    const refundLine = resolvedRefund?.lines?.find(
+                      (l) => l.productId === item.productId,
+                    )
                     const originalQty = isRT
-                      ? (item.remainingQty || 0) + (item.quantity || 0)
+                      ? (refundLine?.orderedQty ?? (item.remainingQty || 0) + (item.quantity || 0))
                       : item.quantity || 0
-                    const remainingQty = item.remainingQty
+                    const remainingQty = isRT
+                      ? (item.remainingQty ?? refundLine?.remainingQty)
+                      : (item.remainingQty ?? originalQty - returnedQty)
 
                     return (
                       <View
@@ -221,7 +222,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                           <Text className="text-2xl font-black text-surface-on">{item.name}</Text>
                           <Text className="mt-1 text-sm font-bold text-muted/60">{item.sku}</Text>
                         </View>
-                        {refundLines.length > 0 ? (
+                        {hasRefunds ? (
                           <>
                             <View className="w-24 items-center">
                               <Text className="text-3xl font-black text-surface-on">
@@ -335,44 +336,39 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                       </View>
                     )}
 
+                    {order.affiliate && (
+                      <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
+                        <Text className="w-36 text-lg font-bold text-muted">Cộng tác viên</Text>
+                        <Text className="text-lg font-black text-surface-on" numberOfLines={1}>
+                          {order.affiliate.name}
+                        </Text>
+                      </View>
+                    )}
+
+                    {order.partner && (
+                      <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
+                        <Text className="w-36 text-lg font-bold text-muted">Đại lý</Text>
+                        <Text className="text-lg font-black text-surface-on" numberOfLines={1}>
+                          {order.partner.nameVi}
+                        </Text>
+                      </View>
+                    )}
+
                     <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
                       <Text className="w-36 text-lg font-bold text-muted">Trạng thái</Text>
                       <View
                         className="rounded-full px-4 py-1"
-                        style={{ backgroundColor: config.bgColor }}
+                        style={{ backgroundColor: displayStatus.bgColor }}
                       >
                         <Text
                           className="text-sm font-black uppercase tracking-widest"
-                          style={{ color: config.color }}
+                          style={{ color: displayStatus.color }}
                           numberOfLines={1}
                         >
-                          {config.label}
+                          {displayStatus.label}
                         </Text>
                       </View>
                     </View>
-
-                    {order.paymentStatus && (
-                      <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
-                        <Text className="w-36 text-lg font-bold text-muted">Thanh toán</Text>
-                        <View
-                          className="rounded-full px-4 py-1"
-                          style={{
-                            backgroundColor:
-                              ORDER_STATUS_CONFIG[order.paymentStatus]?.bgColor || '#F3F4F6',
-                          }}
-                        >
-                          <Text
-                            className="text-sm font-black uppercase tracking-widest"
-                            style={{
-                              color: ORDER_STATUS_CONFIG[order.paymentStatus]?.color || '#6B7280',
-                            }}
-                            numberOfLines={1}
-                          >
-                            {ORDER_STATUS_CONFIG[order.paymentStatus]?.label || order.paymentStatus}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
 
                     {payments.map((p, i) => (
                       <View
@@ -401,7 +397,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                     )}
 
                     {order.note && (
-                      <View className="border-b border-dashed border-outline-variant pb-4">
+                      <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant pb-4">
                         <Text className="mb-1 text-lg font-bold text-muted">Ghi chú</Text>
                         <Text className="text-base italic leading-relaxed text-surface-on">
                           {order.note}
@@ -409,29 +405,39 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                       </View>
                     )}
 
-                    {order.refund && (
+                    {(order.refund || (order.totalRefunded && order.totalRefunded > 0)) && (
                       <View className="mt-2 border-t-2 border-outline-variant pt-5">
                         <Text className="mb-4 text-base font-black uppercase tracking-widest text-error">
                           Thông tin trả hàng
                         </Text>
 
-                        {order.refund.reason && (
+                        {order.refund?.reason ||
+                        order.refundReason ||
+                        order.refunds?.[0]?.reason ? (
                           <View className="mb-2">
                             <Text className="text-base font-bold text-muted">Lý do</Text>
                             <Text className="mt-1 text-base font-medium leading-snug text-surface-on">
-                              {order.refund.reason}
+                              {order.refund?.reason ||
+                                order.refundReason ||
+                                order.refunds?.[0]?.reason}
                             </Text>
                           </View>
-                        )}
+                        ) : null}
 
-                        {order.refund.refundedAt && (
+                        {order.refund?.refundedAt ||
+                        order.refunds?.[0]?.refundedAt ||
+                        order.updatedAt ? (
                           <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant py-3">
                             <Text className="text-lg font-bold text-muted">Ngày trả</Text>
                             <Text
                               className="text-base font-black text-surface-on"
                               numberOfLines={1}
                             >
-                              {new Date(order.refund.refundedAt).toLocaleString('vi-VN', {
+                              {new Date(
+                                order.refund?.refundedAt ||
+                                  order.refunds?.[0]?.refundedAt ||
+                                  order.updatedAt,
+                              ).toLocaleString('vi-VN', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
@@ -440,15 +446,17 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                               })}
                             </Text>
                           </View>
-                        )}
+                        ) : null}
 
                         <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant py-3">
                           <Text className="text-lg font-bold text-muted">Tổng số món gốc</Text>
                           <Text className="text-base font-black text-surface-on" numberOfLines={1}>
-                            {items.reduce(
-                              (sum, it) => sum + (it.remainingQty ?? 0) + (it.quantity ?? 0),
-                              0,
-                            )}{' '}
+                            {isReturnOrder
+                              ? items.reduce(
+                                  (sum, it) => sum + (it.remainingQty ?? 0) + (it.quantity ?? 0),
+                                  0,
+                                )
+                              : items.reduce((sum, it) => sum + (it.quantity ?? 0), 0)}{' '}
                             món
                           </Text>
                         </View>
@@ -456,21 +464,26 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                         <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant py-3">
                           <Text className="text-lg font-bold text-muted">Số món đã trả</Text>
                           <Text className="text-base font-black text-error" numberOfLines={1}>
-                            {refundLines.reduce((sum, l) => sum + l.returnedQty, 0)} món
+                            {items.reduce((sum, it) => sum + getReturnedQty(it), 0)} món
                           </Text>
                         </View>
 
                         <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant py-3">
                           <Text className="text-lg font-bold text-muted">Số món còn lại</Text>
                           <Text className="text-base font-black text-primary" numberOfLines={1}>
-                            {items.reduce((sum, it) => sum + (it.remainingQty ?? 0), 0)} món
+                            {items.reduce(
+                              (sum, it) =>
+                                sum + (it.remainingQty ?? it.quantity - getReturnedQty(it)),
+                              0,
+                            )}{' '}
+                            món
                           </Text>
                         </View>
 
                         <View className="flex-row items-center justify-between border-b border-dashed border-outline-variant py-3">
                           <Text className="text-lg font-bold text-muted">Tiền hoàn</Text>
                           <Text className="text-2xl font-black text-error" numberOfLines={1}>
-                            {formatCurrency(order.refund.refundAmount)}
+                            {formatCurrency(order.totalRefunded || order.refund?.refundAmount || 0)}
                           </Text>
                         </View>
                       </View>
@@ -566,6 +579,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
       <RefundConfirmModal
         ref={refundModalRef}
         onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['orders'] })
           setVisible(false)
         }}
       />
@@ -573,6 +587,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
       <ExchangeConfirmModal
         ref={exchangeModalRef}
         onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['orders'] })
           setVisible(false)
         }}
       />

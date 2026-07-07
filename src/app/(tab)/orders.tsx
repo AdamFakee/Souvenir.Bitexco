@@ -18,10 +18,21 @@ import { Affiliate } from '@/shared/features/pos'
 import { useOrders } from '@/shared/features/order/hooks'
 import { toast } from '@/shared/store'
 import { useQuery } from '@tanstack/react-query'
-import { Printer as PrinterIcon } from 'lucide-react-native'
+import { COLORS } from '@/shared/constants'
+import { PAYMENT_METHOD_LABELS, PaymentMethodCode } from '@/shared/features/payment'
+import { Printer as PrinterIcon, ChevronDown, Check } from 'lucide-react-native'
 import React, { useDeferredValue, useMemo, useRef, useState } from 'react'
-import { Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+
+const paymentMethodOptions: { label: string; value: PaymentMethodCode | '' }[] = [
+  { label: 'Tất cả', value: '' },
+  { label: 'Tiền mặt', value: 'cash' },
+  { label: 'QR Code', value: 'qr_bidv' },
+  { label: 'Thẻ POS', value: 'card_bidv' },
+  { label: 'Hỗn hợp', value: 'mix' },
+  { label: 'Công nợ', value: 'cong_no' },
+]
 
 export default function OrdersScreen() {
   const modalRef = useRef<OrderDetailModalRef>(null)
@@ -30,6 +41,7 @@ export default function OrdersScreen() {
 
   const [mode, setMode] = useState<'pos' | 'guide'>('pos')
   const [guideType, setGuideType] = useState<'collaborator' | 'agent'>('collaborator')
+  const [showPaymentDropdown, setShowPaymentDropdown] = useState(false)
   const [selectedAffiliateId, setSelectedAffiliateId] = useState<string | null>(null)
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
 
@@ -38,6 +50,8 @@ export default function OrdersScreen() {
   const dateFrom = useOrderFilterStore((s) => s.dateFrom)
   const dateTo = useOrderFilterStore((s) => s.dateTo)
   const staffId = useOrderFilterStore((s) => s.staffId)
+  const paymentMethod = useOrderFilterStore((s) => s.paymentMethod)
+  const setPaymentMethod = useOrderFilterStore((s) => s.setPaymentMethod)
 
   // Defer ALL filter values so every visual update (tab highlight, toggle, etc.)
   // is instant while the heavy network fetch is deferred as low-priority work
@@ -46,6 +60,7 @@ export default function OrdersScreen() {
   const deferredStaffId = useDeferredValue(staffId)
   const deferredDateFrom = useDeferredValue(dateFrom)
   const deferredDateTo = useDeferredValue(dateTo)
+  const deferredPaymentMethod = useDeferredValue(paymentMethod)
 
   const deferredAffiliateId = useDeferredValue(mode === 'guide' ? selectedAffiliateId : null)
   const deferredPartnerId = useDeferredValue(mode === 'guide' ? selectedPartnerId : null)
@@ -59,6 +74,7 @@ export default function OrdersScreen() {
     affiliateId: deferredAffiliateId,
     partnerId: deferredPartnerId,
     guideType: mode === 'guide' ? guideType : null,
+    paymentMethod: deferredPaymentMethod,
   })
 
   // Load affiliates (guides) and partners (agents)
@@ -226,7 +242,7 @@ export default function OrdersScreen() {
         <View className="flex-1 p-8">
           <View className="flex-1 overflow-hidden rounded-[24px] border border-outline-variant bg-white shadow-sm">
             {/* Table Header */}
-            <View className="flex-row items-center border-b-2 border-outline-variant bg-[#f8fafc] px-8 py-5">
+            <View className="z-30 flex-row items-center border-b-2 border-outline-variant bg-[#f8fafc] px-8 py-5">
               <Text className="mr-8 w-48 text-lg font-bold uppercase tracking-wider text-muted">
                 Thời gian
               </Text>
@@ -236,12 +252,70 @@ export default function OrdersScreen() {
               <Text className="mr-8 flex-1 text-lg font-bold uppercase tracking-wider text-muted">
                 Sản phẩm
               </Text>
-              <Text
-                className="mr-8 w-36 text-center text-lg font-bold uppercase tracking-wider text-muted"
-                numberOfLines={1}
-              >
-                Thanh toán
-              </Text>
+              <View className="z-50 mr-8 w-36 items-center">
+                <Pressable
+                  onPress={() => setShowPaymentDropdown(true)}
+                  className="flex-row items-center justify-center gap-1.5 rounded-lg bg-surface-100 px-3 py-1.5 active:bg-surface-200"
+                >
+                  <Text
+                    className="text-center text-lg font-bold uppercase tracking-wider text-muted"
+                    numberOfLines={1}
+                  >
+                    {paymentMethod
+                      ? (PAYMENT_METHOD_LABELS[
+                          paymentMethod as keyof typeof PAYMENT_METHOD_LABELS
+                        ] ?? paymentMethod)
+                      : 'Thanh toán'}
+                  </Text>
+                  <ChevronDown size={14} color="#8d8e8f" />
+                </Pressable>
+
+                {showPaymentDropdown && (
+                  <>
+                    <Pressable
+                      style={{
+                        position: 'absolute',
+                        top: -500,
+                        left: -500,
+                        right: -500,
+                        bottom: -1500,
+                        zIndex: 40,
+                      }}
+                      onPress={() => setShowPaymentDropdown(false)}
+                    />
+                    <View className="absolute top-10 z-50 w-44 overflow-hidden rounded-xl border border-outline-variant bg-white shadow-lg">
+                      <ScrollView bounces={false} style={{ maxHeight: 280 }}>
+                        {paymentMethodOptions.map((opt) => {
+                          const isSelected = (paymentMethod || '') === opt.value
+                          return (
+                            <Pressable
+                              key={opt.value}
+                              onPress={() => {
+                                setPaymentMethod(opt.value || null)
+                                setShowPaymentDropdown(false)
+                              }}
+                              className={`flex-row items-center justify-between px-4 py-3 active:bg-surface-100 ${
+                                isSelected ? 'bg-primary/5' : ''
+                              }`}
+                            >
+                              <Text
+                                className={`text-base ${
+                                  isSelected
+                                    ? 'font-black text-primary'
+                                    : 'font-medium text-surface-on'
+                                }`}
+                              >
+                                {opt.label}
+                              </Text>
+                              {isSelected && <Check size={16} color="#2563eb" />}
+                            </Pressable>
+                          )
+                        })}
+                      </ScrollView>
+                    </View>
+                  </>
+                )}
+              </View>
               <Text className="mr-8 w-40 text-right text-lg font-bold uppercase tracking-wider text-muted">
                 Tổng cộng
               </Text>

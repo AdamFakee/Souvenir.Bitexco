@@ -38,34 +38,26 @@ export const OrderFilterBar = memo(function OrderFilterBar({
 
   // Map store status state to active Segmented Control key
   const activeKey = useMemo(() => {
-    if (status === null) return 'ALL'
-    if (!Array.isArray(status)) return 'ALL'
-
-    const completedStatuses = ['FULFILLED', 'CONFIRMED']
+    if (status === 'COMPLETED') return 'COMPLETED'
     if (
-      status.length === completedStatuses.length &&
-      status.every((s) => completedStatuses.includes(s))
-    ) {
-      return 'COMPLETED'
-    }
-
-    const returnedStatuses = ['RETURNED', 'REFUNDED', 'PARTIALLY_RETURNED', 'PARTIALLY_REFUNDED']
-    if (
-      status.length === returnedStatuses.length &&
-      status.every((s) => returnedStatuses.includes(s))
+      status === 'REFUNDED' ||
+      (typeof status === 'string' &&
+        (status.includes('REFUNDED') ||
+          status.includes('RETURNED') ||
+          status.includes('PARTIALLY_RETURNED') ||
+          status.includes('PARTIALLY_REFUNDED')))
     ) {
       return 'RETURNED'
     }
-
     return 'ALL'
   }, [status])
 
   const handleTabChange = useCallback(
     (key: 'COMPLETED' | 'RETURNED' | 'ALL') => {
       if (key === 'COMPLETED') {
-        setStatus(['FULFILLED', 'CONFIRMED'])
+        setStatus('COMPLETED')
       } else if (key === 'RETURNED') {
-        setStatus(['RETURNED', 'REFUNDED', 'PARTIALLY_RETURNED', 'PARTIALLY_REFUNDED'])
+        setStatus('REFUNDED,RETURNED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED')
       } else {
         setStatus(null)
       }
@@ -77,9 +69,9 @@ export const OrderFilterBar = memo(function OrderFilterBar({
     <View className="mb-6 flex-row items-center gap-6">
       <SegmentedControl
         options={[
+          { label: 'Tất cả', value: 'ALL' as const },
           { label: 'Hoàn thành', value: 'COMPLETED' as const },
           { label: 'Hoàn hàng', value: 'RETURNED' as const },
-          { label: 'Tất cả', value: 'ALL' as const },
         ]}
         value={activeKey}
         onChange={handleTabChange}

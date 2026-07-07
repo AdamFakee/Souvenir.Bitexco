@@ -1,39 +1,42 @@
+import { PaymentMethodCode } from '@/shared/features/payment'
 import { create } from 'zustand'
+import { OrderStatusType } from '../types'
 
 interface OrderFilterState {
   searchQuery: string
-  status: string[] | string | null
+  status: OrderStatusType | string | null
   dateFrom: Date | null
   dateTo: Date | null
   /** Mã nhân viên được chọn để lọc. null = tất cả nhân viên */
   staffId: string | null
+  paymentMethod: PaymentMethodCode | null
 
   setSearchQuery: (query: string) => void
-  setStatus: (status: string[] | string | null) => void
+  setStatus: (status: OrderStatusType | string | null) => void
   setDateFrom: (date: Date | null) => void
   setDateTo: (date: Date | null) => void
   setStaffId: (staffId: string | null) => void
+  setPaymentMethod: (paymentMethod: PaymentMethodCode | null) => void
   resetFilters: () => void
 }
 
-export const useOrderFilterStore = create<OrderFilterState>((set) => ({
+const getInitialFilters = () => ({
   searchQuery: '',
-  status: ['FULFILLED', 'COMPLETED'],
+  status: null,
   dateFrom: new Date(),
   dateTo: new Date(),
   staffId: null,
+  paymentMethod: null,
+})
+
+export const useOrderFilterStore = create<OrderFilterState>((set) => ({
+  ...getInitialFilters(),
 
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setStatus: (status) => set({ status }),
   setDateFrom: (dateFrom) => set({ dateFrom }),
   setDateTo: (dateTo) => set({ dateTo }),
   setStaffId: (staffId) => set({ staffId }),
-  resetFilters: () =>
-    set({
-      searchQuery: '',
-      status: ['FULFILLED', 'COMPLETED'],
-      dateFrom: null,
-      dateTo: new Date(),
-      staffId: null,
-    }),
+  setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
+  resetFilters: () => set(getInitialFilters()),
 }))

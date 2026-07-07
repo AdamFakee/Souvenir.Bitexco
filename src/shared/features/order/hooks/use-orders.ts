@@ -15,9 +15,19 @@ export const useOrders = (params: {
   partnerId?: string | null
   /** Phân loại chế độ xem guide: 'collaborator' | 'agent' — dùng để invalidate cache khi switch tab */
   guideType?: 'collaborator' | 'agent' | null
+  paymentMethod?: string | null
 }) => {
-  const { status, searchQuery, dateFrom, dateTo, staffId, affiliateId, partnerId, guideType } =
-    params
+  const {
+    status,
+    searchQuery,
+    dateFrom,
+    dateTo,
+    staffId,
+    affiliateId,
+    partnerId,
+    guideType,
+    paymentMethod,
+  } = params
   const normalizedSearchQuery = searchQuery?.trim() || ''
   const [debouncedSearchQuery] = useDebounce(normalizedSearchQuery, 300)
   const dateFromKey = dateFrom?.toISOString() || null
@@ -34,6 +44,7 @@ export const useOrders = (params: {
       affiliateId,
       partnerId,
       guideType ?? null,
+      paymentMethod,
     ],
     queryFn: async ({ pageParam = 1 }) => {
       return await OrderRemoteAPI.getOrders({
@@ -47,6 +58,7 @@ export const useOrders = (params: {
         affiliateId,
         partnerId,
         agentType: guideType,
+        paymentMethod,
       })
     },
     initialPageParam: 1,

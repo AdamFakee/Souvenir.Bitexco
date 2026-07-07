@@ -6,9 +6,9 @@ import { FlashList } from '@shopify/flash-list'
 import { Eye, PackageOpen } from 'lucide-react-native'
 import React, { memo } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { ORDER_STATUS_CONFIG } from '../constants'
 import { useOrderFilterStore } from '../store'
 import { IOrder } from '../types'
+import { getOrderDisplayStatus } from '../utils'
 
 interface OrderListProps {
   onOpenDetails: (order: IOrder) => void
@@ -87,12 +87,7 @@ export const OrderList = memo(function OrderList({
         // Với đơn hoàn hàng (RT-), order.total là của đơn gốc → dùng refundAmount.
         // Đơn thường (SO-) dùng item.total vì đã bao gồm thuế.
         const displayTotal = item.refund ? item.refund.refundAmount : item.total
-        const displayStatus = item.status || 'PENDING'
-        const config = ORDER_STATUS_CONFIG[displayStatus] || {
-          label: displayStatus || 'Không rõ',
-          color: '#6B7280',
-          bgColor: '#F3F4F6',
-        }
+        const displayStatus = getOrderDisplayStatus(item)
 
         return (
           <Pressable
@@ -163,13 +158,16 @@ export const OrderList = memo(function OrderList({
 
             {/* Trạng thái */}
             <View className="mr-8 w-52 items-center">
-              <View className="rounded-full px-5 py-2" style={{ backgroundColor: config.bgColor }}>
+              <View
+                className="rounded-full px-5 py-2"
+                style={{ backgroundColor: displayStatus.bgColor }}
+              >
                 <Text
                   className="text-sm font-bold uppercase tracking-widest"
-                  style={{ color: config.color }}
+                  style={{ color: displayStatus.color }}
                   numberOfLines={1}
                 >
-                  {config.label}
+                  {displayStatus.label}
                 </Text>
               </View>
             </View>

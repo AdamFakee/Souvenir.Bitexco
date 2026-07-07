@@ -83,3 +83,77 @@ export const checkCanExchange = (order: {
 
   return true
 }
+
+/**
+ * Lấy nhãn và màu sắc hiển thị rút gọn, chính xác cho Nhân viên bán hàng tại POS.
+ */
+export const getOrderDisplayStatus = (order: {
+  state?: string | null
+  status?: string | null
+  paymentStatus?: string | null
+  fulfillmentStatus?: string | null
+  returnStatus?: string | null
+  code?: string | null
+}): { label: string; color: string; bgColor: string } => {
+  // 1. Đã hủy
+  if (order.state === 'CANCELLED' || order.status === 'FAILED' || order.status === 'CANCELLED') {
+    return { label: 'Đã hủy', color: '#DC2626', bgColor: '#FEE2E2' }
+  }
+
+  // 2. Hoàn trả hàng (cần kiểm tra trước COMPLETED vì đơn trả hàng hoàn tất cũng có state=COMPLETED)
+  if (
+    order.returnStatus === 'RETURNED' ||
+    order.status === 'REFUNDED' ||
+    order.status === 'RETURNED' ||
+    order.code?.startsWith('RT')
+  ) {
+    return { label: 'Hoàn hàng', color: '#DC2626', bgColor: '#FEE2E2' }
+  }
+  if (order.returnStatus === 'PARTIAL') {
+    return { label: 'Hoàn 1 phần', color: '#D97706', bgColor: '#FEF3C7' }
+  }
+
+  // 3. Hoàn thành
+  if (order.state === 'COMPLETED' || order.status === 'COMPLETED') {
+    return { label: 'Hoàn thành', color: '#059669', bgColor: '#D1FAE5' }
+  }
+
+  // 4. Tạm giữ
+  if (order.state === 'ON_HOLD') {
+    return { label: 'Tạm giữ', color: '#D97706', bgColor: '#FEF3C7' }
+  }
+
+  // 5. Nháp
+  if (order.state === 'DRAFT') {
+    return { label: 'Nháp', color: '#6B7280', bgColor: '#F3F4F6' }
+  }
+
+  // 6. Đã xác nhận (CONFIRMED) hoặc trạng thái khác
+  if (order.state === 'CONFIRMED' || order.status === 'CONFIRMED') {
+    if (order.paymentStatus === 'PAID' && order.fulfillmentStatus === 'FULFILLED') {
+      return { label: 'Hoàn thành', color: '#059669', bgColor: '#D1FAE5' }
+    }
+    if (order.paymentStatus === 'PAID') {
+      return { label: 'Đã thu đủ', color: '#059669', bgColor: '#D1FAE5' }
+    }
+    if (order.paymentStatus === 'PARTIAL') {
+      return { label: 'Thu một phần', color: '#D97706', bgColor: '#FEF3C7' }
+    }
+    if (order.paymentStatus === 'UNPAID') {
+      return { label: 'Chưa thanh toán', color: '#6B7280', bgColor: '#F3F4F6' }
+    }
+  }
+
+  // Fallback to primary status translation
+  const statusStr = order.status || 'PENDING'
+  if (statusStr === 'COMPLETED') {
+    return { label: 'Hoàn thành', color: '#059669', bgColor: '#D1FAE5' }
+  }
+  if (statusStr === 'REFUNDED' || statusStr === 'RETURNED') {
+    return { label: 'Hoàn hàng', color: '#DC2626', bgColor: '#FEE2E2' }
+  }
+  if (statusStr === 'FAILED' || statusStr === 'CANCELLED') {
+    return { label: 'Đã hủy', color: '#DC2626', bgColor: '#FEE2E2' }
+  }
+  return { label: 'Đang xử lý', color: '#D97706', bgColor: '#FEF3C7' }
+}
