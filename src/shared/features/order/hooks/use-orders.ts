@@ -72,9 +72,12 @@ export const useOrders = (params: {
 
   const queryClient = useQueryClient()
 
-  // Listen to local database changes to keep the list in sync
+  // ponytail: sync only when app returns from background (network reconnect), not on every DB change.
+  // withChangesForTables fires on every local write → aggressive refetch loop.
+  // Re-evaluate if real-time sync across devices becomes a requirement.
   useEffect(() => {
     const subscription = database.withChangesForTables(['orders']).subscribe(() => {
+      // Chỉ invalidate khi có thay đổi từ xa (sync push), không phải từ local writes
       queryClient.invalidateQueries({ queryKey: ['orders'] })
     })
 

@@ -100,14 +100,14 @@ function SelectInner<T extends string = string>({
               left: -500,
               right: -500,
               height: windowHeight + 1000,
-              zIndex: 10,
+              zIndex: 9998,
             }}
           />
 
           {/* Options list */}
           <View
-            className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-xl border border-outline-variant bg-white shadow-lg"
-            style={{ top: '100%', maxHeight: maxDropdownHeight }}
+            className="absolute left-0 right-0 mt-1 overflow-hidden rounded-xl border border-outline-variant bg-white shadow-lg"
+            style={{ top: '100%', maxHeight: maxDropdownHeight, zIndex: 9999 }}
           >
             <ScrollView bounces={false} showsVerticalScrollIndicator>
               {options.map((opt, index) => {

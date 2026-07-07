@@ -1,10 +1,10 @@
 import { EmptyState, LoadMore, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { getPaymentMethodStyle } from '@/shared/features/payment'
+import { getPaymentMethodStyle, PaymentMethodCode } from '@/shared/features/payment'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
-import { Eye, PackageOpen } from 'lucide-react-native'
-import React, { memo } from 'react'
+import { PackageOpen } from 'lucide-react-native'
+import React, { memo, useCallback, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useOrderFilterStore } from '../store'
 import { IOrder } from '../types'
@@ -19,42 +19,349 @@ interface OrderListProps {
   isFetchingNextPage: boolean
 }
 
-const getPaymentMethodInfo = (order: IOrder) => {
-  const payments = order.paymentsSnapshot || []
-  if (payments.length === 0) return { label: '—', color: COLORS.muted, bg: COLORS.surface[100] }
-  if (payments.length >= 2) {
-    return getPaymentMethodStyle('mix')
-  }
-  return getPaymentMethodStyle(payments[0].method)
+const BRAND = '#1C4E68'
+const TEXT_PRIMARY = '#303036'
+const TEXT_TERTIARY = '#747475'
+const BORDER = '#DFE0E1'
+const ZEBRA = '#FAFAFB'
+
+// ── Cột: Mã đơn hàng | Cộng tác viên | Ngày tạo đơn | TT | Giá trị | Trạng thái ──
+type SortField = 'code' | 'collaborator' | 'createdAt' | 'paymentMethod' | 'total' | 'status'
+
+const COLUMNS: { field: SortField; label: string; flex: number }[] = [
+  { field: 'code', label: 'Mã đơn hàng', flex: 1 },
+  { field: 'collaborator', label: 'Cộng tác viên', flex: 1 },
+  { field: 'createdAt', label: 'Ngày tạo đơn', flex: 1 },
+  { field: 'paymentMethod', label: 'Thanh toán', flex: 0.7 },
+  { field: 'total', label: 'Giá trị', flex: 0.8 },
+  { field: 'status', label: 'Trạng thái', flex: 0.8 },
+]
+
+function formatDateTime(date: Date | string) {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear().toString().slice(2))} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-const OrderSkeleton = () => (
-  <View className="flex-row items-center border-b border-outline-variant px-8 py-6">
-    <View className="mr-8 w-48">
-      <Shimmer className="h-6 w-44 rounded-lg" />
+interface OrderDisplay {
+  id: string
+  updatedAt: Date | string | undefined
+  code: string
+  collaboratorName: string
+  collaboratorCode: string
+  dateTime: string
+  ptttLabel: string
+  ptttColor: string
+  ptttBg: string
+  totalFormatted: string
+  statusLabel: string
+  statusColor: string
+  statusBg: string
+  _order: IOrder
+}
+
+function buildOrderDisplay(item: IOrder): OrderDisplay {
+  const payments = item.paymentsSnapshot || []
+  let pttt: { label: string; color: string; bg: string }
+  if (payments.length === 0) {
+    pttt = { label: '—', color: COLORS.muted, bg: COLORS.surface[100] }
+  } else if (payments.length >= 2) {
+    const s = getPaymentMethodStyle('mix')
+    pttt = { label: s.label, color: s.color, bg: s.bg }
+  } else {
+    const s = getPaymentMethodStyle(payments[0].method)
+    pttt = { label: s.label, color: s.color, bg: s.bg }
+  }
+
+  const displayTotal = item.refund ? item.refund.refundAmount : item.total
+  const displayStatus = getOrderDisplayStatus(item)
+
+  return {
+    id: item.id,
+    updatedAt: item.updatedAt,
+    code: item.code || item.id,
+    collaboratorName: item.affiliate?.name || '—',
+    collaboratorCode: item.affiliate?.code ? `#${item.affiliate.code}` : '',
+    dateTime: formatDateTime(item.createdAt),
+    ptttLabel: pttt.label,
+    ptttColor: pttt.color,
+    ptttBg: pttt.bg,
+    totalFormatted: formatCurrency(displayTotal),
+    statusLabel: displayStatus.label,
+    statusColor: displayStatus.color,
+    statusBg: displayStatus.bgColor,
+    _order: item,
+  }
+}
+
+// ── Payment method filter constants ──
+const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethodCode | '' }[] = [
+  { label: 'Tất cả', value: '' },
+  { label: 'Tiền mặt', value: 'cash' },
+  { label: 'QR Code', value: 'qr_bidv' },
+  { label: 'Thẻ POS', value: 'card_bidv' },
+  { label: 'Hỗn hợp', value: 'mix' },
+  { label: 'Công nợ', value: 'cong_no' },
+]
+
+// ── Sortable Header Cell (Thanh toán header mở popover filter) ──
+interface HeaderCellProps {
+  field: SortField
+  label: string
+  flex: number
+  currentSort: SortField | null
+  currentDir: 'asc' | 'desc'
+  onSort: (field: SortField) => void
+}
+
+const HeaderCell = memo(function HeaderCell({
+  field,
+  label,
+  flex,
+  currentSort,
+  currentDir,
+  onSort,
+}: HeaderCellProps) {
+  const active = currentSort === field
+
+  // Payment method popover filter
+  const isPaymentCol = field === 'paymentMethod'
+  const paymentMethod = useOrderFilterStore((s) => s.paymentMethod)
+  const setPaymentMethod = useOrderFilterStore((s) => s.setPaymentMethod)
+  const [showPaymentPopover, setShowPaymentPopover] = useState(false)
+
+  const selectedLabel = isPaymentCol
+    ? PAYMENT_METHOD_OPTIONS.find((o) => o.value === (paymentMethod ?? ''))?.label || 'Thanh toán'
+    : label
+
+  const handlePress = useCallback(() => {
+    if (isPaymentCol) {
+      setShowPaymentPopover((v) => !v)
+    } else {
+      onSort(field)
+    }
+  }, [isPaymentCol, field, onSort])
+
+  return (
+    <View style={{ flex }}>
+      <Pressable
+        onPress={handlePress}
+        className="flex-row items-center gap-1 px-4"
+        style={{ height: 48 }}
+      >
+        <Text
+          className="text-lg font-bold"
+          numberOfLines={1}
+          style={{
+            color: isPaymentCol && paymentMethod ? '#fff' : BRAND,
+            fontFamily: 'Manrope-Bold',
+            backgroundColor: isPaymentCol && paymentMethod ? BRAND : 'transparent',
+            borderRadius: 8,
+            paddingHorizontal: isPaymentCol && paymentMethod ? 8 : 0,
+            paddingVertical: isPaymentCol && paymentMethod ? 2 : 0,
+          }}
+        >
+          {selectedLabel}
+        </Text>
+        {active && !isPaymentCol && (
+          <Text style={{ color: BRAND, fontSize: 12 }}>{currentDir === 'asc' ? '▲' : '▼'}</Text>
+        )}
+        {isPaymentCol && (
+          <Text style={{ color: BRAND, fontSize: 10 }}>{showPaymentPopover ? '▲' : '▼'}</Text>
+        )}
+      </Pressable>
+
+      {/* Popover */}
+      {isPaymentCol && showPaymentPopover ? (
+        <View
+          className="absolute left-4 top-12 z-10 rounded-xl border bg-white py-1 shadow-lg"
+          style={{ borderColor: BORDER, minWidth: 160 }}
+        >
+          {PAYMENT_METHOD_OPTIONS.map((opt) => {
+            const active = (paymentMethod ?? '') === opt.value
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => {
+                  setPaymentMethod((opt.value as PaymentMethodCode) || null)
+                  setShowPaymentPopover(false)
+                }}
+                className="px-4 py-3 active:bg-gray-100"
+                style={{ backgroundColor: active ? 'rgba(28,78,104,0.08)' : 'transparent' }}
+              >
+                <Text
+                  className="text-base font-bold"
+                  style={{ color: active ? BRAND : TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                >
+                  {opt.label}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      ) : null}
     </View>
-    <View className="mr-8 w-52">
-      <Shimmer className="h-7 w-44 rounded-lg" />
-    </View>
-    <View className="mr-8 flex-1">
-      <Shimmer className="h-6 w-64 rounded-lg" />
-      <Shimmer className="mt-2 h-4 w-32 rounded-lg" />
-    </View>
-    <View className="mr-8 w-36 items-center">
-      <Shimmer className="h-10 w-32 rounded-xl" />
-    </View>
-    <View className="mr-8 w-40">
-      <Shimmer className="ml-auto h-8 w-32 rounded-lg" />
-    </View>
-    <View className="mr-8 w-52 items-center">
-      <Shimmer className="h-8 w-28 rounded-full" />
-    </View>
-    <View className="w-12 items-end">
-      <Shimmer className="h-10 w-10 rounded-xl" />
-    </View>
-  </View>
+  )
+})
+
+// ── Zebra Row (click vào row mở modal) ──
+const OrderRow = memo(
+  function OrderRow({
+    display,
+    index,
+    onPress,
+  }: {
+    display: OrderDisplay
+    index: number
+    onPress: () => void
+  }) {
+    const isEven = index % 2 === 1
+
+    return (
+      <Pressable
+        onPress={onPress}
+        className="flex-row items-center active:opacity-70"
+        style={{
+          minHeight: 52,
+          backgroundColor: isEven ? ZEBRA : '#fff',
+          paddingVertical: 8,
+        }}
+      >
+        {/* Mã đơn */}
+        <View className="flex-1 justify-center px-4" style={{ height: 51 }}>
+          <Text
+            className="text-lg font-bold"
+            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+            numberOfLines={1}
+          >
+            {display.code}
+          </Text>
+        </View>
+
+        {/* Cộng tác viên */}
+        <View className="flex-1 justify-center px-4" style={{ height: 51 }}>
+          <Text
+            className="text-lg font-bold"
+            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+            numberOfLines={1}
+          >
+            {display.collaboratorName}
+          </Text>
+          {display.collaboratorCode ? (
+            <Text
+              className="text-base font-bold"
+              style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold' }}
+            >
+              {display.collaboratorCode}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Ngày tạo */}
+        <View className="flex-1 justify-center px-4" style={{ height: 51 }}>
+          <Text
+            className="text-lg font-bold"
+            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+          >
+            {display.dateTime}
+          </Text>
+        </View>
+
+        {/* Thanh toán */}
+        <View className="justify-center px-4" style={{ flex: 0.7, height: 51 }}>
+          <View
+            className="self-start rounded-md px-3 py-1"
+            style={{ backgroundColor: display.ptttBg }}
+          >
+            <Text
+              className="text-lg font-bold uppercase tracking-tight"
+              style={{ color: display.ptttColor, fontFamily: 'Manrope-Bold' }}
+            >
+              {display.ptttLabel}
+            </Text>
+          </View>
+        </View>
+
+        {/* Giá trị */}
+        <View className="justify-center px-4" style={{ flex: 0.8, height: 51 }}>
+          <Text
+            className="text-lg font-bold"
+            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+          >
+            {display.totalFormatted}
+          </Text>
+        </View>
+
+        {/* Trạng thái */}
+        <View className="justify-center px-4" style={{ flex: 0.8, height: 51 }}>
+          <View
+            className="self-start rounded-full px-3 py-1"
+            style={{ backgroundColor: display.statusBg }}
+          >
+            <Text
+              className="text-lg font-bold"
+              style={{ color: display.statusColor, fontFamily: 'Manrope-Bold' }}
+            >
+              {display.statusLabel}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    )
+  },
+  (prev, next) =>
+    prev.display.id === next.display.id &&
+    prev.display.updatedAt === next.display.updatedAt &&
+    prev.index === next.index,
 )
 
+// ── Skeleton ──
+const OrderSkeleton = ({ index }: { index: number }) => {
+  const isEven = index % 2 === 1
+  return (
+    <View
+      className="flex-row items-center"
+      style={{ minHeight: 52, backgroundColor: isEven ? ZEBRA : '#fff', paddingVertical: 8 }}
+    >
+      {COLUMNS.map((col, i) => (
+        <View key={i} className="justify-center px-4" style={{ flex: col.flex, height: 51 }}>
+          <Shimmer className="h-5 w-24 rounded-md" />
+          {col.field === 'collaborator' && <Shimmer className="mt-1 h-4 w-16 rounded-md" />}
+        </View>
+      ))}
+    </View>
+  )
+}
+
+// ── Export TableHeader separately so popover isn't clipped by FlashList ──
+interface TableHeaderProps {
+  sortField: SortField | null
+  sortDir: 'asc' | 'desc'
+  onSort: (field: SortField) => void
+}
+
+export const TableHeader = memo(function TableHeader({
+  sortField,
+  sortDir,
+  onSort,
+}: TableHeaderProps) {
+  return (
+    <View className="z-50 flex-row items-center border-b bg-white" style={{ borderColor: BORDER }}>
+      {COLUMNS.map((col) => (
+        <HeaderCell
+          key={col.field}
+          field={col.field}
+          label={col.label}
+          flex={col.flex}
+          currentSort={sortField}
+          currentDir={sortDir}
+          onSort={onSort}
+        />
+      ))}
+    </View>
+  )
+})
+
+// ── Main ──
 export const OrderList = memo(function OrderList({
   onOpenDetails,
   orders,
@@ -64,139 +371,123 @@ export const OrderList = memo(function OrderList({
   isFetchingNextPage,
 }: OrderListProps) {
   const resetFilters = useOrderFilterStore((s) => s.resetFilters)
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  const handleSort = useCallback(
+    (field: SortField) => {
+      if (sortField === field) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+      } else {
+        setSortField(field)
+        setSortDir('asc')
+      }
+    },
+    [sortField],
+  )
+
+  const displays = useMemo(() => {
+    const list = orders.map(buildOrderDisplay)
+    if (sortField) {
+      list.sort((a, b) => {
+        let va: string, vb: string
+        switch (sortField) {
+          case 'code':
+            va = a.code
+            vb = b.code
+            break
+          case 'collaborator':
+            va = a.collaboratorName
+            vb = b.collaboratorName
+            break
+          case 'createdAt':
+            va = a.dateTime
+            vb = b.dateTime
+            break
+          case 'paymentMethod':
+            va = a.ptttLabel
+            vb = b.ptttLabel
+            break
+          case 'total':
+            va = a.totalFormatted
+            vb = b.totalFormatted
+            break
+          case 'status':
+            va = a.statusLabel
+            vb = b.statusLabel
+            break
+        }
+        return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+      })
+    }
+    return list
+  }, [orders, sortField, sortDir])
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: OrderDisplay; index: number }) => (
+      <OrderRow display={item} index={index} onPress={() => onOpenDetails(item._order)} />
+    ),
+    [onOpenDetails],
+  )
+
+  const keyExtractor = useCallback((item: OrderDisplay) => item.id, [])
 
   if (isLoading) {
     return (
       <View className="flex-1">
-        {[...Array(8)].map((_, i) => (
-          <OrderSkeleton key={i} />
+        <View
+          className="flex-row items-center border-b"
+          style={{ borderColor: BORDER, height: 48 }}
+        >
+          {COLUMNS.map((col) => (
+            <View
+              key={col.field}
+              className="flex-row items-center gap-2 px-4"
+              style={{ flex: col.flex, height: 48 }}
+            >
+              <Text
+                className="text-lg font-bold"
+                style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
+              >
+                {col.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+        {[...Array(6)].map((_, i) => (
+          <OrderSkeleton key={i} index={i} />
         ))}
       </View>
     )
   }
 
   return (
-    <FlashList
-      data={orders}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => {
-        const itemsSnap = item.itemsSnapshot || []
-        const itemsCount = itemsSnap.length
-        const firstItem = itemsSnap[0]
-        const pttt = getPaymentMethodInfo(item)
-        // Với đơn hoàn hàng (RT-), order.total là của đơn gốc → dùng refundAmount.
-        // Đơn thường (SO-) dùng item.total vì đã bao gồm thuế.
-        const displayTotal = item.refund ? item.refund.refundAmount : item.total
-        const displayStatus = getOrderDisplayStatus(item)
-
-        return (
-          <Pressable
-            onPress={() => onOpenDetails(item)}
-            className="flex-row items-center border-b border-outline-variant px-8 py-7 active:bg-surface-100"
-          >
-            {/* Thời gian — ngày/tháng/năm · giờ:phút */}
-            <View className="mr-8 w-48">
-              <Text className="text-lg font-medium text-surface-on">
-                {item.createdAt.toLocaleString('vi-VN', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })}
-                {'  ·  '}
-                {item.createdAt.toLocaleString('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </Text>
-            </View>
-
-            {/* Mã Đơn */}
-            <View className="mr-8 w-52">
-              <Text
-                className="text-xl font-black text-primary"
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {item.code || item.id}
-              </Text>
-            </View>
-
-            {/* Sản phẩm */}
-            <View className="mr-8 flex-1">
-              <Text className="text-lg font-bold text-surface-on" numberOfLines={1}>
-                {firstItem?.name || 'Không có sản phẩm'}
-              </Text>
-              {itemsCount > 1 && (
-                <Text className="mt-1 text-sm font-bold text-primary">
-                  +{itemsCount - 1} sản phẩm khác
-                </Text>
-              )}
-            </View>
-
-            {/* Phương thức thanh toán */}
-            <View className="mr-8 w-36 items-center">
-              <View
-                className="flex-row items-center gap-2 rounded-lg px-5 py-2.5"
-                style={{ backgroundColor: pttt.bg }}
-              >
-                <Text
-                  className="text-sm font-black uppercase tracking-tight"
-                  style={{ color: pttt.color }}
-                  numberOfLines={1}
-                >
-                  {pttt.label}
-                </Text>
-              </View>
-            </View>
-
-            {/* Tổng cộng */}
-            <View className="mr-8 w-40">
-              <Text className="text-right text-2xl font-black text-surface-on">
-                {formatCurrency(displayTotal)}
-              </Text>
-            </View>
-
-            {/* Trạng thái */}
-            <View className="mr-8 w-52 items-center">
-              <View
-                className="rounded-full px-5 py-2"
-                style={{ backgroundColor: displayStatus.bgColor }}
-              >
-                <Text
-                  className="text-sm font-bold uppercase tracking-widest"
-                  style={{ color: displayStatus.color }}
-                  numberOfLines={1}
-                >
-                  {displayStatus.label}
-                </Text>
-              </View>
-            </View>
-
-            {/* Eye icon */}
-            <View className="w-12 items-end">
-              <View className="h-10 w-10 items-center justify-center rounded-xl border border-outline-variant bg-surface-100">
-                <Eye size={22} color={COLORS.surface.onVariant} />
-              </View>
-            </View>
-          </Pressable>
-        )
-      }}
-      onEndReached={() => {
-        if (hasNextPage && !isFetchingNextPage) {
-          fetchNextPage()
+    <View className="flex-1">
+      {/* Header pinned outside FlashList so popover isn't clipped */}
+      <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+      <FlashList
+        data={displays}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 8 }}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage()
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={<LoadMore isLoading={isFetchingNextPage} />}
+        ListEmptyComponent={
+          <EmptyState
+            title="Danh sách trống"
+            description="Chúng tôi không tìm thấy đơn hàng nào khớp với bộ lọc hiện tại của bạn."
+            icon={PackageOpen}
+            actionLabel="Xóa bộ lọc"
+            onAction={resetFilters}
+          />
         }
-      }}
-      onEndReachedThreshold={0.5}
-      ListFooterComponent={<LoadMore isLoading={isFetchingNextPage} />}
-      ListEmptyComponent={
-        <EmptyState
-          title="Danh sách trống"
-          description="Chúng tôi không tìm thấy đơn hàng nào khớp với bộ lọc hiện tại của bạn."
-          icon={PackageOpen}
-          actionLabel="Xóa bộ lọc"
-          onAction={resetFilters}
-        />
-      }
-    />
+      />
+    </View>
   )
 })
