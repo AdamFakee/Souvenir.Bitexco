@@ -4,7 +4,7 @@ import {
   PosCheckoutRequest,
   PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
-import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
+import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import {
@@ -13,6 +13,7 @@ import {
   PaymentResult,
   PortablePaymentCommandResult,
 } from '../types'
+import { getOrderErrorMessage } from '@/shared/features/order/constants'
 
 import {
   authorizePaymentActor,
@@ -29,7 +30,6 @@ import {
 import { printReceiptActor } from '../flows/print.actors'
 
 export interface PortablePaymentContext {
-  /** Input Data */
   total: number
   discount: number
   items: CartItem[]
@@ -38,12 +38,13 @@ export interface PortablePaymentContext {
   sessionId: string
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<any>
+  affiliateId?: string | null
+  agentType?: AgentType | null
 
-  /** Processing Data — EDC Flow */
-  checkoutResult: PosCheckoutResult | null // Response từ POST /v1/pos/checkout
-  paymentId: string | null // payments[0].paymentId từ checkout
-  paymentVersion: number // Version để dùng OCC cho transitions
-  rawCommandResult: PortablePaymentCommandResult | null // Kết quả từ máy EDC
+  checkoutResult: PosCheckoutResult | null
+  paymentId: string | null
+  paymentVersion: number
+  rawCommandResult: PortablePaymentCommandResult | null
   manualCardDetails: {
     terminalId?: string
     merchantId?: string
@@ -79,6 +80,8 @@ export type PortablePaymentInput = {
   sessionId: string
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<any>
+  affiliateId?: string | null
+  agentType?: AgentType | null
 }
 
 const MAX_RETRIES = 3
@@ -133,6 +136,8 @@ export const portablePaymentMachine = setup({
           customerName: null,
           customerTaxId: null,
           customerAddress: null,
+          affiliateId: input.affiliateId ?? null,
+          agentType: input.agentType ?? null,
         }
 
         let checkoutResult: PosCheckoutResult
@@ -255,8 +260,21 @@ export const portablePaymentMachine = setup({
       errorCode: () => PAYMENT_ERROR_CODES.TIMEOUT,
     }),
     recordError: assign({
-      error: ({ event }) =>
-        (event as any).error?.message ?? 'Đã xảy ra lỗi hệ thống trong quá trình quẹt thẻ!',
+      error: ({ event }) => {
+        const err = (event as any).error
+        let errMsg = 'Đã xảy ra lỗi hệ thống trong quá trình quẹt thẻ!'
+        if (err && typeof err === 'object') {
+          const axiosErr = err as any
+          if (axiosErr.response?.data) {
+            const code = axiosErr.response.data.error || axiosErr.response.data.message
+            errMsg = getOrderErrorMessage(code) || code || errMsg
+          }
+        }
+        if (errMsg === 'Đã xảy ra lỗi hệ thống trong quá trình quẹt thẻ!' && err instanceof Error) {
+          errMsg = err.message
+        }
+        return errMsg
+      },
       errorCode: () => PAYMENT_ERROR_CODES.SYSTEM_ERROR,
       retryCount: ({ context }) => context.retryCount + 1,
     }),
@@ -321,6 +339,8 @@ export const portablePaymentMachine = setup({
           sessionId: event.input.sessionId,
           appliedVoucher: event.input.appliedVoucher,
           printRef: event.input.printRef,
+          affiliateId: event.input.affiliateId,
+          agentType: event.input.agentType,
         }
       }
       return base

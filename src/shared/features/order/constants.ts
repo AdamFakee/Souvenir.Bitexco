@@ -14,10 +14,25 @@ export const ORDER_ERROR_MESSAGES: Record<string, string> = {
     'Giá trị hàng đổi mới phải lớn hơn hoặc bằng giá trị hàng trả.',
   'order.exchange_replacement_item_not_found': 'Sản phẩm đổi mới không hợp lệ.',
   'order.exchange_replacement_quantity_invalid': 'Số lượng hàng đổi mới không hợp lệ.',
+  'order.affiliate_not_found': 'CTV/Đại lý không tồn tại.',
+  'order.affiliate_not_active': 'CTV/Đại lý không còn hoạt động.',
+  'order.debt_not_allowed': 'Đại lý này không được phép ghi nợ.',
+  'order.debt_limit_exceeded': 'Vượt hạn mức công nợ cho phép.',
+  'order.partner_not_found': 'Đối tác không tồn tại hoặc đã ngừng hoạt động.',
+  'order.partner_credit_not_allowed': 'Đối tác chưa được kích hoạt tính năng thanh toán công nợ.',
+  'order.credit_limit_exceeded': 'Vượt hạn mức công nợ cho phép của đối tác.',
 }
 
 export const getOrderErrorMessage = (errorCode?: string, status?: number) => {
-  if (errorCode && ORDER_ERROR_MESSAGES[errorCode]) return ORDER_ERROR_MESSAGES[errorCode]
+  if (errorCode) {
+    if (ORDER_ERROR_MESSAGES[errorCode]) return ORDER_ERROR_MESSAGES[errorCode]
+    // Hỗ trợ đối sánh tiền tố cho mã lỗi động (ví dụ: order.credit_limit_exceeded:...)
+    for (const key of Object.keys(ORDER_ERROR_MESSAGES)) {
+      if (errorCode.startsWith(key)) {
+        return ORDER_ERROR_MESSAGES[key]
+      }
+    }
+  }
   if (status === 409) return 'Dữ liệu đã thay đổi, vui lòng tải lại đơn hàng.'
   if (status === 403) return 'Bạn không có quyền thực hiện thao tác trả hàng.'
   if (status === 404) return 'Không tìm thấy dữ liệu trả hàng.'

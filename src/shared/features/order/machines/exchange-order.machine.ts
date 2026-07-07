@@ -1,7 +1,6 @@
 import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { calculateTotalTax } from '@/shared/features/payment/utils'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
-import { OrderStatus } from '@/shared/lib/database'
 import { toast, useConnectionStore } from '@/shared/store'
 import { assign, fromPromise, setup } from 'xstate'
 import {

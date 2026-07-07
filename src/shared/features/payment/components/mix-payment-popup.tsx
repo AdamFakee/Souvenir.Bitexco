@@ -111,6 +111,7 @@ export const MixPaymentPopup = memo(
         printRef,
         onSuccess,
         note,
+        affiliate,
       },
       ref,
     ) => {
@@ -147,6 +148,7 @@ export const MixPaymentPopup = memo(
           printRef,
           tenantConfig,
           note,
+          affiliateId: affiliate?.id ?? null,
         },
       })
 

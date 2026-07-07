@@ -1,3 +1,4 @@
+import { Affiliate, AgentType } from '@/shared/features/pos'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { OrderStatus } from '@/shared/lib/database'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
@@ -5,13 +6,14 @@ import { IBaseResponse, PagedResponse } from '@/shared/types/api'
 import { endOfDay, startOfDay } from '@/shared/utils'
 import {
   IOrder,
-  RefundReceiptData,
-  OrderState,
-  OrderPaymentStatus,
   OrderFulfillmentStatus,
   OrderInvoiceStatus,
+  OrderPaymentStatus,
   OrderReturnStatus,
+  OrderState,
   OrderStatusType,
+  Partner,
+  RefundReceiptData,
 } from '../../types'
 import { checkCanReturn } from '../../utils'
 
@@ -28,7 +30,7 @@ export interface PosCartLine {
   notes?: string
 }
 
-export type PosPaymentMethod = 'cash' | 'qr' | 'card' | 'qr_bidv' | 'card_bidv'
+export type PosPaymentMethod = 'cash' | 'qr' | 'card' | 'qr_bidv' | 'card_bidv' | 'cong_no'
 
 export interface PosPaymentRequest {
   method: PosPaymentMethod
@@ -49,6 +51,14 @@ export interface PosCheckoutRequest {
   customerName: string | null
   customerTaxId: string | null
   customerAddress: string | null
+  /** ID của HDV / Đại lý (nếu có). null = khách lẻ */
+  affiliateId?: string | null
+  /** ID đối tác công nợ (Đại lý) */
+  partnerId?: string | null
+  /** Key chống trùng lặp từ client */
+  clientIdempotencyKey?: string | null
+  /** Loại đối tượng: retail | collaborator | agent */
+  agentType?: AgentType | null
 }
 
 export interface PosCheckoutResult {
@@ -129,6 +139,11 @@ interface OrderListApiItem {
   totalRefunded?: number
   refunds?: any[]
   refund?: RefundReceiptData | null
+  agentType?: 'collaborator' | 'agent' | 'retail'
+  affiliateId?: string | null
+  partnerId?: string | null
+  affiliate?: Affiliate | null
+  partner?: Partner | null
 }
 
 /**
@@ -145,6 +160,14 @@ export interface GetRemoteOrdersParams {
   staffId?: string | null
   /** ID của ca làm việc để lọc đơn hàng */
   shiftId?: string | null
+  /** ID của HDV / CTV để lọc đơn hàng */
+  affiliateId?: string | null
+  /** ID của Đại lý để lọc đơn hàng */
+  partnerId?: string | null
+  /** Loại đối tượng: collaborator hoặc agent để lọc tất cả CTV hoặc Đại lý */
+  agentType?: string | null
+  /** Lọc theo phương thức thanh toán */
+  paymentMethod?: string | null
 }
 
 /**
@@ -318,6 +341,11 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   totalRefunded: order.totalRefunded ?? 0,
   refunds: order.refunds ?? [],
   refund: order.refund ?? undefined,
+  agentType: order.agentType,
+  affiliateId: order.affiliateId,
+  partnerId: order.partnerId,
+  affiliate: order.affiliate as Affiliate | null,
+  partner: order.partner,
 })
 
 export const generateGuid = (): string => {
@@ -340,6 +368,30 @@ export const localIdToGuid = (localId: string): string => {
   }
   hex = hex.padEnd(32, '0').slice(0, 32)
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+}
+
+/**
+ * Tham số gọi API đối soát.
+ * Cần truyền đúng 1 trong 2: partnerId hoặc affiliateId.
+ */
+export interface GetReconciliationParams {
+  partnerId?: string | null
+  affiliateId?: string | null
+  dateFrom: Date
+  dateTo: Date
+}
+
+/**
+ * Kết quả đối soát trả về từ API — backend tính sẵn, FE chỉ hiển thị.
+ */
+export interface ReconciliationResult {
+  ownerCode: string
+  totalOrdersCount: number
+  totalRevenue: number
+  commissionRate: number
+  commissionAmount: number
+  dateFrom: string
+  dateTo: string
 }
 
 /**
@@ -392,7 +444,7 @@ export const OrderRemoteAPI = {
         })),
       }
       await AxiosService.getInstance().post('/v1/pos/sync/orders', payload)
-    } catch (error: any) {
+    } catch (error) {
       throw error
     }
   },
@@ -428,21 +480,60 @@ export const OrderRemoteAPI = {
       urlParams.append('shift_id', shiftId)
     }
 
-    if (status) {
-      const statusArray = Array.isArray(status) ? status : [status]
-      if (statusArray.length > 0) {
-        const joinedStatus = statusArray.join(',')
-        urlParams.append('status', joinedStatus)
-        urlParams.append('state', joinedStatus)
-      }
+    if (params.affiliateId) {
+      urlParams.append('affiliate_id', params.affiliateId)
+    } else if (params.partnerId) {
+      urlParams.append('partner_id', params.partnerId)
+    } else if (params.agentType) {
+      urlParams.append('agent_type', params.agentType)
     }
+
+    if (params.paymentMethod) urlParams.append('payment_method', params.paymentMethod)
+
+    // if (status) {
+    //   const statusArray = Array.isArray(status) ? status : [status]
+    //   if (statusArray.length > 0) {
+    //     const joinedStatus = statusArray.join(',')
+    //     urlParams.append('status', joinedStatus)
+    //     urlParams.append('state', joinedStatus)
+    //   }
+    // }
     try {
+      console.log('---------------------------------------')
+      console.log(`[getOrders REQUEST URL] /v1/pos/orders?${urlParams.toString()}`)
       const response = await AxiosService.getInstance().get<PagedResponse<OrderListApiItem>>(
         '/v1/pos/orders',
         { params: urlParams },
       )
 
-      const rawData = response.data as any
+      const rawData = response.data as {
+        items?: OrderListApiItem[]
+        data?: OrderListApiItem[]
+        meta?: {
+          total?: number
+          totalCount?: number
+          totalItems?: number
+          total_items?: number
+          totalRevenue?: number
+          total_revenue?: number
+          page?: number
+          limit?: number
+          pageSize?: number
+          totalPages?: number
+          hasNextPage?: boolean
+        }
+        totalCount?: number
+        total?: number
+        totalItems?: number
+        total_items?: number
+        totalRevenue?: number
+        total_revenue?: number
+        page?: number
+        pageSize?: number
+        limit?: number
+        totalPages?: number
+        hasNextPage?: boolean
+      }
       const items = rawData.items || rawData.data || (Array.isArray(rawData) ? rawData : [])
 
       const meta = rawData.meta || {}
@@ -483,13 +574,17 @@ export const OrderRemoteAPI = {
         },
         error: null,
       }
-    } catch (error: any) {
-      const status = error?.response?.status
-      const data = error?.response?.data
+    } catch (error) {
+      const typedError = error as {
+        response?: { status?: number; data?: { error?: string; traceId?: string } }
+        message?: string
+      }
+      const status = typedError?.response?.status
+      const data = typedError?.response?.data
       const code = typeof data?.error === 'string' ? data.error : undefined
       const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
 
-      throw new OrderApiError(code || error?.message || 'order.list_failed', {
+      throw new OrderApiError(code || typedError?.message || 'order.list_failed', {
         code,
         status,
         traceId,
@@ -500,8 +595,8 @@ export const OrderRemoteAPI = {
   /**
    * Tra cứu đơn hàng bằng code để xem cấu trúc phản hồi từ backend.
    */
-  lookupOrder: async (code: string): Promise<any> => {
-    const response = await AxiosService.getInstance().get<any>(`/v1/pos/orders/lookup`, {
+  lookupOrder: async (code: string): Promise<unknown> => {
+    const response = await AxiosService.getInstance().get<unknown>(`/v1/pos/orders/lookup`, {
       params: { code },
     })
     return response.data
@@ -518,15 +613,15 @@ export const OrderRemoteAPI = {
       const response = await AxiosService.getInstance().post<RefundOrderResult>(
         `/v1/pos/orders/${orderId}/refund`,
         {
-          idempotency_key: idempotencyKey,
+          idempotencyKey,
           reason,
-          shift_id: shiftId,
-          staff_id: staffId,
+          shiftId,
+          staffId,
           lines,
           ...(managerAuth
             ? {
-                manager_auth: {
-                  employee_code: managerAuth.employeeCode,
+                managerAuth: {
+                  employeeCode: managerAuth.employeeCode,
                   pin: managerAuth.pin,
                 },
               }
@@ -561,13 +656,17 @@ export const OrderRemoteAPI = {
       )
 
       return response.data
-    } catch (error: any) {
-      const status = error?.response?.status
-      const data = error?.response?.data
+    } catch (error) {
+      const typedError = error as {
+        response?: { status?: number; data?: { error?: string; traceId?: string } }
+        message?: string
+      }
+      const status = typedError?.response?.status
+      const data = typedError?.response?.data
       const code = typeof data?.error === 'string' ? data.error : undefined
       const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
 
-      throw new OrderApiError(code || error?.message || 'order.exchange_failed', {
+      throw new OrderApiError(code || typedError?.message || 'order.exchange_failed', {
         code,
         status,
         traceId,
@@ -585,13 +684,13 @@ export const OrderRemoteAPI = {
       const res = await AxiosService.getInstance().post<CancelOrderResult>(
         `/v1/pos/orders/${orderId}/cancel`,
         {
-          shift_id: shiftId,
-          staff_id: staffId,
+          shiftId,
+          staffId,
           reason,
           ...(managerAuth
             ? {
-                manager_auth: {
-                  employee_code: managerAuth.employeeCode,
+                managerAuth: {
+                  employeeCode: managerAuth.employeeCode,
                   pin: managerAuth.pin,
                 },
               }
@@ -608,10 +707,160 @@ export const OrderRemoteAPI = {
    * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
    */
   checkout: async (payload: PosCheckoutRequest): Promise<PosCheckoutResult> => {
-    const res = await AxiosService.getInstance().post<PosCheckoutResult>(
-      '/v1/pos/checkout',
-      payload,
-    )
-    return res.data
+    console.log('[checkout API INPUT] Payload:', JSON.stringify(payload, null, 2))
+    try {
+      const res = await AxiosService.getInstance().post<PosCheckoutResult>(
+        '/v1/pos/checkout',
+        payload,
+      )
+      console.log('[checkout API RESPONSE] Data:', JSON.stringify(res.data, null, 2))
+      return res.data
+    } catch (error) {
+      const typedError = error as { message?: string; response?: { data?: unknown } }
+      console.error(
+        '[checkout API ERROR]:',
+        typedError?.message,
+        typedError?.response?.data || error,
+      )
+      throw error
+    }
+  },
+
+  /**
+   * Tra cứu danh sách HDV / Cộng tác viên (affiliate).
+   */
+  getAffiliates: async (params?: {
+    q?: string
+    limit?: number
+    page?: number
+  }): Promise<{ items: Affiliate[]; totalCount: number; page: number; pageSize: number }> => {
+    console.log('[getAffiliates API INPUT] Params:', JSON.stringify(params))
+    try {
+      const response = await AxiosService.getInstance().get<
+        | {
+            items?: Record<string, unknown>[]
+            totalCount?: number
+            page?: number
+            pageSize?: number
+          }
+        | Record<string, unknown>[]
+      >('/v1/pos/affiliates', {
+        params: {
+          q: params?.q || undefined,
+          limit: params?.limit || undefined,
+          page: params?.page || undefined,
+        },
+      })
+      console.log('[getAffiliates API RESPONSE] Data:', JSON.stringify(response.data))
+
+      const rawItems = Array.isArray(response.data) ? response.data : response.data.items || []
+
+      const items = rawItems.map((item) => ({
+        id: String(item.id),
+        code: String(item.code),
+        name: String(item.name),
+        phone: item.phone ? String(item.phone) : '',
+        isDebt: false,
+        agentType: 'collaborator' as const,
+        isActive: item.isActive !== undefined ? Boolean(item.isActive) : item.state === 'ACTIVE',
+      }))
+
+      const data = response.data as { totalCount?: number; page?: number; pageSize?: number }
+      return {
+        items,
+        totalCount: data.totalCount || items.length,
+        page: data.page || params?.page || 0,
+        pageSize: data.pageSize || params?.limit || 10,
+      }
+    } catch (err) {
+      const typedErr = err as { message?: string; response?: { data?: unknown } }
+      console.error(
+        '[getAffiliates API ERROR]:',
+        typedErr?.message,
+        typedErr?.response?.data || err,
+      )
+      throw err
+    }
+  },
+
+  /**
+   * Tra cứu danh sách Đối tác/Đại lý (partner).
+   */
+  getPartners: async (params?: {
+    search?: string
+    page?: number
+    limit?: number
+  }): Promise<{ items: Partner[]; totalCount: number; page: number; pageSize: number }> => {
+    console.log('[getPartners API INPUT] Params:', JSON.stringify(params))
+    try {
+      const response = await AxiosService.getInstance().get<
+        { items?: Partner[]; totalCount?: number; page?: number; pageSize?: number } | Partner[]
+      >('/v1/pos/partners', {
+        params: {
+          search: params?.search || undefined,
+          page: params?.page || undefined,
+          limit: params?.limit || undefined,
+        },
+      })
+      console.log('[getPartners API RESPONSE] Data:', JSON.stringify(response.data))
+
+      const items = Array.isArray(response.data) ? response.data : response.data.items || []
+      const data = response.data as { totalCount?: number; page?: number; pageSize?: number }
+
+      return {
+        items,
+        totalCount: data.totalCount || items.length,
+        page: data.page || params?.page || 0,
+        pageSize: data.pageSize || params?.limit || 10,
+      }
+    } catch (err) {
+      const typedErr = err as { message?: string; response?: { data?: unknown } }
+      console.error('[getPartners API ERROR]:', typedErr?.message, typedErr?.response?.data || err)
+      throw err
+    }
+  },
+
+  /**
+   * Lấy thông tin Biên lai (Receipt) theo orderId
+   */
+  getReceipt: async (orderId: string): Promise<unknown> => {
+    const response = await AxiosService.getInstance().get<unknown>(`/v1/pos/receipt/${orderId}`)
+    return response.data
+  },
+
+  /**
+   * L\u1ea5y th\u00f4ng tin \u0111\u1ed1i so\u00e1t theo \u0111\u1ed1i t\u00e1c ho\u1eb7c c\u1ed9ng t\u00e1c vi\u00ean.
+   * API t\u1ef1 t\u00ednh to\u00e1n doanh s\u1ed1, hoa h\u1ed3ng — FE ch\u1ec9 hi\u1ec3n th\u1ecb.
+   */
+  getReconciliation: async (params: GetReconciliationParams): Promise<ReconciliationResult> => {
+    const { partnerId, affiliateId, dateFrom, dateTo } = params
+
+    const urlParams = new URLSearchParams()
+    if (partnerId) urlParams.append('partnerId', partnerId)
+    if (affiliateId) urlParams.append('affiliateId', affiliateId)
+    urlParams.append('dateFrom', startOfDay(dateFrom).toISOString())
+    urlParams.append('dateTo', endOfDay(dateTo).toISOString())
+
+    try {
+      const response = await AxiosService.getInstance().get<ReconciliationResult>(
+        '/v1/pos/reconciliation',
+        { params: urlParams },
+      )
+      return response.data
+    } catch (error) {
+      const typedError = error as {
+        response?: { status?: number; data?: { error?: string; traceId?: string } }
+        message?: string
+      }
+      const status = typedError?.response?.status
+      const data = typedError?.response?.data
+      const code = typeof data?.error === 'string' ? data.error : undefined
+      const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
+      throw new OrderApiError(code || typedError?.message || 'order.reconciliation_failed', {
+        code,
+        status,
+        traceId,
+      })
+    }
   },
 }

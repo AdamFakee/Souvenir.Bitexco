@@ -5,11 +5,12 @@ import {
   PosCheckoutRequest,
   PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
-import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
+import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PrinterService } from '@/shared/services'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
 import { assign, fromPromise, setup } from 'xstate'
 import { PaymentResult } from '../types'
+import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import { calculateVoucherDiscount, roundCashAmount } from '../utils'
 
 // ─── Saved Order Types ────────────────────────────────────────────────────────
@@ -33,7 +34,6 @@ export type SavedOrder = OnlineOrderResult | OfflineOrderResult
 // ─── Machine Types ────────────────────────────────────────────────────────────
 
 export interface CashPaymentContext {
-  /** Input Data */
   total: number
   discount: number
   items: CartItem[]
@@ -42,8 +42,9 @@ export interface CashPaymentContext {
   sessionId: string
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<unknown>
+  affiliateId?: string | null
+  agentType?: AgentType | null
 
-  /** Processing Data */
   amountTendered: number
   change: number
   error: string | null
@@ -68,6 +69,8 @@ export type CashPaymentInput = {
   sessionId: string
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<unknown>
+  affiliateId?: string | null
+  agentType?: AgentType | null
 }
 
 // ─── Machine ──────────────────────────────────────────────────────────────────
@@ -112,6 +115,11 @@ export const cashPaymentMachine = setup({
             }
           })
 
+          const partnerId = input.agentType === 'agent' ? (input.affiliateId ?? null) : null
+          const affiliateId = input.agentType !== 'agent' ? (input.affiliateId ?? null) : null
+          const randomPart = Math.random().toString(36).slice(2)
+          const clientIdempotencyKey = `checkout-${Date.now()}-${randomPart}`
+
           const payload: PosCheckoutRequest = {
             cashSessionId: input.sessionId || '---',
             customerId: null,
@@ -131,6 +139,10 @@ export const cashPaymentMachine = setup({
             customerName: null,
             customerTaxId: null,
             customerAddress: null,
+            affiliateId,
+            partnerId,
+            clientIdempotencyKey,
+            agentType: input.agentType ?? null,
           }
 
           const response = await OrderRemoteAPI.checkout(payload)
@@ -213,7 +225,8 @@ export const cashPaymentMachine = setup({
           if (axiosErr.response) {
             const serverData = axiosErr.response.data
             if (serverData && typeof serverData === 'object') {
-              errMsg = serverData.error || serverData.message || errMsg
+              const code = serverData.error || serverData.message
+              errMsg = getOrderErrorMessage(code) || code || errMsg
             }
           }
         }
@@ -246,6 +259,8 @@ export const cashPaymentMachine = setup({
           sessionId: event.input.sessionId,
           appliedVoucher: event.input.appliedVoucher,
           printRef: event.input.printRef,
+          affiliateId: event.input.affiliateId,
+          agentType: event.input.agentType,
         }
       }
 

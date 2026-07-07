@@ -1,5 +1,5 @@
 import { cn } from '@/shared/utils'
-import { ChevronDown, Check } from 'lucide-react-native'
+import { Check, ChevronDown } from 'lucide-react-native'
 import React, { memo, useCallback, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 

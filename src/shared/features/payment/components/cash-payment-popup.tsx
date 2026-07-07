@@ -92,6 +92,7 @@ export const CashPaymentPopup = memo(
         appliedVoucher,
         printRef,
         onSuccess,
+        affiliate,
       },
       ref,
     ) => {
@@ -123,6 +124,8 @@ export const CashPaymentPopup = memo(
             sessionId: shiftId || 'unknown', // shiftId = cashSessionId UUID từ server
             appliedVoucher: appliedVoucher || null,
             printRef,
+            affiliateId: affiliate?.id ?? null,
+            agentType: affiliate?.agentType ?? null,
           },
         },
       )
@@ -186,6 +189,8 @@ export const CashPaymentPopup = memo(
             sessionId: shiftId || 'unknown',
             appliedVoucher: appliedVoucher || null,
             printRef,
+            affiliateId: affiliate?.id ?? null,
+            agentType: affiliate?.agentType ?? null,
           }
 
           // Khởi động lại machine với dữ liệu mới nhất

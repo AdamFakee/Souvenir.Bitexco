@@ -1,26 +1,32 @@
-import { Button, IconButton, QuantityStepper } from '@/shared/components/ui'
+import { Button, QuantityStepper } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { useSelector } from '@xstate/react'
 import { Plus, ShoppingBasket, Trash2, X } from 'lucide-react-native'
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ActorRefFrom } from 'xstate'
 import { useActiveCart, usePosActor } from '../hooks'
 import { cartMachine } from '../machines/cart.machine'
-import { CartItem } from '../types/cart.types'
+import { Affiliate, CartItem } from '../types/cart.types'
+import { AddTabSheet, AddTabSheetRef } from './add-tab-sheet'
 import { ProductSearch } from './product-search'
 
 export default function OrderListSession() {
   const posActor = usePosActor()
   const cartActor = useActiveCart()
+  const addTabSheetRef = useRef<AddTabSheetRef>(null)
 
   const carts = useSelector(posActor!, (s) => s.context.carts)
   const activeCartId = useSelector(posActor!, (s) => s.context.activeCartId)
   const items = useSelector(cartActor!, (s) => s?.context?.items || {})
   const cart = useMemo(() => Object.values(items || {}) as CartItem[], [items])
+
+  const handleAddTab = (affiliate: Affiliate | null) => {
+    posActor?.send({ type: 'ADD_TAB', affiliate: affiliate ?? undefined })
+  }
 
   return (
     <View className="flex-1 flex-col bg-background">
@@ -31,60 +37,83 @@ export default function OrderListSession() {
       >
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1">
           <View className="flex-row gap-2 pt-3">
-            {Object.entries(carts).map(([id, actor], index) => {
-              const isActive = id === activeCartId
-              const cartActor = actor as ActorRefFrom<typeof cartMachine>
-              const snapshot = cartActor?.getSnapshot()
-              if (!snapshot) return null
-              const label = `Phiên #${index + 1}`
+            {Object.entries(carts)
+              .sort(([, a], [, b]) => {
+                const sa = (a as ActorRefFrom<typeof cartMachine>)?.getSnapshot()
+                const sb = (b as ActorRefFrom<typeof cartMachine>)?.getSnapshot()
+                const aRetail = sa && !sa.context.affiliate
+                const bRetail = sb && !sb.context.affiliate
+                if (aRetail && !bRetail) return -1
+                if (!aRetail && bRetail) return 1
+                return 0
+              })
+              .map(([id, actor]) => {
+                const isActive = id === activeCartId
+                const cartActor = actor as ActorRefFrom<typeof cartMachine>
+                const snapshot = cartActor?.getSnapshot()
+                if (!snapshot) return null
 
-              return (
-                <Pressable
-                  key={id}
-                  onPress={() => posActor?.send({ type: 'SWITCH_TAB', id })}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    minWidth: 200,
-                    paddingHorizontal: 24,
-                    paddingVertical: 20,
-                    borderTopLeftRadius: 12,
-                    borderTopRightRadius: 12,
-                    borderWidth: 1,
-                    borderBottomWidth: isActive ? 0 : 1,
-                    marginBottom: isActive ? -1 : 0,
-                    zIndex: isActive ? 10 : 0,
-                    backgroundColor: isActive ? COLORS.surface[50] : COLORS.surface[400],
-                    borderColor: isActive ? COLORS.outline.default : 'transparent',
-                  }}
-                >
-                  <Text
-                    style={{
-                      flex: 1,
-                      fontSize: 18,
-                      fontFamily: 'Manrope-Bold',
-                      fontWeight: '700',
-                      color: isActive ? COLORS.surface.on : COLORS.neutral[400],
-                    }}
-                    numberOfLines={1}
-                  >
-                    {label}
-                  </Text>
+                const aff = snapshot.context.affiliate
+                const label = aff
+                  ? aff.name
+                  : (() => {
+                      const retailIds = Object.entries(carts)
+                        .filter(([, a]) => {
+                          const s = (a as ActorRefFrom<typeof cartMachine>)?.getSnapshot()
+                          return s && !s.context.affiliate
+                        })
+                        .map(([rid]) => rid)
+                      const pos = retailIds.indexOf(id)
+                      return pos >= 0 ? `Khách lẻ ${pos + 1}` : 'Khách lẻ'
+                    })()
+
+                return (
                   <Pressable
-                    style={{ marginLeft: 8, padding: 4, borderRadius: 20 }}
-                    onPress={() => {
-                      toast.confirm({
-                        title: 'Hủy đơn',
-                        message: `Bạn có chắc chắn muốn hủy ${label} không?`,
-                        onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id }),
-                      })
+                    key={id}
+                    onPress={() => posActor?.send({ type: 'SWITCH_TAB', id })}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      minWidth: 200,
+                      paddingHorizontal: 24,
+                      paddingVertical: 20,
+                      borderTopLeftRadius: 12,
+                      borderTopRightRadius: 12,
+                      borderWidth: 1,
+                      borderBottomWidth: isActive ? 0 : 1,
+                      marginBottom: isActive ? -1 : 0,
+                      zIndex: isActive ? 10 : 0,
+                      backgroundColor: isActive ? COLORS.surface[50] : COLORS.surface[400],
+                      borderColor: isActive ? COLORS.outline.default : 'transparent',
                     }}
                   >
-                    <X size={16} color={isActive ? COLORS.neutral[300] : COLORS.neutral[400]} />
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 18,
+                        fontFamily: 'Manrope-Bold',
+                        fontWeight: '700',
+                        color: isActive ? COLORS.surface.on : COLORS.neutral[400],
+                      }}
+                      numberOfLines={1}
+                    >
+                      {label}
+                    </Text>
+                    <Pressable
+                      style={{ marginLeft: 8, padding: 4, borderRadius: 20 }}
+                      onPress={() => {
+                        toast.confirm({
+                          title: 'Hủy đơn',
+                          message: `Bạn có chắc chắn muốn hủy ${label} không?`,
+                          onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id }),
+                        })
+                      }}
+                    >
+                      <X size={16} color={isActive ? COLORS.error.default : COLORS.neutral[400]} />
+                    </Pressable>
                   </Pressable>
-                </Pressable>
-              )
-            })}
+                )
+              })}
           </View>
         </ScrollView>
 
@@ -95,7 +124,7 @@ export default function OrderListSession() {
           variant="outline"
           className="ml-6 h-14 rounded-xl border-outline bg-surface-50 px-6"
           textClassName="text-base font-bold text-neutral-600"
-          onPress={() => posActor?.send({ type: 'ADD_TAB' })}
+          onPress={() => addTabSheetRef.current?.open()}
         />
       </View>
 
@@ -103,19 +132,20 @@ export default function OrderListSession() {
       <View className="relative z-20 flex-row items-center justify-between border-b border-outline bg-white px-8 py-5">
         <ProductSearch />
 
-        <IconButton
-          icon={Trash2}
-          size={22}
-          color={COLORS.error.default}
-          className={`ml-5 h-12 w-12 rounded-xl bg-error-container ${cart.length === 0 ? 'hidden' : ''}`}
-          onPress={() => {
-            toast.confirm({
-              title: 'Xóa giỏ hàng',
-              message: 'Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?',
-              onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id: activeCartId! }),
-            })
-          }}
-        />
+        {cart.length > 0 && (
+          <Pressable
+            className="ml-5 h-12 w-12 items-center justify-center rounded-xl bg-error-container"
+            onPress={() => {
+              toast.confirm({
+                title: 'Xóa giỏ hàng',
+                message: 'Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?',
+                onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id: activeCartId! }),
+              })
+            }}
+          >
+            <Trash2 size={22} color={COLORS.error.default} />
+          </Pressable>
+        )}
       </View>
 
       {/* Cart Table */}
@@ -178,15 +208,14 @@ export default function OrderListSession() {
                   {formatCurrency(itemTotal)}
                 </Text>
                 <View className="w-16 items-center justify-center">
-                  <IconButton
-                    icon={Trash2}
-                    size={20}
-                    color={COLORS.error.default}
-                    className="bg-transparent opacity-40"
+                  <Pressable
+                    className="h-10 w-10 items-center justify-center"
                     onPress={() =>
                       cartActor?.send({ type: 'REMOVE_ITEM', productId: item.product.id })
                     }
-                  />
+                  >
+                    <Trash2 size={20} color={COLORS.error.default} style={{ opacity: 0.4 }} />
+                  </Pressable>
                 </View>
               </View>
             )
@@ -201,6 +230,9 @@ export default function OrderListSession() {
           )}
         />
       </View>
+
+      {/* AddTab Sheet */}
+      <AddTabSheet ref={addTabSheetRef} onSelect={handleAddTab} />
     </View>
   )
 }

@@ -6,12 +6,16 @@ import { AuthAPI } from '@/shared/features/auth'
 import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
 import { useNoteStore } from '@/shared/features/note'
 import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
+import type { ReconciliationResult } from '@/shared/features/order/api/remote/order.remote.api'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import {
   CloseShiftReceiptTemplate,
   type CloseShiftReceiptData,
 } from '@/shared/features/order/components/close-shift-receipt-template'
+import { ReconciliationReceiptTemplate } from '@/shared/features/order/components/reconciliation-receipt-template'
+import { ReconciliationModal, type ReconciliationModalRef } from '@/shared/features/order'
 import { RefundReceiptTemplate } from '@/shared/features/order/components/refund-receipt-template'
+
 import {
   getPortablePosUrl,
   setPortablePosUrl,
@@ -42,6 +46,16 @@ export default function DevControlScreen() {
   const receiptPrintRef10 = useRef<View>(null)
   const refundPrintRef = useRef<View>(null)
   const closeShiftPrintRef = useRef<View>(null)
+  const reconciliationPrintRef = useRef<View>(null)
+
+  // ─── Reconciliation Test ───────────────────────────────────────────────────
+  const [recoPartnerId, setRecoPartnerId] = useState('')
+  const [recoAffiliateId, setRecoAffiliateId] = useState('')
+  const [recoDateFrom, setRecoDateFrom] = useState(() => new Date().toISOString().split('T')[0])
+  const [recoDateTo, setRecoDateTo] = useState(() => new Date().toISOString().split('T')[0])
+  const [recoResult, setRecoResult] = useState<ReconciliationResult | null>(null)
+  const [isRecoLoading, setIsRecoLoading] = useState(false)
+  const devReconciliationModalRef = useRef<ReconciliationModalRef>(null)
 
   const [posUrlInput, setPosUrlInput] = useState(getPortablePosUrl())
   const isPosConnected = useConnectionStore((state) => state.isPosConnected)
@@ -387,6 +401,51 @@ export default function DevControlScreen() {
     }
   }
 
+  const handleTestExchangeAPI = async () => {
+    try {
+      toast.info('Đang tìm đơn hàng để gửi request test...')
+      let orderId = '019eb2e7-79ff-7325-bfb8-3f629fdbfed4'
+
+      const orders = await database.collections.get<OrderModel>('orders').query().fetch()
+      if (orders.length > 0) {
+        orderId = orders[0].id
+      } else {
+        const remoteOrdersRes = await OrderRemoteAPI.getOrders({ limit: 5 })
+        if (remoteOrdersRes.success && remoteOrdersRes.data && remoteOrdersRes.data.length > 0) {
+          orderId = remoteOrdersRes.data[0].id
+        }
+      }
+
+      toast.info(`Đang gọi POST /v1/pos/orders/${orderId}/exchange để kiểm tra API...`)
+
+      const response = await AxiosService.getInstance().post(`/v1/pos/orders/${orderId}/exchange`, {
+        idempotencyKey: `probe-${Date.now()}`,
+        reason: 'PROBE_API',
+        shift_id: '019eb2e7-79ff-7325-bfb8-3f629fdbfed4',
+        staff_id: '019eb2e7-79ff-7325-bfb8-3f629fdbfed4',
+        returned_lines: [],
+        replacement_lines: [],
+      })
+
+      console.log('Exchange API Response:', response.data)
+      toast.success('API tồn tại! Phản hồi thành công. Xem console log.', 'Test Exchange API')
+    } catch (error: any) {
+      console.log('Exchange API Error:', error)
+      const status = error.response?.status
+      const errData = error.response?.data
+      if (status === 404) {
+        toast.error('API chưa được triển khai (404 Not Found)', 'Test Exchange API')
+      } else if (status === 405) {
+        toast.error('API sai Method (405 Method Not Allowed)', 'Test Exchange API')
+      } else {
+        toast.warning(
+          `API có phản hồi (${status}): ${errData?.message || errData?.error || error.message}`,
+          'Test Exchange API',
+        )
+      }
+    }
+  }
+
   const handleTestFetchChanges = async () => {
     try {
       setIsFetchingChanges(true)
@@ -628,6 +687,98 @@ export default function DevControlScreen() {
     })
 
     toast.info('Báo thức sẽ nổ chuông sau đúng 3 giây nữa!')
+  }
+
+  const handleTestReconciliation = async () => {
+    const partnerIdTrimmed = recoPartnerId.trim()
+    const affiliateIdTrimmed = recoAffiliateId.trim()
+
+    if (!partnerIdTrimmed && !affiliateIdTrimmed) {
+      toast.warning('Vui lòng nhập Partner ID hoặc Affiliate ID để đối soát.')
+      return
+    }
+    if (!recoDateFrom || !recoDateTo) {
+      toast.warning('Vui lòng nhập đầy đủ Từ ngày và Đến ngày.')
+      return
+    }
+
+    setIsRecoLoading(true)
+    setRecoResult(null)
+    try {
+      const dateFrom = new Date(recoDateFrom)
+      const dateTo = new Date(recoDateTo)
+      toast.info('Đang gọi API đối soát...')
+      const result = await OrderRemoteAPI.getReconciliation({
+        partnerId: partnerIdTrimmed || null,
+        affiliateId: affiliateIdTrimmed || null,
+        dateFrom,
+        dateTo,
+      })
+      setRecoResult(result)
+      toast.success(
+        `Đối soát thành công! ${result.totalOrdersCount} đơn — Hoa hồng: ${result.commissionAmount.toLocaleString('vi-VN')}đ`,
+        'Đối soát',
+      )
+    } catch (error: any) {
+      const status = error?.status ?? error?.response?.status
+      const msg = error?.message || 'Lỗi không xác định'
+      toast.error(`${status ? `[${status}] ` : ''}${msg}`, 'Lỗi đối soát')
+    } finally {
+      setIsRecoLoading(false)
+    }
+  }
+
+  const handleOpenReconciliationModal = () => {
+    const partnerIdTrimmed = recoPartnerId.trim()
+    const affiliateIdTrimmed = recoAffiliateId.trim()
+
+    if (!partnerIdTrimmed && !affiliateIdTrimmed) {
+      toast.warning('Vui lòng nhập Partner ID hoặc Affiliate ID.')
+      return
+    }
+    if (!recoDateFrom || !recoDateTo) {
+      toast.warning('Vui lòng nhập đầy đủ Từ ngày và Đến ngày.')
+      return
+    }
+
+    devReconciliationModalRef.current?.open({
+      ownerName: partnerIdTrimmed ? 'Đại lý Test' : 'CTV/HDV Test',
+      ownerCode: partnerIdTrimmed || affiliateIdTrimmed,
+      ownerType: partnerIdTrimmed ? 'agent' : 'collaborator',
+      partnerId: partnerIdTrimmed || null,
+      affiliateId: affiliateIdTrimmed || null,
+      dateFrom: new Date(recoDateFrom),
+      dateTo: new Date(recoDateTo),
+    })
+  }
+
+  const handleOpenMockReconciliationModal = () => {
+    const partnerIdTrimmed = recoPartnerId.trim() || 'MOCK-PARTNER-101'
+    const affiliateIdTrimmed = recoAffiliateId.trim() || 'MOCK-AFFILIATE-202'
+    const dateFrom = recoDateFrom ? new Date(recoDateFrom) : new Date()
+    const dateTo = recoDateTo ? new Date(recoDateTo) : new Date()
+
+    devReconciliationModalRef.current?.open({
+      ownerName: recoPartnerId.trim() ? 'Đại lý Test (Mock)' : 'CTV/HDV Test (Mock)',
+      ownerCode: recoPartnerId.trim() ? partnerIdTrimmed : affiliateIdTrimmed,
+      ownerType: recoPartnerId.trim() ? 'agent' : 'collaborator',
+      partnerId: partnerIdTrimmed,
+      affiliateId: affiliateIdTrimmed,
+      dateFrom,
+      dateTo,
+      mockData: {
+        ownerName: recoPartnerId.trim() ? 'Đại lý Test (Mock)' : 'CTV/HDV Test (Mock)',
+        ownerCode: recoPartnerId.trim() ? partnerIdTrimmed : affiliateIdTrimmed,
+        ownerType: recoPartnerId.trim() ? 'agent' : 'collaborator',
+        printTime: new Date().toLocaleString('vi-VN'),
+        totalOrdersCount: 25,
+        totalRevenue: 5000000,
+        commissionRate: 0.1,
+        commissionAmount: 500000,
+        dateFrom: dateFrom.toLocaleDateString('vi-VN'),
+        dateTo: dateTo.toLocaleDateString('vi-VN'),
+      },
+    })
   }
 
   return (
@@ -1033,6 +1184,11 @@ export default function DevControlScreen() {
             label="Test API: Tra cứu đơn hàng (/v1/orders/lookup)"
             className="bg-indigo-600"
             onPress={handleTestOrderLookup}
+          />
+          <Button
+            label="Test API: Đổi hàng (/v1/pos/orders/{id}/exchange)"
+            className="bg-red-600"
+            onPress={handleTestExchangeAPI}
           />
           <Button
             label="Test API: Đồng bộ sản phẩm (fetchChanges)"
@@ -1511,6 +1667,162 @@ export default function DevControlScreen() {
         </View>
       </View>
 
+      {/* 5. Reconciliation Receipt Preview */}
+      <Text className="text-headline-sm mb-4 font-bold text-primary">
+        Reconciliation Receipt Preview
+      </Text>
+      <View className="mb-12 items-center justify-center rounded-[32px] bg-surface-100 py-10 shadow-sm">
+        <View
+          collapsable={false}
+          ref={reconciliationPrintRef}
+          className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-xl"
+        >
+          <ReconciliationReceiptTemplate
+            data={{
+              ownerName: 'Nguyễn Thị Mai',
+              ownerCode: 'CTV-101',
+              ownerType: 'collaborator',
+              printTime: new Date().toLocaleString('vi-VN'),
+              totalOrdersCount: 2,
+              totalRevenue: 350000,
+              commissionRate: 0.1,
+              commissionAmount: 35000,
+              dateFrom: '01/06/2026',
+              dateTo: '30/06/2026',
+            }}
+          />
+        </View>
+        <Text className="text-surface-onVariant mt-4 text-xs font-bold uppercase tracking-widest">
+          Mẫu biên nhận đối soát thực tế (Width: 576px)
+        </Text>
+
+        <View className="mt-4 w-full flex-row gap-3 px-6">
+          <Button
+            label="In Phiếu Đối Soát"
+            variant="outline"
+            className="flex-1 border-primary"
+            textClassName="text-primary font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrint(reconciliationPrintRef, 'biên nhận đối soát')}
+          />
+          <Button
+            label="In 2 liên"
+            variant="primary"
+            className="flex-1 bg-primary"
+            textClassName="text-white font-bold"
+            loading={isPrinting}
+            disabled={isPrinting}
+            onPress={() => handlePrintDoubleCopy(reconciliationPrintRef, 'biên nhận đối soát')}
+          />
+        </View>
+      </View>
+
+      {/* 6. Reconciliation API Test */}
+      <Container className="mb-6 border border-teal-600/20 bg-teal-600/5 p-4">
+        <Text className="text-title-md mb-1 font-black uppercase tracking-wider text-teal-700">
+          🧾 Test API Đối Soát (Reconciliation)
+        </Text>
+        <Text className="mb-4 text-body-xs text-muted">
+          Nhập Partner ID hoặc Affiliate ID + khoảng ngày. API tự tính doanh số &amp; hoa hồng.
+        </Text>
+
+        <View className="gap-3">
+          <Input
+            value={recoPartnerId}
+            onChangeText={setRecoPartnerId}
+            placeholder="Partner ID (Đại lý) — để trống nếu dùng Affiliate ID"
+            className="h-[48px] bg-white text-sm"
+          />
+          <Input
+            value={recoAffiliateId}
+            onChangeText={setRecoAffiliateId}
+            placeholder="Affiliate ID (CTV / HDV) — để trống nếu dùng Partner ID"
+            className="h-[48px] bg-white text-sm"
+          />
+          <View className="flex-row gap-3">
+            <Input
+              value={recoDateFrom}
+              onChangeText={setRecoDateFrom}
+              placeholder="Từ ngày (YYYY-MM-DD)"
+              className="h-[48px] flex-1 bg-white text-sm"
+            />
+            <Input
+              value={recoDateTo}
+              onChangeText={setRecoDateTo}
+              placeholder="Đến ngày (YYYY-MM-DD)"
+              className="h-[48px] flex-1 bg-white text-sm"
+            />
+          </View>
+
+          <Button
+            label="Gọi API Đối Soát"
+            className="bg-teal-600"
+            loading={isRecoLoading}
+            onPress={handleTestReconciliation}
+          />
+
+          <View className="flex-row gap-3">
+            <Button
+              label="Mở Modal Đối Soát (Thật)"
+              className="flex-1 bg-teal-700"
+              onPress={handleOpenReconciliationModal}
+            />
+            <Button
+              label="Mở Modal Đối Soát (Mock)"
+              className="flex-1 bg-sky-600"
+              onPress={handleOpenMockReconciliationModal}
+            />
+          </View>
+
+          {recoResult && (
+            <View className="mt-2 gap-2 rounded-xl border border-teal-200 bg-white p-4">
+              <Text className="mb-1 text-title-sm font-bold text-teal-700">Kết quả đối soát</Text>
+              <View className="flex-row justify-between border-b border-teal-100 py-1">
+                <Text className="text-body-sm text-neutral-500">Mã</Text>
+                <Text className="text-body-sm font-bold text-surface-on">
+                  {recoResult.ownerCode}
+                </Text>
+              </View>
+              <View className="flex-row justify-between border-b border-teal-100 py-1">
+                <Text className="text-body-sm text-neutral-500">Từ ngày</Text>
+                <Text className="text-body-sm font-bold text-surface-on">
+                  {recoResult.dateFrom}
+                </Text>
+              </View>
+              <View className="flex-row justify-between border-b border-teal-100 py-1">
+                <Text className="text-body-sm text-neutral-500">Đến ngày</Text>
+                <Text className="text-body-sm font-bold text-surface-on">{recoResult.dateTo}</Text>
+              </View>
+              <View className="flex-row justify-between border-b border-teal-100 py-1">
+                <Text className="text-body-sm text-neutral-500">Tổng đơn</Text>
+                <Text className="text-body-sm font-bold text-surface-on">
+                  {recoResult.totalOrdersCount} đơn
+                </Text>
+              </View>
+              <View className="flex-row justify-between border-b border-teal-100 py-1">
+                <Text className="text-body-sm text-neutral-500">Tổng doanh số</Text>
+                <Text className="text-body-md font-black text-success">
+                  {recoResult.totalRevenue.toLocaleString('vi-VN')}đ
+                </Text>
+              </View>
+              <View className="flex-row justify-between border-b border-teal-100 py-1">
+                <Text className="text-body-sm text-neutral-500">Tỷ lệ hoa hồng</Text>
+                <Text className="text-body-md font-bold text-primary">
+                  {(recoResult.commissionRate * 100).toFixed(1)}%
+                </Text>
+              </View>
+              <View className="flex-row justify-between py-1">
+                <Text className="text-body-sm text-neutral-500">Hoa hồng</Text>
+                <Text className="text-title-md font-black text-primary">
+                  {recoResult.commissionAmount.toLocaleString('vi-VN')}đ
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+      </Container>
+
       <ModalBase
         visible={isSyncResultVisible}
         onClose={() => setIsSyncResultVisible(false)}
@@ -1571,6 +1883,7 @@ export default function DevControlScreen() {
           </View>
         </View>
       </ModalBase>
+      <ReconciliationModal ref={devReconciliationModalRef} />
     </ScrollView>
   )
 }

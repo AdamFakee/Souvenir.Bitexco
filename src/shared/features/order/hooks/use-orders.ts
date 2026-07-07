@@ -11,15 +11,30 @@ export const useOrders = (params: {
   dateTo?: Date | null
   /** Mã nhân viên để lọc đơn hàng. null = tất cả nhân viên */
   staffId?: string | null
+  affiliateId?: string | null
+  partnerId?: string | null
+  /** Phân loại chế độ xem guide: 'collaborator' | 'agent' — dùng để invalidate cache khi switch tab */
+  guideType?: 'collaborator' | 'agent' | null
 }) => {
-  const { status, searchQuery, dateFrom, dateTo, staffId } = params
+  const { status, searchQuery, dateFrom, dateTo, staffId, affiliateId, partnerId, guideType } =
+    params
   const normalizedSearchQuery = searchQuery?.trim() || ''
   const [debouncedSearchQuery] = useDebounce(normalizedSearchQuery, 300)
   const dateFromKey = dateFrom?.toISOString() || null
   const dateToKey = dateTo?.toISOString() || null
 
   const query = useInfiniteQuery({
-    queryKey: ['orders', status, debouncedSearchQuery, dateFromKey, dateToKey, staffId],
+    queryKey: [
+      'orders',
+      status,
+      debouncedSearchQuery,
+      dateFromKey,
+      dateToKey,
+      staffId,
+      affiliateId,
+      partnerId,
+      guideType ?? null,
+    ],
     queryFn: async ({ pageParam = 1 }) => {
       return await OrderRemoteAPI.getOrders({
         status,
@@ -29,6 +44,9 @@ export const useOrders = (params: {
         page: pageParam as number,
         limit: 20,
         staffId,
+        affiliateId,
+        partnerId,
+        agentType: guideType,
       })
     },
     initialPageParam: 1,

@@ -25,7 +25,18 @@ const STAGES = ['Khởi tạo', 'Kết nối', 'Quẹt thẻ', 'Hoàn tất']
 export const PortablePaymentPopup = memo(
   forwardRef<PaymentPopupRef, PaymentPopupProps>(
     (
-      { total, discount, items, staffId, shiftId, staffName, appliedVoucher, printRef, onSuccess },
+      {
+        total,
+        discount,
+        items,
+        staffId,
+        shiftId,
+        staffName,
+        appliedVoucher,
+        printRef,
+        onSuccess,
+        affiliate,
+      },
       ref,
     ) => {
       const [visible, setVisible] = useState(false)
@@ -54,6 +65,8 @@ export const PortablePaymentPopup = memo(
           sessionId: shiftId ?? 'unknown',
           appliedVoucher: appliedVoucher || null,
           printRef,
+          affiliateId: affiliate?.id ?? null,
+          agentType: affiliate?.agentType ?? null,
         },
       })
 
@@ -171,6 +184,8 @@ export const PortablePaymentPopup = memo(
                 sessionId: shiftId ?? 'unknown',
                 appliedVoucher: appliedVoucher || null,
                 printRef,
+                affiliateId: affiliate?.id ?? null,
+                agentType: affiliate?.agentType ?? null,
               },
             })
 
@@ -182,7 +197,18 @@ export const PortablePaymentPopup = memo(
             actorRef.send({ type: 'CANCEL' })
           },
         }),
-        [actorRef, appliedVoucher, discount, items, printRef, reset, shiftId, staffId, total],
+        [
+          actorRef,
+          affiliate,
+          appliedVoucher,
+          discount,
+          items,
+          printRef,
+          reset,
+          shiftId,
+          staffId,
+          total,
+        ],
       )
 
       useEffect(() => {

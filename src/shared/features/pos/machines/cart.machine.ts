@@ -1,6 +1,6 @@
 import { toast } from '@/shared/store/use-alert-store'
 import { assign, sendParent, setup } from 'xstate'
-import { AppliedVoucher, CartItem, CartProduct } from '../types/cart.types'
+import { Affiliate, AppliedVoucher, CartItem, CartProduct } from '../types/cart.types'
 
 export interface CartContext {
   id: string
@@ -9,6 +9,8 @@ export interface CartContext {
   discount: number
   appliedVoucher: AppliedVoucher | null
   note: string
+  /** HDV / Đại lý gắn với phiên. null = khách lẻ */
+  affiliate: Affiliate | null
 }
 
 export type CartEvent =
@@ -19,6 +21,8 @@ export type CartEvent =
   | { type: 'APPLY_VOUCHER'; voucher: AppliedVoucher }
   | { type: 'REMOVE_VOUCHER' }
   | { type: 'SET_NOTE'; note: string }
+  | { type: 'SET_AFFILIATE'; affiliate: Affiliate | null }
+  | { type: 'CLEAR_CART' }
 
 export const cartMachine = setup({
   types: {
@@ -36,6 +40,7 @@ export const cartMachine = setup({
     discount: 0,
     appliedVoucher: null,
     note: '',
+    affiliate: null,
     ...input.initialContext,
   }),
   states: {
@@ -178,6 +183,25 @@ export const cartMachine = setup({
           actions: [
             assign({
               note: ({ event }) => event.note,
+            }),
+            sendParent({ type: 'CART_UPDATED' }),
+          ],
+        },
+        // Gắn / đổi HDV hoặc Đại lý cho phiên
+        SET_AFFILIATE: {
+          actions: [
+            assign({
+              affiliate: ({ event }) => event.affiliate,
+              label: ({ event }) => event.affiliate?.name ?? '',
+            }),
+            sendParent({ type: 'CART_UPDATED' }),
+          ],
+        },
+        // Xóa sạch giỏ hàng, giữ nguyên affiliate/voucher
+        CLEAR_CART: {
+          actions: [
+            assign({
+              items: {},
             }),
             sendParent({ type: 'CART_UPDATED' }),
           ],

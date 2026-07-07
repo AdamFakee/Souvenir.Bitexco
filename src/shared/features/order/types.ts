@@ -1,5 +1,27 @@
-import { OrderStatus } from '@/shared/lib/database'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
+import { Affiliate } from '@/shared/features/pos'
+
+export interface Partner {
+  id: string
+  code: string
+  nameVi: string
+  nameEn: string | null
+  companyName: string
+  taxId: string | null
+  address: string | null
+  representative: string | null
+  representativeTitle: string | null
+  phone: string | null
+  email: string | null
+  debtCode: string | null
+  sapCode: string | null
+  invoiceEmail: string | null
+  otherEmail: string | null
+  allowCredit: boolean
+  creditLimit: number | null
+  isActive: boolean
+  version: number
+}
 
 export interface RefundReceiptLine {
   productId: string
@@ -115,4 +137,9 @@ export interface IOrder {
   staffName?: string | null
   totalRefunded?: number
   refunds?: any[]
+  agentType?: 'collaborator' | 'agent' | 'retail'
+  affiliateId?: string | null
+  partnerId?: string | null
+  affiliate?: Affiliate | null
+  partner?: Partner | null
 }

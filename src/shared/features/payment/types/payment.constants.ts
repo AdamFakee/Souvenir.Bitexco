@@ -13,7 +13,7 @@ import { COLORS } from '@/shared/constants'
  * - `card_bidv` → Quẹt thẻ qua máy POS EDC (Ingenico BIDV)
  * - `mix`       → Kết hợp (Tiền mặt + Thẻ/QR)
  */
-export type PaymentMethodCode = 'cash' | 'qr_bidv' | 'card_bidv' | 'mix'
+export type PaymentMethodCode = 'cash' | 'qr_bidv' | 'card_bidv' | 'mix' | 'cong_no'
 
 // ---------------------------------------------------------------------------
 // Label map
@@ -24,6 +24,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodCode, string> = {
   qr_bidv: 'QR Code',
   card_bidv: 'Thẻ POS',
   mix: 'Hỗn hợp',
+  cong_no: 'Công nợ',
 }
 
 export const PAYMENT_METHOD_LABELS_EN: Record<PaymentMethodCode, string> = {
@@ -31,6 +32,7 @@ export const PAYMENT_METHOD_LABELS_EN: Record<PaymentMethodCode, string> = {
   qr_bidv: 'QR Code',
   card_bidv: 'Card',
   mix: 'Mixed',
+  cong_no: 'Debt',
 }
 
 // ---------------------------------------------------------------------------
@@ -64,6 +66,11 @@ export const PAYMENT_METHOD_STYLES: Record<PaymentMethodCode, PaymentMethodStyle
     color: COLORS.surface.onVariant,
     bg: COLORS.surface[100],
   },
+  cong_no: {
+    label: PAYMENT_METHOD_LABELS.cong_no,
+    color: '#b45309',
+    bg: '#fef3c7',
+  },
 }
 
 /** Trả về style của một phương thức thanh toán, fallback về muted nếu không nhận ra */
@@ -86,4 +93,5 @@ export const PAYMENT_CHART_COLORS: Record<PaymentMethodCode, string> = {
   qr_bidv: '#db2777',
   card_bidv: '#d97706',
   mix: '#6366f1',
+  cong_no: '#b45309',
 }

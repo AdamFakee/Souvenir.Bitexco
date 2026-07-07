@@ -19,7 +19,7 @@ interface OrderFilterState {
 export const useOrderFilterStore = create<OrderFilterState>((set) => ({
   searchQuery: '',
   status: ['FULFILLED', 'COMPLETED'],
-  dateFrom: null,
+  dateFrom: new Date(),
   dateTo: new Date(),
   staffId: null,
 

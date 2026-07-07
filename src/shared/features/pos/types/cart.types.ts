@@ -18,9 +18,30 @@ export type CartItem = {
   discountAmount?: number
 }
 
+/** Loại đối tượng được gắn vào phiên bán hàng */
+export type AgentType = 'retail' | 'collaborator' | 'agent'
+
+/** HDV / Cộng tác viên / Đại lý được gắn vào phiên */
+export type Affiliate = {
+  id: string
+  code: string
+  name: string
+  phone: string
+  isDebt: boolean
+  /** Loại: collaborator (cộng tác viên) | agent (đại lý, được nợ) */
+  agentType: AgentType
+  creditLimit?: number | null
+  representative?: string | null
+  representativeTitle?: string | null
+  companyName?: string | null
+  isActive: boolean
+}
+
 export type AppliedVoucher = {
   code: string
-  percent: number
-  maxDiscountAmount?: number
-  applicableVariantIds?: string[] // Danh sách ID biến thể sản phẩm được áp dụng
+  voucherType: 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING' | 'BUY_X_GET_Y'
+  discountValue: number
+  minOrderValue: number | null
+  maxDiscountAmount: number | null
+  applicableVariantIds: string[] | null // Danh sách ID biến thể sản phẩm được áp dụng
 }

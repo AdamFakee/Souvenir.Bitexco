@@ -34,6 +34,7 @@ export const QrPaymentPopup = memo(
         activeSessionId,
         printRef,
         onSuccess,
+        affiliate,
       },
       ref,
     ) => {
@@ -55,6 +56,8 @@ export const QrPaymentPopup = memo(
           appliedVoucher: appliedVoucher || null,
           printRef,
           tenantConfig,
+          affiliateId: affiliate?.id ?? null,
+          agentType: affiliate?.agentType ?? null,
         },
       })
 
@@ -226,6 +229,8 @@ export const QrPaymentPopup = memo(
               appliedVoucher: appliedVoucher || null,
               printRef,
               tenantConfig,
+              affiliateId: affiliate?.id ?? null,
+              agentType: affiliate?.agentType ?? null,
             }
 
             actorRef.send({ type: 'START', input: freshInput })

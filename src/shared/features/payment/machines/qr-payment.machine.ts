@@ -4,9 +4,10 @@ import {
   PosCartLine,
   PosCheckoutRequest,
 } from '@/shared/features/order/api/remote/order.remote.api'
-import { AppliedVoucher, CartItem } from '@/shared/features/pos'
+import { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 
 import { PrinterService } from '@/shared/services'
+import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
@@ -19,7 +20,6 @@ import {
 import { PAYMENT_ERROR_CODES, PaymentErrorCode, PaymentResult } from '../types'
 
 export interface QRPaymentContext {
-  /** Input Data */
   total: number
   discount: number
   items: CartItem[]
@@ -29,8 +29,9 @@ export interface QRPaymentContext {
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<any>
   tenantConfig?: TenantConfig | null
+  affiliateId?: string | null
+  agentType?: AgentType | null
 
-  /** Processing Data */
   orderId: string | null
   paymentId: string | null
   qrContent: string | null
@@ -62,6 +63,8 @@ export type QRPaymentInput = {
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<any>
   tenantConfig?: TenantConfig | null
+  affiliateId?: string | null
+  agentType?: AgentType | null
 }
 
 const MAX_RETRIES = 3
@@ -97,6 +100,11 @@ export const qrPaymentMachine = setup({
         }
       })
 
+      const partnerId = input.agentType === 'agent' ? (input.affiliateId ?? null) : null
+      const affiliateId = input.agentType !== 'agent' ? (input.affiliateId ?? null) : null
+      const randomPart = Math.random().toString(36).slice(2)
+      const clientIdempotencyKey = `checkout-${Date.now()}-${randomPart}`
+
       const payload: PosCheckoutRequest = {
         cashSessionId: input.shiftId,
         customerId: null,
@@ -116,6 +124,10 @@ export const qrPaymentMachine = setup({
         customerName: null,
         customerTaxId: null,
         customerAddress: null,
+        affiliateId,
+        partnerId,
+        clientIdempotencyKey,
+        agentType: input.agentType ?? null,
       }
 
       const response = await OrderRemoteAPI.checkout(payload)
@@ -202,7 +214,8 @@ export const qrPaymentMachine = setup({
         if (err && typeof err === 'object') {
           const axiosErr = err as any
           if (axiosErr.response?.data) {
-            errMsg = axiosErr.response.data.error || axiosErr.response.data.message || errMsg
+            const code = axiosErr.response.data.error || axiosErr.response.data.message
+            errMsg = getOrderErrorMessage(code) || code || errMsg
           }
         }
         if (
@@ -245,6 +258,8 @@ export const qrPaymentMachine = setup({
           appliedVoucher: event.input.appliedVoucher,
           printRef: event.input.printRef,
           tenantConfig: event.input.tenantConfig,
+          affiliateId: event.input.affiliateId,
+          agentType: event.input.agentType,
         }
       }
 

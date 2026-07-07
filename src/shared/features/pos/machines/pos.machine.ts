@@ -1,6 +1,6 @@
 import { ActorRefFrom, assign, enqueueActions, setup } from 'xstate'
 import { cashPaymentMachine, qrPaymentMachine } from '../../payment/machines'
-import { CartProduct } from '../types/cart.types'
+import { Affiliate } from '../types/cart.types'
 import { CartContext, cartMachine } from './cart.machine'
 
 export interface PosContext {
@@ -10,17 +10,21 @@ export interface PosContext {
 }
 
 export type PosEvent =
-  | { type: 'ADD_TAB' }
+  | { type: 'ADD_TAB'; affiliate?: Affiliate }
   | { type: 'REMOVE_TAB'; id: string }
   | { type: 'SWITCH_TAB'; id: string }
   | { type: 'PRINT_RECEIPT' }
   | { type: 'CART_UPDATED' }
   | { type: 'ADD_ITEM'; product: any }
 
-const createCartMeta = (num: number) => ({
-  id: `cart-${num}`,
-  label: `Phiên #${num}`,
-})
+const createCartMeta = (affiliate?: Affiliate) => {
+  const id = `cart-${Date.now()}`
+  const label = affiliate ? affiliate.name : 'Khách lẻ'
+  return { id, label }
+}
+
+/** ID của tab Lẻ mặc định */
+const DEFAULT_CART_ID = 'cart-default'
 
 export const posMachine = setup({
   actors: {
@@ -43,24 +47,21 @@ export const posMachine = setup({
     let nextCartNumber = 1
     let activeCartId: string | null = null
 
+    // luôn spawn tab Lẻ mặc định
+    const defaultCart = spawn('cartMachine', {
+      id: DEFAULT_CART_ID,
+      input: { id: DEFAULT_CART_ID, label: 'Khách lẻ', initialContext: { affiliate: null } },
+    })
+    carts[DEFAULT_CART_ID] = defaultCart
+    activeCartId = DEFAULT_CART_ID
+
     if (input?.initialCarts) {
       input.initialCarts.forEach((c) => {
         const cartActor = spawn('cartMachine', {
           id: c.id,
-          input: {
-            id: c.id,
-            label: c.label,
-            initialContext: c.context,
-          },
+          input: { id: c.id, label: c.label, initialContext: { affiliate: null, ...c.context } },
         })
         carts[c.id] = cartActor
-
-        // Update nextCartNumber based on existing IDs like "cart-1", "cart-2"
-        const match = c.id.match(/cart-(\d+)/)
-        if (match) {
-          const num = parseInt(match[1], 10)
-          if (num >= nextCartNumber) nextCartNumber = num + 1
-        }
       })
 
       if (input.initialCarts.length > 0) {
@@ -75,19 +76,18 @@ export const posMachine = setup({
     }
   },
   on: {
-    // Tạo mới một phiên giỏ hàng (tab)
     ADD_TAB: {
-      actions: assign(({ context, spawn }) => {
-        const { id, label } = createCartMeta(context.nextCartNumber)
+      actions: assign(({ context, event, spawn }) => {
+        const affiliate = event.affiliate
+        const { id, label } = createCartMeta(affiliate)
         const newCart = spawn('cartMachine', {
           id,
-          input: { id, label },
+          input: { id, label, initialContext: { affiliate: affiliate ?? null } },
         })
 
         return {
           carts: { ...context.carts, [id]: newCart },
           activeCartId: id,
-          nextCartNumber: context.nextCartNumber + 1,
         }
       }),
     },
@@ -116,44 +116,38 @@ export const posMachine = setup({
         }),
       ],
     },
-    // Chuyển đổi giữa các phiên giỏ hàng hiện có
     SWITCH_TAB: {
       actions: assign({
         activeCartId: ({ event }) => event.id,
       }),
     },
-    PRINT_RECEIPT: {
-      // Logic for printing will be handled by UI or an external service listener
-    },
+    PRINT_RECEIPT: {},
     CART_UPDATED: {
-      // Just a trigger for persistence
       actions: [],
     },
-    // Thêm sản phẩm trực tiếp vào giỏ hàng từ màn hình chính
     ADD_ITEM: {
       actions: enqueueActions(({ context, event, enqueue }) => {
         let targetCartId = context.activeCartId
 
-        // 1. If no active tab, create one first in the queue
         if (!targetCartId) {
-          const nextNum = context.nextCartNumber
-          const { id: newId, label } = createCartMeta(nextNum)
-          targetCartId = newId
-
+          // fallback: spawn tab Lẻ nếu chưa có
+          targetCartId = DEFAULT_CART_ID
           enqueue.assign(({ context, spawn }) => {
             const newCart = spawn('cartMachine', {
-              id: newId,
-              input: { id: newId, label },
+              id: DEFAULT_CART_ID,
+              input: {
+                id: DEFAULT_CART_ID,
+                label: 'Khách lẻ 1',
+                initialContext: { affiliate: null },
+              },
             })
             return {
-              carts: { ...context.carts, [newId]: newCart },
-              activeCartId: newId,
-              nextCartNumber: nextNum + 1,
+              carts: { ...context.carts, [DEFAULT_CART_ID]: newCart },
+              activeCartId: DEFAULT_CART_ID,
             }
           })
         }
 
-        // 2. Forward the product to the active cart (newly created or existing)
         enqueue.sendTo(targetCartId, {
           type: 'ADD_ITEM',
           product: event.product,

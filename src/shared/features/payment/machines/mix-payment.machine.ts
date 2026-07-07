@@ -1,6 +1,6 @@
 import { TenantConfig } from '@/shared/features/app/types/app.types'
 import { PosCheckoutResult } from '@/shared/features/order/api/remote/order.remote.api'
-import { AppliedVoucher, CartItem } from '@/shared/features/pos'
+import { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 
 import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
@@ -34,7 +34,6 @@ import {
 // ─── Machine Types ────────────────────────────────────────────────────────────
 
 export interface MixPaymentContext {
-  /** Input Data */
   total: number
   discount: number
   items: CartItem[]
@@ -45,13 +44,13 @@ export interface MixPaymentContext {
   printRef?: React.RefObject<any>
   tenantConfig?: TenantConfig | null
   note?: string
+  affiliateId?: string | null
+  agentType?: AgentType | null
 
-  /** User Form Input */
   cashAmount: number
   nonCashAmount: number
   selectedMethod: 'qr' | 'card' | null
 
-  /** Processing Data */
   checkoutResult: PosCheckoutResult | null
   orderId: string | null
   orderCode: string | null
@@ -67,13 +66,11 @@ export interface MixPaymentContext {
     approvalCode?: string
   } | null
 
-  /** Error and Result */
   error: string | null
   errorCode: PaymentErrorCode | null
   retryCount: number
   paymentResult: PaymentResult | null
 
-  /** Manager Override PIN */
   managerAuth: { employeeCode: string; pin: string } | null
   managerAuthError: string | null
 }
@@ -110,6 +107,8 @@ export type MixPaymentInput = {
   printRef?: React.RefObject<any>
   tenantConfig?: TenantConfig | null
   note?: string
+  affiliateId?: string | null
+  agentType?: AgentType | null
 }
 
 const MAX_RETRIES = 3
@@ -400,6 +399,8 @@ export const mixPaymentMachine = setup({
           items: context.items,
           sessionId: context.sessionId,
           appliedVoucher: context.appliedVoucher,
+          affiliateId: context.affiliateId,
+          agentType: context.agentType,
           cashAmount: context.cashAmount,
           nonCashAmount: context.nonCashAmount,
           selectedMethod: context.selectedMethod!,

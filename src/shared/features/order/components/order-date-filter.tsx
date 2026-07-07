@@ -23,7 +23,7 @@ export const DateRangeFilter = memo(function DateRangeFilter({
         value={dateFrom}
         onChange={onDateFromChange}
         placeholder="Từ ngày"
-        className="w-64"
+        className="w-40"
         maxDate={dateTo || undefined}
       />
       <Text className="text-xl font-bold text-muted">đến</Text>
@@ -31,7 +31,7 @@ export const DateRangeFilter = memo(function DateRangeFilter({
         value={dateTo}
         onChange={onDateToChange}
         placeholder="Đến ngày"
-        className="w-64"
+        className="w-40"
         minDate={dateFrom || undefined}
       />
     </View>

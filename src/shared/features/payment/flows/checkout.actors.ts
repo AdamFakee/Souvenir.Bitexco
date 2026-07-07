@@ -4,7 +4,7 @@ import {
   PosCheckoutRequest,
   PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
-import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
+import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { fromPromise } from 'xstate'
 
 export type MixMethod = 'qr' | 'card'
@@ -14,6 +14,8 @@ export type CreateMixCheckoutInput = {
   items: CartItem[]
   sessionId: string
   appliedVoucher: AppliedVoucher | null
+  affiliateId?: string | null
+  agentType?: AgentType | null
 
   cashAmount: number
   nonCashAmount: number
@@ -57,6 +59,11 @@ export const createMixCheckoutActor = fromPromise(
             cardTerminalId: input.cardTerminalId ?? null,
           }
 
+    const partnerId = input.agentType === 'agent' ? (input.affiliateId ?? null) : null
+    const affiliateId = input.agentType !== 'agent' ? (input.affiliateId ?? null) : null
+    const randomPart = Math.random().toString(36).slice(2)
+    const clientIdempotencyKey = `checkout-${Date.now()}-${randomPart}`
+
     const payload: PosCheckoutRequest = {
       cashSessionId: input.sessionId,
       customerId: null,
@@ -77,6 +84,10 @@ export const createMixCheckoutActor = fromPromise(
       customerName: null,
       customerTaxId: null,
       customerAddress: null,
+      affiliateId,
+      partnerId,
+      clientIdempotencyKey,
+      agentType: input.agentType ?? null,
     }
 
     const checkoutResult = await OrderRemoteAPI.checkout(payload)
