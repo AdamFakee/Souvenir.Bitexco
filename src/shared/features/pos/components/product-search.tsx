@@ -35,17 +35,17 @@ export function ProductSearch() {
       <Pressable
         key={p.id}
         onPress={() => handleSelectItem(p)}
-        className="flex-row items-center justify-between border-b border-surface-200 px-10 py-8 active:bg-surface-100"
+        className="flex-row items-center justify-between border-b border-surface-200 px-6 py-5 active:bg-surface-100"
       >
         <View className="flex-1">
-          <Text className="text-2xl font-black text-surface-on">{p.name}</Text>
-          <Text className="mt-1 text-lg font-bold text-surface-on-variant">{p.sku}</Text>
+          <Text className="text-[18px] font-bold text-surface-on">{p.name}</Text>
+          <Text className="mt-1 text-base font-medium text-surface-on-variant">{p.sku}</Text>
         </View>
         <View className="items-end">
-          <Text className="text-2xl font-black text-primary" numberOfLines={1}>
+          <Text className="text-xl font-bold text-primary" numberOfLines={1}>
             {formatCurrency(p.price)}
           </Text>
-          <Text className="mt-1 text-base font-bold text-surface-on-variant">
+          <Text className="mt-1 text-sm text-surface-on-variant">
             Kho: {p.stock} {p.unitCode}
           </Text>
         </View>
@@ -64,6 +64,7 @@ export function ProductSearch() {
         onClear={handleClear}
         autoCorrect={false}
         autoCapitalize="none"
+        size="sm"
       />
 
       {/* Search Autocomplete / Loading */}
@@ -85,8 +86,8 @@ export function ProductSearch() {
           />
 
           <View
-            className="absolute left-0 right-0 top-full z-[999] mt-2 overflow-hidden rounded-[32px] border border-outline-variant bg-surface-50 shadow-2xl"
-            style={{ maxHeight: 650, elevation: 25 }}
+            className="absolute left-0 right-0 top-full z-[999] mt-2 overflow-hidden rounded-xl border border-outline-variant bg-surface-50 shadow-lg"
+            style={{ maxHeight: 400, elevation: 10 }}
           >
             {isLoading ? (
               <View className="p-2">

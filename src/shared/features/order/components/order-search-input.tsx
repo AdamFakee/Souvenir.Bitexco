@@ -12,6 +12,7 @@ export const OrderSearchInput = memo(function OrderSearchInput() {
       onChangeText={setSearchQuery}
       placeholder="Tìm kiếm đơn hàng..."
       containerClassName="flex-1"
+      size="sm"
     />
   )
 })

@@ -67,14 +67,14 @@ function SelectInner<T extends string = string>({
         onPress={handleToggle}
         disabled={disabled}
         className={cn(
-          'h-16 flex-row items-center justify-between rounded-xl border border-outline-variant bg-white px-5 active:opacity-80',
+          'h-11 flex-row items-center justify-between rounded-xl border border-outline-variant bg-white px-4 active:opacity-80',
           disabled && 'opacity-50',
           triggerClassName,
         )}
       >
         <Text
           className={cn(
-            'ml-3 flex-1 text-lg font-medium',
+            'ml-2 flex-1 text-base font-medium',
             isPlaceholder ? 'text-muted' : 'text-surface-on',
           )}
           numberOfLines={1}

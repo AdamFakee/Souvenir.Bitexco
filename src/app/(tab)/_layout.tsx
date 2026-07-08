@@ -57,7 +57,7 @@ const NoteSidebarButton = React.memo(() => {
         variant="xl"
         color={COLORS.surface[50]}
         onPress={() => handoverNotesModalRef.current?.open()}
-        className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+        className="h-14 w-full rounded-2xl border border-white/20 bg-white/10"
         badgeCount={pendingNotesCount}
         containerClassName="flex-1"
       />
@@ -91,7 +91,7 @@ const SyncSidebarButton = React.memo(() => {
       variant="xl"
       color={COLORS.surface[50]}
       onPress={syncNow}
-      className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+      className="h-14 w-full rounded-2xl border border-white/20 bg-white/10"
       disabled={isSyncing}
       badgeCount={unsyncedOrdersCount}
       containerClassName="flex-1"
@@ -143,7 +143,7 @@ const CustomSidebar = React.memo(
 
     return (
       <View
-        className="h-full w-[260px] flex-col justify-between bg-primary px-0"
+        className="h-full w-[230px] flex-col justify-between bg-primary px-0"
         style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 16 }}
       >
         <View>
@@ -200,7 +200,7 @@ const CustomSidebar = React.memo(
               <IconButton
                 variant="xl"
                 onPress={onOpenSettings}
-                className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+                className="h-14 w-full rounded-2xl border border-white/20 bg-white/10"
               >
                 <SettingIcon size={32} color={COLORS.surface[50]} />
               </IconButton>
@@ -216,7 +216,7 @@ const CustomSidebar = React.memo(
                 variant="xl"
                 color={COLORS.surface[50]}
                 onPress={handleLogout}
-                className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+                className="h-14 w-full rounded-2xl border border-white/20 bg-white/10"
               />
             </View>
           </View>
@@ -224,7 +224,7 @@ const CustomSidebar = React.memo(
           <Button
             label="KẾT CA"
             variant="outline"
-            className="h-16 w-full rounded-2xl border border-white/20 bg-white/10"
+            className="h-14 w-full rounded-2xl border border-white/20 bg-white/10"
             textClassName="text-white font-manrope text-[18px] font-bold leading-[26px]"
             onPress={onOpenCloseShift}
           />

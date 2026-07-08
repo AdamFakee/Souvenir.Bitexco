@@ -18,20 +18,20 @@ export const DateRangeFilter = memo(function DateRangeFilter({
   className,
 }: DateRangeFilterProps) {
   return (
-    <View className={`flex-row items-center gap-4 ${className ?? ''}`}>
+    <View className={`flex-row items-center gap-2 ${className ?? ''}`}>
       <DatePicker
         value={dateFrom}
         onChange={onDateFromChange}
         placeholder="Từ ngày"
-        className="w-40"
+        className="w-36"
         maxDate={dateTo || undefined}
       />
-      <Text className="text-xl font-bold text-muted">đến</Text>
+      <Text className="text-base font-bold text-muted">đến</Text>
       <DatePicker
         value={dateTo}
         onChange={onDateToChange}
         placeholder="Đến ngày"
-        className="w-40"
+        className="w-36"
         minDate={dateFrom || undefined}
       />
     </View>

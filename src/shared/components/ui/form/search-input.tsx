@@ -13,7 +13,7 @@ interface SearchInputProps extends Omit<TextInputProps, 'style'> {
   inputClassName?: string
   iconSize?: number
   onClear?: () => void
-  size?: 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg'
 }
 
 export const SearchInput = ({
@@ -29,7 +29,8 @@ export const SearchInput = ({
   ...props
 }: SearchInputProps) => {
   const isLarge = size === 'lg'
-  const defaultIconSize = iconSize || (isLarge ? 32 : 24)
+  const isSmall = size === 'sm'
+  const defaultIconSize = iconSize || (isLarge ? 32 : isSmall ? 20 : 24)
 
   const handleClear = () => {
     onChangeText('')
@@ -39,8 +40,12 @@ export const SearchInput = ({
   return (
     <View
       className={cn(
-        'flex-row items-center border border-outline-variant bg-surface-100',
-        isLarge ? 'h-26 rounded-3xl bg-[#f5f8f9] px-10' : 'h-16 rounded-xl bg-surface-100 px-6',
+        'flex-row items-center border border-outline-variant bg-background',
+        isLarge
+          ? 'h-26 rounded-3xl px-10'
+          : isSmall
+            ? 'h-11 rounded-xl px-4'
+            : 'h-16 rounded-xl px-6',
         containerClassName,
       )}
     >
@@ -55,12 +60,12 @@ export const SearchInput = ({
         placeholderTextColor={placeholderTextColor}
         className={cn(
           'h-full flex-1 bg-transparent px-0 text-surface-on',
-          isLarge ? 'ml-6' : 'ml-4',
+          isLarge ? 'ml-6' : isSmall ? 'ml-2' : 'ml-4',
           inputClassName,
         )}
         style={{
           fontFamily: isLarge ? 'Manrope-Bold' : 'Manrope-Medium',
-          fontSize: isLarge ? 24 : 20,
+          fontSize: isLarge ? 24 : isSmall ? 15 : 20,
           color: '#0f0f0f',
           paddingVertical: 0, // Prevent default Android vertical padding
         }}

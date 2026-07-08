@@ -59,8 +59,8 @@ export const QuantityStepper = memo(function QuantityStepper({
   const getButtonClass = (isEnabled: boolean) => {
     const base =
       size === 'sm'
-        ? 'h-10 w-10 items-center justify-center rounded-xl'
-        : 'h-11 w-11 items-center justify-center rounded-xl'
+        ? 'h-7 w-7 items-center justify-center rounded-full'
+        : 'h-11 w-11 items-center justify-center rounded-full'
     return `${base} ${isEnabled ? 'bg-surface-100 active:bg-surface-200' : 'bg-surface-50'}`
   }
   const inputClassName = 'w-8 text-center text-xl font-black text-surface-on'

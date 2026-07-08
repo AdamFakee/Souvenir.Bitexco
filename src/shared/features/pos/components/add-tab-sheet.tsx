@@ -1,4 +1,4 @@
-import { Input, ModalBase, Shimmer } from '@/shared/components/ui'
+import { Input, ModalBase, Shimmer, IconButton } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { FlashList } from '@shopify/flash-list'
 import { ArrowLeft, Search, User, Users, X } from 'lucide-react-native'
@@ -84,17 +84,21 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
   )
 
   return (
-    <ModalBase visible={visible} onClose={() => setVisible(false)} className="max-w-[600px]">
+    <ModalBase visible={visible} onClose={() => setVisible(false)} className="max-w-[500px]">
       <View>
         {/* Header */}
-        <View className="flex-row items-center justify-between border-b border-outline-variant px-10 py-7">
+        <View className="flex-row items-center justify-between border-b border-outline-variant px-6 py-4">
           <View className="flex-1 flex-row items-center gap-4">
             {step === 'search' && (
-              <Pressable onPress={() => setStep('type')} className="p-2">
-                <ArrowLeft size={24} color={COLORS.surface.onVariant} />
-              </Pressable>
+              <IconButton
+                icon={ArrowLeft}
+                onPress={() => setStep('type')}
+                size={24}
+                color={COLORS.surface.onVariant}
+                className="bg-surface-100"
+              />
             )}
-            <Text className="flex-1 text-3xl font-black text-surface-on" numberOfLines={1}>
+            <Text className="flex-1 text-xl font-black text-surface-on" numberOfLines={1}>
               {step === 'type'
                 ? 'Thêm phiên mới'
                 : selectedAgentType === 'agent'
@@ -102,15 +106,19 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
                   : 'Chọn cộng tác viên'}
             </Text>
           </View>
-          <Pressable onPress={() => setVisible(false)} className="p-2">
-            <X size={28} color={COLORS.surface.onVariant} />
-          </Pressable>
+          <IconButton
+            icon={X}
+            onPress={() => setVisible(false)}
+            size={24}
+            color={COLORS.surface.onVariant}
+            className="bg-surface-100"
+          />
         </View>
 
-        {/* Body: step 1 auto height, step 2 fixed 560 */}
+        {/* Body: step 1 auto height, step 2 fixed height */}
         {step === 'type' ? (
-          <View className="items-center px-10 py-12">
-            <View className="w-full gap-5">
+          <View className="items-center px-6 py-8">
+            <View className="w-full gap-4">
               {(
                 Object.entries(AGENT_TYPE_CONFIG) as [
                   keyof typeof AGENT_TYPE_CONFIG,
@@ -120,39 +128,42 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
                 <Pressable
                   key={key}
                   onPress={() => handleSelectType(config.agentType)}
-                  className="flex-row items-center gap-6 rounded-2xl border border-outline-variant bg-surface-50 p-8 active:bg-surface-100"
+                  className="flex-row items-center gap-4 rounded-xl border border-outline-variant bg-white p-4"
+                  style={({ pressed }) => [
+                    pressed && { backgroundColor: COLORS.surface[100], opacity: 0.7 },
+                  ]}
                 >
                   <View
-                    className="h-16 w-16 items-center justify-center rounded-2xl"
+                    className="h-12 w-12 items-center justify-center rounded-xl"
                     style={{
                       backgroundColor:
                         key === 'retail'
                           ? COLORS.neutral[100]
                           : key === 'collaborator'
-                            ? COLORS.primary.on
-                            : '#fef3c7',
+                            ? `${COLORS.primary.default}1A`
+                            : '#fffbeb',
                     }}
                   >
                     <config.icon
-                      size={32}
+                      size={24}
                       color={
                         key === 'retail'
                           ? COLORS.neutral[500]
                           : key === 'collaborator'
                             ? COLORS.primary.default
-                            : '#b45309'
+                            : '#d97706'
                       }
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-xl font-black text-surface-on">{config.label}</Text>
+                    <Text className="text-base font-bold text-surface-on">{config.label}</Text>
                   </View>
                 </Pressable>
               ))}
             </View>
           </View>
         ) : (
-          <View className="px-10 py-6" style={{ height: 560 }}>
+          <View className="px-6 py-6" style={{ height: 480 }}>
             <Input
               placeholder={
                 selectedAgentType === 'agent'
@@ -163,20 +174,20 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
               onChangeText={setSearchText}
               leftIcon={Search}
               autoFocus
-              className="mb-6"
+              className="mb-4"
             />
 
             {isLoading ? (
-              <View className="gap-4">
+              <View className="gap-3">
                 {[...Array(5)].map((_, i) => (
                   <View
                     key={i}
-                    className="flex-row items-center gap-4 rounded-xl bg-surface-100 p-6"
+                    className="flex-row items-center gap-4 rounded-xl bg-surface-100 p-4"
                   >
-                    <Shimmer className="h-12 w-12 rounded-full" />
+                    <Shimmer className="h-10 w-10 rounded-full" />
                     <View className="flex-1 gap-2">
-                      <Shimmer className="h-5 w-44 rounded" />
-                      <Shimmer className="h-4 w-56 rounded" />
+                      <Shimmer className="h-4 w-44 rounded" />
+                      <Shimmer className="h-3 w-56 rounded" />
                     </View>
                   </View>
                 ))}
@@ -190,36 +201,39 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
                   return (
                     <Pressable
                       onPress={() => handleSelectAffiliate(item)}
-                      className="flex-row items-center gap-4 rounded-xl border-b border-outline-variant px-4 py-6 active:bg-surface-100"
-                      style={isInactive ? { opacity: 0.6 } : undefined}
+                      className="flex-row items-center gap-4 border-b border-surface-100 bg-white px-4 py-4"
+                      style={({ pressed }) => [
+                        isInactive ? { opacity: 0.6 } : {},
+                        pressed && { backgroundColor: COLORS.surface[100] },
+                      ]}
                     >
                       <View
-                        className="h-14 w-14 items-center justify-center rounded-full"
+                        className="h-10 w-10 items-center justify-center rounded-full"
                         style={{
                           backgroundColor:
-                            item.agentType === 'agent' ? '#fef3c7' : COLORS.primary.on,
+                            item.agentType === 'agent' ? '#fffbeb' : `${COLORS.primary.default}1A`,
                         }}
                       >
                         <User
-                          size={28}
-                          color={item.agentType === 'agent' ? '#b45309' : COLORS.primary.default}
+                          size={20}
+                          color={item.agentType === 'agent' ? '#d97706' : COLORS.primary.default}
                         />
                       </View>
                       <View className="flex-1">
                         <Text
-                          className={`text-xl font-black ${
+                          className={`text-base font-bold ${
                             isInactive ? 'text-neutral-400 line-through' : 'text-surface-on'
                           }`}
                         >
                           {item.name}
                         </Text>
-                        <Text className="mt-1 text-base text-muted">
+                        <Text className="mt-0.5 text-sm text-muted">
                           {item.code} · {item.phone}
                         </Text>
                       </View>
                       {isInactive && (
-                        <View className="rounded-full bg-error/10 px-3 py-1">
-                          <Text className="text-xs font-bold text-error">Ngừng hoạt động</Text>
+                        <View className="rounded-md bg-error/10 px-2 py-1">
+                          <Text className="text-[10px] font-bold text-error">Ngừng HĐ</Text>
                         </View>
                       )}
                     </Pressable>
@@ -227,7 +241,7 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
                 }}
                 ListEmptyComponent={
                   <View className="items-center py-20">
-                    <Text className="text-lg text-muted">
+                    <Text className="text-base text-muted">
                       {searchText.trim()
                         ? 'Không tìm thấy kết quả phù hợp'
                         : 'Nhập tên, mã hoặc SĐT để tìm kiếm'}

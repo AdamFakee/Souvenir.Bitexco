@@ -78,9 +78,8 @@ const TopTabs = memo(function TopTabs({ mode, setMode }: TopTabsProps) {
           <Pressable
             key={tab.value}
             onPress={() => setMode(tab.value)}
-            className="items-center justify-center rounded-t-2xl px-6 py-4"
+            className="items-center justify-center rounded-t-xl px-6 py-3"
             style={{
-              width: 183,
               backgroundColor: active ? COLORS.surface.variant : TAB_INACTIVE,
               shadowColor: active ? '#DBDBDB' : undefined,
               shadowOffset: active ? { width: 0, height: 10 } : undefined,
@@ -90,8 +89,10 @@ const TopTabs = memo(function TopTabs({ mode, setMode }: TopTabsProps) {
             }}
           >
             <Text
-              className="text-2xl font-bold"
+              className="text-base font-bold"
               style={{ color: active ? BRAND : '#0F0F0F', fontFamily: 'Manrope-Bold' }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
             >
               {tab.label}
             </Text>
@@ -289,11 +290,11 @@ export default function OrdersScreen() {
               <Pressable
                 onPress={handlePreviewReconciliation}
                 disabled={!activeId}
-                className="h-16 items-center justify-center rounded-xl px-6"
+                className="h-12 items-center justify-center rounded-xl px-5"
                 style={{ backgroundColor: activeId ? BRAND : '#DFE0E1' }}
               >
                 <Text
-                  className="text-lg font-bold"
+                  className="text-base font-bold"
                   style={{ color: '#fff', fontFamily: 'Manrope-Bold' }}
                 >
                   Xem biên nhận

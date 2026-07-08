@@ -1,4 +1,4 @@
-import { CreditCard } from 'lucide-react-native'
+import CardIcon from '@/assets/icons/Card.svg'
 import { PortablePaymentPopup } from '../components'
 import type { PaymentStrategy } from '../types/payment-strategy.type'
 
@@ -10,7 +10,7 @@ import type { PaymentStrategy } from '../types/payment-strategy.type'
 export const PortableCardStrategy: PaymentStrategy = {
   type: 'card_bidv',
   label: 'Thẻ (POS)',
-  icon: CreditCard,
+  icon: CardIcon,
   isAvailable: () => true,
   PopupComponent: PortablePaymentPopup,
 }

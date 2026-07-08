@@ -92,7 +92,7 @@ export interface PaymentStrategy {
   /** Tên hiển thị trên nút bấm (VD: "Tiền mặt", "Momo") */
   label: string
   /** Icon hiển thị cạnh tên nút bấm */
-  icon: LucideIcon
+  icon: LucideIcon | React.FC<any>
   /** Thứ tự hiển thị trên giao diện */
   displayOrder?: number
   /**

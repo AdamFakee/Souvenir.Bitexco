@@ -66,7 +66,7 @@ export const OrderFilterBar = memo(function OrderFilterBar({
   )
 
   return (
-    <View className="mb-6 flex-row items-center gap-6">
+    <View className="mb-4 flex-row items-center gap-3">
       <SegmentedControl
         options={[
           { label: 'Tất cả', value: 'ALL' as const },
@@ -75,7 +75,7 @@ export const OrderFilterBar = memo(function OrderFilterBar({
         ]}
         value={activeKey}
         onChange={handleTabChange}
-        className="h-full w-96"
+        className="h-11 w-72"
       />
       <OrderSearchInput />
       <DateRangeFilter
@@ -85,7 +85,7 @@ export const OrderFilterBar = memo(function OrderFilterBar({
         onDateToChange={setDateTo}
       />
       {showStaffFilter && (
-        <StaffSelect value={staffId} onChange={handleStaffChange} className="w-48" />
+        <StaffSelect value={staffId} onChange={handleStaffChange} className="w-40" />
       )}
     </View>
   )

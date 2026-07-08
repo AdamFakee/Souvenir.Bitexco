@@ -37,11 +37,11 @@ export function DatePicker({
     <View ref={viewRef} className={className}>
       <Pressable
         onPress={handleOpen}
-        className="h-16 flex-row items-center rounded-xl border border-outline-variant bg-white px-5"
+        className="h-11 flex-row items-center rounded-xl border border-outline-variant bg-white px-4"
       >
-        <Calendar size={24} color={COLORS.outline.default} />
+        <Calendar size={20} color={COLORS.outline.default} />
         <Text
-          className={`ml-3 text-lg font-medium ${value ? 'text-surface-on' : 'text-muted'}`}
+          className={`ml-2 text-base font-medium ${value ? 'text-surface-on' : 'text-muted'}`}
           numberOfLines={1}
         >
           {value ? formatDate(value) : placeholder}

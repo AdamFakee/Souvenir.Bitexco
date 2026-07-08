@@ -26,10 +26,26 @@ export default function PosScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 flex-col bg-background">
+    <SafeAreaView className="flex-1 bg-background px-3" edges={['top', 'left', 'right', 'bottom']}>
       <HardwareBarcodeScanner onScan={handleScan} />
-      <View className="flex-1" style={{ zIndex: 1 }}>
-        <OrderListSession />
+
+      {/* Main Layout Row */}
+      <View className="flex-1 flex-row" style={{ zIndex: 1 }}>
+        {/* Left Panel: White box with shadow & radius */}
+        <View
+          className="flex-1 overflow-hidden rounded-[12px] bg-white"
+          style={{
+            shadowColor: '#A8A8A8',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.12,
+            shadowRadius: 10,
+            elevation: 3,
+          }}
+        >
+          <OrderListSession />
+        </View>
+
+        {/* Right Panel: No shadow, no radius, takes outer background */}
         <CheckoutPanel />
       </View>
     </SafeAreaView>
