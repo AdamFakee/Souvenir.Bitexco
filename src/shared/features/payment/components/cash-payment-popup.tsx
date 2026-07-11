@@ -1,13 +1,12 @@
+import CashIcon from '@/assets/icons/Cash.svg'
 import { ViceService } from '@/screens/vice-service'
 import { Button, ModalBase, Numpad } from '@/shared/components/ui'
-import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { IOrder } from '@/shared/features/order/types'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
-import { Banknote } from 'lucide-react-native'
-import React, { forwardRef, useEffect, useImperativeHandle, useState, memo } from 'react'
+import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
 import type { CartItem } from '@/shared/features/pos'
@@ -293,8 +292,8 @@ export const CashPaymentPopup = memo(
               <View className="flex-1 justify-between border-r border-outline-variant bg-surface-100 p-10">
                 <View>
                   <View className="mb-8 flex-row items-center gap-4">
-                    <View className="h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                      <Banknote size={32} color={COLORS.primary.default} />
+                    <View className="h-14 w-14 items-center justify-center rounded-full bg-primary">
+                      <CashIcon width={32} height={32} />
                     </View>
                     <Text className="text-4xl font-bold text-surface-on">Thanh toán Tiền mặt</Text>
                   </View>

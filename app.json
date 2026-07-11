@@ -41,7 +41,7 @@
         "expo-splash-screen",
         {
           "image": "./src/assets/icons/logo-sky-store.png",
-          "imageWidth": 200,
+          "imageWidth": 266,
           "resizeMode": "contain",
           "backgroundColor": "#537b90",
           "dark": {

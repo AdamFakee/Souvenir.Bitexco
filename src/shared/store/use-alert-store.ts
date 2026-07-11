@@ -90,11 +90,11 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       isConfirm: true,
       popupType: 'confirm',
       onConfirm: () => {
-        set({ visible: false, popupType: null })
+        set({ visible: false })
         onConfirm()
       },
       onCancel: () => {
-        set({ visible: false, popupType: null })
+        set({ visible: false })
         onCancel?.()
       },
     }),
@@ -108,13 +108,13 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       isConfirm: true,
       popupType: 'info',
       onConfirm: () => {
-        set({ visible: false, popupType: null })
+        set({ visible: false })
         onConfirm?.()
       },
       onCancel: undefined,
     }),
 
-  hide: () => set({ visible: false, popupType: null }),
+  hide: () => set({ visible: false }),
 }))
 
 /**

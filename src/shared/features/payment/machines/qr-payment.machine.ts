@@ -36,6 +36,7 @@ export interface QRPaymentContext {
   paymentId: string | null
   qrContent: string | null
   expiresAt: string | null
+  createdAt?: string | null
   billNumber: string | null
   error: string | null
   errorCode: PaymentErrorCode | null
@@ -179,6 +180,29 @@ export const qrPaymentMachine = setup({
     voidPayment: voidPaymentActor,
 
     /**
+     * Hủy đơn hàng trên server.
+     */
+    cancelOrder: fromPromise(
+      async ({
+        input,
+      }: {
+        input: { orderId: string | null; shiftId: string; staffId: string }
+      }): Promise<void> => {
+        if (!input.orderId) return
+        try {
+          await OrderRemoteAPI.cancelOrder({
+            orderId: input.orderId,
+            shiftId: input.shiftId,
+            staffId: input.staffId,
+            reason: 'cashier_cancelled_payment',
+          })
+        } catch (err) {
+          console.error('[qrPayment] cancelOrder error:', err)
+        }
+      },
+    ),
+
+    /**
      * In hóa đơn.
      */
     printReceipt: fromPromise(async ({ input }: { input: { printRef?: React.RefObject<any> } }) => {
@@ -206,6 +230,7 @@ export const qrPaymentMachine = setup({
       qrContent: ({ event }) =>
         (event as any).output?.qrPayload ?? (event as any).output?.qrUrl ?? null,
       expiresAt: ({ event }) => (event as any).output?.expiresAt ?? null,
+      createdAt: ({ event }) => (event as any).output?.createdAt ?? null,
     }),
     recordError: assign({
       error: ({ event }) => {
@@ -236,6 +261,7 @@ export const qrPaymentMachine = setup({
         paymentId: null,
         qrContent: null,
         expiresAt: null,
+        createdAt: null,
         billNumber: null,
         error: null,
         errorCode: null,
@@ -315,6 +341,7 @@ export const qrPaymentMachine = setup({
     paymentId: null,
     qrContent: null,
     expiresAt: null,
+    createdAt: null,
     billNumber: null,
     error: null,
     errorCode: null,
@@ -328,7 +355,7 @@ export const qrPaymentMachine = setup({
     idle: {
       on: {
         START: { target: 'creatingOrder', actions: 'resetContext' },
-        CANCEL: { target: 'cancelled' },
+        CANCEL: { target: 'cancelingPayment' },
       },
     },
 
@@ -368,13 +395,13 @@ export const qrPaymentMachine = setup({
         },
       },
       on: {
-        CANCEL: { target: 'cancelled', actions: 'notifyCancel' },
+        CANCEL: { target: 'cancelingPayment', actions: 'notifyCancel' },
       },
     },
 
     waitingForPayment: {
       on: {
-        CANCEL: { target: 'cancelled', actions: 'notifyCancel' },
+        CANCEL: { target: 'cancelingPayment', actions: 'notifyCancel' },
         CHECK_STATUS_NOW: { target: '.checking' },
         FORCE_COMPLETE: { target: '#qrPayment.forceCapturingPayment' },
       },
@@ -511,7 +538,7 @@ export const qrPaymentMachine = setup({
           actions: 'clearError',
         },
         FORCE_COMPLETE: { target: '#qrPayment.forceCapturingPayment' },
-        CANCEL: { target: 'cancelled' },
+        CANCEL: { target: 'cancelingPayment' },
       },
     },
 
@@ -521,14 +548,33 @@ export const qrPaymentMachine = setup({
       },
     },
 
-    cancelled: {
+    cancelingPayment: {
       invoke: {
         id: 'voidPayment',
         src: 'voidPayment',
         input: ({ context }) => ({
           paymentId: context.paymentId,
         }),
+        onDone: { target: 'cancellingOrder' },
+        onError: { target: 'cancellingOrder' },
       },
+    },
+
+    cancellingOrder: {
+      invoke: {
+        id: 'cancelOrder',
+        src: 'cancelOrder',
+        input: ({ context }) => ({
+          orderId: context.orderId,
+          shiftId: context.shiftId,
+          staffId: context.staffId,
+        }),
+        onDone: { target: 'cancelled' },
+        onError: { target: 'cancelled' },
+      },
+    },
+
+    cancelled: {
       on: {
         START: { target: 'creatingOrder', actions: 'resetContext' },
       },
@@ -550,6 +596,8 @@ export function getQrPaymentStatusLabel(state: SnapshotFrom<typeof qrPaymentMach
   if (state.matches('printingReceipt')) return 'Đang in hóa đơn...'
   if (state.matches('success')) return 'Thanh toán thành công!'
   if (state.matches('error')) return error ?? 'Có lỗi xảy ra'
+  if (state.matches('cancelingPayment')) return 'Đang hủy giao dịch thanh toán...'
+  if (state.matches('cancellingOrder')) return 'Đang hủy đơn hàng trên hệ thống...'
   if (state.matches('cancelled')) return 'Giao dịch đã hủy'
   return 'Đang chuẩn bị...'
 }

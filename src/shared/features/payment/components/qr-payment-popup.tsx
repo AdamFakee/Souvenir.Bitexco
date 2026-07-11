@@ -1,15 +1,15 @@
 import { ViceService } from '@/screens/vice-service'
 import { Button, ModalBase, Shimmer } from '@/shared/components/ui'
-import { COLORS } from '@/shared/constants'
 import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 
+import QRIcon from '@/assets/icons/QR.svg'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
-import { AlertCircle, CheckCircle, Clock3, QrCode } from 'lucide-react-native'
-import React, { forwardRef, useEffect, useImperativeHandle, useState, memo } from 'react'
+import { AlertCircle, CheckCircle, Clock3 } from 'lucide-react-native'
+import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
 import { Image, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
@@ -39,8 +39,15 @@ export const QrPaymentPopup = memo(
       ref,
     ) => {
       const [visible, setVisible] = useState(false)
-      const [timeLeft, setTimeLeft] = useState('05:00')
+      const [timeLeftSecs, setTimeLeftSecs] = useState<number | null>(null)
       const { tenantConfig } = useAppContext()
+
+      const timeLeft = React.useMemo(() => {
+        if (timeLeftSecs === null) return '05:00'
+        const mins = Math.floor(timeLeftSecs / 60)
+        const secs = timeLeftSecs % 60
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      }, [timeLeftSecs])
 
       const subtotal = calculateSubtotal(items)
       const tax = calculateTotalTax(items)
@@ -64,6 +71,7 @@ export const QrPaymentPopup = memo(
       const machineState = useSelector(actorRef, (s) => s.value)
       const qrContent = useSelector(actorRef, (s) => s.context.qrContent)
       const expiresAt = useSelector(actorRef, (s) => s.context.expiresAt)
+      const createdAt = useSelector(actorRef, (s) => s.context.createdAt)
       const billNumber = useSelector(actorRef, (s) => s.context.billNumber)
       const error = useSelector(actorRef, (s) => s.context.error)
       const errorCode = useSelector(actorRef, (s) => s.context.errorCode)
@@ -82,8 +90,10 @@ export const QrPaymentPopup = memo(
       const isWaiting = typeof machineState === 'object' && 'waitingForPayment' in machineState
       const isSaving = machineState === 'savingOrder'
       const isPrinting = machineState === 'printingReceipt'
+      const isCanceling = machineState === 'cancelingPayment' || machineState === 'cancellingOrder'
 
-      const isLoading = isCreatingOrder || isFetchingQR || isWaiting || isSaving || isPrinting
+      const isLoading =
+        isCreatingOrder || isFetchingQR || isWaiting || isSaving || isPrinting || isCanceling
 
       const statusPillClassName = isSuccess
         ? 'border-success/20 bg-success/10'
@@ -175,37 +185,30 @@ export const QrPaymentPopup = memo(
       }, [isCancelled])
 
       useEffect(() => {
-        if (!visible || !qrContent) {
-          setTimeLeft('05:00')
+        if (!visible || !qrContent || !expiresAt || !createdAt) {
+          setTimeLeftSecs(null)
           return
         }
 
-        const updateTimer = () => {
-          if (!expiresAt) {
-            setTimeLeft('05:00')
-            return
-          }
+        const expiryTime = new Date(expiresAt).getTime()
+        const startTime = new Date(createdAt).getTime()
+        const initialDurationSecs = Math.max(0, Math.floor((expiryTime - startTime) / 1000))
 
-          const expiryTime = new Date(expiresAt).getTime()
-          const now = Date.now()
-          const diffMs = expiryTime - now
+        setTimeLeftSecs(initialDurationSecs)
 
-          if (diffMs <= 0) {
-            setTimeLeft('00:00')
-            return
-          }
+        const interval = setInterval(() => {
+          setTimeLeftSecs((prev) => {
+            if (prev === null) return null
+            if (prev <= 1) {
+              clearInterval(interval)
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
 
-          const totalSecs = Math.floor(diffMs / 1000)
-          const mins = Math.floor(totalSecs / 60)
-          const secs = totalSecs % 60
-          const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-          setTimeLeft(formatted)
-        }
-
-        updateTimer()
-        const interval = setInterval(updateTimer, 1000)
         return () => clearInterval(interval)
-      }, [visible, qrContent, expiresAt])
+      }, [visible, qrContent, expiresAt, createdAt])
 
       useImperativeHandle(
         ref,
@@ -375,8 +378,8 @@ export const QrPaymentPopup = memo(
               {isLoading ? (
                 <Shimmer className="h-[160px] w-[160px] rounded-[18px]" />
               ) : (
-                <View className="h-[160px] w-[160px] items-center justify-center rounded-[18px] bg-white">
-                  <QrCode size={72} color={COLORS.surface.onVariant} />
+                <View className="h-[160px] w-[160px] items-center justify-center rounded-[18px] bg-primary">
+                  <QRIcon width={72} height={72} />
                 </View>
               )}
             </View>

@@ -3,12 +3,13 @@ import { Button, ControlledInput, ModalBase, Shimmer } from '@/shared/components
 import { COLORS } from '@/shared/constants'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 
+import CardIcon from '@/assets/icons/Card.svg'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useActorRef, useSelector } from '@xstate/react'
-import { AlertCircle, CheckCircle, CreditCard, Wifi } from 'lucide-react-native'
-import React, { forwardRef, useEffect, useImperativeHandle, useState, memo } from 'react'
+import { AlertCircle, CheckCircle, Wifi } from 'lucide-react-native'
+import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
 
@@ -441,13 +442,13 @@ export const PortablePaymentPopup = memo(
           <View className="items-center justify-center px-4 py-8">
             <View className="flex h-[180px] w-[180px] items-center justify-center overflow-hidden rounded-[28px] border border-surface-200 bg-surface-100 shadow-sm">
               {isConnecting || isProcessingPayment ? (
-                <View className="h-[124px] w-[124px] items-center justify-center rounded-[22px] bg-primary/10">
+                <View className="h-[124px] w-[124px] items-center justify-center rounded-[22px] bg-primary">
                   <Wifi size={82} color={COLORS.primary.default} />
                 </View>
               ) : isLoading ? (
                 <Shimmer className="h-[124px] w-[124px] rounded-[22px]" />
               ) : (
-                <CreditCard size={80} color={COLORS.surface.onVariant} />
+                <CardIcon width={80} height={80} />
               )}
             </View>
             <Text className="mt-6 text-center text-[32px] font-bold text-neutral-800">

@@ -32,7 +32,7 @@ const COLUMNS: { field: SortField; label: string; flex: number }[] = [
   { field: 'code', label: 'Mã đơn hàng', flex: 1 },
   { field: 'collaborator', label: 'Cộng tác viên', flex: 1 },
   { field: 'createdAt', label: 'Ngày tạo đơn', flex: 1 },
-  { field: 'paymentMethod', label: 'Thanh toán', flex: 0.7 },
+  { field: 'paymentMethod', label: 'PTTT', flex: 0.7 },
   { field: 'total', label: 'Giá trị', flex: 0.8 },
   { field: 'status', label: 'Trạng thái', flex: 0.8 },
 ]
@@ -130,7 +130,9 @@ const HeaderCell = memo(function HeaderCell({
   const [showPaymentPopover, setShowPaymentPopover] = useState(false)
 
   const selectedLabel = isPaymentCol
-    ? PAYMENT_METHOD_OPTIONS.find((o) => o.value === (paymentMethod ?? ''))?.label || 'Thanh toán'
+    ? paymentMethod
+      ? PAYMENT_METHOD_OPTIONS.find((o) => o.value === paymentMethod)?.label || 'PTTT'
+      : 'PTTT'
     : label
 
   const handlePress = useCallback(() => {
@@ -152,12 +154,8 @@ const HeaderCell = memo(function HeaderCell({
           className="text-lg font-bold"
           numberOfLines={1}
           style={{
-            color: isPaymentCol && paymentMethod ? '#fff' : BRAND,
+            color: BRAND,
             fontFamily: 'Manrope-Bold',
-            backgroundColor: isPaymentCol && paymentMethod ? BRAND : 'transparent',
-            borderRadius: 8,
-            paddingHorizontal: isPaymentCol && paymentMethod ? 8 : 0,
-            paddingVertical: isPaymentCol && paymentMethod ? 2 : 0,
           }}
         >
           {selectedLabel}
@@ -435,25 +433,7 @@ export const OrderList = memo(function OrderList({
   if (isLoading) {
     return (
       <View className="flex-1">
-        <View
-          className="flex-row items-center border-b"
-          style={{ borderColor: BORDER, height: 48 }}
-        >
-          {COLUMNS.map((col) => (
-            <View
-              key={col.field}
-              className="flex-row items-center gap-2 px-4"
-              style={{ flex: col.flex, height: 48 }}
-            >
-              <Text
-                className="text-lg font-bold"
-                style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
-              >
-                {col.label}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} />
         {[...Array(6)].map((_, i) => (
           <OrderSkeleton key={i} index={i} />
         ))}

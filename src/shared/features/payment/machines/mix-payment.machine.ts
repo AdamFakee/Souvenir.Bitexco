@@ -59,6 +59,7 @@ export interface MixPaymentContext {
   rawCommandResult: PortablePaymentCommandResult | null
   qrContent: string | null
   expiresAt: string | null
+  createdAt: string | null
   manualCardDetails: {
     terminalId?: string
     merchantId?: string
@@ -201,6 +202,7 @@ export const mixPaymentMachine = setup({
       qrContent: ({ event }) =>
         (event as any).output?.qrPayload ?? (event as any).output?.qrUrl ?? null,
       expiresAt: ({ event }) => (event as any).output?.expiresAt ?? null,
+      createdAt: ({ event }) => (event as any).output?.createdAt ?? null,
       rawCommandResult: ({ event }) => (event as any).output ?? null,
     }),
     assignPaymentResult: assign({
@@ -293,6 +295,7 @@ export const mixPaymentMachine = setup({
         rawCommandResult: null,
         qrContent: null,
         expiresAt: null,
+        createdAt: null,
         manualCardDetails: null,
         error: null,
         errorCode: null,
@@ -359,6 +362,7 @@ export const mixPaymentMachine = setup({
     rawCommandResult: null,
     qrContent: null,
     expiresAt: null,
+    createdAt: null,
     manualCardDetails: null,
     error: null,
     errorCode: null,

@@ -1,3 +1,4 @@
+import MixIcon from '@/assets/icons/Mix.svg'
 import { ViceService } from '@/screens/vice-service'
 import { Button, ControlledInput, ModalBase, Numpad, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
@@ -10,14 +11,7 @@ import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
-import {
-  AlertCircle,
-  CheckCircle,
-  Clock3,
-  CreditCard,
-  QrCode,
-  WalletCards,
-} from 'lucide-react-native'
+import { AlertCircle, CheckCircle, Clock3, CreditCard, QrCode } from 'lucide-react-native'
 import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
@@ -118,7 +112,14 @@ export const MixPaymentPopup = memo(
       const [visible, setVisible] = useState(false)
       const [cashInput, setCashInput] = useState('')
       const [showManualForm, setShowManualForm] = useState(false)
-      const [timeLeft, setTimeLeft] = useState('05:00')
+      const [timeLeftSecs, setTimeLeftSecs] = useState<number | null>(null)
+
+      const timeLeft = React.useMemo(() => {
+        if (timeLeftSecs === null) return '--:--'
+        const mins = Math.floor(timeLeftSecs / 60)
+        const secs = timeLeftSecs % 60
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      }, [timeLeftSecs])
       const { tenantConfig, paymentMethods } = useAppContext()
       const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
       const isPosConnected = useConnectionStore((s) => s.isPosConnected)
@@ -166,6 +167,7 @@ export const MixPaymentPopup = memo(
         checkoutResult,
         qrContent,
         expiresAt,
+        createdAt,
         managerAuthError,
       } = context
 
@@ -268,37 +270,30 @@ export const MixPaymentPopup = memo(
       }
 
       useEffect(() => {
-        if (!visible || !qrContent) {
-          setTimeLeft('05:00')
+        if (!visible || !qrContent || !expiresAt || !createdAt) {
+          setTimeLeftSecs(null)
           return
         }
 
-        const updateTimer = () => {
-          if (!expiresAt) {
-            setTimeLeft('05:00')
-            return
-          }
+        const expiryTime = new Date(expiresAt).getTime()
+        const startTime = new Date(createdAt).getTime()
+        const initialDurationSecs = Math.max(0, Math.floor((expiryTime - startTime) / 1000))
 
-          const expiryTime = new Date(expiresAt).getTime()
-          const now = Date.now()
-          const diffMs = expiryTime - now
+        setTimeLeftSecs(initialDurationSecs)
 
-          if (diffMs <= 0) {
-            setTimeLeft('00:00')
-            return
-          }
+        const interval = setInterval(() => {
+          setTimeLeftSecs((prev) => {
+            if (prev === null) return null
+            if (prev <= 1) {
+              clearInterval(interval)
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
 
-          const totalSecs = Math.floor(diffMs / 1000)
-          const mins = Math.floor(totalSecs / 60)
-          const secs = totalSecs % 60
-          const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-          setTimeLeft(formatted)
-        }
-
-        updateTimer()
-        const interval = setInterval(updateTimer, 1000)
         return () => clearInterval(interval)
-      }, [visible, qrContent, expiresAt])
+      }, [visible, qrContent, expiresAt, createdAt])
 
       // Debounce updating input state in machine
       useEffect(() => {
@@ -772,37 +767,51 @@ export const MixPaymentPopup = memo(
 
         if (isIdle) {
           return (
-            <View className="flex-1 justify-between">
-              <View className="gap-4">
-                <Text className="text-xl font-bold text-surface-on">
-                  Nhập số tiền mặt khách đưa
-                </Text>
-                <View className="w-[92%] self-center">
-                  <Numpad
-                    onPress={handleNumpadPress}
-                    onBackspace={handleNumpadBackspace}
-                    onClear={handleNumpadClear}
-                  />
-                </View>
+            <>
+              <View>
+                <Numpad
+                  onPress={handleNumpadPress}
+                  onBackspace={handleNumpadBackspace}
+                  onClear={handleNumpadClear}
+                />
               </View>
 
-              <View className="mt-6 gap-3">
+              {/* Action Buttons */}
+              <View className="mt-8 gap-3">
+                {isError && (
+                  <Button
+                    label="Thử lại"
+                    variant="primary"
+                    disabled={!canRetry || isProcessing}
+                    onPress={handleRetry}
+                    className="h-20"
+                  />
+                )}
+                {!isError && (
+                  <Button
+                    label="Tiến hành Thanh toán"
+                    variant="primary"
+                    disabled={!canConfirm || isProcessing}
+                    onPress={handleConfirm}
+                    className="h-20"
+                    loading={isProcessing}
+                  />
+                )}
                 <Button
-                  label="Tiến hành Thanh toán"
-                  variant="primary"
-                  disabled={!canConfirm}
-                  onPress={handleConfirm}
-                  className="h-20"
+                  label="Hủy giao dịch"
+                  variant="error"
+                  disabled={isProcessing}
+                  onPress={handleClose}
+                  className="h-16"
                 />
-                <Button label="Hủy bỏ" variant="outline" onPress={handleClose} className="h-16" />
               </View>
-            </View>
+            </>
           )
         }
 
         // Loading/Progress screens
         return (
-          <View className="flex-1 justify-between px-4 py-8">
+          <>
             <View className="w-full flex-1 items-center justify-center">
               {selectedMethod === 'qr' ? (
                 <View className="w-full items-center">
@@ -825,7 +834,7 @@ export const MixPaymentPopup = memo(
                     </View>
                   ) : qrContent ? (
                     <View className="items-center justify-center px-4 py-6">
-                      <View className="rounded-[22px] border border-surface-200 bg-white p-4 shadow-sm">
+                      <View className="rounded-[22px] border border-surface-200 bg-white p-4">
                         {isQrUrl ? (
                           <Image
                             source={{ uri: qrContent }}
@@ -959,7 +968,7 @@ export const MixPaymentPopup = memo(
                 textClassName={isManualResolution ? 'text-error' : undefined}
               />
             </View>
-          </View>
+          </>
         )
       }
 
@@ -988,16 +997,13 @@ export const MixPaymentPopup = memo(
           {visible && (
             <>
               {/* Left Side: Split Details */}
-              <View className="flex-1 border-r border-outline-variant bg-surface-100 p-10">
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 24 }}
-                >
-                  <View className="flex-row items-center gap-4">
-                    <View className="h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                      <WalletCards size={32} color={COLORS.primary.default} />
+              <View className="flex-1 justify-between border-r border-outline-variant bg-background p-10">
+                <View>
+                  <View className="mb-8 flex-row items-center gap-4">
+                    <View className="h-14 w-14 items-center justify-center rounded-full bg-primary">
+                      <MixIcon width={32} height={32} />
                     </View>
-                    <Text className="text-4xl font-bold text-surface-on">Thanh toán Kết hợp</Text>
+                    <Text className="text-4xl font-bold text-surface-on">Thanh toán hỗn hợp</Text>
                   </View>
 
                   <View className="gap-4">
@@ -1031,68 +1037,70 @@ export const MixPaymentPopup = memo(
                       </Text>
                     </View>
                   </View>
+                </View>
 
-                  {/* Suggestions & Method Selection */}
-                  <View className="gap-6">
-                    <View>
-                      <Text className="text-surface-onVariant mb-4 text-lg font-bold uppercase tracking-wider">
-                        Gợi ý nhanh tiền mặt
-                      </Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        className="w-full"
-                        contentContainerStyle={{ gap: 8 }}
-                      >
-                        {suggestions.map((amt, idx) => (
-                          <Button
-                            key={`suggestion-${idx}-${amt}`}
-                            label={formatCurrency(amt)}
-                            variant="outline"
-                            className="h-18 min-w-[140px]"
-                            disabled={!isIdle}
-                            onPress={() => setCashInput(amt.toString())}
-                          />
-                        ))}
-                      </ScrollView>
-                    </View>
+                {/* Suggestions & Method Selection */}
+                <View className="mt-8 gap-6">
+                  <View>
+                    <Text className="text-surface-onVariant mb-4 text-lg font-bold uppercase tracking-wider">
+                      Gợi ý nhanh tiền mặt
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      className="w-full"
+                      contentContainerStyle={{ gap: 8 }}
+                    >
+                      {suggestions.map((amt, idx) => (
+                        <Button
+                          key={`suggestion-${idx}-${amt}`}
+                          label={formatCurrency(amt)}
+                          variant="outline"
+                          className="h-18 min-w-[140px]"
+                          disabled={!isIdle}
+                          onPress={() => setCashInput(amt.toString())}
+                        />
+                      ))}
+                    </ScrollView>
+                  </View>
 
-                    <View>
-                      <Text className="text-surface-onVariant mb-4 text-lg font-bold uppercase tracking-wider">
-                        Chọn phương thức thanh toán còn lại
-                      </Text>
-                      <View className="flex-row gap-4">
-                        <View className="flex-1">
-                          <Button
-                            label={qrLabel}
-                            leftIcon={QrCode}
-                            iconSize={32}
-                            variant={selectedMethod === 'qr' ? 'primary' : 'outline'}
-                            className="h-[84px] w-full border-2"
-                            disabled={!isIdle || !isNetworkConnected}
-                            onPress={() => actorRef.send({ type: 'SELECT_METHOD', method: 'qr' })}
-                          />
-                        </View>
+                  <View>
+                    <Text className="text-surface-onVariant mb-4 text-lg font-bold uppercase tracking-wider">
+                      Chọn phương thức thanh toán còn lại
+                    </Text>
+                    <View className="flex-row gap-4">
+                      <View className="flex-1">
+                        <Button
+                          label={qrLabel}
+                          leftIcon={QrCode}
+                          iconSize={32}
+                          variant={selectedMethod === 'qr' ? 'primary' : 'outline'}
+                          className="h-[84px] w-full border-2"
+                          disabled={!isIdle}
+                          onPress={() => actorRef.send({ type: 'SELECT_METHOD', method: 'qr' })}
+                        />
+                      </View>
 
-                        <View className="flex-1">
-                          <Button
-                            label={cardLabel}
-                            leftIcon={CreditCard}
-                            iconSize={32}
-                            variant={selectedMethod === 'card' ? 'primary' : 'outline'}
-                            className="h-[84px] w-full border-2"
-                            disabled={!isIdle || !isPosConnected}
-                            onPress={() => actorRef.send({ type: 'SELECT_METHOD', method: 'card' })}
-                          />
-                        </View>
+                      <View className="flex-1">
+                        <Button
+                          label={cardLabel}
+                          leftIcon={CreditCard}
+                          iconSize={32}
+                          variant={selectedMethod === 'card' ? 'primary' : 'outline'}
+                          className="h-[84px] w-full border-2"
+                          disabled={!isIdle}
+                          onPress={() => actorRef.send({ type: 'SELECT_METHOD', method: 'card' })}
+                        />
                       </View>
                     </View>
                   </View>
-                </ScrollView>
+                </View>
               </View>
 
               {/* Right Side: Flow Steps or Payment Screen */}
-              <View className="w-[480px] bg-surface-50 p-10">{renderRightPanel()}</View>
+              <View className="w-[480px] justify-between bg-surface-50 p-10">
+                {renderRightPanel()}
+              </View>
 
               {/* Hidden Print Template */}
               <View style={{ position: 'absolute', left: -2000, top: 0 }}>

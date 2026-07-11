@@ -368,7 +368,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({
                       toast.success('Đã sao chép mã đơn hàng')
                     }}
                   />
-                  {order.originalOrderCode && (
+                  {!!order.originalOrderCode && (
                     <InfoRow
                       label="Đơn gốc"
                       value={`#${order.originalOrderCode}`}
@@ -388,11 +388,11 @@ export const OrderDetailModal = memo(function OrderDetailModal({
                       minute: '2-digit',
                     })}
                   />
-                  {order.staffName && <InfoRow label="Nhân viên" value={order.staffName} />}
-                  {order.affiliate && (
+                  {!!order.staffName && <InfoRow label="Nhân viên" value={order.staffName} />}
+                  {!!order.affiliate && (
                     <InfoRow label="Cộng tác viên" value={order.affiliate.name} />
                   )}
-                  {order.partner && <InfoRow label="Đại lý" value={order.partner.nameVi} />}
+                  {!!order.partner && <InfoRow label="Đại lý" value={order.partner.nameVi} />}
 
                   <View className="mt-1 flex-row items-center justify-between py-2">
                     <Text
@@ -408,6 +408,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({
                       <Text
                         className="text-sm font-extrabold uppercase tracking-wide"
                         style={{ color: displayStatus.color, fontFamily: 'Manrope-Bold' }}
+                        numberOfLines={1}
                       >
                         {displayStatus.label}
                       </Text>
@@ -422,13 +423,13 @@ export const OrderDetailModal = memo(function OrderDetailModal({
                     />
                   ))}
 
-                  {order.voucherCode && (
+                  {!!order.voucherCode && (
                     <InfoRow label="Voucher" value={order.voucherCode} valueColor={BRAND} />
                   )}
 
-                  {order.note && <InfoRow label="Ghi chú" value={order.note} />}
+                  {!!order.note && <InfoRow label="Ghi chú" value={order.note} />}
 
-                  {(order.refund || (order.totalRefunded && order.totalRefunded > 0)) && (
+                  {!!(order.refund || (order.totalRefunded && order.totalRefunded > 0)) && (
                     <View
                       className="mt-4"
                       style={{ borderTopWidth: 2, borderColor: BORDER, paddingTop: 16 }}
@@ -439,9 +440,11 @@ export const OrderDetailModal = memo(function OrderDetailModal({
                       >
                         Thông tin trả hàng
                       </Text>
-                      {(order.refund?.reason ||
+                      {!!(
+                        order.refund?.reason ||
                         order.refundReason ||
-                        order.refunds?.[0]?.reason) && (
+                        order.refunds?.[0]?.reason
+                      ) && (
                         <InfoRow
                           label="Lý do"
                           value={

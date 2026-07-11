@@ -1,9 +1,8 @@
+import DebtIcon from '@/assets/icons/Debt.svg'
 import { Button, ModalBase, Shimmer } from '@/shared/components/ui'
-import { COLORS } from '@/shared/constants'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
-import { FileText } from 'lucide-react-native'
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 import { debtPaymentMachine } from '../machines/debt-payment.machine'
@@ -130,8 +129,8 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
           <View className="gap-6 bg-surface-100 p-10">
             {/* Header */}
             <View className="flex-row items-center gap-4">
-              <View className="h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <FileText size={32} color={COLORS.primary.default} />
+              <View className="h-14 w-14 items-center justify-center rounded-full bg-primary">
+                <DebtIcon width={32} height={32} />
               </View>
               <View className="w-full">
                 <Text className="text-4xl font-bold text-surface-on">Thanh toán Công nợ</Text>
