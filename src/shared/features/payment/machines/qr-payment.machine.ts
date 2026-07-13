@@ -4,13 +4,13 @@ import {
   PosCartLine,
   PosCheckoutRequest,
 } from '@/shared/features/order/api/remote/order.remote.api'
-import { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
-
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
+import { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
+import { createCancelOrderActor } from '../flows/cancel-order.actor'
 import {
   checkQrPaymentStatusActor,
   fetchQrActor,
@@ -31,7 +31,6 @@ export interface QRPaymentContext {
   tenantConfig?: TenantConfig | null
   affiliateId?: string | null
   agentType?: AgentType | null
-
   orderId: string | null
   paymentId: string | null
   qrContent: string | null
@@ -69,9 +68,10 @@ export type QRPaymentInput = {
 }
 
 const MAX_RETRIES = 3
-const POLL_INTERVAL_MS = 3000 // 3 giây (đặc tả API)
-const TOTAL_TIMEOUT_MS = 5 * 60 * 1000 // 5 phút total for QR scanning
+const POLL_INTERVAL_MS = 3000
+const TOTAL_TIMEOUT_MS = 5 * 60 * 1000
 
+/** POS sale: checkout → fetch QR → poll → print */
 export const qrPaymentMachine = setup({
   types: {
     context: {} as QRPaymentContext,
@@ -79,33 +79,22 @@ export const qrPaymentMachine = setup({
     input: {} as QRPaymentInput,
   },
   actors: {
-    /**
-     * Khởi tạo đơn hàng trên Server (Atomic Checkout).
-     */
     createOrder: fromPromise(async ({ input }: { input: QRPaymentContext }) => {
       const lines: PosCartLine[] = input.items.map((item) => {
         const variantId = item.product.id || ''
         const unitId = item.product.unitId || (item.product as any).unit_id || '---'
-        const qty = item.quantity
-        const unitPrice = item.price ?? item.product.price ?? 0
-        const discountAmount = item.discountAmount ?? 0
-        const taxRate = item.product.taxRate ?? 8
-
         return {
           variantId,
           unitId,
-          qty,
-          unitPrice,
-          discountAmount,
-          taxRate,
+          qty: item.quantity,
+          unitPrice: item.price ?? item.product.price ?? 0,
+          discountAmount: item.discountAmount ?? 0,
+          taxRate: item.product.taxRate ?? 8,
         }
       })
-
       const partnerId = input.agentType === 'agent' ? (input.affiliateId ?? null) : null
       const affiliateId = input.agentType !== 'agent' ? (input.affiliateId ?? null) : null
-      const randomPart = Math.random().toString(36).slice(2)
-      const clientIdempotencyKey = `checkout-${Date.now()}-${randomPart}`
-
+      const clientIdempotencyKey = `checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`
       const payload: PosCheckoutRequest = {
         cashSessionId: input.shiftId,
         customerId: null,
@@ -130,41 +119,19 @@ export const qrPaymentMachine = setup({
         clientIdempotencyKey,
         agentType: input.agentType ?? null,
       }
-
       const response = await OrderRemoteAPI.checkout(payload)
-
       if (!response || (response as any).error) {
         throw new Error((response as any).error || 'Khởi tạo đơn hàng QR thất bại!')
       }
-
-      const result = response
-      const paymentId = result.payments?.[0]?.paymentId
-
       return {
-        orderId: result.orderId,
-        orderCode: result.orderCode,
-        paymentId,
+        orderId: response.orderId,
+        orderCode: response.orderCode,
+        paymentId: response.payments?.[0]?.paymentId,
       }
     }),
-
-    /**
-     * Sinh mã QR từ paymentId.
-     */
     fetchQR: fetchQrActor,
-
-    /**
-     * Kiểm tra trạng thái thanh toán (Polling từ paymentId).
-     */
     checkStatus: checkQrPaymentStatusActor,
-
-    /**
-     * Chuyển trạng thái cưỡng bức lên CAPTURED khi nhấn Force Complete.
-     */
     forceCaptureQr: forceCaptureQrActor,
-
-    /**
-     * Trả về thông tin đơn hàng online thành công.
-     */
     saveOrder: fromPromise(async ({ input }: { input: QRPaymentContext }) => {
       if (!input.orderId) throw new Error('Không tìm thấy mã đơn hàng!')
       return {
@@ -173,49 +140,16 @@ export const qrPaymentMachine = setup({
         orderCode: input.billNumber ?? input.orderId,
       }
     }),
-
-    /**
-     * Hủy/Void giao dịch thanh toán QR trên server.
-     */
     voidPayment: voidPaymentActor,
-
-    /**
-     * Hủy đơn hàng trên server.
-     */
-    cancelOrder: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { orderId: string | null; shiftId: string; staffId: string }
-      }): Promise<void> => {
-        if (!input.orderId) return
-        try {
-          await OrderRemoteAPI.cancelOrder({
-            orderId: input.orderId,
-            shiftId: input.shiftId,
-            staffId: input.staffId,
-            reason: 'cashier_cancelled_payment',
-          })
-        } catch (err) {
-          console.error('[qrPayment] cancelOrder error:', err)
-        }
-      },
-    ),
-
-    /**
-     * In hóa đơn.
-     */
+    cancelOrder: createCancelOrderActor('cashier_cancelled_payment', 'qrPayment'),
     printReceipt: fromPromise(async ({ input }: { input: { printRef?: React.RefObject<any> } }) => {
-      if (!input.printRef?.current) {
-        throw new Error('Không tìm thấy component in hóa đơn')
-      }
+      if (!input.printRef?.current) throw new Error('Không tìm thấy component in hóa đơn')
       await new Promise((resolve) => setTimeout(resolve, 800))
       await PrinterService.printComponent(input.printRef, { doubleCopy: true })
     }),
   },
   guards: {
     canRetry: ({ context }) => context.retryCount < MAX_RETRIES,
-    hasOrderId: ({ context }) => context.orderId !== null,
   },
   actions: {
     assignOrderId: assign(({ event }) => {
@@ -256,25 +190,24 @@ export const qrPaymentMachine = setup({
     }),
     clearError: assign({ error: null, errorCode: null }),
     resetContext: assign(({ event }) => {
-      const baseContext = {
-        orderId: null,
-        paymentId: null,
-        qrContent: null,
-        expiresAt: null,
-        createdAt: null,
-        billNumber: null,
-        error: null,
-        errorCode: null,
+      const base = {
+        orderId: null as string | null,
+        paymentId: null as string | null,
+        qrContent: null as string | null,
+        expiresAt: null as string | null,
+        createdAt: null as string | null,
+        billNumber: null as string | null,
+        error: null as string | null,
+        errorCode: null as PaymentErrorCode | null,
         retryCount: 0,
-        savedOrder: null,
-        paymentResult: null,
-        paymentState: null,
-        paymentVersion: null,
+        savedOrder: null as any,
+        paymentResult: null as PaymentResult | null,
+        paymentState: null as string | null,
+        paymentVersion: null as number | null,
       }
-
       if (event.type === 'START' && event.input) {
         return {
-          ...baseContext,
+          ...base,
           total: event.input.total,
           discount: event.input.discount,
           items: event.input.items,
@@ -288,8 +221,7 @@ export const qrPaymentMachine = setup({
           agentType: event.input.agentType,
         }
       }
-
-      return baseContext
+      return base
     }),
     assignSavedOrder: assign({
       savedOrder: ({ event }) => (event as any).output ?? null,
@@ -306,9 +238,7 @@ export const qrPaymentMachine = setup({
           referenceCode: context.billNumber ?? context.orderId ?? undefined,
         }) satisfies PaymentResult,
     }),
-    triggerSync: () => {
-      // Sync is not required for online-only orders, but we keep the callback signature
-    },
+    triggerSync: () => {},
     assignTimeoutError: assign({
       error: () => 'Đã hết thời gian thanh toán QR. Vui lòng thử lại!',
       errorCode: () => PAYMENT_ERROR_CODES.TIMEOUT,
@@ -316,9 +246,7 @@ export const qrPaymentMachine = setup({
     notifyTimeout: () => {
       toast.error('Giao dịch đã hết hạn thanh toán (5 phút)')
     },
-    notifyCancel: () => {
-      // toast.info('Giao dịch đã bị hủy')
-    },
+    notifyCancel: () => {},
   },
   delays: {
     POLL_INTERVAL: POLL_INTERVAL_MS,
@@ -358,23 +286,15 @@ export const qrPaymentMachine = setup({
         CANCEL: { target: 'cancelingPayment' },
       },
     },
-
     creatingOrder: {
       invoke: {
         id: 'createOrder',
         src: 'createOrder',
         input: ({ context }) => context,
-        onDone: {
-          target: 'fetchingQR',
-          actions: 'assignOrderId',
-        },
-        onError: {
-          target: 'error',
-          actions: 'recordError',
-        },
+        onDone: { target: 'fetchingQR', actions: 'assignOrderId' },
+        onError: { target: 'error', actions: 'recordError' },
       },
     },
-
     fetchingQR: {
       invoke: {
         id: 'fetchQR',
@@ -385,20 +305,13 @@ export const qrPaymentMachine = setup({
           orderCode: context.billNumber ?? '',
           tenantConfig: context.tenantConfig ?? null,
         }),
-        onDone: {
-          target: 'waitingForPayment',
-          actions: 'assignQRData',
-        },
-        onError: {
-          target: 'error',
-          actions: 'recordError',
-        },
+        onDone: { target: 'waitingForPayment', actions: 'assignQRData' },
+        onError: { target: 'error', actions: 'recordError' },
       },
       on: {
         CANCEL: { target: 'cancelingPayment', actions: 'notifyCancel' },
       },
     },
-
     waitingForPayment: {
       on: {
         CANCEL: { target: 'cancelingPayment', actions: 'notifyCancel' },
@@ -415,17 +328,13 @@ export const qrPaymentMachine = setup({
               actions: ['assignTimeoutError', 'notifyTimeout'],
             },
           },
-          on: {
-            CHECK_STATUS_NOW: 'checking',
-          },
+          on: { CHECK_STATUS_NOW: 'checking' },
         },
         checking: {
           invoke: {
             id: 'checkStatus',
             src: 'checkStatus',
-            input: ({ context }) => ({
-              paymentId: context.paymentId ?? '',
-            }),
+            input: ({ context }) => ({ paymentId: context.paymentId ?? '' }),
             onDone: [
               {
                 target: '#qrPayment.savingOrder',
@@ -449,14 +358,11 @@ export const qrPaymentMachine = setup({
                 }),
               },
             ],
-            onError: {
-              target: 'idle',
-            },
+            onError: { target: 'idle' },
           },
         },
       },
     },
-
     forceCapturingPayment: {
       invoke: {
         id: 'forceCaptureQr',
@@ -467,17 +373,11 @@ export const qrPaymentMachine = setup({
         }),
         onDone: {
           target: 'savingOrder',
-          actions: assign({
-            paymentVersion: ({ event }) => event.output,
-          }),
+          actions: assign({ paymentVersion: ({ event }) => event.output }),
         },
-        onError: {
-          target: 'error',
-          actions: 'recordError',
-        },
+        onError: { target: 'error', actions: 'recordError' },
       },
     },
-
     savingOrder: {
       invoke: {
         id: 'saveOrder',
@@ -487,45 +387,29 @@ export const qrPaymentMachine = setup({
           target: 'preparingReceipt',
           actions: ['assignSavedOrder', 'assignPaymentResult', 'triggerSync'],
         },
-        onError: {
-          target: 'error',
-          actions: 'recordError',
-        },
+        onError: { target: 'error', actions: 'recordError' },
       },
     },
-
     preparingReceipt: {
-      after: {
-        800: { target: 'printingReceipt' },
-      },
+      after: { 800: { target: 'printingReceipt' } },
     },
-
     printingReceipt: {
       invoke: {
         id: 'printReceipt',
         src: 'printReceipt',
-        input: ({ context }) => ({
-          printRef: context.printRef,
-        }),
-        onDone: {
-          target: 'success',
-        },
-        onError: {
-          target: 'success', // Lỗi in không cản trước flow thành công
-        },
+        input: ({ context }) => ({ printRef: context.printRef }),
+        onDone: { target: 'success' },
+        onError: { target: 'success' },
       },
     },
-
     error: {
       on: {
         RETRY: [
-          // TH1: Đã có paymentId => Chỉ thử lại bước lấy mã QR
           {
             target: 'fetchingQR',
             guard: ({ context }) => context.paymentId !== null && context.retryCount < MAX_RETRIES,
             actions: 'clearError',
           },
-          // TH2: Chưa có paymentId => Thử lại từ bước tạo đơn
           {
             target: 'creatingOrder',
             guard: 'canRetry',
@@ -541,25 +425,20 @@ export const qrPaymentMachine = setup({
         CANCEL: { target: 'cancelingPayment' },
       },
     },
-
     success: {
       on: {
         START: { target: 'creatingOrder', actions: 'resetContext' },
       },
     },
-
     cancelingPayment: {
       invoke: {
         id: 'voidPayment',
         src: 'voidPayment',
-        input: ({ context }) => ({
-          paymentId: context.paymentId,
-        }),
+        input: ({ context }) => ({ paymentId: context.paymentId }),
         onDone: { target: 'cancellingOrder' },
         onError: { target: 'cancellingOrder' },
       },
     },
-
     cancellingOrder: {
       invoke: {
         id: 'cancelOrder',
@@ -573,7 +452,6 @@ export const qrPaymentMachine = setup({
         onError: { target: 'cancelled' },
       },
     },
-
     cancelled: {
       on: {
         START: { target: 'creatingOrder', actions: 'resetContext' },
@@ -582,9 +460,6 @@ export const qrPaymentMachine = setup({
   },
 })
 
-/**
- * Lấy nhãn trạng thái hiển thị cho QR Payment
- */
 export function getQrPaymentStatusLabel(state: SnapshotFrom<typeof qrPaymentMachine>): string {
   const { error } = state.context
   if (state.matches('idle')) return 'Sẵn sàng thanh toán'

@@ -36,7 +36,7 @@ export const PortablePaymentService = {
     }
 
     const res = await PaymentPortable.doConnect(posUrl, MERCHANT_NAME, CASHIER_ID, LICENSE)
-    // console.log('[PortablePOS] Direct Connection Response:', res)
+    console.log('[PortablePOS] Direct Connection Response:', res)
     return res
   },
 

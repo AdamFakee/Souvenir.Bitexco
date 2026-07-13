@@ -2,7 +2,7 @@ import { Button } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
 import { LucideIcon } from 'lucide-react-native'
 import React, { memo } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 
 const BORDER = '#DFE0E1'
 const TEXT_PRIMARY = '#303036'
@@ -22,31 +22,44 @@ interface ExchangeSummaryFooterProps {
   replacementSubtotal: number
   replacementVat: number
   differenceAmount: number
+  selectedReturnCount: number
+  replacementCount: number
   isOriginalOrderVoucherApplied: boolean
   canSubmit: boolean
   isProcessing: boolean
-  processingText: string
   paymentMethods: ExchangePaymentMethodOption[]
   onClose: () => void
-  onConfirmZero: () => void
   onSelectPaymentMethod: (methodType: string) => void
 }
 
+/** Footer cột phải: tóm tắt + PTTT (khi Cần thu > 0) + Hủy. Không nút “xác nhận đổi ngang”. */
 export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
   returnedValue,
   replacementSubtotal,
   replacementVat,
   differenceAmount,
+  selectedReturnCount,
+  replacementCount,
   isOriginalOrderVoucherApplied,
   canSubmit,
   isProcessing,
-  processingText,
   paymentMethods,
   onClose,
-  onConfirmZero,
   onSelectPaymentMethod,
 }: ExchangeSummaryFooterProps) {
   const needsPayment = differenceAmount > 0
+  const collect = Math.max(0, differenceAmount)
+  const payDisabled = !canSubmit || isProcessing
+
+  const blockReasons: string[] = []
+  if (isOriginalOrderVoucherApplied) {
+    blockReasons.push('Đơn có voucher/KM — không đổi được')
+  } else {
+    if (selectedReturnCount <= 0) blockReasons.push('Chọn ít nhất 1 món khách trả')
+    if (replacementCount <= 0) blockReasons.push('Thêm ít nhất 1 món đổi mới')
+    if (differenceAmount < 0) blockReasons.push('Giá hàng mới phải ≥ hàng trả')
+  }
+
   const rows: ExchangePaymentMethodOption[][] = []
   for (let i = 0; i < paymentMethods.length; i += 2) {
     rows.push(paymentMethods.slice(i, i + 2))
@@ -54,10 +67,10 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
 
   return (
     <View
-      className="px-6 py-5"
+      className="px-5 py-4"
       style={{ borderTopWidth: 1, borderColor: BORDER, backgroundColor: '#fff' }}
     >
-      <View className="mb-5" style={{ gap: 6 }}>
+      <View style={{ gap: 4 }}>
         <SummaryRow label="Hàng trả" value={formatCurrency(returnedValue)} valueColor={ERROR} />
         <SummaryRow
           label="Hàng mới"
@@ -70,115 +83,73 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
           valueColor={BRAND}
         />
 
-        <View className="mt-2" style={{ borderTopWidth: 1, borderColor: BORDER, paddingTop: 12 }}>
+        <View className="mt-2" style={{ borderTopWidth: 1, borderColor: BORDER, paddingTop: 10 }}>
           <View className="flex-row items-center justify-between">
             <Text
-              className="text-xl font-extrabold uppercase tracking-tight"
+              className="text-lg font-extrabold uppercase tracking-tight"
               style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
             >
               Cần thu
             </Text>
             <Text
-              className="text-3xl font-extrabold"
-              style={{ color: differenceAmount < 0 ? ERROR : BRAND, fontFamily: 'Manrope-Bold' }}
+              className="text-2xl font-extrabold"
+              style={{
+                color: differenceAmount < 0 ? ERROR : BRAND,
+                fontFamily: 'Manrope-Bold',
+              }}
               numberOfLines={1}
             >
-              {formatCurrency(Math.max(0, differenceAmount))}
+              {formatCurrency(collect)}
             </Text>
           </View>
         </View>
-
-        {isOriginalOrderVoucherApplied && (
-          <View
-            className="mt-3 rounded-xl px-4 py-3"
-            style={{ backgroundColor: 'rgba(220,38,38,0.1)' }}
-          >
-            <Text
-              className="text-sm font-extrabold"
-              style={{ color: ERROR, fontFamily: 'Manrope-Bold' }}
-            >
-              Đơn hàng có voucher/khuyến mãi nên không được đổi hàng.
-            </Text>
-          </View>
-        )}
-
-        {differenceAmount < 0 && (
-          <View
-            className="mt-3 rounded-xl px-4 py-3"
-            style={{ backgroundColor: 'rgba(220,38,38,0.1)' }}
-          >
-            <Text
-              className="text-base font-extrabold"
-              style={{ color: ERROR, fontFamily: 'Manrope-Bold' }}
-            >
-              Giá trị hàng mới phải lớn hơn hoặc bằng giá trị hàng trả.
-            </Text>
-          </View>
-        )}
       </View>
 
-      {needsPayment ? (
-        <View className="gap-3">
-          {rows.map((row, rowIndex) => (
-            <View key={rowIndex} className="flex-row gap-3">
+      {blockReasons.length > 0 && (
+        <View
+          className="mt-3 rounded-xl px-3 py-2"
+          style={{ backgroundColor: 'rgba(220,38,38,0.08)' }}
+        >
+          {blockReasons.map((r) => (
+            <Text
+              key={r}
+              className="text-sm font-bold"
+              style={{ color: ERROR, fontFamily: 'Manrope-Bold' }}
+            >
+              • {r}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      <View className="mt-3 gap-2">
+        {needsPayment &&
+          rows.map((row, rowIndex) => (
+            <View key={rowIndex} className="flex-row gap-2">
               {row.map((method) => {
-                const Icon = method.icon
-                const isDisabled = !canSubmit || isProcessing || !!method.disabled
+                const isDisabled = payDisabled || !!method.disabled
                 return (
-                  <Pressable
+                  <Button
                     key={method.type}
+                    label={method.label}
+                    loading={isProcessing}
                     disabled={isDisabled}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Thanh toán ${method.label}`}
                     onPress={() => onSelectPaymentMethod(method.type)}
-                    className={`min-h-[56px] flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-outline-variant bg-primary py-4 ${
-                      isDisabled ? 'opacity-50' : 'opacity-100'
-                    }`}
-                    style={
-                      {
-                        boxShadow: '0px 3px 0px #EBEBEB',
-                      } as any
-                    }
-                  >
-                    {Icon ? (
-                      <Icon size={24} color="#ffffff" width={24} height={24} fill="#ffffff" />
-                    ) : null}
-                    <Text className="text-center text-[16px] font-bold text-white">
-                      {method.label}
-                    </Text>
-                  </Pressable>
+                    className="h-14 min-h-[56px] flex-1 rounded-xl px-3"
+                  />
                 )
               })}
-              {row.length === 1 ? <View className="flex-1" /> : null}
             </View>
           ))}
 
-          <Button
-            label="Hủy bỏ"
-            variant="outline"
-            className="mt-1 h-14 min-h-[44px] rounded-xl"
-            onPress={onClose}
-            disabled={isProcessing}
-          />
-        </View>
-      ) : (
-        <View className="flex-row gap-3">
-          <Button
-            label="Hủy bỏ"
-            variant="outline"
-            className="h-14 min-h-[44px] flex-1 rounded-xl"
-            onPress={onClose}
-            disabled={isProcessing}
-          />
-          <Button
-            label={isProcessing ? processingText : 'XÁC NHẬN ĐỔI HÀNG'}
-            className="h-14 min-h-[44px] flex-[1.4] rounded-xl"
-            onPress={onConfirmZero}
-            loading={isProcessing}
-            disabled={!canSubmit || isProcessing}
-          />
-        </View>
-      )}
+        <Button
+          label="Hủy bỏ"
+          variant="outline"
+          className="h-12 min-h-[44px] w-full rounded-xl"
+          onPress={onClose}
+          disabled={isProcessing}
+        />
+      </View>
     </View>
   )
 })
@@ -194,14 +165,11 @@ function SummaryRow({
 }) {
   return (
     <View className="flex-row items-center justify-between">
-      <Text
-        className="text-base font-bold"
-        style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
-      >
+      <Text className="text-sm font-bold" style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}>
         {label}
       </Text>
       <Text
-        className="text-base font-extrabold"
+        className="text-sm font-extrabold"
         style={{ color: valueColor || TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
         numberOfLines={1}
       >

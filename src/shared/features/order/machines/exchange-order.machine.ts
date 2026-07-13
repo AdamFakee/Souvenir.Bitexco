@@ -713,6 +713,7 @@ export const exchangeOrderMachine = setup({
         },
       },
     },
+    // Exchange đã commit; chờ capture QR/thẻ. Cancel → draft + key mới (không undo server).
     waitingForOnlinePayment: {
       on: {
         PAYMENT_SUCCESS: {
@@ -722,6 +723,7 @@ export const exchangeOrderMachine = setup({
           target: 'draft',
           actions: assign({
             result: null,
+            selectedPayment: null,
             idempotencyKey: () => createIdempotencyKey(),
           }),
         },

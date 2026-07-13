@@ -1,8 +1,9 @@
 import { TenantConfig } from '@/shared/features/app/types/app.types'
-import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
 import { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PrinterService } from '@/shared/services'
+import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
+import { createCancelOrderActor } from '../flows/cancel-order.actor'
 import {
   checkQrPaymentStatusActor,
   fetchQrActor,
@@ -23,7 +24,6 @@ export interface ExchangeQRPaymentContext {
   tenantConfig?: TenantConfig | null
   affiliateId?: string | null
   agentType?: AgentType | null
-
   orderId: string | null
   paymentId: string | null
   qrContent: string | null
@@ -46,6 +46,7 @@ export type ExchangeQRPaymentEvent =
   | { type: 'FORCE_COMPLETE' }
   | { type: 'START'; input: ExchangeQRPaymentInput }
 
+/** Payment already INITIATED by exchangeOrder */
 export type ExchangeQRPaymentInput = {
   total: number
   discount: number
@@ -58,7 +59,6 @@ export type ExchangeQRPaymentInput = {
   tenantConfig?: TenantConfig | null
   affiliateId?: string | null
   agentType?: AgentType | null
-
   orderId: string
   paymentId: string
   billNumber: string
@@ -68,6 +68,7 @@ const MAX_RETRIES = 3
 const POLL_INTERVAL_MS = 3000
 const TOTAL_TIMEOUT_MS = 5 * 60 * 1000
 
+/** Exchange difference: seed paymentId → fetch QR → poll → print (no checkout) */
 export const exchangeQrPaymentMachine = setup({
   types: {
     context: {} as ExchangeQRPaymentContext,
@@ -87,29 +88,12 @@ export const exchangeQrPaymentMachine = setup({
       }
     }),
     voidPayment: voidPaymentActor,
-    cancelOrder: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { orderId: string | null; shiftId: string; staffId: string }
-      }): Promise<void> => {
-        if (!input.orderId) return
-        try {
-          await OrderRemoteAPI.cancelOrder({
-            orderId: input.orderId,
-            shiftId: input.shiftId,
-            staffId: input.staffId,
-            reason: 'cashier_cancelled_payment_during_exchange',
-          })
-        } catch (err) {
-          console.error('[exchangeQrPayment] cancelOrder error:', err)
-        }
-      },
+    cancelOrder: createCancelOrderActor(
+      'cashier_cancelled_payment_during_exchange',
+      'exchangeQrPayment',
     ),
     printReceipt: fromPromise(async ({ input }: { input: { printRef?: React.RefObject<any> } }) => {
-      if (!input.printRef?.current) {
-        throw new Error('Không tìm thấy component in hóa đơn')
-      }
+      if (!input.printRef?.current) throw new Error('Không tìm thấy component in hóa đơn')
       await new Promise((resolve) => setTimeout(resolve, 800))
       await PrinterService.printComponent(input.printRef, { doubleCopy: true })
     }),
@@ -118,6 +102,14 @@ export const exchangeQrPaymentMachine = setup({
     canRetry: ({ context }) => context.retryCount < MAX_RETRIES,
   },
   actions: {
+    assignQRData: assign(({ event }) => {
+      const output = (event as any).output
+      return {
+        qrContent: output?.qrPayload ?? output?.qrUrl ?? null,
+        expiresAt: output?.expiresAt ?? null,
+        createdAt: output?.createdAt ?? new Date().toISOString(),
+      }
+    }),
     recordError: assign({
       error: ({ event }) => {
         const err = (event as any).error
@@ -135,25 +127,24 @@ export const exchangeQrPaymentMachine = setup({
     }),
     clearError: assign({ error: null, errorCode: null }),
     resetContext: assign(({ event }) => {
-      const baseContext = {
-        orderId: null,
-        paymentId: null,
-        qrContent: null,
-        expiresAt: null,
-        createdAt: null,
-        billNumber: null,
-        error: null,
-        errorCode: null,
+      const base = {
+        orderId: null as string | null,
+        paymentId: null as string | null,
+        qrContent: null as string | null,
+        expiresAt: null as string | null,
+        createdAt: null as string | null,
+        billNumber: null as string | null,
+        error: null as string | null,
+        errorCode: null as PaymentErrorCode | null,
         retryCount: 0,
-        savedOrder: null,
-        paymentResult: null,
-        paymentState: null,
-        paymentVersion: null,
+        savedOrder: null as any,
+        paymentResult: null as PaymentResult | null,
+        paymentState: null as string | null,
+        paymentVersion: null as number | null,
       }
-
       if (event.type === 'START' && event.input) {
         return {
-          ...baseContext,
+          ...base,
           total: event.input.total,
           discount: event.input.discount,
           items: event.input.items,
@@ -170,8 +161,7 @@ export const exchangeQrPaymentMachine = setup({
           billNumber: event.input.billNumber,
         }
       }
-
-      return baseContext
+      return base
     }),
     assignSavedOrder: assign({
       savedOrder: ({ event }) => (event as any).output ?? null,
@@ -189,22 +179,12 @@ export const exchangeQrPaymentMachine = setup({
         }) satisfies PaymentResult,
     }),
     triggerSync: () => {},
-    notifyCancel: () => {},
-    assignQRData: assign(({ event }) => {
-      // fetchQrActor returns PaymentRemoteAPI.generateQrCode → { qrPayload, qrUrl, expiresAt, ... }
-      // NOT { qrContent } — mapping sai → qrContent null → UI kẹt "đang lấy QR"
-      const output = (event as any).output
-      return {
-        qrContent: output?.qrPayload ?? output?.qrUrl ?? null,
-        expiresAt: output?.expiresAt ?? null,
-        createdAt: output?.createdAt ?? new Date().toISOString(),
-      }
-    }),
     assignTimeoutError: assign({
       error: () => 'Đã hết thời gian chờ thanh toán (5 phút).',
       errorCode: () => PAYMENT_ERROR_CODES.TIMEOUT,
     }),
     notifyTimeout: () => {},
+    notifyCancel: () => {},
   },
   delays: {
     POLL_INTERVAL: POLL_INTERVAL_MS,
@@ -225,11 +205,9 @@ export const exchangeQrPaymentMachine = setup({
     tenantConfig: input.tenantConfig,
     affiliateId: input.affiliateId,
     agentType: input.agentType,
-
     orderId: input.orderId,
     paymentId: input.paymentId,
     billNumber: input.billNumber,
-
     qrContent: null,
     expiresAt: null,
     createdAt: null,
@@ -248,31 +226,23 @@ export const exchangeQrPaymentMachine = setup({
         CANCEL: { target: 'cancelingPayment' },
       },
     },
-
     fetchingQR: {
       invoke: {
         id: 'fetchQR',
         src: 'fetchQR',
-        input: ({ context }: { context: ExchangeQRPaymentContext }) => ({
+        input: ({ context }) => ({
           paymentId: context.paymentId ?? '',
           amount: context.total,
           orderCode: context.billNumber ?? '',
           tenantConfig: context.tenantConfig ?? null,
         }),
-        onDone: {
-          target: 'waitingForPayment',
-          actions: 'assignQRData',
-        },
-        onError: {
-          target: 'error',
-          actions: 'recordError',
-        },
+        onDone: { target: 'waitingForPayment', actions: 'assignQRData' },
+        onError: { target: 'error', actions: 'recordError' },
       },
       on: {
         CANCEL: { target: 'cancelingPayment', actions: 'notifyCancel' },
       },
     },
-
     waitingForPayment: {
       on: {
         CANCEL: { target: 'cancelingPayment', actions: 'notifyCancel' },
@@ -289,108 +259,80 @@ export const exchangeQrPaymentMachine = setup({
               actions: ['assignTimeoutError', 'notifyTimeout'],
             },
           },
-          on: {
-            CHECK_STATUS_NOW: 'checking',
-          },
+          on: { CHECK_STATUS_NOW: 'checking' },
         },
         checking: {
           invoke: {
             id: 'checkStatus',
             src: 'checkStatus',
-            input: ({ context }: { context: ExchangeQRPaymentContext }) => ({
-              paymentId: context.paymentId ?? '',
-            }),
+            input: ({ context }) => ({ paymentId: context.paymentId ?? '' }),
             onDone: [
               {
                 target: '#exchangeQrPayment.savingOrder',
-                guard: ({ event }: { event: any }) => (event.output as any).state === 'CAPTURED',
+                guard: ({ event }) => (event.output as any).state === 'CAPTURED',
               },
               {
                 target: '#exchangeQrPayment.error',
-                guard: ({ event }: { event: any }) =>
-                  ['FAILED', 'VOIDED'].includes((event.output as any).state),
+                guard: ({ event }) => ['FAILED', 'VOIDED'].includes((event.output as any).state),
                 actions: assign({
-                  error: ({ event }: { event: any }) =>
+                  error: ({ event }) =>
                     `Giao dịch đã bị ${(event.output as any).state === 'VOIDED' ? 'hủy' : 'thất bại'} trên server.`,
-                  paymentState: ({ event }: { event: any }) => (event.output as any).state,
-                  paymentVersion: ({ event }: { event: any }) => (event.output as any).version,
+                  paymentState: ({ event }) => (event.output as any).state,
+                  paymentVersion: ({ event }) => (event.output as any).version,
                 }),
               },
               {
                 target: 'idle',
                 actions: assign({
-                  paymentState: ({ event }: { event: any }) => (event.output as any).state,
-                  paymentVersion: ({ event }: { event: any }) => (event.output as any).version,
+                  paymentState: ({ event }) => (event.output as any).state,
+                  paymentVersion: ({ event }) => (event.output as any).version,
                 }),
               },
             ],
-            onError: {
-              target: 'idle',
-            },
+            onError: { target: 'idle' },
           },
         },
       },
     },
-
     forceCapturingPayment: {
       invoke: {
         id: 'forceCaptureQr',
         src: 'forceCaptureQr',
-        input: ({ context }: { context: ExchangeQRPaymentContext }) => ({
+        input: ({ context }) => ({
           paymentId: context.paymentId ?? '',
           paymentVersion: context.paymentVersion ?? 1,
         }),
         onDone: {
           target: 'savingOrder',
-          actions: assign({
-            paymentVersion: ({ event }) => event.output,
-          }),
+          actions: assign({ paymentVersion: ({ event }) => event.output }),
         },
-        onError: {
-          target: 'error',
-          actions: 'recordError',
-        },
+        onError: { target: 'error', actions: 'recordError' },
       },
     },
-
     savingOrder: {
       invoke: {
         id: 'saveOrder',
         src: 'saveOrder',
-        input: ({ context }: { context: ExchangeQRPaymentContext }) => context,
+        input: ({ context }) => context,
         onDone: {
           target: 'preparingReceipt',
           actions: ['assignSavedOrder', 'assignPaymentResult', 'triggerSync'],
         },
-        onError: {
-          target: 'error',
-          actions: 'recordError',
-        },
+        onError: { target: 'error', actions: 'recordError' },
       },
     },
-
     preparingReceipt: {
-      after: {
-        800: { target: 'printingReceipt' },
-      },
+      after: { 800: { target: 'printingReceipt' } },
     },
-
     printingReceipt: {
       invoke: {
         id: 'printReceipt',
         src: 'printReceipt',
-        input: ({ context }: { context: ExchangeQRPaymentContext }) => ({
-          printRef: context.printRef,
-        }),
-        onDone: {
-          target: 'success',
-        },
-        onError: {
-          target: 'success',
-        },
+        input: ({ context }) => ({ printRef: context.printRef }),
+        onDone: { target: 'success' },
+        onError: { target: 'success' },
       },
     },
-
     error: {
       on: {
         RETRY: [
@@ -402,37 +344,32 @@ export const exchangeQrPaymentMachine = setup({
         ],
         CHECK_STATUS_NOW: {
           target: 'waitingForPayment.checking',
-          guard: ({ context }: { context: ExchangeQRPaymentContext }) => context.paymentId !== null,
+          guard: ({ context }) => context.paymentId !== null,
           actions: 'clearError',
         },
         FORCE_COMPLETE: { target: '#exchangeQrPayment.forceCapturingPayment' },
         CANCEL: { target: 'cancelingPayment' },
       },
     },
-
     success: {
       on: {
         START: { target: 'fetchingQR', actions: 'resetContext' },
       },
     },
-
     cancelingPayment: {
       invoke: {
         id: 'voidPayment',
         src: 'voidPayment',
-        input: ({ context }: { context: ExchangeQRPaymentContext }) => ({
-          paymentId: context.paymentId,
-        }),
+        input: ({ context }) => ({ paymentId: context.paymentId }),
         onDone: { target: 'cancellingOrder' },
         onError: { target: 'cancellingOrder' },
       },
     },
-
     cancellingOrder: {
       invoke: {
         id: 'cancelOrder',
         src: 'cancelOrder',
-        input: ({ context }: { context: ExchangeQRPaymentContext }) => ({
+        input: ({ context }) => ({
           orderId: context.orderId,
           shiftId: context.shiftId,
           staffId: context.staffId,
@@ -441,7 +378,6 @@ export const exchangeQrPaymentMachine = setup({
         onError: { target: 'cancelled' },
       },
     },
-
     cancelled: {
       on: {
         START: { target: 'fetchingQR', actions: 'resetContext' },

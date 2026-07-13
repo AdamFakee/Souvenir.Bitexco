@@ -1,9 +1,6 @@
-import {
-  OrderRemoteAPI,
-  PosCheckoutResult,
-} from '@/shared/features/order/api/remote/order.remote.api'
 import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
-import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
+import React from 'react'
+import { SnapshotFrom, assign, setup } from 'xstate'
 import {
   PAYMENT_ERROR_CODES,
   PaymentErrorCode,
@@ -11,6 +8,7 @@ import {
   PortablePaymentCommandResult,
 } from '../types'
 
+import { createCancelOrderActor } from '../flows/cancel-order.actor'
 import {
   authorizePaymentActor,
   cancelPaymentActor,
@@ -23,7 +21,13 @@ import {
   sendCardSaleCommandActor,
   verifyLastTransactionActor,
 } from '../flows/card-collection.actors'
-import { printReceiptActor } from '../flows/print.actors'
+
+/** Shell from exchange newOrder — not full POS checkout */
+export type ExchangeCheckoutShell = {
+  orderId: string
+  grandTotal: number
+  taxTotal: number
+}
 
 export interface ExchangePortablePaymentContext {
   total: number
@@ -37,7 +41,7 @@ export interface ExchangePortablePaymentContext {
   affiliateId?: string | null
   agentType?: AgentType | null
 
-  checkoutResult: PosCheckoutResult | null
+  checkoutResult: ExchangeCheckoutShell | null
   paymentId: string | null
   paymentVersion: number
   rawCommandResult: PortablePaymentCommandResult | null
@@ -67,6 +71,7 @@ export type ExchangePortablePaymentEvent =
     }
   | { type: 'START'; input: ExchangePortablePaymentInput }
 
+/** Payment already INITIATED by exchangeOrder — no POS checkout */
 export type ExchangePortablePaymentInput = {
   total: number
   discount: number
@@ -78,10 +83,9 @@ export type ExchangePortablePaymentInput = {
   printRef?: React.RefObject<any>
   affiliateId?: string | null
   agentType?: AgentType | null
-
   paymentId: string
   paymentVersion?: number
-  checkoutResult: any
+  checkoutResult: ExchangeCheckoutShell | null
 }
 
 const MAX_RETRIES = 3
@@ -102,26 +106,10 @@ export const exchangePortablePaymentMachine = setup({
     cardCaptureManual: cardCaptureManualActor,
     authorizePayment: authorizePaymentActor,
     capturePayment: capturePaymentActor,
-    printReceipt: printReceiptActor,
     cancelPayment: cancelPaymentActor,
-    cancelOrder: fromPromise(
-      async ({
-        input,
-      }: {
-        input: { orderId: string | null; shiftId: string; staffId: string }
-      }): Promise<void> => {
-        if (!input.orderId) return
-        try {
-          await OrderRemoteAPI.cancelOrder({
-            orderId: input.orderId,
-            shiftId: input.shiftId,
-            staffId: input.staffId,
-            reason: 'cashier_cancelled_payment_during_exchange',
-          })
-        } catch (err) {
-          console.error('[exchangePortablePayment] cancelOrder error:', err)
-        }
-      },
+    cancelOrder: createCancelOrderActor(
+      'cashier_cancelled_payment_during_exchange',
+      'exchangePortablePayment',
     ),
   },
   guards: {
@@ -199,7 +187,12 @@ export const exchangePortablePaymentMachine = setup({
           method: 'card_bidv',
           paidAmount: context.total,
           change: 0,
-          referenceCode: context.checkoutResult?.orderId ?? context.paymentId ?? undefined,
+          referenceCode:
+            context.rawCommandResult?.transInfo?.refNo ||
+            context.rawCommandResult?.transInfo?.receiptNo ||
+            context.rawCommandResult?.transInfo?.approvalCode ||
+            context.paymentId ||
+            undefined,
           isOnline: true,
           orderId: context.checkoutResult?.orderId ?? undefined,
         }) satisfies PaymentResult,
@@ -420,7 +413,8 @@ export const exchangePortablePaymentMachine = setup({
           paymentVersion: context.paymentVersion,
         }),
         onDone: {
-          target: 'preparingReceipt',
+          // Bill in ở exchange-screen (refund + sale) — không print trong popup
+          target: 'success',
           actions: ['assignPaymentVersion', 'assignPaymentResult'],
         },
         onError: {
@@ -438,26 +432,10 @@ export const exchangePortablePaymentMachine = setup({
       },
     },
 
-    preparingReceipt: {
-      after: {
-        800: { target: 'printingReceipt' },
-      },
-    },
-
-    printingReceipt: {
-      invoke: {
-        id: 'printReceipt',
-        src: 'printReceipt',
-        input: ({ context }: { context: ExchangePortablePaymentContext }) => ({
-          printRef: context.printRef,
-        }),
-        onDone: { target: 'success' },
-        onError: { target: 'success' },
-      },
-    },
-
     success: {
-      type: 'final',
+      on: {
+        START: { target: 'idle', actions: 'resetContext' },
+      },
     },
 
     paymentFailed: {
@@ -519,8 +497,6 @@ export function getExchangePortablePaymentStatusLabel(
   if (state.matches('authorizingPayment')) return 'Đang gửi yêu cầu thanh toán...'
   if (state.matches('capturingPayment')) return 'Đang đối soát giao dịch...'
   if (state.matches('manualResolution')) return 'Giao dịch cần đối soát thủ công'
-  if (state.matches('preparingReceipt')) return 'Đang chuẩn bị in biên lai...'
-  if (state.matches('printingReceipt')) return 'Đang in biên lai...'
   if (state.matches('success')) return 'Giao dịch thành công!'
   if (state.matches('paymentFailed')) return error ?? 'Thanh toán thất bại'
   if (state.matches('cancelingPayment')) return 'Đang hủy thanh toán...'

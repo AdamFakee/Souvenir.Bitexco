@@ -1,4 +1,6 @@
 export * from './qr-payment.machine'
+export * from './exchange-qr-payment.machine'
 export * from './cash-payment.machine'
 export * from './portable-payment.machine'
+export * from './exchange-portable-payment.machine'
 export * from './mix-payment.machine'

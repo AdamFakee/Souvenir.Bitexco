@@ -1,7 +1,6 @@
 import { ViceService } from '@/screens/vice-service'
 import { Button, ControlledInput, ModalBase, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 
 import CardIcon from '@/assets/icons/Card.svg'
 import { toast } from '@/shared/store'
@@ -27,8 +26,16 @@ export interface ExchangePortablePaymentPopupProps extends PaymentPopupProps {
   onCancel?: () => void
 }
 
+export type ExchangePortableOpenInput = {
+  paymentId: string
+  /** UUID order từ exchange newOrder — cancel/void */
+  orderId: string
+  grandTotal?: number
+  taxTotal?: number
+}
+
 export interface ExchangePortablePaymentPopupRef {
-  open: (overrideInput?: { paymentId: string; checkoutResult: any }) => void
+  open: (overrideInput?: ExchangePortableOpenInput) => void
   close: () => void
 }
 
@@ -41,7 +48,6 @@ export const ExchangePortablePaymentPopup = memo(
         items,
         staffId,
         shiftId,
-        staffName,
         appliedVoucher,
         printRef,
         onSuccess,
@@ -105,18 +111,11 @@ export const ExchangePortablePaymentPopup = memo(
       const isCanceling = machineStateSelect === 'cancelingPayment'
       const isManualResolution = machineStateSelect === 'manualResolution'
       const isCapturingCardManual = machineStateSelect === 'capturingCardManual'
-      const isPreparingReceipt = machineStateSelect === 'preparingReceipt'
-      const isPrinting = machineStateSelect === 'printingReceipt'
       const isSuccess = machineStateSelect === 'success'
 
       const isFailure = isConnectionFailed || isPaymentFailed || isManualResolution
       const isFinalizing =
-        isCapturingCard ||
-        isCapturingCardManual ||
-        isAuthorizingPayment ||
-        isCapturingPayment ||
-        isPreparingReceipt ||
-        isPrinting
+        isCapturingCard || isCapturingCardManual || isAuthorizingPayment || isCapturingPayment
       const isLoading =
         isProcessingPayment ||
         isConnecting ||
@@ -179,7 +178,13 @@ export const ExchangePortablePaymentPopup = memo(
       useImperativeHandle(
         ref,
         () => ({
-          open: (overrideInput?: { paymentId: string; checkoutResult: any }) => {
+          open: (overrideInput?: ExchangePortableOpenInput) => {
+            if (!overrideInput?.paymentId || !overrideInput?.orderId) {
+              toast.error('Thiếu paymentId/orderId — không thể thu thẻ đổi hàng.')
+              onCancel?.()
+              return
+            }
+
             setVisible(true)
             setShowManualForm(false)
             reset()
@@ -197,8 +202,12 @@ export const ExchangePortablePaymentPopup = memo(
                 printRef,
                 affiliateId: affiliate?.id ?? null,
                 agentType: affiliate?.agentType ?? null,
-                paymentId: overrideInput?.paymentId ?? '',
-                checkoutResult: overrideInput?.checkoutResult ?? null,
+                paymentId: overrideInput.paymentId,
+                checkoutResult: {
+                  orderId: overrideInput.orderId,
+                  grandTotal: overrideInput.grandTotal ?? total,
+                  taxTotal: overrideInput.taxTotal ?? 0,
+                },
               },
             })
 
@@ -216,6 +225,7 @@ export const ExchangePortablePaymentPopup = memo(
           appliedVoucher,
           discount,
           items,
+          onCancel,
           printRef,
           reset,
           shiftId,
@@ -582,41 +592,6 @@ export const ExchangePortablePaymentPopup = memo(
                       />
                     </View>
                   </>
-                )}
-              </View>
-
-              <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-                {checkoutResult && (
-                  <View collapsable={false} ref={printRef}>
-                    <BitexcoReceiptTemplate
-                      order={
-                        {
-                          id: checkoutResult.orderId,
-                          total: checkoutResult.grandTotal,
-                          subtotal,
-                          discount,
-                          totalTax: checkoutResult.taxTotal,
-                          itemsSnapshot: items.map((i) => ({
-                            sku: i.product.sku,
-                            name: i.product.name,
-                            price: i.product.price,
-                            quantity: i.quantity,
-                            subtotal: i.product.price * i.quantity,
-                            taxRate: i.product.taxRate || 0,
-                            taxAmount:
-                              i.product.price * i.quantity * ((i.product.taxRate || 0) / 100),
-                          })),
-                          paymentsSnapshot: [
-                            {
-                              method: 'card_bidv',
-                              amount: checkoutResult.grandTotal,
-                            },
-                          ],
-                        } as any
-                      }
-                      staffName={staffName}
-                    />
-                  </View>
                 )}
               </View>
             </>

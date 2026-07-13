@@ -9,6 +9,7 @@ import {
   ExchangeQrPaymentPopup,
   ExchangeQrPaymentPopupRef,
   PAYMENT_REGISTRY,
+  PaymentPopupRef,
   PaymentResult,
 } from '@/shared/features/payment'
 import type { CartItem } from '@/shared/features/pos'
@@ -23,7 +24,6 @@ import { X } from 'lucide-react-native'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ExchangeReceiptData } from '../api/remote/order.remote.api'
 import {
   calculateExchangeReplacementSubtotal,
   calculateExchangeReplacementValue,
@@ -33,13 +33,14 @@ import {
   ExchangePaymentMethod,
   exchangeOrderMachine,
 } from '../machines/exchange-order.machine'
-import { IOrder } from '../types'
+import { IOrder, RefundReceiptData } from '../types'
 import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
-import { ExchangeBillTemplate } from './exchange-bill-template'
+import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { ExchangeReplacementItemsList } from './exchange-replacement-items-list'
 import { ExchangeReplacementSearchPanel } from './exchange-replacement-search-panel'
 import { ExchangeReturnItemsPanel } from './exchange-return-items-panel'
 import { ExchangeSummaryFooter } from './exchange-summary-footer'
+import { RefundReceiptTemplate } from './refund-receipt-template'
 
 const EXCHANGE_PAYMENT_TYPES = new Set(['cash', 'qr_bidv', 'card_bidv'])
 
@@ -49,8 +50,8 @@ interface ExchangeScreenProps {
 }
 
 /**
- * Màn đổi hàng full-screen (giống layout POS).
- * Thanh toán: reuse popup POS gốc Cash / QR / Card — không sửa machine.
+ * Màn đổi hàng full-screen.
+ * Cash: CashPaymentPopup (POS). QR/Card: Exchange* popup seed paymentId sau exchange submit.
  */
 export const ExchangeScreen = memo(function ExchangeScreen({
   order: initialOrder,
@@ -59,19 +60,25 @@ export const ExchangeScreen = memo(function ExchangeScreen({
   const router = useRouter()
   const [state, send] = useMachine(exchangeOrderMachine)
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
-  const receiptPrintRef = useRef(null)
+  const refundPrintRef = useRef(null)
+  const salePrintRef = useRef(null)
   const printedReceiptKeyRef = useRef<string | null>(null)
   const businessChecklistModalRef = useRef<BusinessChecklistModalRef>(null)
   const popupRefs = useRef<
-    Record<string, ExchangeQrPaymentPopupRef | ExchangePortablePaymentPopupRef | null>
+    Record<
+      string,
+      PaymentPopupRef | ExchangeQrPaymentPopupRef | ExchangePortablePaymentPopupRef | null
+    >
   >({})
   const startedRef = useRef(false)
+  /** Tránh open popup lặp khi waitingForOnlinePayment re-render */
+  const onlinePaymentOpenedKeyRef = useRef<string | null>(null)
 
   const { employee, cashSessionId, paymentMethods } = useAppContext()
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
   const isPosConnected = useConnectionStore((s) => s.isPosConnected)
 
-  const { order, reason, returnedLines, replacementLines, result } = state.context
+  const { order, reason, returnedLines, replacementLines, result, selectedPayment } = state.context
   const activeOrder = order ?? initialOrder
 
   const isProcessing =
@@ -217,58 +224,101 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     return (item.subtotal / item.quantity) * qty
   }, [])
 
-  const buildFallbackReceipt = useCallback((): ExchangeReceiptData | null => {
-    if (!activeOrder) return null
+  /** Bill 1: phiếu trả (refund) từ hàng khách trả */
+  const refundReceipt = useMemo((): RefundReceiptData | null => {
+    if (!activeOrder || !result) return null
+    const lines = returnedLines
+      .filter((line) => line.qty > 0)
+      .map((line) => {
+        const item = activeOrder.itemsSnapshot?.find((o) => o.productId === line.productId)
+        const unitPrice = item && item.quantity > 0 ? item.subtotal / item.quantity : 0
+        return {
+          productId: line.productId,
+          sku: item?.sku,
+          name: item?.name || line.productId,
+          orderedQty: item?.quantity ?? line.qty,
+          returnedQty: line.qty,
+          remainingQty: Math.max(0, (item?.quantity ?? line.qty) - line.qty),
+          unitPrice,
+          lineRefundAmount: unitPrice * line.qty,
+          isReturned: true,
+        }
+      })
+    if (lines.length === 0) return null
     return {
-      exchangeId: result?.newOrder?.orderId || result?.originalOrderId || undefined,
-      exchangeCode: result?.newOrder?.orderCode || result?.originalOrderCode || undefined,
-      orderId: activeOrder.id,
-      orderCode: result?.originalOrderCode || activeOrder.code || undefined,
-      exchangedAt: new Date().toISOString(),
-      reason,
-      returnedValue: result?.refundValue ?? returnedValue,
-      replacementValue: result?.newOrderTotal ?? replacementValue,
-      differenceAmount: result?.difference ?? collectAmount,
-      returnedLines: returnedLines
-        .filter((line) => line.qty > 0)
-        .map((line) => {
-          const item = activeOrder.itemsSnapshot?.find((o) => o.productId === line.productId)
-          const unitPrice = item && item.quantity > 0 ? item.subtotal / item.quantity : 0
-          return {
-            productId: line.productId,
-            sku: item?.sku,
-            name: item?.name || line.productId,
-            qty: line.qty,
-            unitPrice,
-            lineAmount: unitPrice * line.qty,
-          }
-        }),
-      replacementLines: replacementLines
-        .filter((line) => line.qty > 0)
-        .map((line) => {
-          const lineVat = calculateExchangeReplacementVat([line])
-          return {
-            productId: line.productId,
-            sku: line.sku,
-            name: line.name,
-            qty: line.qty,
-            unitPrice: line.price,
-            lineAmount: line.price * line.qty + lineVat,
-          }
-        }),
+      orderId: result.originalOrderId || activeOrder.id,
+      orderCode: result.originalOrderCode || activeOrder.code || undefined,
+      returnId: result.return?.returnId,
+      returnCode: result.return?.returnCode,
+      reason: reason || 'Đổi hàng',
+      refundedAt: new Date().toISOString(),
+      refundAmount: result.refundValue ?? returnedValue,
+      lines,
+    }
+  }, [activeOrder, reason, result, returnedLines, returnedValue])
+
+  /** Bill 2: hóa đơn bán hàng mới (replacement) */
+  const saleOrder = useMemo((): IOrder | null => {
+    if (!result?.newOrder) return null
+    const newOrder = result.newOrder
+    const method = selectedPayment?.method || 'cash'
+    const paid =
+      selectedPayment?.amount ?? newOrder.paidTotal ?? newOrder.grandTotal ?? replacementValue
+
+    const itemsSnapshot = replacementLines
+      .filter((line) => line.qty > 0)
+      .map((line) => {
+        const taxAmount = calculateExchangeReplacementVat([line])
+        return {
+          productId: line.productId || line.variantId,
+          sku: line.sku,
+          name: line.name,
+          price: line.price,
+          quantity: line.qty,
+          subtotal: line.price * line.qty,
+          taxRate: line.taxRate ?? 0,
+          taxAmount,
+          discountAmount: 0,
+        }
+      })
+
+    return {
+      id: newOrder.orderId,
+      code: newOrder.orderCode,
+      shiftId: cashSessionId || '',
+      staffId: employee?.id || '',
+      status: 'COMPLETED',
+      subtotal: newOrder.subTotal ?? replacementSubtotal,
+      discount: newOrder.discountTotal ?? 0,
+      voucherDiscount: newOrder.voucherDiscount ?? 0,
+      total: newOrder.grandTotal ?? replacementValue,
+      totalTax: newOrder.taxTotal ?? replacementVat,
+      customerTaxInfo: null,
+      isDeleted: false,
+      canReturn: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      itemsSnapshot,
+      paymentsSnapshot: [
+        {
+          method,
+          amount: paid,
+          cashTendered: selectedPayment?.cashTendered,
+          cashChange: selectedPayment?.cashChange,
+          referenceCode: selectedPayment?.referenceCode,
+        },
+      ],
     }
   }, [
-    activeOrder,
-    collectAmount,
-    reason,
+    cashSessionId,
+    employee?.id,
     replacementLines,
+    replacementSubtotal,
     replacementValue,
+    replacementVat,
     result,
-    returnedLines,
-    returnedValue,
+    selectedPayment,
   ])
-
-  const receipt = buildFallbackReceipt()
 
   const leave = useCallback(() => {
     if (isProcessing || isPaymentOpen) return
@@ -278,34 +328,56 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     else router.replace('/(tab)/orders')
   }, [isProcessing, isPaymentOpen, onDone, router, send])
 
+  // Đổi xong: in 2 bill × 2 liên — await print xong mới leave (tránh unmount ref giữa capture)
   useEffect(() => {
     if (!isCompleted) return
     const receiptKey =
-      receipt?.exchangeId ||
-      receipt?.exchangeCode ||
-      result?.newOrder?.orderId ||
-      result?.originalOrderId ||
-      activeOrder?.id ||
-      'exchange'
+      result?.newOrder?.orderId || result?.return?.returnId || result?.originalOrderId || 'exchange'
+    if (printedReceiptKeyRef.current === receiptKey) return
+
+    let cancelled = false
 
     const finish = async () => {
+      // 1 frame + short delay: off-screen receipt trees mount trước captureRef
+      await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 120)))
+      if (cancelled) return
+
       try {
-        if (receipt && receiptPrintRef.current && printedReceiptKeyRef.current !== receiptKey) {
-          printedReceiptKeyRef.current = receiptKey
-          await PrinterService.printComponent(receiptPrintRef)
+        if (refundReceipt) {
+          if (!refundPrintRef.current) {
+            throw new Error('Chưa sẵn sàng in phiếu trả hàng')
+          }
+          await PrinterService.printComponent(refundPrintRef, { doubleCopy: true })
         }
+        if (cancelled) return
+
+        if (saleOrder) {
+          if (!salePrintRef.current) {
+            throw new Error('Chưa sẵn sàng in hóa đơn đơn mới')
+          }
+          await PrinterService.printComponent(salePrintRef, { doubleCopy: true })
+        }
+
+        printedReceiptKeyRef.current = receiptKey
       } catch (error: any) {
         toast.error(error.message || 'Lỗi khi in phiếu đổi hàng')
       } finally {
+        if (cancelled) return
+        // In xong (hoặc fail) mới đóng popup / leave — giữ tree mount suốt await print
         setIsPaymentOpen(false)
-        send({ type: 'RESET' })
         if (onDone) onDone()
         else if (router.canGoBack()) router.back()
         else router.replace('/(tab)/orders')
+        // RESET sau navigate: tránh clear result → unmount template giữa print
+        setTimeout(() => send({ type: 'RESET' }), 0)
       }
     }
+
     finish()
-  }, [isCompleted, receipt, result, activeOrder, onDone, router, send])
+    return () => {
+      cancelled = true
+    }
+  }, [isCompleted, refundReceipt, saleOrder, result, onDone, router, send])
 
   const submitExchange = useCallback(
     (payment: ExchangeSelectedPayment | null) => {
@@ -314,156 +386,174 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     [send],
   )
 
-  const runChecklistThen = useCallback(
-    (payment: ExchangeSelectedPayment | null, confirmMessage: string) => {
+  const paymentMethodLabel = useCallback((method: string) => {
+    if (method === 'cash') return 'tiền mặt'
+    if (method === 'qr_bidv') return 'QR'
+    if (method === 'card_bidv') return 'thẻ'
+    return method
+  }, [])
+
+  /** Confirm thống nhất TRƯỚC khi thu tiền / submit — cash & QR/thẻ cùng 1 dialog */
+  const confirmBeforePay = useCallback(
+    (methodType: ExchangePaymentMethod, onConfirm: () => void) => {
+      const methodLabel = paymentMethodLabel(methodType)
+      const message = `Xác nhận đổi ${selectedReturnCount} sản phẩm, thu chênh lệch ${formatCurrency(
+        collectAmount,
+      )} qua ${methodLabel}?`
+
       const exchangeRequireChecklist = appSettings.get('exchangeRequireChecklist')
       if (exchangeRequireChecklist) {
-        const items = [
-          'Tôi đã nhận lại sản phẩm lỗi/cũ từ khách hàng.',
-          'Tôi đã giao đầy đủ sản phẩm mới thay thế cho khách hàng.',
-        ]
-        if (payment && payment.amount > 0) {
-          items.push(
-            `Tôi đã thu đúng số tiền chênh lệch (${formatCurrency(payment.amount)}) qua ${
-              payment.method === 'cash' ? 'tiền mặt' : payment.method === 'qr_bidv' ? 'QR' : 'thẻ'
-            }.`,
-          )
-        }
         businessChecklistModalRef.current?.open({
           title: 'Checklist Xác nhận Nghiệp vụ',
-          subtitle: 'Vui lòng xác nhận các bước nghiệp vụ trước khi hoàn tất đổi hàng.',
-          items,
+          subtitle: 'Vui lòng xác nhận trước khi thu tiền / hoàn tất đổi hàng.',
+          items: [
+            'Tôi đã nhận lại sản phẩm lỗi/cũ từ khách hàng.',
+            'Tôi đã giao đầy đủ sản phẩm mới thay thế cho khách hàng.',
+            `Tôi sẽ thu đúng chênh lệch ${formatCurrency(collectAmount)} qua ${methodLabel}.`,
+          ],
           onDontShowAgain: () => appSettings.set('exchangeRequireChecklist', false),
-          onConfirm: () => submitExchange(payment),
+          onConfirm,
         })
         return
       }
+
       toast.confirm({
         title: 'Xác nhận đổi hàng',
-        message: confirmMessage,
-        onConfirm: () => submitExchange(payment),
+        message,
+        onConfirm,
       })
     },
-    [submitExchange],
+    [collectAmount, paymentMethodLabel, selectedReturnCount],
   )
-
-  const handleConfirmZero = useCallback(() => {
-    if (!canSubmit) return
-    runChecklistThen(
-      null,
-      `Bạn có chắc chắn muốn đổi ${selectedReturnCount} sản phẩm, hàng mới ${formatCurrency(
-        replacementValue,
-      )}, không phát sinh thu tiền?`,
-    )
-  }, [canSubmit, runChecklistThen, selectedReturnCount, replacementValue])
 
   const handlePaymentSuccess = useCallback(
     (paymentResult: PaymentResult) => {
       setIsPaymentOpen(false)
       const method = paymentResult.method
 
+      // QR/thẻ: exchange đã submit, chỉ chốt capture
       if (method === 'qr_bidv' || method === 'card_bidv') {
         send({ type: 'PAYMENT_SUCCESS', paymentResult })
         return
       }
 
-      if (!canSubmit) return
-      if (method !== 'cash') {
-        toast.error('Phương thức thanh toán không hỗ trợ cho đổi hàng.')
+      if (!canSubmit || method !== 'cash') {
+        if (method !== 'cash') toast.error('Phương thức thanh toán không hỗ trợ cho đổi hàng.')
         return
       }
 
-      const payment: ExchangeSelectedPayment = {
-        method,
-        // exchange API amount = business chênh lệch; popup payTotal có thể lệch 1đ do làm tròn tax
+      // Tiền mặt: đã confirm trước khi mở popup → submit thẳng, không hỏi lại
+      submitExchange({
+        method: 'cash',
         amount: collectAmount,
         cashTendered: paymentResult.paidAmount,
         cashChange: paymentResult.change,
         provider: null,
         cardTerminalId: null,
         referenceCode: paymentResult.referenceCode || paymentResult.orderId,
-      }
-      runChecklistThen(
-        payment,
-        `Xác nhận đổi ${selectedReturnCount} sản phẩm, thu chênh lệch ${formatCurrency(
-          collectAmount,
-        )} (tiền mặt)?`,
-      )
+      })
     },
-    [canSubmit, collectAmount, runChecklistThen, selectedReturnCount, send],
+    [canSubmit, collectAmount, send, submitExchange],
   )
 
   const handlePaymentCancel = useCallback(() => {
     setIsPaymentOpen(false)
-    send({ type: 'PAYMENT_CANCEL' })
-  }, [send])
+    onlinePaymentOpenedKeyRef.current = null
+    // Chỉ QR/thẻ: exchange có thể đã commit trên server
+    if (state.matches('waitingForOnlinePayment')) {
+      toast.info(
+        'Đã hủy thu QR/thẻ. Nếu đơn đổi đã tạo trên server, kiểm tra lại trước khi đổi lần nữa.',
+      )
+      send({ type: 'PAYMENT_CANCEL' })
+    }
+  }, [send, state])
 
   const handleSelectPaymentMethod = useCallback(
     (methodType: string) => {
       if (!canSubmit || isProcessing) return
-
-      if (methodType === 'cash') {
-        const ref = popupRefs.current.cash
-        if (!ref) {
-          toast.error('Phương thức thanh toán chưa sẵn sàng.')
-          return
-        }
-        setIsPaymentOpen(true)
-        ref.open()
+      if (methodType !== 'cash' && methodType !== 'qr_bidv' && methodType !== 'card_bidv') {
+        toast.error('Phương thức thanh toán không hỗ trợ cho đổi hàng.')
         return
       }
 
-      const payment: ExchangeSelectedPayment = {
-        method: methodType as ExchangePaymentMethod,
-        amount: collectAmount,
-        provider:
-          methodType === 'qr_bidv' ? 'bidv' : methodType === 'card_bidv' ? 'card-bidv' : null,
-        cardTerminalId: null,
-      }
+      confirmBeforePay(methodType, () => {
+        if (methodType === 'cash') {
+          const ref = popupRefs.current.cash
+          if (!ref) {
+            toast.error('Phương thức thanh toán chưa sẵn sàng.')
+            return
+          }
+          setIsPaymentOpen(true)
+          ref.open()
+          return
+        }
 
-      runChecklistThen(
-        payment,
-        `Xác nhận đổi ${selectedReturnCount} sản phẩm, thu chênh lệch ${formatCurrency(
-          collectAmount,
-        )} qua ${methodType === 'qr_bidv' ? 'QR' : 'thẻ'}?`,
-      )
+        submitExchange({
+          method: methodType,
+          amount: collectAmount,
+          provider: methodType === 'qr_bidv' ? 'bidv' : 'card-bidv',
+          cardTerminalId: null,
+        })
+      })
     },
-    [canSubmit, isProcessing, collectAmount, selectedReturnCount, runChecklistThen],
+    [canSubmit, isProcessing, confirmBeforePay, collectAmount, submitExchange],
   )
 
-  // Listen to state transition to open online payment popup once the exchange order has been submitted/initiated
+  // Sau exchange submit: mở popup QR/thẻ nếu payment INITIATED; không thì thoát waiting (tránh hang)
   useEffect(() => {
-    if (state.matches('waitingForOnlinePayment') && result?.newOrder) {
-      const initiatedPayment = result.newOrder.payments?.find(
-        (p: any) => p.state === 'INITIATED' && (p.method === 'qr_bidv' || p.method === 'card_bidv'),
-      )
-
-      if (initiatedPayment) {
-        const method = initiatedPayment.method
-        const ref = popupRefs.current[method]
-        if (ref) {
-          setIsPaymentOpen(true)
-          if (method === 'qr_bidv') {
-            ;(ref as ExchangeQrPaymentPopupRef).open({
-              paymentId: initiatedPayment.paymentId,
-              billNumber: result.newOrder.orderCode ?? result.newOrder.orderId,
-            })
-          } else if (method === 'card_bidv') {
-            ;(ref as ExchangePortablePaymentPopupRef).open({
-              paymentId: initiatedPayment.paymentId,
-              checkoutResult: {
-                orderId: result.newOrder.orderId,
-                grandTotal: result.newOrder.grandTotal,
-                taxTotal: result.newOrder.taxTotal ?? 0,
-              },
-            })
-          }
-        } else {
-          toast.error('Phương thức thanh toán online chưa sẵn sàng.')
-        }
-      }
+    if (!state.matches('waitingForOnlinePayment')) {
+      onlinePaymentOpenedKeyRef.current = null
+      return
     }
-  }, [state, result])
+    if (!result?.newOrder) return
+
+    const initiatedPayment = result.newOrder.payments?.find(
+      (p: any) =>
+        p.state === 'INITIATED' &&
+        (p.method === 'qr_bidv' || p.method === 'card_bidv') &&
+        !!p.paymentId,
+    )
+
+    if (!initiatedPayment) {
+      toast.error(
+        'Đổi hàng đã tạo nhưng không có payment online INITIATED. Vui lòng kiểm tra lại đơn.',
+      )
+      send({ type: 'PAYMENT_CANCEL' })
+      return
+    }
+
+    const openKey = `${initiatedPayment.method}:${initiatedPayment.paymentId}`
+    if (onlinePaymentOpenedKeyRef.current === openKey) return
+
+    const method = initiatedPayment.method
+    const ref = popupRefs.current[method]
+    if (!ref) {
+      toast.error('Phương thức thanh toán online chưa sẵn sàng.')
+      send({ type: 'PAYMENT_CANCEL' })
+      return
+    }
+
+    onlinePaymentOpenedKeyRef.current = openKey
+    setIsPaymentOpen(true)
+
+    if (method === 'qr_bidv') {
+      ;(ref as ExchangeQrPaymentPopupRef).open({
+        paymentId: initiatedPayment.paymentId,
+        orderId: result.newOrder.orderId,
+        billNumber: result.newOrder.orderCode ?? result.newOrder.orderId,
+      })
+      return
+    }
+
+    if (method === 'card_bidv') {
+      ;(ref as ExchangePortablePaymentPopupRef).open({
+        paymentId: initiatedPayment.paymentId,
+        orderId: result.newOrder.orderId,
+        grandTotal: result.newOrder.grandTotal,
+        taxTotal: result.newOrder.taxTotal ?? 0,
+      })
+    }
+  }, [state, result, send])
 
   const stepText = useMemo(() => {
     if (state.matches('fetchingOrderDetails')) return 'Đang tải chi tiết đơn...'
@@ -472,6 +562,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     if (state.matches('receivingReturnedItems')) return 'Đang nhập kho hàng trả...'
     if (state.matches('issuingReplacementItems')) return 'Đang xuất kho hàng đổi mới...'
     if (state.matches('completed')) return 'Đổi hàng hoàn tất'
+    if (state.matches('waitingForOnlinePayment')) return 'Chờ thanh toán QR/thẻ...'
     if (collectAmount > 0) return 'Chọn hàng và thu chênh lệch'
     return 'Chọn hàng trả và hàng đổi mới'
   }, [state, collectAmount])
@@ -486,10 +577,18 @@ export const ExchangeScreen = memo(function ExchangeScreen({
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>
-      {receipt && (
+      {/* Off-screen print targets: refund bill + new sale bill */}
+      {refundReceipt && (
         <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-          <View collapsable={false} ref={receiptPrintRef}>
-            <ExchangeBillTemplate receipt={receipt} />
+          <View collapsable={false} ref={refundPrintRef}>
+            <RefundReceiptTemplate receipt={refundReceipt} />
+          </View>
+        </View>
+      )}
+      {saleOrder && (
+        <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+          <View collapsable={false} ref={salePrintRef}>
+            <BitexcoReceiptTemplate order={saleOrder} staffName={employee?.displayName} />
           </View>
         </View>
       )}
@@ -525,9 +624,10 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         />
       </View>
 
-      <View className="flex-1 flex-row px-3 pb-3 pt-2">
+      {/* 2 cột như cũ: trái trả | phải mới + footer */}
+      <View className="min-h-0 flex-1 flex-row px-3 pb-3 pt-2">
         <View
-          className="flex-1 overflow-hidden rounded-[12px] bg-white"
+          className="min-h-0 flex-1 overflow-hidden rounded-[12px] bg-white"
           style={{
             shadowColor: '#A8A8A8',
             shadowOffset: { width: 0, height: 2 },
@@ -562,7 +662,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
           />
         </View>
 
-        <View className="ml-2 flex-1 overflow-hidden rounded-[12px] border border-outline-variant bg-surface-50">
+        <View className="ml-2 min-h-0 flex-1 overflow-hidden rounded-[12px] border border-outline-variant bg-surface-50">
           <ExchangeReplacementSearchPanel
             isDraft={state.matches('draft')}
             isProcessing={isProcessing}
@@ -570,27 +670,29 @@ export const ExchangeScreen = memo(function ExchangeScreen({
               send({ type: 'ADD_REPLACEMENT_ITEM', product })
             }
           />
-          <ExchangeReplacementItemsList
-            lines={replacementLines}
-            isDraft={state.matches('draft')}
-            isProcessing={isProcessing}
-            onChangeQty={(variantId, qty) =>
-              send({ type: 'UPDATE_REPLACEMENT_QTY', variantId, qty })
-            }
-            onRemoveItem={(variantId) => send({ type: 'REMOVE_REPLACEMENT_ITEM', variantId })}
-          />
+          <View className="min-h-0 flex-1">
+            <ExchangeReplacementItemsList
+              lines={replacementLines}
+              isDraft={state.matches('draft')}
+              isProcessing={isProcessing}
+              onChangeQty={(variantId, qty) =>
+                send({ type: 'UPDATE_REPLACEMENT_QTY', variantId, qty })
+              }
+              onRemoveItem={(variantId) => send({ type: 'REMOVE_REPLACEMENT_ITEM', variantId })}
+            />
+          </View>
           <ExchangeSummaryFooter
             returnedValue={returnedValue}
             replacementSubtotal={replacementSubtotal}
             replacementVat={replacementVat}
             differenceAmount={differenceAmount}
+            selectedReturnCount={selectedReturnCount}
+            replacementCount={replacementLines.length}
             isOriginalOrderVoucherApplied={isOriginalOrderVoucherApplied}
             canSubmit={canSubmit}
             isProcessing={isProcessing}
-            processingText={stepText}
             paymentMethods={activePaymentMethods}
             onClose={leave}
-            onConfirmZero={handleConfirmZero}
             onSelectPaymentMethod={handleSelectPaymentMethod}
           />
         </View>
