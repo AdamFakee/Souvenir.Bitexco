@@ -3,15 +3,17 @@ import { COLORS } from '@/shared/constants'
 import { getPaymentMethodStyle, PaymentMethodCode } from '@/shared/features/payment'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
-import { PackageOpen } from 'lucide-react-native'
+import { PackageOpen, Repeat2, Undo2 } from 'lucide-react-native'
 import React, { memo, useCallback, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useOrderFilterStore } from '../store'
 import { IOrder } from '../types'
-import { getOrderDisplayStatus } from '../utils'
+import { checkCanExchange, checkCanReturn, getOrderDisplayStatus } from '../utils'
 
 interface OrderListProps {
   onOpenDetails: (order: IOrder) => void
+  onExchange?: (order: IOrder) => void
+  onRefund?: (order: IOrder) => void
   orders: IOrder[]
   isLoading: boolean
   fetchNextPage: () => void
@@ -25,17 +27,19 @@ const TEXT_TERTIARY = '#747475'
 const BORDER = '#DFE0E1'
 const ZEBRA = '#FAFAFB'
 
-// ── Cột: Mã đơn hàng | Cộng tác viên | Ngày tạo đơn | TT | Giá trị | Trạng thái ──
+// ── Cột: Mã | CTV | Ngày | PTTT | Giá trị | Trạng thái | Hành động ──
 type SortField = 'code' | 'collaborator' | 'createdAt' | 'paymentMethod' | 'total' | 'status'
 
-const COLUMNS: { field: SortField; label: string; flex: number }[] = [
-  { field: 'code', label: 'Mã đơn hàng', flex: 1 },
-  { field: 'collaborator', label: 'Cộng tác viên', flex: 1 },
-  { field: 'createdAt', label: 'Ngày tạo đơn', flex: 1 },
-  { field: 'paymentMethod', label: 'PTTT', flex: 0.7 },
-  { field: 'total', label: 'Giá trị', flex: 0.8 },
-  { field: 'status', label: 'Trạng thái', flex: 0.8 },
-]
+const COLUMNS: { field: SortField | 'actions'; label: string; flex: number; sortable?: boolean }[] =
+  [
+    { field: 'code', label: 'Mã đơn hàng', flex: 1, sortable: true },
+    { field: 'collaborator', label: 'Cộng tác viên', flex: 1, sortable: true },
+    { field: 'createdAt', label: 'Ngày tạo đơn', flex: 1, sortable: true },
+    { field: 'paymentMethod', label: 'PTTT', flex: 0.7, sortable: true },
+    { field: 'total', label: 'Giá trị', flex: 0.8, sortable: true },
+    { field: 'status', label: 'Trạng thái', flex: 0.8, sortable: true },
+    { field: 'actions', label: 'Hành động', flex: 0.7, sortable: false },
+  ]
 
 function formatDateTime(date: Date | string) {
   const d = typeof date === 'string' ? new Date(date) : date
@@ -105,9 +109,10 @@ const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethodCode | '' }[]
 
 // ── Sortable Header Cell (Thanh toán header mở popover filter) ──
 interface HeaderCellProps {
-  field: SortField
+  field: SortField | 'actions'
   label: string
   flex: number
+  sortable?: boolean
   currentSort: SortField | null
   currentDir: 'asc' | 'desc'
   onSort: (field: SortField) => void
@@ -117,11 +122,12 @@ const HeaderCell = memo(function HeaderCell({
   field,
   label,
   flex,
+  sortable = true,
   currentSort,
   currentDir,
   onSort,
 }: HeaderCellProps) {
-  const active = currentSort === field
+  const active = sortable && currentSort === field
 
   // Payment method popover filter
   const isPaymentCol = field === 'paymentMethod'
@@ -136,18 +142,20 @@ const HeaderCell = memo(function HeaderCell({
     : label
 
   const handlePress = useCallback(() => {
+    if (!sortable || field === 'actions') return
     if (isPaymentCol) {
       setShowPaymentPopover((v) => !v)
     } else {
-      onSort(field)
+      onSort(field as SortField)
     }
-  }, [isPaymentCol, field, onSort])
+  }, [isPaymentCol, field, onSort, sortable])
 
   return (
     <View style={{ flex }}>
       <Pressable
         onPress={handlePress}
-        className="flex-row items-center gap-1 px-4"
+        disabled={!sortable || field === 'actions'}
+        className={`flex-row items-center gap-1 ${field === 'actions' ? 'justify-center px-2' : 'px-4'}`}
         style={{ height: 48 }}
       >
         <Text
@@ -201,18 +209,25 @@ const HeaderCell = memo(function HeaderCell({
   )
 })
 
-// ── Zebra Row (click vào row mở modal) ──
+// ── Zebra Row (click vào row mở modal; icon hành động stopPropagation) ──
 const OrderRow = memo(
   function OrderRow({
     display,
     index,
     onPress,
+    onExchange,
+    onRefund,
   }: {
     display: OrderDisplay
     index: number
     onPress: () => void
+    onExchange?: (order: IOrder) => void
+    onRefund?: (order: IOrder) => void
   }) {
     const isEven = index % 2 === 1
+    const order = display._order
+    const canExchange = checkCanExchange(order)
+    const canReturn = checkCanReturn(order)
 
     return (
       <Pressable
@@ -303,6 +318,47 @@ const OrderRow = memo(
             </Text>
           </View>
         </View>
+
+        {/* Hành động: Đổi / Trả */}
+        <View
+          className="flex-row items-center justify-center gap-1 px-2"
+          style={{ flex: 0.7, height: 51 }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đổi hàng"
+            disabled={!canExchange || !onExchange}
+            hitSlop={8}
+            onPress={(e) => {
+              e?.stopPropagation?.()
+              if (canExchange) onExchange?.(order)
+            }}
+            className="h-10 w-10 items-center justify-center rounded-lg"
+            style={{
+              backgroundColor: canExchange ? 'rgba(28,78,104,0.1)' : 'transparent',
+              opacity: canExchange && onExchange ? 1 : 0.35,
+            }}
+          >
+            <Repeat2 size={20} color={canExchange ? BRAND : TEXT_TERTIARY} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Trả hàng"
+            disabled={!canReturn || !onRefund}
+            hitSlop={8}
+            onPress={(e) => {
+              e?.stopPropagation?.()
+              if (canReturn) onRefund?.(order)
+            }}
+            className="h-10 w-10 items-center justify-center rounded-lg"
+            style={{
+              backgroundColor: canReturn ? 'rgba(220,38,38,0.08)' : 'transparent',
+              opacity: canReturn && onRefund ? 1 : 0.35,
+            }}
+          >
+            <Undo2 size={20} color={canReturn ? '#DC2626' : TEXT_TERTIARY} />
+          </Pressable>
+        </View>
       </Pressable>
     )
   },
@@ -350,6 +406,7 @@ export const TableHeader = memo(function TableHeader({
           field={col.field}
           label={col.label}
           flex={col.flex}
+          sortable={col.sortable !== false && col.field !== 'actions'}
           currentSort={sortField}
           currentDir={sortDir}
           onSort={onSort}
@@ -362,6 +419,8 @@ export const TableHeader = memo(function TableHeader({
 // ── Main ──
 export const OrderList = memo(function OrderList({
   onOpenDetails,
+  onExchange,
+  onRefund,
   orders,
   isLoading,
   fetchNextPage,
@@ -423,9 +482,15 @@ export const OrderList = memo(function OrderList({
 
   const renderItem = useCallback(
     ({ item, index }: { item: OrderDisplay; index: number }) => (
-      <OrderRow display={item} index={index} onPress={() => onOpenDetails(item._order)} />
+      <OrderRow
+        display={item}
+        index={index}
+        onPress={() => onOpenDetails(item._order)}
+        onExchange={onExchange}
+        onRefund={onRefund}
+      />
     ),
-    [onOpenDetails],
+    [onOpenDetails, onExchange, onRefund],
   )
 
   const keyExtractor = useCallback((item: OrderDisplay) => item.id, [])

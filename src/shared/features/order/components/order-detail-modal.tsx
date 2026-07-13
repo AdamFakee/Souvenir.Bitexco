@@ -5,11 +5,11 @@ import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { useQueryClient } from '@tanstack/react-query'
-import { Copy, Printer, Repeat2, Trash2, X } from 'lucide-react-native'
+import { Copy, Printer, X } from 'lucide-react-native'
 import React, { memo, useImperativeHandle, useRef, useState } from 'react'
 import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
 import { IOrder } from '../types'
-import { checkCanExchange, checkCanReturn, getOrderDisplayStatus } from '../utils'
+import { getOrderDisplayStatus } from '../utils'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { RefundReceiptTemplate } from './refund-receipt-template'
 
@@ -25,15 +25,9 @@ export interface OrderDetailModalRef {
 
 interface OrderDetailModalProps {
   ref?: React.Ref<OrderDetailModalRef>
-  onExchange?: (order: IOrder) => void
-  onRefund?: (order: IOrder) => void
 }
 
-export const OrderDetailModal = memo(function OrderDetailModal({
-  ref,
-  onExchange,
-  onRefund,
-}: OrderDetailModalProps) {
+export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDetailModalProps) {
   const queryClient = useQueryClient()
   const [visible, setVisible] = useState(false)
   const [order, setOrder] = useState<IOrder | null>(null)
@@ -74,7 +68,6 @@ export const OrderDetailModal = memo(function OrderDetailModal({
   const computedTotal = isReturnOrder ? (order.refund?.refundAmount ?? order.total) : order.total
 
   const displayStatus = getOrderDisplayStatus(order)
-  const canExchange = checkCanExchange(order)
   const isRT = !!order.refund || order.code?.startsWith('RT')
 
   const resolvedRefund =
@@ -578,35 +571,11 @@ export const OrderDetailModal = memo(function OrderDetailModal({
                 </View>
               </ScrollView>
 
-              {/* Action buttons */}
+              {/* Action buttons — đổi/trả trên list; detail chỉ in */}
               <View
                 className="flex-row justify-end gap-4 px-6 py-5"
                 style={{ borderTopWidth: 1, borderColor: BORDER, backgroundColor: '#fff' }}
               >
-                <Button
-                  label="Đổi hàng"
-                  variant="outline"
-                  leftIcon={Repeat2}
-                  className="h-14 rounded-xl"
-                  disabled={!canExchange}
-                  onPress={() => {
-                    onExchange?.(order)
-                    setVisible(false)
-                  }}
-                />
-                <Button
-                  label={
-                    ['REFUNDED', 'RETURNED'].includes(order.status) ? 'Đã hoàn tiền' : 'Trả hàng'
-                  }
-                  variant="outline"
-                  leftIcon={Trash2}
-                  className="h-14 rounded-xl"
-                  disabled={!checkCanReturn(order)}
-                  onPress={() => {
-                    onRefund?.(order)
-                    setVisible(false)
-                  }}
-                />
                 <Button
                   label="In 1 liên"
                   variant="outline"

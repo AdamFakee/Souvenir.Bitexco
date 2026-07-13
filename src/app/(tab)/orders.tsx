@@ -220,6 +220,10 @@ export default function OrdersScreen() {
     [queryClient, router],
   )
 
+  const handleRefund = useCallback((order: IOrder) => {
+    refundModalRef.current?.open(order)
+  }, [])
+
   const handlePreviewReconciliation = useCallback(() => {
     if (mode === 'pos') return
 
@@ -315,6 +319,8 @@ export default function OrdersScreen() {
           <View className="flex-1 rounded-lg border" style={{ borderColor: BORDER }}>
             <OrderList
               onOpenDetails={handleOpenDetails}
+              onExchange={handleExchange}
+              onRefund={handleRefund}
               orders={orders}
               isLoading={isLoading}
               fetchNextPage={fetchNextPage}
@@ -325,11 +331,7 @@ export default function OrdersScreen() {
           </View>
         </View>
 
-        <OrderDetailModal
-          ref={modalRef}
-          onExchange={handleExchange}
-          onRefund={refundModalRef.current?.open}
-        />
+        <OrderDetailModal ref={modalRef} />
         <ReconciliationModal ref={reconciliationModalRef} />
         <RefundConfirmModal
           ref={refundModalRef}
