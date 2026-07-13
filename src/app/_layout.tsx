@@ -89,6 +89,7 @@ export default function RootLayout() {
                   <Stack.Screen name="index" />
                   <Stack.Screen name="(auth)" />
                   <Stack.Screen name="(tab)" />
+                  <Stack.Screen name="exchange" options={{ animation: 'slide_from_right' }} />
                 </Stack>
               </ErrorBoundary>
               <GlobalPopup />

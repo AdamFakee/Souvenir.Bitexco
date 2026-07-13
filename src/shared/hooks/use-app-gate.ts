@@ -11,9 +11,8 @@ import { useAppStore } from '../features/app/store/use-app-store'
  * Logic:
  * - deviceInactive  → redirect /device-activation
  * - unauthenticated → redirect /staff-login
- * - noShift         → redirect /open-shift (nếu đang ở ngoài auth group)
- * - shiftOpen       → redirect /pos (chỉ khi đang ở ngoài tab group)
- *   Khi đã vào tab, user tự do navigate giữa pos/orders/dashboard/shift.
+ * - noShift         → redirect /open-shift
+ * - shiftOpen       → cho phép (tab) + /exchange; ngoài ra redirect /pos
  */
 export const useAppGate = () => {
   const appService = useAppStore((s) => s.appService)
@@ -31,6 +30,7 @@ export const useAppGate = () => {
     if (!appService) return
 
     const inTabGroup = segment0 === '(tab)'
+    const inExchange = segment0 === 'exchange'
 
     switch (stateValue) {
       case 'deviceInactive':
@@ -46,8 +46,8 @@ export const useAppGate = () => {
         if (segment1 !== 'open-shift') router.replace(ROUTES.OPEN_SHIFT.path())
         break
       case 'shiftOpen':
-        // Chỉ redirect vào tab khi đang ở ngoài — không can thiệp navigation trong tab
-        if (!inTabGroup) router.replace(ROUTES.POS.path())
+        // Tab POS + màn exchange full-screen; không kick về POS khi đang đổi hàng
+        if (!inTabGroup && !inExchange) router.replace(ROUTES.POS.path())
         break
     }
   }, [stateValue, segment0, segment1, rootNavigationState?.key, appService, router])

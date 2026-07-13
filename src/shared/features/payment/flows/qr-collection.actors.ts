@@ -21,11 +21,15 @@ export const fetchQrActor = fromPromise(
       description: `Thanh toan don ${input.orderCode}`,
     }
 
+    if (!input.paymentId) {
+      throw new Error('Thiếu paymentId — không thể tạo mã QR.')
+    }
     try {
       const qrData = await PaymentRemoteAPI.generateQrCode(input.paymentId, params)
       if (qrData && (qrData.qrPayload || qrData.qrUrl)) {
         return qrData
       }
+      throw new Error('Server không trả về nội dung mã QR.')
     } catch (err) {
       throw err
     }

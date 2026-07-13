@@ -6,8 +6,8 @@ import {
 } from '@/shared/features/order/api/remote/order.remote.api'
 import { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 
-import { PrinterService } from '@/shared/services'
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
+import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'

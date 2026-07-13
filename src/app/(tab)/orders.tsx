@@ -1,7 +1,5 @@
 import { Select } from '@/shared/components/ui/select'
 import {
-  ExchangeConfirmModal,
-  ExchangeConfirmModalRef,
   IOrder,
   OrderDetailModal,
   OrderDetailModalRef,
@@ -22,6 +20,7 @@ import { COLORS } from '@/shared/constants'
 import { useOrders } from '@/shared/features/order/hooks'
 import { toast } from '@/shared/store'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'expo-router'
 import React, { memo, useCallback, useDeferredValue, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -106,10 +105,10 @@ const TopTabs = memo(function TopTabs({ mode, setMode }: TopTabsProps) {
 // ── Main Screen ──
 export default function OrdersScreen() {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const modalRef = useRef<OrderDetailModalRef>(null)
   const reconciliationModalRef = useRef<ReconciliationModalRef>(null)
   const refundModalRef = useRef<RefundConfirmModalRef>(null)
-  const exchangeModalRef = useRef<ExchangeConfirmModalRef>(null)
 
   const [mode, setMode] = useState<OrderMode>('pos')
   const [selectedAffiliateId, setSelectedAffiliateId] = useState<string | null>(null)
@@ -211,6 +210,15 @@ export default function OrdersScreen() {
   const handleOpenDetails = useCallback((order: IOrder) => {
     modalRef.current?.open(order)
   }, [])
+
+  const handleExchange = useCallback(
+    (order: IOrder) => {
+      // Cache order payload — màn /exchange đọc từ query cache
+      queryClient.setQueryData(['exchange-order', order.id], order)
+      router.push({ pathname: '/exchange', params: { orderId: order.id } })
+    },
+    [queryClient, router],
+  )
 
   const handlePreviewReconciliation = useCallback(() => {
     if (mode === 'pos') return
@@ -319,18 +327,12 @@ export default function OrdersScreen() {
 
         <OrderDetailModal
           ref={modalRef}
-          onExchange={exchangeModalRef.current?.open}
+          onExchange={handleExchange}
           onRefund={refundModalRef.current?.open}
         />
         <ReconciliationModal ref={reconciliationModalRef} />
         <RefundConfirmModal
           ref={refundModalRef}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['orders'] })
-          }}
-        />
-        <ExchangeConfirmModal
-          ref={exchangeModalRef}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['orders'] })
           }}

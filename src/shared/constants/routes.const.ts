@@ -9,6 +9,10 @@ export const ROUTES = {
   ORDERS: { path: () => '/(tab)/orders' as Href, params: {} as never },
   SHIFT: { path: () => '/(tab)/shift' as Href, params: {} as never },
   DASHBOARD: { path: () => '/(tab)/dashboard' as Href, params: {} as never },
+  EXCHANGE: {
+    path: (orderId: string) => ({ pathname: '/exchange', params: { orderId } }) as unknown as Href,
+    params: {} as { orderId: string },
+  },
 } as const
 
 export type RouteName = keyof typeof ROUTES

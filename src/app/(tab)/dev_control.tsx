@@ -307,7 +307,7 @@ export default function DevControlScreen() {
           })
           toast.success('Đã xóa sạch DB!', 'Thành công')
           loadData()
-        } catch (e) {
+        } catch {
           toast.error('Không thể xóa.', 'Lỗi')
         }
       },
@@ -321,7 +321,7 @@ export default function DevControlScreen() {
   const handleTestActivateDevice = async () => {
     try {
       toast.info('Đang gửi request Activate Device...')
-      const response = await AxiosService.getInstance().post('/v1/pos-devices/activate', {
+      await AxiosService.getInstance().post('/v1/pos-devices/activate', {
         deviceCode: 'TEST 1',
         activationToken: '500107', // Sửa lại token nếu admin cấp token khác
       })
@@ -393,7 +393,7 @@ export default function DevControlScreen() {
       }
 
       toast.info(`Đang tra cứu đơn hàng code/id: ${orderId}`)
-      const response = await OrderRemoteAPI.lookupOrder(orderId)
+      await OrderRemoteAPI.lookupOrder(orderId)
       toast.success('Tra cứu thành công! Xem console log.', 'Order Lookup')
     } catch (error: any) {
       const errData = error.response?.data
@@ -421,10 +421,12 @@ export default function DevControlScreen() {
       const response = await AxiosService.getInstance().post(`/v1/pos/orders/${orderId}/exchange`, {
         idempotencyKey: `probe-${Date.now()}`,
         reason: 'PROBE_API',
-        shift_id: '019eb2e7-79ff-7325-bfb8-3f629fdbfed4',
-        staff_id: '019eb2e7-79ff-7325-bfb8-3f629fdbfed4',
-        returned_lines: [],
-        replacement_lines: [],
+        shiftId: '019eb2e7-79ff-7325-bfb8-3f629fdbfed4',
+        staffId: '019eb2e7-79ff-7325-bfb8-3f629fdbfed4',
+        returnLines: [],
+        newLines: [],
+        payments: [{ method: 'cash', amount: 0, provider: null, cardTerminalId: null }],
+        currency: 'VND',
       })
 
       console.log('Exchange API Response:', response.data)

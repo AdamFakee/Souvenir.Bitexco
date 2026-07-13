@@ -6,13 +6,17 @@ import { assign, fromPromise, setup } from 'xstate'
 import {
   ExchangeOrderResult,
   ExchangeReplacementLineRequest,
-  ExchangeReturnLineRequest,
   OrderApiError,
   OrderRemoteAPI,
 } from '../api/remote/order.remote.api'
 import { getOrderErrorMessage } from '../constants'
 import { IOrder } from '../types'
 import { checkCanExchange } from '../utils'
+
+export interface ExchangeReturnLine {
+  productId: string
+  qty: number
+}
 
 export interface ExchangeReplacementLine {
   variantId: string
@@ -28,17 +32,31 @@ export interface ExchangeReplacementLine {
   qty: number
 }
 
+export type ExchangePaymentMethod = 'cash' | 'qr_bidv' | 'card_bidv'
+
+export interface ExchangeSelectedPayment {
+  method: ExchangePaymentMethod
+  amount: number
+  provider?: string | null
+  cardTerminalId?: string | null
+  cashTendered?: number
+  cashChange?: number
+  referenceCode?: string
+}
+
 export interface ExchangeOrderContext {
   order: IOrder | null
   reason: string
-  returnedLines: ExchangeReturnLineRequest[]
+  returnedLines: ExchangeReturnLine[]
   replacementLines: ExchangeReplacementLine[]
   pendingScanCodes: string[]
   idempotencyKey: string
   shiftId: string
   staffId: string
+  selectedPayment: ExchangeSelectedPayment | null
   result: ExchangeOrderResult | null
   error: string | null
+  lookupLines: any[]
 }
 
 export type ExchangeOrderEvent =
@@ -51,7 +69,9 @@ export type ExchangeOrderEvent =
   | { type: 'UPDATE_REPLACEMENT_QTY'; variantId: string; qty: number }
   | { type: 'REMOVE_REPLACEMENT_ITEM'; variantId: string }
   | { type: 'SCAN_CODES'; codes: string[] }
-  | { type: 'SUBMIT' }
+  | { type: 'SUBMIT'; payment?: ExchangeSelectedPayment | null }
+  | { type: 'PAYMENT_SUCCESS'; paymentResult: any }
+  | { type: 'PAYMENT_CANCEL' }
   | { type: 'RESET' }
 
 type ExchangeProductInput = {
@@ -75,8 +95,10 @@ const DEFAULT_CONTEXT: ExchangeOrderContext = {
   idempotencyKey: '',
   shiftId: '',
   staffId: '',
+  selectedPayment: null,
   result: null,
   error: null,
+  lookupLines: [],
 }
 
 const createIdempotencyKey = () => {
@@ -96,7 +118,7 @@ const getOriginalLineAmount = (order: IOrder | null, productId: string, qty: num
 
 export const calculateExchangeReturnedValue = (
   order: IOrder | null,
-  lines: ExchangeReturnLineRequest[],
+  lines: ExchangeReturnLine[],
 ) => {
   return lines.reduce(
     (total, line) => total + getOriginalLineAmount(order, line.productId, line.qty),
@@ -132,11 +154,21 @@ export const calculateExchangeReplacementValue = (lines: ExchangeReplacementLine
   return calculateExchangeReplacementSubtotal(lines) + calculateExchangeReplacementVat(lines)
 }
 
+export const calculateExchangeDifference = (
+  order: IOrder | null,
+  returnedLines: ExchangeReturnLine[],
+  replacementLines: ExchangeReplacementLine[],
+) => {
+  const returnedValue = calculateExchangeReturnedValue(order, returnedLines)
+  const replacementValue = calculateExchangeReplacementValue(replacementLines)
+  return Math.max(0, replacementValue - returnedValue)
+}
+
 const upsertReturnLineQuantity = (
-  lines: ExchangeReturnLineRequest[],
+  lines: ExchangeReturnLine[],
   productId: string,
   qty: number,
-): ExchangeReturnLineRequest[] => {
+): ExchangeReturnLine[] => {
   const normalizedQty = Math.max(0, Math.floor(Number(qty) || 0))
   const nextLines = lines.filter((line) => line.productId !== productId)
 
@@ -224,6 +256,16 @@ const getValidationMessage = (context: ExchangeOrderContext) => {
     return 'Giá trị hàng đổi mới phải lớn hơn hoặc bằng giá trị hàng trả.'
   }
 
+  const difference = Math.max(0, replacementValue - returnedValue)
+  if (difference > 0 && !context.selectedPayment) {
+    return 'Vui lòng chọn phương thức thanh toán cho phần chênh lệch.'
+  }
+  if (difference > 0 && context.selectedPayment) {
+    if (context.selectedPayment.amount < difference) {
+      return 'Số tiền thanh toán chưa đủ phần chênh lệch.'
+    }
+  }
+
   return null
 }
 
@@ -281,6 +323,10 @@ export const exchangeOrderMachine = setup({
     events: {} as ExchangeOrderEvent,
   },
   actors: {
+    lookupOrderActor: fromPromise(async ({ input }: { input: string }): Promise<any> => {
+      if (!input) throw new Error('Không tìm thấy thông tin đơn hàng.')
+      return await OrderRemoteAPI.lookupOrder(input)
+    }),
     scanLookupActor: fromPromise(
       async ({
         input,
@@ -294,16 +340,104 @@ export const exchangeOrderMachine = setup({
       async ({ input }: { input: ExchangeOrderContext }): Promise<ExchangeOrderResult> => {
         if (!input.order) throw new Error('Không tìm thấy đơn hàng cần đổi.')
 
+        const replacementValue = calculateExchangeReplacementValue(input.replacementLines)
+
+        const mappedReturnLines = await Promise.all(
+          input.returnedLines
+            .filter((line) => line.qty > 0)
+            .map(async (line) => {
+              const itemSnapshot = input.order?.itemsSnapshot?.find(
+                (item) => item.productId === line.productId,
+              )
+              const localIndex =
+                input.order?.itemsSnapshot?.findIndex(
+                  (item) => item.productId === line.productId,
+                ) ?? -1
+
+              let matchedLookupLine = null
+
+              // 1. Try direct ID match
+              let found = input.lookupLines?.find(
+                (l) => l.variantId === line.productId || l.productId === line.productId,
+              )
+
+              if (found) {
+                matchedLookupLine = found
+              } else if (localIndex !== -1 && input.lookupLines && input.lookupLines[localIndex]) {
+                // 2. Try index-based price match
+                const candidate = input.lookupLines[localIndex]
+                const snapshotPrice =
+                  itemSnapshot && itemSnapshot.quantity > 0
+                    ? itemSnapshot.subtotal / itemSnapshot.quantity
+                    : 0
+                if (Math.abs(snapshotPrice - candidate.unitPrice) < 2) {
+                  matchedLookupLine = candidate
+                }
+              }
+
+              // 3. Try fallback match by price only
+              if (!matchedLookupLine && input.lookupLines) {
+                const snapshotPrice =
+                  itemSnapshot && itemSnapshot.quantity > 0
+                    ? itemSnapshot.subtotal / itemSnapshot.quantity
+                    : 0
+                const foundByPrice = input.lookupLines.find(
+                  (l) => Math.abs(l.unitPrice - snapshotPrice) < 2,
+                )
+                if (foundByPrice) {
+                  matchedLookupLine = foundByPrice
+                }
+              }
+
+              let variantId = matchedLookupLine?.variantId
+
+              // 4. Try online SKU lookup if variantId is still unknown
+              if (!variantId && itemSnapshot?.sku) {
+                try {
+                  const remoteProduct = await ProductRemoteAPI.lookupProduct({
+                    sku: itemSnapshot.sku,
+                  })
+                  if (remoteProduct?.variantId) {
+                    variantId = remoteProduct.variantId
+                  }
+                } catch {}
+              }
+
+              // Final fallback
+              if (!variantId) {
+                variantId = line.productId
+              }
+
+              return {
+                variantId,
+                qty: line.qty,
+              }
+            }),
+        )
+
+        const returnedValue = calculateExchangeReturnedValue(input.order, input.returnedLines)
+        const difference = Math.max(0, replacementValue - returnedValue)
+        const payments =
+          difference <= 0
+            ? []
+            : [
+                {
+                  method: input.selectedPayment?.method ?? 'cash',
+                  amount: difference,
+                  provider: input.selectedPayment?.provider ?? null,
+                  cardTerminalId: input.selectedPayment?.cardTerminalId ?? null,
+                },
+              ]
+
         return await OrderRemoteAPI.exchangeOrder({
           orderId: input.order.id,
           idempotencyKey: input.idempotencyKey,
           reason: input.reason.trim(),
           shiftId: input.shiftId,
           staffId: input.staffId,
-          returnedLines: input.returnedLines.filter((line) => line.qty > 0),
-          replacementLines: input.replacementLines
-            .filter((line) => line.qty > 0)
-            .map(toReplacementRequest),
+          returnLines: mappedReturnLines,
+          newLines: input.replacementLines.filter((line) => line.qty > 0).map(toReplacementRequest),
+          payments,
         })
       },
     ),
@@ -320,6 +454,13 @@ export const exchangeOrderMachine = setup({
         shiftId: event.shiftId,
         staffId: event.staffId,
         idempotencyKey: createIdempotencyKey(),
+      }
+    }),
+    setSelectedPayment: assign(({ event }) => {
+      if (event.type !== 'SUBMIT') return {}
+      return {
+        selectedPayment: event.payment ?? null,
+        error: null,
       }
     }),
     setReason: assign({
@@ -442,6 +583,10 @@ export const exchangeOrderMachine = setup({
       },
       pendingScanCodes: [],
     }),
+    assignLookupLines: assign({
+      lookupLines: ({ event }) => (event as any).output?.lines || [],
+      error: null,
+    }),
     resetContext: assign(DEFAULT_CONTEXT),
     showDevelopmentToast: () => {
       toast.info('Tính năng đang phát triển')
@@ -455,8 +600,22 @@ export const exchangeOrderMachine = setup({
     idle: {
       on: {
         START: {
-          target: 'draft',
+          target: 'fetchingOrderDetails',
           actions: 'setOrder',
+        },
+      },
+    },
+    fetchingOrderDetails: {
+      invoke: {
+        src: 'lookupOrderActor',
+        input: ({ context }) => context.order?.id ?? '',
+        onDone: {
+          target: 'draft',
+          actions: 'assignLookupLines',
+        },
+        onError: {
+          target: 'draft',
+          actions: ['recordError', 'notifyError'],
         },
       },
     },
@@ -492,7 +651,8 @@ export const exchangeOrderMachine = setup({
           actions: 'setPendingScanCodes',
         },
         SUBMIT: {
-          actions: 'showDevelopmentToast',
+          target: 'validating',
+          actions: 'setSelectedPayment',
         },
         RESET: {
           target: 'idle',
@@ -530,13 +690,40 @@ export const exchangeOrderMachine = setup({
       invoke: {
         src: 'exchangeOrderActor',
         input: ({ context }) => context,
-        onDone: {
-          target: 'receivingReturnedItems',
-          actions: 'assignResult',
-        },
+        onDone: [
+          {
+            target: 'waitingForOnlinePayment',
+            guard: ({ event }) => {
+              const payments = (event as any).output?.newOrder?.payments
+              return payments?.some(
+                (p: any) =>
+                  p.state === 'INITIATED' && (p.method === 'qr_bidv' || p.method === 'card_bidv'),
+              )
+            },
+            actions: 'assignResult',
+          },
+          {
+            target: 'receivingReturnedItems',
+            actions: 'assignResult',
+          },
+        ],
         onError: {
           target: 'draft',
           actions: ['recordError', 'notifyError'],
+        },
+      },
+    },
+    waitingForOnlinePayment: {
+      on: {
+        PAYMENT_SUCCESS: {
+          target: 'receivingReturnedItems',
+        },
+        PAYMENT_CANCEL: {
+          target: 'draft',
+          actions: assign({
+            result: null,
+            idempotencyKey: () => createIdempotencyKey(),
+          }),
         },
       },
     },

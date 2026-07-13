@@ -1,7 +1,7 @@
 import { storage } from '@/shared/lib/storage'
 import PaymentPortable from '../../../../../modules/payment-portable'
 
-const DEFAULT_POS_URL = 'http://192.168.125.75:8080'
+const DEFAULT_POS_URL = 'http://192.168.1.12:8080'
 
 const MERCHANT_NAME = 'TGDD'
 const CASHIER_ID = 'cashier01'
@@ -9,7 +9,8 @@ const LICENSE =
   'name=TGDD;bank=BIDV;copyright=Use for TGDD only;signature=F9725778F943ABFD16EF0DB9026A2465E3F7BA5ABE1E6E3532CB8483447A6716;expiryDate=2037-12-31;encryption=yes;encoding=base64;userConfirmation=yes;version=20;LCV=4A5995'
 
 export const getPortablePosUrl = (): string => {
-  return storage.getString('portable_pos_url') || DEFAULT_POS_URL
+  // return storage.getString('portable_pos_url') || DEFAULT_POS_URL
+  return DEFAULT_POS_URL
 }
 
 export const setPortablePosUrl = (url: string): void => {

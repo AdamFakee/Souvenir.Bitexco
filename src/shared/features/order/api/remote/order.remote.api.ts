@@ -202,7 +202,7 @@ export interface RefundOrderResult {
 }
 
 export interface ExchangeReturnLineRequest {
-  productId: string
+  variantId: string
   qty: number
 }
 
@@ -222,8 +222,18 @@ export interface ExchangeOrderParams {
   reason: string
   shiftId: string
   staffId: string
-  returnedLines: ExchangeReturnLineRequest[]
-  replacementLines: ExchangeReplacementLineRequest[]
+  returnLines: ExchangeReturnLineRequest[]
+  newLines: ExchangeReplacementLineRequest[]
+  payments: {
+    method: 'cash' | 'qr_bidv' | 'card_bidv'
+    amount: number
+    provider?: string | null
+    cardTerminalId?: string | null
+  }[]
+  managerAuth?: {
+    employeeCode: string
+    pin: string
+  } | null
 }
 
 export interface ExchangeReceiptLine {
@@ -233,6 +243,16 @@ export interface ExchangeReceiptLine {
   qty: number
   unitPrice: number
   lineAmount: number
+}
+
+export interface PosReturnResponse {
+  returnId: string
+  returnCode: string
+  orderId: string
+  orderCode: string
+  refundAmount: number
+  status: string
+  receipt?: any
 }
 
 export interface ExchangeReceiptData {
@@ -250,15 +270,13 @@ export interface ExchangeReceiptData {
 }
 
 export interface ExchangeOrderResult {
-  exchangeId?: string
-  exchangeCode?: string
-  orderId: string
-  orderCode?: string
-  returnedValue: number
-  replacementValue: number
-  differenceAmount: number
-  status?: 'COMPLETED' | 'EXCHANGE_PROCESSING' | 'FAILED'
-  receipt?: ExchangeReceiptData
+  originalOrderId: string
+  originalOrderCode: string
+  return: PosReturnResponse
+  newOrder: PosCheckoutResult
+  refundValue: number
+  newOrderTotal: number
+  difference: number
 }
 
 export interface CancelOrderParams {
@@ -645,21 +663,46 @@ export const OrderRemoteAPI = {
    * Đổi hàng online bằng endpoint atomic.
    */
   exchangeOrder: async (params: ExchangeOrderParams): Promise<ExchangeOrderResult> => {
-    const { orderId, idempotencyKey, reason, shiftId, staffId, returnedLines, replacementLines } =
-      params
+    const {
+      orderId,
+      idempotencyKey,
+      reason,
+      shiftId,
+      staffId,
+      returnLines,
+      newLines,
+      payments,
+      managerAuth,
+    } = params
 
     try {
+      const payload = {
+        idempotencyKey,
+        reason,
+        shiftId,
+        staffId,
+        returnLines,
+        newLines,
+        payments,
+        currency: 'VND',
+        ...(managerAuth
+          ? {
+              managerAuth: {
+                employeeCode: managerAuth.employeeCode,
+                pin: managerAuth.pin,
+              },
+            }
+          : {}),
+      }
+
+      console.log('>>> [ExchangeOrder API] REQUEST PAYLOAD:', JSON.stringify(payload, null, 2))
+
       const response = await AxiosService.getInstance().post<ExchangeOrderResult>(
         `/v1/pos/orders/${orderId}/exchange`,
-        {
-          idempotencyKey,
-          reason,
-          shift_id: shiftId,
-          staff_id: staffId,
-          returned_lines: returnedLines,
-          replacement_lines: replacementLines,
-        },
+        payload,
       )
+
+      console.log('>>> [ExchangeOrder API] RESPONSE DATA:', JSON.stringify(response.data, null, 2))
 
       return response.data
     } catch (error) {
@@ -671,6 +714,11 @@ export const OrderRemoteAPI = {
       const data = typedError?.response?.data
       const code = typeof data?.error === 'string' ? data.error : undefined
       const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
+
+      console.error(
+        '>>> [ExchangeOrder API] ERROR RESPONSE:',
+        JSON.stringify(typedError?.response?.data || typedError.message, null, 2),
+      )
 
       throw new OrderApiError(code || typedError?.message || 'order.exchange_failed', {
         code,

@@ -1,13 +1,21 @@
 import { Button } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
+import { LucideIcon } from 'lucide-react-native'
 import React, { memo } from 'react'
-import { Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 const BORDER = '#DFE0E1'
 const TEXT_PRIMARY = '#303036'
 const TEXT_MUTED = '#747475'
 const BRAND = '#1C4E68'
 const ERROR = '#DC2626'
+
+export interface ExchangePaymentMethodOption {
+  type: string
+  label: string
+  icon?: LucideIcon | React.ComponentType<any>
+  disabled?: boolean
+}
 
 interface ExchangeSummaryFooterProps {
   returnedValue: number
@@ -18,8 +26,10 @@ interface ExchangeSummaryFooterProps {
   canSubmit: boolean
   isProcessing: boolean
   processingText: string
+  paymentMethods: ExchangePaymentMethodOption[]
   onClose: () => void
-  onConfirm: () => void
+  onConfirmZero: () => void
+  onSelectPaymentMethod: (methodType: string) => void
 }
 
 export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
@@ -31,9 +41,17 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
   canSubmit,
   isProcessing,
   processingText,
+  paymentMethods,
   onClose,
-  onConfirm,
+  onConfirmZero,
+  onSelectPaymentMethod,
 }: ExchangeSummaryFooterProps) {
+  const needsPayment = differenceAmount > 0
+  const rows: ExchangePaymentMethodOption[][] = []
+  for (let i = 0; i < paymentMethods.length; i += 2) {
+    rows.push(paymentMethods.slice(i, i + 2))
+  }
+
   return (
     <View
       className="px-6 py-5"
@@ -99,27 +117,72 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
         )}
       </View>
 
-      <View className="flex-row gap-3">
-        <Button
-          label="Hủy bỏ"
-          variant="outline"
-          className="h-14 flex-1 rounded-xl"
-          onPress={onClose}
-          disabled={isProcessing}
-        />
-        <Button
-          label={isProcessing ? processingText : 'XÁC NHẬN ĐỔI HÀNG'}
-          className="h-14 flex-[1.4] rounded-xl"
-          onPress={onConfirm}
-          loading={isProcessing}
-          disabled={!canSubmit || isProcessing}
-        />
-      </View>
+      {needsPayment ? (
+        <View className="gap-3">
+          {rows.map((row, rowIndex) => (
+            <View key={rowIndex} className="flex-row gap-3">
+              {row.map((method) => {
+                const Icon = method.icon
+                const isDisabled = !canSubmit || isProcessing || !!method.disabled
+                return (
+                  <Pressable
+                    key={method.type}
+                    disabled={isDisabled}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Thanh toán ${method.label}`}
+                    onPress={() => onSelectPaymentMethod(method.type)}
+                    className={`min-h-[56px] flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-outline-variant bg-primary py-4 ${
+                      isDisabled ? 'opacity-50' : 'opacity-100'
+                    }`}
+                    style={
+                      {
+                        boxShadow: '0px 3px 0px #EBEBEB',
+                      } as any
+                    }
+                  >
+                    {Icon ? (
+                      <Icon size={24} color="#ffffff" width={24} height={24} fill="#ffffff" />
+                    ) : null}
+                    <Text className="text-center text-[16px] font-bold text-white">
+                      {method.label}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+              {row.length === 1 ? <View className="flex-1" /> : null}
+            </View>
+          ))}
+
+          <Button
+            label="Hủy bỏ"
+            variant="outline"
+            className="mt-1 h-14 min-h-[44px] rounded-xl"
+            onPress={onClose}
+            disabled={isProcessing}
+          />
+        </View>
+      ) : (
+        <View className="flex-row gap-3">
+          <Button
+            label="Hủy bỏ"
+            variant="outline"
+            className="h-14 min-h-[44px] flex-1 rounded-xl"
+            onPress={onClose}
+            disabled={isProcessing}
+          />
+          <Button
+            label={isProcessing ? processingText : 'XÁC NHẬN ĐỔI HÀNG'}
+            className="h-14 min-h-[44px] flex-[1.4] rounded-xl"
+            onPress={onConfirmZero}
+            loading={isProcessing}
+            disabled={!canSubmit || isProcessing}
+          />
+        </View>
+      )}
     </View>
   )
 })
 
-// ── Helpers ──
 function SummaryRow({
   label,
   value,
