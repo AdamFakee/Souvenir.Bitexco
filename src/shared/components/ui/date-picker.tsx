@@ -12,6 +12,8 @@ interface DatePickerProps {
   className?: string
   minDate?: Date
   maxDate?: Date
+  triggerClassName?: string
+  triggerTextClassName?: string
 }
 
 export function DatePicker({
@@ -21,6 +23,8 @@ export function DatePicker({
   className,
   minDate,
   maxDate,
+  triggerClassName,
+  triggerTextClassName,
 }: DatePickerProps) {
   const calendarRef = useRef<CalendarPopoverRef>(null)
   const viewRef = useRef<View>(null)
@@ -37,11 +41,11 @@ export function DatePicker({
     <View ref={viewRef} className={className}>
       <Pressable
         onPress={handleOpen}
-        className="h-11 flex-row items-center rounded-xl border border-outline-variant bg-white px-4"
+        className={`h-11 flex-row items-center rounded-xl border border-outline-variant bg-white px-4 ${triggerClassName ?? ''}`}
       >
         <Calendar size={20} color={COLORS.outline.default} />
         <Text
-          className={`ml-2 text-base font-medium ${value ? 'text-surface-on' : 'text-muted'}`}
+          className={`ml-2 text-base font-medium ${value ? 'text-surface-on' : 'text-muted'} ${triggerTextClassName ?? ''}`}
           numberOfLines={1}
         >
           {value ? formatDate(value) : placeholder}

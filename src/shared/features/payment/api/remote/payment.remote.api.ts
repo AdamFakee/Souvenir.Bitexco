@@ -1,4 +1,4 @@
-import { PaymentMethodConfig, PaymentMethodCode } from '@/shared/features/app'
+import { PaymentMethodCode, PaymentMethodConfig } from '@/shared/features/app'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 
 const ALLOWED_PAYMENT_METHOD_CODES: PaymentMethodCode[] = ['cash', 'qr_bidv', 'card_bidv']

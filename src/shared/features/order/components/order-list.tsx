@@ -32,12 +32,12 @@ type SortField = 'code' | 'collaborator' | 'createdAt' | 'paymentMethod' | 'tota
 
 const COLUMNS: { field: SortField | 'actions'; label: string; flex: number; sortable?: boolean }[] =
   [
-    { field: 'code', label: 'Mã đơn hàng', flex: 1, sortable: true },
-    { field: 'collaborator', label: 'Cộng tác viên', flex: 1, sortable: true },
-    { field: 'createdAt', label: 'Ngày tạo đơn', flex: 1, sortable: true },
-    { field: 'paymentMethod', label: 'PTTT', flex: 0.7, sortable: true },
-    { field: 'total', label: 'Giá trị', flex: 0.8, sortable: true },
-    { field: 'status', label: 'Trạng thái', flex: 0.8, sortable: true },
+    { field: 'code', label: 'Mã đơn hàng', flex: 1, sortable: false },
+    { field: 'collaborator', label: 'Cộng tác viên', flex: 1, sortable: false },
+    { field: 'createdAt', label: 'Ngày tạo đơn', flex: 1, sortable: false },
+    { field: 'paymentMethod', label: 'PTTT', flex: 0.7, sortable: false },
+    { field: 'total', label: 'Giá trị', flex: 0.8, sortable: false },
+    { field: 'status', label: 'Trạng thái', flex: 0.8, sortable: false },
     { field: 'actions', label: 'Hành động', flex: 0.7, sortable: false },
   ]
 
@@ -107,7 +107,16 @@ const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethodCode | '' }[]
   { label: 'Công nợ', value: 'cong_no' },
 ]
 
-// ── Sortable Header Cell (Thanh toán header mở popover filter) ──
+// ── Status filter constants ──
+const STATUS_OPTIONS: { label: string; value: string | null }[] = [
+  { label: 'Tất cả', value: null },
+  { label: 'Hoàn thành', value: 'COMPLETED' },
+  { label: 'Hoàn hàng', value: 'REFUNDED,RETURNED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED' },
+  { label: 'Đã hủy', value: 'CANCELLED' },
+  { label: 'Đang xử lý', value: 'PENDING' },
+]
+
+// ── Sortable Header Cell (Thanh toán / Trạng thái header mở popover filter) ──
 interface HeaderCellProps {
   field: SortField | 'actions'
   label: string
@@ -135,31 +144,44 @@ const HeaderCell = memo(function HeaderCell({
   const setPaymentMethod = useOrderFilterStore((s) => s.setPaymentMethod)
   const [showPaymentPopover, setShowPaymentPopover] = useState(false)
 
-  const selectedLabel = isPaymentCol
-    ? paymentMethod
+  // Status popover filter
+  const isStatusCol = field === 'status'
+  const statusFilter = useOrderFilterStore((s) => s.status)
+  const setStatusFilter = useOrderFilterStore((s) => s.setStatus)
+  const [showStatusPopover, setShowStatusPopover] = useState(false)
+
+  let selectedLabel = label
+  if (isPaymentCol) {
+    selectedLabel = paymentMethod
       ? PAYMENT_METHOD_OPTIONS.find((o) => o.value === paymentMethod)?.label || 'PTTT'
       : 'PTTT'
-    : label
+  } else if (isStatusCol) {
+    selectedLabel = statusFilter
+      ? STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || 'Trạng thái'
+      : 'Trạng thái'
+  }
 
   const handlePress = useCallback(() => {
-    if (!sortable || field === 'actions') return
     if (isPaymentCol) {
       setShowPaymentPopover((v) => !v)
+    } else if (isStatusCol) {
+      setShowStatusPopover((v) => !v)
     } else {
+      if (!sortable || field === 'actions') return
       onSort(field as SortField)
     }
-  }, [isPaymentCol, field, onSort, sortable])
+  }, [isPaymentCol, isStatusCol, field, onSort, sortable])
 
   return (
     <View style={{ flex }}>
       <Pressable
         onPress={handlePress}
-        disabled={!sortable || field === 'actions'}
+        disabled={!isPaymentCol && !isStatusCol && (!sortable || field === 'actions')}
         className={`flex-row items-center gap-1 ${field === 'actions' ? 'justify-center px-2' : 'px-4'}`}
-        style={{ height: 48 }}
+        style={{ height: 60 }}
       >
         <Text
-          className="text-lg font-bold"
+          className="text-xl font-bold"
           numberOfLines={1}
           style={{
             color: BRAND,
@@ -168,19 +190,22 @@ const HeaderCell = memo(function HeaderCell({
         >
           {selectedLabel}
         </Text>
-        {active && !isPaymentCol && (
-          <Text style={{ color: BRAND, fontSize: 12 }}>{currentDir === 'asc' ? '▲' : '▼'}</Text>
+        {active && !isPaymentCol && !isStatusCol && (
+          <Text style={{ color: BRAND, fontSize: 14 }}>{currentDir === 'asc' ? '▲' : '▼'}</Text>
         )}
         {isPaymentCol && (
-          <Text style={{ color: BRAND, fontSize: 10 }}>{showPaymentPopover ? '▲' : '▼'}</Text>
+          <Text style={{ color: BRAND, fontSize: 12 }}>{showPaymentPopover ? '▲' : '▼'}</Text>
+        )}
+        {isStatusCol && (
+          <Text style={{ color: BRAND, fontSize: 12 }}>{showStatusPopover ? '▲' : '▼'}</Text>
         )}
       </Pressable>
 
-      {/* Popover */}
+      {/* Popover PTTT */}
       {isPaymentCol && showPaymentPopover ? (
         <View
-          className="absolute left-4 top-12 z-10 rounded-xl border bg-white py-1 shadow-lg"
-          style={{ borderColor: BORDER, minWidth: 160 }}
+          className="absolute left-4 z-10 rounded-xl border bg-white py-1 shadow-lg"
+          style={{ borderColor: BORDER, minWidth: 200, top: 60 }}
         >
           {PAYMENT_METHOD_OPTIONS.map((opt) => {
             const active = (paymentMethod ?? '') === opt.value
@@ -191,11 +216,41 @@ const HeaderCell = memo(function HeaderCell({
                   setPaymentMethod((opt.value as PaymentMethodCode) || null)
                   setShowPaymentPopover(false)
                 }}
-                className="px-4 py-3 active:bg-gray-100"
+                className="px-5 py-4 active:bg-gray-100"
                 style={{ backgroundColor: active ? 'rgba(28,78,104,0.08)' : 'transparent' }}
               >
                 <Text
-                  className="text-base font-bold"
+                  className="text-lg font-bold"
+                  style={{ color: active ? BRAND : TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                >
+                  {opt.label}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      ) : null}
+
+      {/* Popover Trạng thái */}
+      {isStatusCol && showStatusPopover ? (
+        <View
+          className="absolute left-4 z-10 rounded-xl border bg-white py-1 shadow-lg"
+          style={{ borderColor: BORDER, minWidth: 200, top: 60 }}
+        >
+          {STATUS_OPTIONS.map((opt) => {
+            const active = statusFilter === opt.value
+            return (
+              <Pressable
+                key={opt.label}
+                onPress={() => {
+                  setStatusFilter(opt.value)
+                  setShowStatusPopover(false)
+                }}
+                className="px-5 py-4 active:bg-gray-100"
+                style={{ backgroundColor: active ? 'rgba(28,78,104,0.08)' : 'transparent' }}
+              >
+                <Text
+                  className="text-lg font-bold"
                   style={{ color: active ? BRAND : TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
                 >
                   {opt.label}
@@ -433,6 +488,8 @@ export const OrderList = memo(function OrderList({
 
   const handleSort = useCallback(
     (field: SortField) => {
+      // Không sort cột giá trị
+      if (field === 'total') return
       if (sortField === field) {
         setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
       } else {
@@ -495,7 +552,8 @@ export const OrderList = memo(function OrderList({
 
   const keyExtractor = useCallback((item: OrderDisplay) => item.id, [])
 
-  if (isLoading) {
+  // Chỉ blank skeleton khi thật sự chưa có rows (keepPreviousData giữ list khi đổi tab)
+  if (isLoading && orders.length === 0) {
     return (
       <View className="flex-1">
         <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} />

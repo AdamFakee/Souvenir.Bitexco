@@ -523,8 +523,6 @@ export const OrderRemoteAPI = {
       }
     }
     try {
-      console.log('---------------------------------------')
-      console.log(`[getOrders REQUEST URL] /v1/pos/orders?${urlParams.toString()}`)
       const response = await AxiosService.getInstance().get<PagedResponse<OrderListApiItem>>(
         '/v1/pos/orders',
         { params: urlParams },
@@ -788,7 +786,6 @@ export const OrderRemoteAPI = {
     limit?: number
     page?: number
   }): Promise<{ items: Affiliate[]; totalCount: number; page: number; pageSize: number }> => {
-    console.log('[getAffiliates API INPUT] Params:', JSON.stringify(params))
     try {
       const response = await AxiosService.getInstance().get<
         | {
@@ -805,7 +802,6 @@ export const OrderRemoteAPI = {
           page: params?.page || undefined,
         },
       })
-      console.log('[getAffiliates API RESPONSE] Data:', JSON.stringify(response.data))
 
       const rawItems = Array.isArray(response.data) ? response.data : response.data.items || []
 
@@ -845,7 +841,6 @@ export const OrderRemoteAPI = {
     page?: number
     limit?: number
   }): Promise<{ items: Partner[]; totalCount: number; page: number; pageSize: number }> => {
-    console.log('[getPartners API INPUT] Params:', JSON.stringify(params))
     try {
       const response = await AxiosService.getInstance().get<
         { items?: Partner[]; totalCount?: number; page?: number; pageSize?: number } | Partner[]
@@ -856,7 +851,6 @@ export const OrderRemoteAPI = {
           limit: params?.limit || undefined,
         },
       })
-      console.log('[getPartners API RESPONSE] Data:', JSON.stringify(response.data))
 
       const items = Array.isArray(response.data) ? response.data : response.data.items || []
       const data = response.data as { totalCount?: number; page?: number; pageSize?: number }

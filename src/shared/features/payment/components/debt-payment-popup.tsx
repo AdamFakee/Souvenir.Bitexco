@@ -59,6 +59,8 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
     }))
 
     const handleConfirm = () => {
+      // Đang checkout / đã xong → chặn bấm lần 2
+      if (isCheckingOut || isDone) return
       if (
         affiliate?.agentType === 'agent' &&
         affiliate.creditLimit !== undefined &&
@@ -219,10 +221,10 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             {/* Action Buttons */}
             <View className="gap-3">
               <Button
-                label={isCheckingOut ? 'Đang xử lý...' : 'Xác nhận ghi nợ'}
+                label="Xác nhận ghi nợ"
                 variant="primary"
                 onPress={handleConfirm}
-                disabled={isCheckingOut}
+                disabled={isCheckingOut || isDone}
                 loading={isCheckingOut}
                 className="h-20"
               />

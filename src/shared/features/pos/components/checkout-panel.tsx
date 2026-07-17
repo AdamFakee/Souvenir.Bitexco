@@ -20,6 +20,7 @@ import { useSelector } from '@xstate/react'
 import { PenSquare, Ticket, User, XCircle } from 'lucide-react-native'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useActiveCart, usePosActor } from '../hooks'
 import { CartItem } from '../types/cart.types'
 
@@ -83,6 +84,12 @@ export default function CheckoutPanel() {
   }, [paymentMethods, affiliate])
 
   const [voucherInput, setVoucherInput] = useState('')
+
+  // Sync voucherInput with appliedVoucher when switching sessions or clearing cart
+  React.useEffect(() => {
+    setVoucherInput(appliedVoucher?.code || '')
+  }, [appliedVoucher])
+
   const applyVoucherMutation = useApplyVoucher()
   const isVerifying = applyVoucherMutation.isPending
   const printRef = useRef(null)
@@ -104,8 +111,9 @@ export default function CheckoutPanel() {
 
   const tax = useMemo(() => calculateTotalTax(cart), [cart])
 
+  // Voucher sau thuế: Tổng = (tạm tính + thuế) − giảm giá
   const total = useMemo(() => {
-    return Math.max(0, subtotal - discount) + tax
+    return Math.max(0, subtotal + tax - discount)
   }, [subtotal, discount, tax])
 
   const paymentContext: PaymentContext = useMemo(
@@ -126,6 +134,7 @@ export default function CheckoutPanel() {
   const handleCheckoutSuccess = useCallback(
     (method?: string) => {
       cartActor?.send({ type: 'CLEAR_CART' })
+      setVoucherInput('')
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['orders'] })
       if (method === 'cong_no') {
@@ -134,7 +143,7 @@ export default function CheckoutPanel() {
         toast.success('Thanh toán thành công!')
       }
     },
-    [cartActor, queryClient],
+    [cartActor, queryClient, setVoucherInput],
   )
 
   /** Mở popup tương ứng với phương thức thanh toán */
@@ -164,90 +173,108 @@ export default function CheckoutPanel() {
 
   const handleRemoveVoucher = useCallback(() => {
     cartActor?.send({ type: 'REMOVE_VOUCHER' })
-    // toast.info(' Đã gỡ mã giảm giá')
   }, [cartActor])
+
+  const paymentRows = useMemo(() => {
+    const rows: (typeof activeStrategies)[] = []
+    for (let i = 0; i < activeStrategies.length; i += 2) {
+      rows.push(activeStrategies.slice(i, i + 2))
+    }
+    return rows
+  }, [activeStrategies])
+
   return (
-    <View className="h-full w-[320px] flex-col bg-background" style={{ zIndex: 10 }}>
-      <View className="flex-1 flex-col justify-between px-3">
-        {/* TOP SECTION: Expanding */}
-        <View className="flex-1 flex-col gap-6">
-          {/* Customer Box */}
-          <View className="flex-row items-center justify-between rounded-[12px] border border-outline-variant bg-white p-3">
-            <View className="flex-1 flex-row items-center gap-3 pr-2">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <User size={20} color={COLORS.primary.default} />
-              </View>
-              <View className="flex-1 flex-col">
-                <Text className="mb-0.5 text-[11px] font-bold uppercase tracking-widest text-muted">
-                  Khách hàng
-                </Text>
-                {affiliate ? (
-                  <View className="flex-col gap-0.5">
-                    <Text
-                      className="text-[16px] font-black text-surface-on"
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {affiliate.name}
-                    </Text>
-                    <Pressable
-                      onPress={async () => {
-                        if (
-                          affiliate.agentType === 'agent' ||
-                          affiliate.agentType === 'collaborator'
-                        ) {
-                          await Clipboard.setStringAsync(affiliate.code)
-                          toast.success(`Đã copy mã: ${affiliate.code}`)
-                        }
-                      }}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                    >
+    <KeyboardAvoidingView
+      behavior="padding"
+      keyboardVerticalOffset={24}
+      className="w-full"
+      style={{ zIndex: 10 }}
+    >
+      <View className="w-full rounded-2xl border border-outline-variant bg-white p-4 shadow-sm">
+        <View className="flex-row items-stretch gap-4">
+          {/* Col 1: khách + ghi chú + voucher */}
+          <View className="min-w-0 flex-1 gap-3">
+            <View className="min-h-[64px] flex-row items-center justify-between rounded-2xl border border-outline-variant bg-slate-50 px-3 py-3">
+              <View className="min-w-0 flex-1 flex-row items-center gap-3 pr-2">
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+                  <User size={20} color={COLORS.primary.default} />
+                </View>
+                <View className="min-w-0 flex-1">
+                  <Text className="mb-0.5 text-[11px] font-bold uppercase tracking-widest text-muted">
+                    Khách hàng
+                  </Text>
+                  {affiliate ? (
+                    <View className="gap-0.5">
                       <Text
-                        className="text-[13px] font-bold text-primary"
+                        className="text-[16px] font-black text-surface-on"
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        {affiliate.agentType === 'agent'
-                          ? 'Đại lý'
-                          : affiliate.agentType === 'collaborator'
-                            ? 'CTV'
-                            : 'Khách lẻ'}{' '}
-                        • {affiliate.code}
+                        {affiliate.name}
                       </Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Text className="text-[16px] font-black text-surface-on">Khách lẻ</Text>
-                )}
+                      <Pressable
+                        onPress={async () => {
+                          if (
+                            affiliate.agentType === 'agent' ||
+                            affiliate.agentType === 'collaborator'
+                          ) {
+                            await Clipboard.setStringAsync(affiliate.code)
+                            toast.success(`Đã copy mã: ${affiliate.code}`)
+                          }
+                        }}
+                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        <Text
+                          className="text-[13px] font-bold text-primary"
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {affiliate.agentType === 'agent'
+                            ? 'Đại lý'
+                            : affiliate.agentType === 'collaborator'
+                              ? 'CTV'
+                              : 'Khách lẻ'}{' '}
+                          • {affiliate.code}
+                        </Text>
+                      </Pressable>
+                      {!!affiliate.phone && (
+                        <Text
+                          className="text-[13px] font-bold text-surface-on-variant"
+                          numberOfLines={1}
+                        >
+                          {affiliate.phone}
+                        </Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Text className="text-[16px] font-black text-surface-on">Khách lẻ</Text>
+                  )}
+                </View>
               </View>
+              {affiliate?.agentType === 'agent' && affiliate.isDebt && (
+                <View className="rounded-lg border border-error/20 bg-error/10 px-2.5 py-1">
+                  <Text className="text-[11px] font-black uppercase tracking-widest text-error">
+                    Công nợ
+                  </Text>
+                </View>
+              )}
             </View>
-            {affiliate?.agentType === 'agent' && affiliate.isDebt && (
-              <View className="rounded-md border border-error/20 bg-error/10 px-2.5 py-1">
-                <Text className="text-[10px] font-black uppercase tracking-widest text-error">
-                  Công nợ
-                </Text>
-              </View>
-            )}
-          </View>
 
-          {/* Note Box */}
-          <View className="flex-row items-center gap-2 rounded-[12px] border border-outline-variant bg-white p-3">
-            <PenSquare size={20} color={COLORS.muted} />
-            <TextInput
-              className="m-0 min-h-[24px] flex-1 p-0 text-[16px] font-bold text-surface-on"
-              placeholder="Nhập ghi chú đơn hàng..."
-              placeholderTextColor="#8D8E8F"
-              value={note}
-              onChangeText={(text) => cartActor?.send({ type: 'SET_NOTE', note: text })}
-            />
-          </View>
+            <View className="min-h-[56px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
+              <PenSquare size={20} color={COLORS.muted} />
+              <TextInput
+                className="m-0 min-h-[48px] flex-1 py-2 text-[16px] font-bold text-surface-on"
+                placeholder="Nhập ghi chú đơn hàng..."
+                placeholderTextColor="#8D8E8F"
+                value={note}
+                onChangeText={(text) => cartActor?.send({ type: 'SET_NOTE', note: text })}
+              />
+            </View>
 
-          {/* Voucher Input (Matching HTML style) */}
-          <View className="flex-col gap-1">
-            <View className="flex-row items-center gap-2 rounded-[12px] border border-outline-variant bg-white p-3">
+            <View className="min-h-[56px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
               <Ticket size={20} color={appliedVoucher ? COLORS.primary.default : COLORS.muted} />
               <TextInput
-                className="m-0 flex-1 p-0 text-[16px] font-bold text-surface-on"
+                className="m-0 min-h-[48px] flex-1 py-2 text-[16px] font-bold text-surface-on"
                 placeholder="Nhập mã giảm giá"
                 placeholderTextColor="#8D8E8F"
                 value={voucherInput}
@@ -255,64 +282,69 @@ export default function CheckoutPanel() {
                 autoCapitalize="characters"
                 editable={!appliedVoucher && !isVerifying}
               />
-
-              {/* Divider */}
-              <View className="mx-1 h-5 w-[1px] bg-outline-variant" />
-
-              {/* Action Button inside Input */}
+              <View className="mx-1 h-6 w-px bg-outline-variant" />
               {appliedVoucher ? (
                 <Pressable
-                  className="flex-row items-center gap-1.5 px-2"
+                  className="min-h-[44px] min-w-[64px] flex-row items-center justify-center gap-1.5 px-2"
                   onPress={handleRemoveVoucher}
+                  accessibilityRole="button"
+                  accessibilityLabel="Hủy mã giảm giá"
                 >
                   <XCircle size={18} color={COLORS.error.default} />
-                  <Text className="text-[16px] font-bold text-error">Hủy</Text>
+                  <Text className="text-[15px] font-bold text-error">Hủy</Text>
                 </Pressable>
               ) : (
                 <Pressable
-                  className="flex-row items-center gap-1.5 px-2"
+                  className="min-h-[44px] min-w-[72px] items-center justify-center px-2"
                   onPress={handleApplyVoucher}
                   disabled={!voucherInput.trim() || isVerifying}
+                  accessibilityRole="button"
+                  accessibilityLabel="Áp dụng mã giảm giá"
+                  style={({ pressed }) => [
+                    { opacity: !voucherInput.trim() || isVerifying ? 0.4 : pressed ? 0.7 : 1 },
+                  ]}
                 >
-                  <Text className="text-[16px] font-bold text-primary opacity-90">Áp dụng</Text>
+                  <Text className="text-[15px] font-bold text-primary">
+                    {isVerifying ? '...' : 'Áp dụng'}
+                  </Text>
                 </Pressable>
               )}
             </View>
-
-            {/* Applied Voucher Details removed per user request */}
           </View>
 
-          {/* Calculation List (Matching HTML) */}
-          <View className="mt-2 flex-col gap-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[20px] font-bold text-surface-on-variant">Số lượng</Text>
-              <Text className="text-[20px] font-bold text-surface-on-variant" numberOfLines={1}>
-                {totalQty} món
-              </Text>
-            </View>
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[20px] font-bold text-surface-on-variant">Tạm tính</Text>
-              <Text className="text-[20px] font-bold text-surface-on-variant" numberOfLines={1}>
-                {formatCurrency(subtotal)}
-              </Text>
-            </View>
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[20px] font-bold text-surface-on-variant">Thuế</Text>
-              <Text className="text-[20px] font-bold text-surface-on-variant" numberOfLines={1}>
-                {formatCurrency(tax)}
-              </Text>
-            </View>
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[20px] font-bold text-surface-on-variant">Giảm giá</Text>
-              <Text className="text-[20px] font-bold text-success" numberOfLines={1}>
-                -{formatCurrency(discount)}
-              </Text>
+          {/* Col 2: tổng tiền */}
+          <View className="w-[280px] justify-between rounded-2xl border border-outline-variant/60 bg-slate-50 px-4 py-3">
+            <View className="gap-2.5">
+              <View className="flex-row items-center justify-between">
+                <Text className="text-[15px] font-bold text-surface-on-variant">Số lượng</Text>
+                <Text className="text-[15px] font-bold text-surface-on" numberOfLines={1}>
+                  {totalQty} món
+                </Text>
+              </View>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-[15px] font-bold text-surface-on-variant">Tạm tính</Text>
+                <Text className="text-[15px] font-bold text-surface-on" numberOfLines={1}>
+                  {formatCurrency(subtotal)}
+                </Text>
+              </View>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-[15px] font-bold text-surface-on-variant">Thuế</Text>
+                <Text className="text-[15px] font-bold text-surface-on" numberOfLines={1}>
+                  {formatCurrency(tax)}
+                </Text>
+              </View>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-[15px] font-bold text-surface-on-variant">Giảm giá</Text>
+                <Text className="text-[15px] font-bold text-success" numberOfLines={1}>
+                  -{formatCurrency(discount)}
+                </Text>
+              </View>
             </View>
 
-            <View className="mt-2 flex-row items-center justify-between">
-              <Text className="text-[20px] font-bold text-surface-on">Tổng cộng</Text>
+            <View className="mt-3 flex-row items-center justify-between border-t border-outline-variant pt-3">
+              <Text className="text-[16px] font-extrabold text-surface-on">Tổng cộng</Text>
               <Text
-                className="text-[26px] font-bold text-[#FB6514]"
+                className="text-[24px] font-black text-[#FB6514]"
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
@@ -320,79 +352,74 @@ export default function CheckoutPanel() {
               </Text>
             </View>
           </View>
-        </View>
 
-        {/* BOTTOM SECTION: Payment Buttons (2 Columns) */}
-        <View className="mt-6">
-          {(() => {
-            const rows = []
-            for (let i = 0; i < activeStrategies.length; i += 2) {
-              rows.push(activeStrategies.slice(i, i + 2))
-            }
-            return (
-              <View className="gap-3">
-                {rows.map((row, rowIndex) => (
-                  <View key={rowIndex} className="flex-row gap-3">
-                    {row.map((method) => {
-                      const isAvailable = method.isAvailable(paymentContext, !isNetworkConnected)
-                      const isDisabled =
-                        cart.length === 0 ||
-                        !isAvailable ||
-                        (method.type === 'qr_bidv' && !isNetworkConnected) ||
-                        (method.type === 'card_bidv' && !isPosConnected)
+          {/* Col 3: PTTT — nút to, dễ bấm tablet */}
+          <View className="w-[360px] justify-end gap-3">
+            {paymentRows.map((row, rowIndex) => (
+              <View key={rowIndex} className="flex-row gap-3">
+                {row.map((method) => {
+                  const isAvailable = method.isAvailable(paymentContext, !isNetworkConnected)
+                  const isDisabled =
+                    cart.length === 0 ||
+                    !isAvailable ||
+                    (method.type === 'qr_bidv' && !isNetworkConnected) ||
+                    (method.type === 'card_bidv' && !isPosConnected)
+                  const Icon = method.icon
+                  const isDebt = method.type === 'cong_no'
 
-                      const Icon = method.icon
-
-                      return (
-                        <Pressable
-                          key={method.type}
-                          disabled={isDisabled}
-                          onPress={() => handleStartPayment(String(method.type))}
-                          className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-outline-variant py-4 ${method.type === 'cong_no' ? 'border-error bg-error' : 'bg-primary'} ${isDisabled ? 'opacity-50' : 'opacity-100'}`}
-                          style={
-                            {
-                              boxShadow: '0px 3px 0px #EBEBEB',
-                            } as any
-                          }
-                        >
-                          {Icon && (
-                            <Icon size={24} color="#ffffff" width={24} height={24} fill="#ffffff" />
-                          )}
-                          <Text className="text-center text-[16px] font-bold text-white">
-                            {method.label}
-                          </Text>
-                        </Pressable>
-                      )
-                    })}
-                  </View>
-                ))}
+                  return (
+                    <Pressable
+                      key={method.type}
+                      disabled={isDisabled}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isDisabled }}
+                      accessibilityLabel={method.label}
+                      onPress={() => handleStartPayment(String(method.type))}
+                      className={`min-h-[64px] flex-1 flex-row items-center justify-center gap-2.5 rounded-2xl border px-3 ${
+                        isDebt ? 'border-error bg-error' : 'border-outline-variant bg-primary'
+                      } ${isDisabled ? 'opacity-45' : 'opacity-100'}`}
+                      style={
+                        !isDisabled ? ({ boxShadow: '0px 3px 0px #EBEBEB' } as any) : undefined
+                      }
+                    >
+                      {Icon ? (
+                        <Icon size={24} color="#ffffff" width={24} height={24} fill="#ffffff" />
+                      ) : null}
+                      <Text
+                        className="text-center text-[16px] font-bold text-white"
+                        numberOfLines={1}
+                      >
+                        {method.label}
+                      </Text>
+                    </Pressable>
+                  )
+                })}
               </View>
-            )
-          })()}
+            ))}
+          </View>
         </View>
-      </View>
 
-      {/* Render Popups động từ Registry */}
-      {activeStrategies.map((method) => (
-        <method.PopupComponent
-          key={method.type}
-          ref={(r) => {
-            popupRefs.current[String(method.type)] = r
-          }}
-          total={total}
-          discount={discount}
-          appliedVoucher={appliedVoucher}
-          items={cart}
-          staffId={employee?.id ?? ''}
-          shiftId={cashSessionId ?? ''}
-          activeSessionId={activeSessionId}
-          printRef={printRef}
-          staffName={employee?.displayName}
-          onSuccess={(result) => handleCheckoutSuccess(result.method)}
-          note={note}
-          affiliate={affiliate}
-        />
-      ))}
-    </View>
+        {activeStrategies.map((method) => (
+          <method.PopupComponent
+            key={method.type}
+            ref={(r) => {
+              popupRefs.current[String(method.type)] = r
+            }}
+            total={total}
+            discount={discount}
+            appliedVoucher={appliedVoucher}
+            items={cart}
+            staffId={employee?.id ?? ''}
+            shiftId={cashSessionId ?? ''}
+            activeSessionId={activeSessionId}
+            printRef={printRef}
+            staffName={employee?.displayName}
+            onSuccess={(result) => handleCheckoutSuccess(result.method)}
+            note={note}
+            affiliate={affiliate}
+          />
+        ))}
+      </View>
+    </KeyboardAvoidingView>
   )
 }

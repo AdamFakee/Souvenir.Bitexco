@@ -12,6 +12,7 @@ interface SegmentedControlProps<T> {
   value: T
   onChange: (value: T) => void
   className?: string
+  textClassName?: string
 }
 
 export function SegmentedControl<T>({
@@ -19,6 +20,7 @@ export function SegmentedControl<T>({
   value,
   onChange,
   className,
+  textClassName,
 }: SegmentedControlProps<T>) {
   return (
     <View className={cn('flex-row rounded-md bg-slate-100', className)}>
@@ -37,6 +39,7 @@ export function SegmentedControl<T>({
               className={cn(
                 'text-base font-semibold',
                 isActive ? 'font-bold text-white' : 'text-slate-500',
+                textClassName,
               )}
               numberOfLines={1}
             >

@@ -19,6 +19,8 @@ export interface DebtPaymentContext {
   appliedVoucher: AppliedVoucher | null
 
   error: string | null
+  /** Chặn double CONFIRM / double checkout */
+  submitted: boolean
 }
 
 export type DebtPaymentEvent =
@@ -105,6 +107,7 @@ export const debtPaymentMachine = setup({
     discount: input?.discount ?? 0,
     appliedVoucher: input?.appliedVoucher ?? null,
     error: null,
+    submitted: false,
   }),
   states: {
     idle: {
@@ -113,7 +116,7 @@ export const debtPaymentMachine = setup({
           target: 'idle',
           actions: assign(({ event }) => {
             const inp = event.input
-            if (!inp) return {}
+            if (!inp) return { submitted: false, error: null }
             return {
               total: inp.total ?? 0,
               items: inp.items ?? [],
@@ -123,10 +126,16 @@ export const debtPaymentMachine = setup({
               discount: inp.discount ?? 0,
               appliedVoucher: inp.appliedVoucher ?? null,
               error: null,
+              submitted: false,
             }
           }),
         },
-        CONFIRM: { target: 'checkingOut' },
+        CONFIRM: {
+          target: 'checkingOut',
+          // Chặn double-tap: chỉ checkout 1 lần
+          guard: ({ context }) => !context.submitted,
+          actions: assign({ submitted: true, error: null }),
+        },
       },
     },
 
@@ -139,6 +148,7 @@ export const debtPaymentMachine = setup({
         onError: {
           target: 'error',
           actions: assign({
+            submitted: false,
             error: ({ event }) => {
               const err = (event as any).error
               let errMsg = 'Lỗi ghi nợ'
@@ -161,13 +171,17 @@ export const debtPaymentMachine = setup({
 
     error: {
       on: {
-        RETRY: { target: 'checkingOut', actions: assign({ error: null }) },
-        CANCEL: { target: 'idle', actions: assign({ error: null }) },
+        RETRY: {
+          target: 'checkingOut',
+          guard: ({ context }) => !context.submitted,
+          actions: assign({ error: null, submitted: true }),
+        },
+        CANCEL: { target: 'idle', actions: assign({ error: null, submitted: false }) },
         START: {
           target: 'idle',
           actions: assign(({ event }) => {
             const inp = event.input
-            if (!inp) return { error: null }
+            if (!inp) return { error: null, submitted: false }
             return {
               total: inp.total ?? 0,
               items: inp.items ?? [],
@@ -177,6 +191,7 @@ export const debtPaymentMachine = setup({
               discount: inp.discount ?? 0,
               appliedVoucher: inp.appliedVoucher ?? null,
               error: null,
+              submitted: false,
             }
           }),
         },
@@ -184,6 +199,7 @@ export const debtPaymentMachine = setup({
     },
 
     done: {
+      // final: không CONFIRM/RETRY lại — chặn thanh toán công nợ 2 lần
       type: 'final',
     },
   },

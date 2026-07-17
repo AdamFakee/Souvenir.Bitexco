@@ -7,20 +7,27 @@ import { AppliedVoucher, CartItem } from '../../pos/types/cart.types'
  * @param fallbackDiscount Số tiền giảm giá nếu không có voucher
  * @returns Số tiền được giảm
  */
+/** Line amount sau thuế (đơn giá × SL × (1+VAT%)) — voucher tính sau thuế */
+const lineAmountAfterTax = (item: CartItem) => {
+  const taxRate = item.product.taxRate ?? 0
+  return item.price * item.quantity * (1 + taxRate / 100)
+}
+
 export const calculateVoucherDiscount = (
   items: CartItem[],
   voucher: AppliedVoucher | null | undefined,
   fallbackDiscount: number = 0,
 ): number => {
   if (voucher) {
-    const totalOrderValue = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    // Voucher sau thuế: base = tổng thành tiền đã gồm VAT
+    const totalOrderValue = items.reduce((sum, item) => sum + lineAmountAfterTax(item), 0)
 
     // Check minimum order value condition (local check for POS preview)
     if (voucher.minOrderValue !== null && totalOrderValue < voucher.minOrderValue) {
       return 0 // Does not meet minimum order value
     }
 
-    // Tính tổng tiền của các sản phẩm được áp dụng voucher
+    // Tính tổng tiền (sau thuế) của các sản phẩm được áp dụng voucher
     const applicableTotal = items
       .filter((item) => {
         if (!voucher.applicableVariantIds || voucher.applicableVariantIds.length === 0) {
@@ -28,7 +35,7 @@ export const calculateVoucherDiscount = (
         }
         return voucher.applicableVariantIds.includes(item.product.id)
       })
-      .reduce((sum, item) => sum + item.price * item.quantity, 0)
+      .reduce((sum, item) => sum + lineAmountAfterTax(item), 0)
 
     let discountAmount = 0
     if (voucher.voucherType === 'PERCENTAGE') {
@@ -41,7 +48,7 @@ export const calculateVoucherDiscount = (
       discountAmount = Math.min(voucher.discountValue, applicableTotal)
     }
 
-    return discountAmount
+    return Math.round(discountAmount)
   }
   return fallbackDiscount
 }

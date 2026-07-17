@@ -6,6 +6,7 @@ import {
 } from '@/shared/features/order/api/remote/order.remote.api'
 import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 
+import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import {
   PAYMENT_ERROR_CODES,
@@ -13,7 +14,6 @@ import {
   PaymentResult,
   PortablePaymentCommandResult,
 } from '../types'
-import { getOrderErrorMessage } from '@/shared/features/order/constants'
 
 import {
   authorizePaymentActor,

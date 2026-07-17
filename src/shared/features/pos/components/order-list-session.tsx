@@ -78,7 +78,7 @@ export default function OrderListSession() {
                   }}
                 >
                   <Text
-                    className="text-base font-bold"
+                    className="text-md font-bold"
                     style={{ color: isActive ? COLORS.primary.on : COLORS.neutral[500] }}
                     numberOfLines={1}
                   >
@@ -88,8 +88,8 @@ export default function OrderListSession() {
                     className="ml-2 rounded-full p-0.5"
                     onPress={() => {
                       toast.confirm({
-                        title: 'Hủy đơn',
-                        message: `Bạn có chắc chắn muốn hủy ${label} không?`,
+                        title: 'Đóng phiên',
+                        message: `Bạn có chắc chắn muốn đóng phiên này không?`,
                         onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id }),
                       })
                     }}
@@ -103,7 +103,7 @@ export default function OrderListSession() {
         </ScrollView>
 
         <Button
-          label="Thêm tab"
+          label="Thêm phiên"
           leftIcon={Plus}
           iconSize={18}
           variant="outline"
@@ -138,22 +138,22 @@ export default function OrderListSession() {
       <View className="flex-1 bg-white">
         {/* Table Header */}
         <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-6 py-3">
-          <Text className="w-12 text-[11px] font-bold uppercase tracking-widest text-muted">
+          <Text className="w-12 text-[14px] font-bold uppercase tracking-widest text-surface-on">
             STT
           </Text>
-          <Text className="flex-1 text-[11px] font-bold uppercase tracking-widest text-muted">
+          <Text className="flex-1 text-[14px] font-bold uppercase tracking-widest text-surface-on">
             Sản phẩm
           </Text>
-          <Text className="w-28 text-center text-[11px] font-bold uppercase tracking-widest text-muted">
+          <Text className="w-28 text-center text-[14px] font-bold uppercase tracking-widest text-surface-on">
             Đơn giá
           </Text>
-          <Text className="w-16 text-center text-[11px] font-bold uppercase tracking-widest text-muted">
+          <Text className="w-16 text-center text-[14px] font-bold uppercase tracking-widest text-surface-on">
             Thuế
           </Text>
-          <Text className="w-32 text-center text-[11px] font-bold uppercase tracking-widest text-muted">
+          <Text className="w-32 text-center text-[14px] font-bold uppercase tracking-widest text-surface-on">
             Số lượng
           </Text>
-          <Text className="w-32 pr-4 text-right text-[11px] font-bold uppercase tracking-widest text-muted">
+          <Text className="w-32 pr-4 text-right text-[14px] font-bold uppercase tracking-widest text-surface-on">
             Thành tiền
           </Text>
           <View className="w-10" />
@@ -163,7 +163,9 @@ export default function OrderListSession() {
           data={cart}
           keyExtractor={(item) => item.product.id}
           renderItem={({ item, index }) => {
-            const itemTotal = item.price * item.quantity
+            // Thành tiền = đơn giá × SL × (1 + VAT%)
+            const taxRate = item.product.taxRate ?? 0
+            const itemTotal = Math.round(item.price * item.quantity * (1 + taxRate / 100))
             return (
               <View className="flex-row items-center border-b border-surface-100 bg-white px-6 py-4">
                 <Text className="w-12 text-sm font-bold text-surface-on-variant">{index + 1}</Text>

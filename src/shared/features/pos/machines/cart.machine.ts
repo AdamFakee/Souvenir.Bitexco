@@ -197,11 +197,14 @@ export const cartMachine = setup({
             sendParent({ type: 'CART_UPDATED' }),
           ],
         },
-        // Xóa sạch giỏ hàng, giữ nguyên affiliate/voucher
+        // Xóa sạch giỏ hàng sau khi thanh toán thành công, xóa voucher và note, giữ nguyên affiliate
         CLEAR_CART: {
           actions: [
             assign({
               items: {},
+              appliedVoucher: null,
+              note: '',
+              discount: 0,
             }),
             sendParent({ type: 'CART_UPDATED' }),
           ],

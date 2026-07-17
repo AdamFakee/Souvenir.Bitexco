@@ -21,6 +21,8 @@ export interface SelectProps<T = string> {
   className?: string
   /** Custom class cho button trigger */
   triggerClassName?: string
+  /** Custom class cho text trigger */
+  triggerTextClassName?: string
   /** Disable select */
   disabled?: boolean
   /** Chiều cao tối đa của dropdown (mặc định 280) */
@@ -34,6 +36,7 @@ function SelectInner<T extends string = string>({
   placeholder = 'Chọn...',
   className,
   triggerClassName,
+  triggerTextClassName,
   disabled = false,
   maxDropdownHeight = 280,
 }: SelectProps<T>) {
@@ -76,6 +79,7 @@ function SelectInner<T extends string = string>({
           className={cn(
             'ml-2 flex-1 text-base font-medium',
             isPlaceholder ? 'text-muted' : 'text-surface-on',
+            triggerTextClassName,
           )}
           numberOfLines={1}
         >

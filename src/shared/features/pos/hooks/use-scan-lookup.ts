@@ -22,13 +22,15 @@ export function useScanLookup() {
           let product = null
 
           // 1. Luồng Online First
-          if (isNetworkConnected) {
+          if (true) {
             try {
               const remoteResult = await ProductRemoteAPI.lookupProduct({
-                barcode: code,
-                warehouseId,
+                // barcode: code,
+                sku: code,
+                // warehouseId
               })
               if (remoteResult) {
+                console.log('remoteResult', remoteResult)
                 product = {
                   id: remoteResult.variantId,
                   name: remoteResult.productName,
@@ -36,6 +38,9 @@ export function useScanLookup() {
                   price: remoteResult.price,
                   stock: remoteResult.available,
                   barcode: remoteResult.barcode,
+                  taxRate: remoteResult.taxRate,
+                  unit: remoteResult.unitCode,
+                  unitId: remoteResult.unitId,
                 } as any
               }
             } catch {}
@@ -52,6 +57,9 @@ export function useScanLookup() {
                 price: localProduct.price || 0,
                 stock: localProduct.stock || 0,
                 barcode: localProduct.barcode,
+                taxRate: localProduct.taxRate,
+                unit: localProduct.unitCode,
+                unitId: localProduct.unitId,
               } as any
             }
           }

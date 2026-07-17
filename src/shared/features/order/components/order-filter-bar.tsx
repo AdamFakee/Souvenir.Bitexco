@@ -1,6 +1,5 @@
-import { SegmentedControl } from '@/shared/components/ui'
 import { useAppContext } from '@/shared/features/app'
-import React, { memo, useCallback, useEffect, useMemo } from 'react'
+import React, { memo, useCallback, useEffect } from 'react'
 import { View } from 'react-native'
 import { useOrderFilterStore } from '../store'
 import { DateRangeFilter } from './order-date-filter'
@@ -22,9 +21,7 @@ export const OrderFilterBar = memo(function OrderFilterBar({
   const setDateFrom = useOrderFilterStore((s) => s.setDateFrom)
   const dateTo = useOrderFilterStore((s) => s.dateTo)
   const setDateTo = useOrderFilterStore((s) => s.setDateTo)
-  const status = useOrderFilterStore((s) => s.status)
-  const setStatus = useOrderFilterStore((s) => s.setStatus)
-  const { employee, cashSessionId } = useAppContext()
+  const { employee } = useAppContext()
 
   // Mặc định chọn nhân viên hiện tại một lần duy nhất hoặc khi đổi tài khoản
   useEffect(() => {
@@ -36,47 +33,8 @@ export const OrderFilterBar = memo(function OrderFilterBar({
 
   const handleStaffChange = useCallback((id: string | null) => setStaffId(id), [setStaffId])
 
-  // Map store status state to active Segmented Control key
-  const activeKey = useMemo(() => {
-    if (status === 'COMPLETED') return 'COMPLETED'
-    if (
-      status === 'REFUNDED' ||
-      (typeof status === 'string' &&
-        (status.includes('REFUNDED') ||
-          status.includes('RETURNED') ||
-          status.includes('PARTIALLY_RETURNED') ||
-          status.includes('PARTIALLY_REFUNDED')))
-    ) {
-      return 'RETURNED'
-    }
-    return 'ALL'
-  }, [status])
-
-  const handleTabChange = useCallback(
-    (key: 'COMPLETED' | 'RETURNED' | 'ALL') => {
-      if (key === 'COMPLETED') {
-        setStatus('COMPLETED')
-      } else if (key === 'RETURNED') {
-        setStatus('REFUNDED,RETURNED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED')
-      } else {
-        setStatus(null)
-      }
-    },
-    [setStatus],
-  )
-
   return (
     <View className="mb-4 flex-row items-center gap-3">
-      <SegmentedControl
-        options={[
-          { label: 'Tất cả', value: 'ALL' as const },
-          { label: 'Hoàn thành', value: 'COMPLETED' as const },
-          { label: 'Hoàn hàng', value: 'RETURNED' as const },
-        ]}
-        value={activeKey}
-        onChange={handleTabChange}
-        className="h-11 w-72"
-      />
       <OrderSearchInput />
       <DateRangeFilter
         dateFrom={dateFrom}
@@ -85,7 +43,13 @@ export const OrderFilterBar = memo(function OrderFilterBar({
         onDateToChange={setDateTo}
       />
       {showStaffFilter && (
-        <StaffSelect value={staffId} onChange={handleStaffChange} className="w-40" />
+        <StaffSelect
+          value={staffId}
+          onChange={handleStaffChange}
+          className="w-52"
+          triggerClassName="h-14 rounded-xl"
+          triggerTextClassName="text-lg font-semibold text-surface-on"
+        />
       )}
     </View>
   )

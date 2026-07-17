@@ -11,8 +11,8 @@ export const OrderSearchInput = memo(function OrderSearchInput() {
       value={searchQuery}
       onChangeText={setSearchQuery}
       placeholder="Tìm kiếm đơn hàng..."
-      containerClassName="flex-1"
-      size="sm"
+      containerClassName="h-14 flex-1 rounded-xl"
+      size="md"
     />
   )
 })

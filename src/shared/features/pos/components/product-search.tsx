@@ -31,26 +31,32 @@ export function ProductSearch() {
   }, [])
 
   const renderProductItem = useCallback(
-    ({ item: p }: { item: UnifiedProduct }) => (
-      <Pressable
-        key={p.id}
-        onPress={() => handleSelectItem(p)}
-        className="flex-row items-center justify-between border-b border-surface-200 px-6 py-5 active:bg-surface-100"
-      >
-        <View className="flex-1">
-          <Text className="text-[18px] font-bold text-surface-on">{p.name}</Text>
-          <Text className="mt-1 text-base font-medium text-surface-on-variant">{p.sku}</Text>
-        </View>
-        <View className="items-end">
-          <Text className="text-xl font-bold text-primary" numberOfLines={1}>
-            {formatCurrency(p.price)}
-          </Text>
-          <Text className="mt-1 text-sm text-surface-on-variant">
-            Kho: {p.stock} {p.unitCode}
-          </Text>
-        </View>
-      </Pressable>
-    ),
+    ({ item: p }: { item: UnifiedProduct }) => {
+      // Giá sau thuế + làm tròn
+      const taxRate = p.taxRate ?? 0
+      const priceAfterTax = Math.round(p.price * (1 + taxRate / 100))
+      return (
+        <Pressable
+          key={p.id}
+          onPress={() => handleSelectItem(p)}
+          className="flex-row items-center justify-between border-b border-surface-200 px-6 py-5 active:bg-surface-100"
+        >
+          <View className="flex-1">
+            <Text className="text-[18px] font-bold text-surface-on">{p.name}</Text>
+            <Text className="mt-1 text-base font-medium text-surface-on-variant">{p.sku}</Text>
+          </View>
+          <View className="items-end">
+            <Text className="text-xl font-bold text-primary" numberOfLines={1}>
+              {formatCurrency(priceAfterTax)}
+            </Text>
+            <Text className="mt-1 text-sm text-surface-on-variant">
+              Kho: {p.stock} {p.unitCode}
+              {taxRate > 0 ? ` · VAT ${taxRate}%` : ''}
+            </Text>
+          </View>
+        </Pressable>
+      )
+    },
     [handleSelectItem],
   )
 
@@ -64,7 +70,7 @@ export function ProductSearch() {
         onClear={handleClear}
         autoCorrect={false}
         autoCapitalize="none"
-        size="sm"
+        size="md"
       />
 
       {/* Search Autocomplete / Loading */}

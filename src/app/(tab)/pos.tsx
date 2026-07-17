@@ -1,12 +1,13 @@
+import { HardwareBarcodeScanner } from '@/shared/components/common/hardware-barcode-scanner'
+import { COLORS } from '@/shared/constants'
+import { useAppContext } from '@/shared/features/app'
+import CheckoutPanel from '@/shared/features/pos/components/checkout-panel'
+import OrderListSession from '@/shared/features/pos/components/order-list-session'
+import { useScanLookup } from '@/shared/features/pos/hooks/use-scan-lookup'
 import { Store } from 'lucide-react-native'
 import React from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-
-import { HardwareBarcodeScanner } from '@/shared/components/common'
-import { COLORS } from '@/shared/constants'
-import { useAppContext } from '@/shared/features/app'
-import { CheckoutPanel, OrderListSession, useScanLookup } from '@/shared/features/pos'
 
 export default function PosScreen() {
   const { cashSessionId } = useAppContext()
@@ -29,9 +30,7 @@ export default function PosScreen() {
     <SafeAreaView className="flex-1 bg-background px-3" edges={['top', 'left', 'right', 'bottom']}>
       <HardwareBarcodeScanner onScan={handleScan} />
 
-      {/* Main Layout Row */}
-      <View className="flex-1 flex-row" style={{ zIndex: 1 }}>
-        {/* Left Panel: White box with shadow & radius */}
+      <View className="flex-1 flex-col gap-3" style={{ zIndex: 1 }}>
         <View
           className="flex-1 overflow-hidden rounded-[12px] bg-white"
           style={{
@@ -45,7 +44,6 @@ export default function PosScreen() {
           <OrderListSession />
         </View>
 
-        {/* Right Panel: No shadow, no radius, takes outer background */}
         <CheckoutPanel />
       </View>
     </SafeAreaView>

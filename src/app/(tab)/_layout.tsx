@@ -116,7 +116,14 @@ const CustomSidebar = React.memo(
     const { confirm } = useAlertStore()
 
     const segments = useSegments()
-    const activeTab = useMemo(() => segments[1] || 'pos', [segments[1]])
+    const routeTab = (segments[1] as string | undefined) || 'pos'
+    // Highlight ngay khi bấm; segments chỉ clear pending khi route đã khớp
+    const [pendingTab, setPendingTab] = useState<string | null>(null)
+    const activeTab = pendingTab ?? routeTab
+
+    useEffect(() => {
+      if (pendingTab && routeTab === pendingTab) setPendingTab(null)
+    }, [routeTab, pendingTab])
 
     const handleLogout = useCallback(() => {
       confirm({
@@ -141,9 +148,21 @@ const CustomSidebar = React.memo(
       })
     }, [confirm])
 
+    const handleTabPress = useCallback(
+      (name: string) => {
+        if (name === activeTab && !pendingTab) return
+        setPendingTab(name)
+        // Paint highlight trước; navigate frame sau để tránh block cùng commit mount màn nặng
+        requestAnimationFrame(() => {
+          router.navigate(`/(tab)/${name}` as Href)
+        })
+      },
+      [activeTab, pendingTab, router],
+    )
+
     return (
       <View
-        className="h-full w-[230px] flex-col justify-between bg-primary px-0"
+        className="h-full w-[280px] flex-col justify-between bg-primary px-0"
         style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 16 }}
       >
         <View>
@@ -156,17 +175,13 @@ const CustomSidebar = React.memo(
           <View className="gap-3">
             {MENU_ITEMS.map((item) => {
               const isFocused = activeTab === item.name
-              const onPress = () => {
-                router.navigate(`/(tab)/${item.name}` as Href)
-              }
-
               const activeColor = COLORS.primary.on
               const inactiveColor = COLORS.primary.on
 
               return (
                 <Pressable
                   key={item.name}
-                  onPress={onPress}
+                  onPress={() => handleTabPress(item.name)}
                   className={
                     isFocused
                       ? 'h-[120px] w-full flex-col items-center justify-center gap-2 bg-primary-deep px-6 py-3'
@@ -275,6 +290,7 @@ export default function TabLayout() {
           tabBar={() => null}
           screenOptions={{
             headerShown: false,
+            freezeOnBlur: true,
           }}
         >
           <Tabs.Screen name="pos" options={{ title: 'Bán hàng' }} />

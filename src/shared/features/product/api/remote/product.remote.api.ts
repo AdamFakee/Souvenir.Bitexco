@@ -1,8 +1,8 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
-import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
 import { database, ProductModel } from '@/shared/lib/database'
-import { Q } from '@nozbe/watermelondb'
+import { FeatureRemoteAPI, PullChangesParams, PushChangesParams } from '@/shared/lib/database/sync'
 import { storage } from '@/shared/lib/storage'
+import { Q } from '@nozbe/watermelondb'
 
 /**
  * ProductRaw - Cấu trúc dữ liệu Sản phẩm khớp với SQLite POS Schema (v1.8)

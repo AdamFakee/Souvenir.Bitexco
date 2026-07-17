@@ -1,7 +1,7 @@
-import { Input, ModalBase, Shimmer, IconButton } from '@/shared/components/ui'
+import { IconButton, ModalBase, SearchInput, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { FlashList } from '@shopify/flash-list'
-import { ArrowLeft, Search, User, Users, X } from 'lucide-react-native'
+import { ArrowLeft, Building2, Hash, Phone, Search, Store, Users, X } from 'lucide-react-native'
 import React, { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useDebounce } from 'use-debounce'
@@ -19,22 +19,32 @@ export interface AddTabSheetRef {
   close: () => void
 }
 
-const AGENT_TYPE_CONFIG: Record<
-  'retail' | 'collaborator' | 'agent',
-  { label: string; icon: React.ElementType; agentType: AgentType }
-> = {
-  retail: { label: 'Khách lẻ', icon: User, agentType: 'retail' },
-  collaborator: {
+const AGENT_TYPE_CONFIG = [
+  {
+    key: 'retail' as const,
+    label: 'Khách lẻ',
+    icon: Store,
+    agentType: 'retail' as AgentType,
+    iconBg: COLORS.surface[200],
+    iconColor: COLORS.primary.default,
+  },
+  {
+    key: 'collaborator' as const,
     label: 'Cộng tác viên',
     icon: Users,
-    agentType: 'collaborator',
+    agentType: 'collaborator' as AgentType,
+    iconBg: `${COLORS.primary.default}18`,
+    iconColor: COLORS.primary.default,
   },
-  agent: {
+  {
+    key: 'agent' as const,
     label: 'Đại lý',
-    icon: Users,
-    agentType: 'agent',
+    icon: Building2,
+    agentType: 'agent' as AgentType,
+    iconBg: '#FEF3C7',
+    iconColor: '#B45309',
   },
-}
+]
 
 export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function AddTabSheet(
   { onSelect },
@@ -69,6 +79,7 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
         return
       }
       setSelectedAgentType(agentType)
+      setSearchText('')
       setStep('search')
     },
     [onSelect],
@@ -83,176 +94,226 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
     [onSelect],
   )
 
+  const title =
+    step === 'type'
+      ? 'Thêm phiên bán'
+      : selectedAgentType === 'agent'
+        ? 'Chọn đại lý'
+        : 'Chọn cộng tác viên'
   return (
-    <ModalBase visible={visible} onClose={() => setVisible(false)} className="max-w-[500px]">
-      <View>
-        {/* Header */}
-        <View className="flex-row items-center justify-between border-b border-outline-variant px-6 py-4">
-          <View className="flex-1 flex-row items-center gap-4">
-            {step === 'search' && (
-              <IconButton
-                icon={ArrowLeft}
-                onPress={() => setStep('type')}
-                size={24}
-                color={COLORS.surface.onVariant}
-                className="bg-surface-100"
-              />
-            )}
-            <Text className="flex-1 text-xl font-black text-surface-on" numberOfLines={1}>
-              {step === 'type'
-                ? 'Thêm phiên mới'
-                : selectedAgentType === 'agent'
-                  ? 'Chọn đại lý'
-                  : 'Chọn cộng tác viên'}
+    <ModalBase
+      visible={visible}
+      onClose={() => setVisible(false)}
+      className="mx-6 h-[680px] w-[900px] rounded-3xl bg-white"
+    >
+      {/* Header — luôn hiện */}
+      <View className="flex-row items-center justify-between border-b border-outline-variant px-6 py-5">
+        <View className="min-w-0 flex-1 flex-row items-center gap-3 pr-3">
+          {step === 'search' && (
+            <IconButton
+              icon={ArrowLeft}
+              onPress={() => {
+                setStep('type')
+                setSearchText('')
+                setSelectedAgentType(null)
+              }}
+              size={26}
+              color={COLORS.surface.onVariant}
+              className="h-13 w-13 rounded-xl bg-surface-100"
+              accessibilityLabel="Quay lại"
+            />
+          )}
+          <View className="min-w-0 flex-1">
+            <Text className="text-4xl font-extrabold text-surface-on" numberOfLines={1}>
+              {title}
             </Text>
           </View>
-          <IconButton
-            icon={X}
-            onPress={() => setVisible(false)}
-            size={24}
-            color={COLORS.surface.onVariant}
-            className="bg-surface-100"
-          />
         </View>
+        <IconButton
+          icon={X}
+          onPress={() => setVisible(false)}
+          size={26}
+          color={COLORS.surface.onVariant}
+          className="h-13 w-13 rounded-xl bg-surface-100"
+          accessibilityLabel="Đóng"
+        />
+      </View>
 
-        {/* Body: step 1 auto height, step 2 fixed height */}
-        {step === 'type' ? (
-          <View className="items-center px-6 py-8">
-            <View className="w-full gap-4">
-              {(
-                Object.entries(AGENT_TYPE_CONFIG) as [
-                  keyof typeof AGENT_TYPE_CONFIG,
-                  (typeof AGENT_TYPE_CONFIG)[keyof typeof AGENT_TYPE_CONFIG],
-                ][]
-              ).map(([key, config]) => (
-                <Pressable
-                  key={key}
-                  onPress={() => handleSelectType(config.agentType)}
-                  className="flex-row items-center gap-4 rounded-xl border border-outline-variant bg-white p-4"
-                  style={({ pressed }) => [
-                    pressed && { backgroundColor: COLORS.surface[100], opacity: 0.7 },
-                  ]}
+      {step === 'type' ? (
+        <View className="flex-1 gap-5 px-6 py-6">
+          {AGENT_TYPE_CONFIG.map((config) => {
+            const Icon = config.icon
+            return (
+              <Pressable
+                key={config.key}
+                accessibilityRole="button"
+                accessibilityLabel={config.label}
+                onPress={() => handleSelectType(config.agentType)}
+                className="flex-1 flex-row items-center gap-6 rounded-3xl border border-outline-variant bg-surface-50 px-8 py-5"
+                style={({ pressed }) => [
+                  {
+                    opacity: pressed ? 0.85 : 1,
+                    backgroundColor: pressed ? COLORS.primary.fixed : COLORS.surface[50],
+                    borderColor: pressed
+                      ? COLORS.primary.default
+                      : COLORS.outline?.variant || '#E5E7EB',
+                  },
+                ]}
+              >
+                <View
+                  className="h-20 w-20 items-center justify-center rounded-2xl"
+                  style={{ backgroundColor: config.iconBg }}
                 >
-                  <View
-                    className="h-12 w-12 items-center justify-center rounded-xl"
-                    style={{
-                      backgroundColor:
-                        key === 'retail'
-                          ? COLORS.neutral[100]
-                          : key === 'collaborator'
-                            ? `${COLORS.primary.default}1A`
-                            : '#fffbeb',
-                    }}
-                  >
-                    <config.icon
-                      size={24}
-                      color={
-                        key === 'retail'
-                          ? COLORS.neutral[500]
-                          : key === 'collaborator'
-                            ? COLORS.primary.default
-                            : '#d97706'
-                      }
-                    />
+                  <Icon size={40} color={config.iconColor} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-3xl font-extrabold text-surface-on">{config.label}</Text>
+                  <Text className="mt-1.5 text-lg font-semibold text-surface-on-variant">
+                    {config.key === 'retail'
+                      ? 'Tạo nhanh phiên bán cho khách mua trực tiếp tại cửa hàng'
+                      : config.key === 'collaborator'
+                        ? 'Gắn phiên bán cho cộng tác viên để ghi nhận doanh số và chiết khấu'
+                        : 'Gắn phiên bán cho đại lý với chính sách giá và công nợ riêng'}
+                  </Text>
+                </View>
+              </Pressable>
+            )
+          })}
+        </View>
+      ) : (
+        <View className="flex-1 px-6 py-5">
+          <SearchInput
+            placeholder={
+              selectedAgentType === 'agent'
+                ? 'Tìm đại lý theo tên, mã, SĐT...'
+                : 'Tìm CTV theo tên, mã, SĐT...'
+            }
+            value={searchText}
+            onChangeText={setSearchText}
+            size="md"
+            autoFocus
+            containerClassName="mb-5"
+          />
+
+          {isLoading ? (
+            <View className="gap-3">
+              {[...Array(5)].map((_, i) => (
+                <View
+                  key={i}
+                  className="min-h-[108px] flex-row items-center gap-6 rounded-2xl bg-surface-100 px-6 py-5"
+                >
+                  <Shimmer className="h-[72px] w-[72px] rounded-2xl" />
+                  <View className="flex-1 gap-2.5">
+                    <Shimmer className="h-6 w-64 rounded" />
+                    <Shimmer className="h-5 w-48 rounded" />
+                    <Shimmer className="h-5 w-40 rounded" />
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-bold text-surface-on">{config.label}</Text>
-                  </View>
-                </Pressable>
+                </View>
               ))}
             </View>
-          </View>
-        ) : (
-          <View className="px-6 py-6" style={{ height: 480 }}>
-            <Input
-              placeholder={
-                selectedAgentType === 'agent'
-                  ? 'Tìm đại lý theo tên, mã, SĐT...'
-                  : 'Tìm CTV theo tên, mã, SĐT...'
-              }
-              value={searchText}
-              onChangeText={setSearchText}
-              leftIcon={Search}
-              autoFocus
-              className="mb-4"
-            />
+          ) : (
+            <FlashList
+              data={affiliates ?? []}
+              keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => {
+                const isInactive = !item.isActive
+                const isAgent = item.agentType === 'agent'
+                const phone = item.phone?.trim()
 
-            {isLoading ? (
-              <View className="gap-3">
-                {[...Array(5)].map((_, i) => (
-                  <View
-                    key={i}
-                    className="flex-row items-center gap-4 rounded-xl bg-surface-100 p-4"
+                const accentColor = isAgent ? '#B45309' : COLORS.primary.default
+                const avatarBg = isAgent ? '#FEF3C7' : `${COLORS.primary.default}18`
+
+                const AvatarIcon = isAgent ? Building2 : Users
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isInactive }}
+                    accessibilityLabel={phone ? `${item.name}, ${phone}` : item.name}
+                    disabled={isInactive}
+                    onPress={() => handleSelectAffiliate(item)}
+                    className="mb-3 overflow-hidden rounded-2xl border border-outline-variant bg-white"
+                    style={({ pressed }) => ({
+                      opacity: isInactive ? 0.5 : 1,
+                      backgroundColor: pressed ? COLORS.primary.fixed : '#fff',
+                      borderColor: pressed ? accentColor + '60' : undefined,
+                    })}
                   >
-                    <Shimmer className="h-10 w-10 rounded-full" />
-                    <View className="flex-1 gap-2">
-                      <Shimmer className="h-4 w-44 rounded" />
-                      <Shimmer className="h-3 w-56 rounded" />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <FlashList
-                data={affiliates ?? []}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => {
-                  const isInactive = !item.isActive
-                  return (
-                    <Pressable
-                      onPress={() => handleSelectAffiliate(item)}
-                      className="flex-row items-center gap-4 border-b border-surface-100 bg-white px-4 py-4"
-                      style={({ pressed }) => [
-                        isInactive ? { opacity: 0.6 } : {},
-                        pressed && { backgroundColor: COLORS.surface[100] },
-                      ]}
-                    >
+                    <View className="flex-row items-center gap-5 px-6 py-5">
+                      {/* Avatar icon */}
                       <View
-                        className="h-10 w-10 items-center justify-center rounded-full"
-                        style={{
-                          backgroundColor:
-                            item.agentType === 'agent' ? '#fffbeb' : `${COLORS.primary.default}1A`,
-                        }}
+                        className="h-[72px] w-[72px] items-center justify-center rounded-2xl"
+                        style={{ backgroundColor: avatarBg }}
                       >
-                        <User
-                          size={20}
-                          color={item.agentType === 'agent' ? '#d97706' : COLORS.primary.default}
-                        />
+                        <AvatarIcon size={34} color={accentColor} strokeWidth={2} />
                       </View>
-                      <View className="flex-1">
+
+                      {/* Info */}
+                      <View className="min-w-0 flex-1">
+                        {/* Tên */}
                         <Text
-                          className={`text-base font-bold ${
-                            isInactive ? 'text-neutral-400 line-through' : 'text-surface-on'
+                          className={`mb-2 text-2xl font-extrabold ${
+                            isInactive ? 'text-surface-on-variant line-through' : 'text-surface-on'
                           }`}
+                          numberOfLines={1}
                         >
                           {item.name}
                         </Text>
-                        <Text className="mt-0.5 text-sm text-muted">
-                          {item.code} · {item.phone}
-                        </Text>
+
+                        {/* Pills: Mã + SĐT */}
+                        <View className="flex-row flex-wrap items-center gap-2.5">
+                          <View className="flex-row items-center gap-1.5 rounded-lg bg-surface-100 py-1.5 pr-3">
+                            <Hash size={14} color={COLORS.surface.onVariant} strokeWidth={2.5} />
+                            <Text className="text-sm font-bold text-surface-on-variant">
+                              {item.code}
+                            </Text>
+                          </View>
+                          {!!phone && (
+                            <View
+                              className="flex-row items-center gap-1.5 rounded-lg px-3 py-1.5"
+                              style={{ backgroundColor: accentColor + '15' }}
+                            >
+                              <Phone size={14} color={accentColor} strokeWidth={2.5} />
+                              <Text style={{ color: accentColor, fontSize: 14, fontWeight: '700' }}>
+                                {phone}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
+
+                      {/* Trailing: status hoặc chevron */}
                       {isInactive && (
-                        <View className="rounded-md bg-error/10 px-2 py-1">
-                          <Text className="text-[10px] font-bold text-error">Ngừng HĐ</Text>
+                        <View className="rounded-full bg-error/10 px-4 py-2">
+                          <Text className="text-sm font-extrabold uppercase text-error">
+                            Dừng hoạt động
+                          </Text>
                         </View>
                       )}
-                    </Pressable>
-                  )
-                }}
-                ListEmptyComponent={
-                  <View className="items-center py-20">
-                    <Text className="text-base text-muted">
-                      {searchText.trim()
-                        ? 'Không tìm thấy kết quả phù hợp'
-                        : 'Nhập tên, mã hoặc SĐT để tìm kiếm'}
-                    </Text>
+                    </View>
+                  </Pressable>
+                )
+              }}
+              ListEmptyComponent={
+                <View className="items-center px-6 py-16">
+                  <View className="mb-5 h-20 w-20 items-center justify-center rounded-full bg-surface-100">
+                    <Search size={36} color={COLORS.muted} />
                   </View>
-                }
-              />
-            )}
-          </View>
-        )}
-      </View>
+                  <Text className="text-center text-2xl font-bold text-surface-on">
+                    {searchText.trim() ? 'Không tìm thấy' : 'Bắt đầu tìm kiếm'}
+                  </Text>
+                  <Text className="mt-2.5 text-center text-lg leading-6 text-surface-on-variant">
+                    {searchText.trim()
+                      ? `Không có kết quả cho "${searchText.trim()}"`
+                      : 'Nhập tên, mã hoặc SĐT để chọn người gắn phiên'}
+                  </Text>
+                </View>
+              }
+            />
+          )}
+        </View>
+      )}
     </ModalBase>
   )
 })

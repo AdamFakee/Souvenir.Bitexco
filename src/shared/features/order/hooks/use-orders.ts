@@ -1,5 +1,5 @@
 import { database } from '@/shared/lib/database'
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import { useDebounce } from 'use-debounce'
 import { OrderRemoteAPI } from '../api'
@@ -68,6 +68,8 @@ export const useOrders = (params: {
     },
     staleTime: 30000, // 30 seconds stale time
     networkMode: 'always',
+    // Giữ page cũ khi đổi tab/filter key — tránh skeleton blank ~2s
+    placeholderData: keepPreviousData,
   })
 
   const queryClient = useQueryClient()
@@ -113,7 +115,9 @@ export const useOrders = (params: {
     fetchNextPage: query.fetchNextPage,
     hasNextPage: query.hasNextPage,
     isFetchingNextPage: query.isFetchingNextPage,
-    isLoading: query.isLoading,
+    // Skeleton chỉ khi chưa có data (kể cả placeholder)
+    isLoading: query.isLoading && orders.length === 0,
+    isFetching: query.isFetching,
     isError: query.isError,
     refetch: query.refetch,
   }

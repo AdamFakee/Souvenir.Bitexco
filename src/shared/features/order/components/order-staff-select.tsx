@@ -9,6 +9,8 @@ export interface StaffSelectProps {
   className?: string
   /** Nếu truyền shiftId, chỉ hiển thị nhân viên trong ca đó. Không truyền = toàn bộ nhân viên */
   shiftId?: string
+  triggerClassName?: string
+  triggerTextClassName?: string
 }
 
 export const StaffSelect = memo(function StaffSelect({
@@ -16,6 +18,8 @@ export const StaffSelect = memo(function StaffSelect({
   onChange,
   className,
   shiftId,
+  triggerClassName,
+  triggerTextClassName,
 }: StaffSelectProps) {
   const { employees, isLoading } = useEmployees(shiftId)
   console.log('shiftId', shiftId)
@@ -43,6 +47,8 @@ export const StaffSelect = memo(function StaffSelect({
         onChange={handleChange}
         placeholder={isLoading ? 'Đang tải...' : 'Tất cả nhân viên'}
         disabled={isLoading}
+        triggerClassName={triggerClassName}
+        triggerTextClassName={triggerTextClassName}
       />
     </View>
   )

@@ -3,10 +3,10 @@ import PaymentPortable from '../../../../../modules/payment-portable'
 
 const DEFAULT_POS_URL = 'http://192.168.1.12:8080'
 
-const MERCHANT_NAME = 'TGDD'
+const MERCHANT_NAME = 'BIDV'
 const CASHIER_ID = 'cashier01'
 const LICENSE =
-  'name=TGDD;bank=BIDV;copyright=Use for TGDD only;signature=F9725778F943ABFD16EF0DB9026A2465E3F7BA5ABE1E6E3532CB8483447A6716;expiryDate=2037-12-31;encryption=yes;encoding=base64;userConfirmation=yes;version=20;LCV=4A5995'
+  'name=BIDV;bank=BIDV;copyright=Use for BIDV only;signature=894DFE796B2249C2889F30FF2790E550341FC682858C87FDF7B4B4AE90E17D95;expiryDate=2037-12-31;encryption=yes;encoding=base64;userConfirmation=yes;version=20;LCV=1BAE97'
 
 export const getPortablePosUrl = (): string => {
   // return storage.getString('portable_pos_url') || DEFAULT_POS_URL
@@ -36,7 +36,7 @@ export const PortablePaymentService = {
     }
 
     const res = await PaymentPortable.doConnect(posUrl, MERCHANT_NAME, CASHIER_ID, LICENSE)
-    console.log('[PortablePOS] Direct Connection Response:', res)
+    // console.log('[PortablePOS] Direct Connection Response:', res)
     return res
   },
 
@@ -50,7 +50,7 @@ export const PortablePaymentService = {
     }
 
     const res = await PaymentPortable.doCommand(command)
-    // console.log('[PortablePOS] Direct Command Response:', res)
+    console.log('[PortablePOS] Direct Command Response:', res)
     return res
   },
 }
