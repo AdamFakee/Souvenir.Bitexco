@@ -117,8 +117,6 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
       toast.error(error.message || 'Lỗi khi in hóa đơn')
     }
   }
-  console.log(order)
-  console.log('rutern line:', order.refund?.lines)
   return (
     <>
       {/* Hidden print container */}

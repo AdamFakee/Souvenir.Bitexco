@@ -1,31 +1,31 @@
 import {
-  OrderRemoteAPI,
-  PosCartLine,
-  PosCheckoutRequest,
-  PosCheckoutResult,
+    OrderRemoteAPI,
+    PosCartLine,
+    PosCheckoutRequest,
+    PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import {
-  PAYMENT_ERROR_CODES,
-  PaymentErrorCode,
-  PaymentResult,
-  PortablePaymentCommandResult,
+    PAYMENT_ERROR_CODES,
+    PaymentErrorCode,
+    PaymentResult,
+    PortablePaymentCommandResult,
 } from '../types'
 
 import {
-  authorizePaymentActor,
-  cancelPaymentActor,
-  capturePaymentActor,
-  cardCaptureActor,
-  cardCaptureManualActor,
-  connectPosActor,
-  isCommunicationLossError,
-  processPaymentActor,
-  sendCardSaleCommandActor,
-  verifyLastTransactionActor,
+    authorizePaymentActor,
+    cancelPaymentActor,
+    capturePaymentActor,
+    cardCaptureActor,
+    cardCaptureManualActor,
+    connectPosActor,
+    isCommunicationLossError,
+    processPaymentActor,
+    sendCardSaleCommandActor,
+    verifyLastTransactionActor,
 } from '../flows/card-collection.actors'
 import { printReceiptActor } from '../flows/print.actors'
 
@@ -112,9 +112,9 @@ export const portablePaymentMachine = setup({
           variantId: item.product.id,
           unitId: item.product.unitId,
           qty: item.quantity,
-          unitPrice: item.product.price,
-          discountAmount: item.discountAmount || 0,
-          taxRate: 0,
+          unitPrice: item.price ?? item.product.price ?? 0,
+          discountAmount: 0,
+          taxRate: item.product.taxRate ?? 0,
         }))
 
         const payload: PosCheckoutRequest = {

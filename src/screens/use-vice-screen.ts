@@ -1,4 +1,4 @@
-import { calculateVoucherDiscount } from '@/shared/features/payment'
+import { calculateVoucherDiscount, calculateTotalTax, calculateSubtotal } from '@/shared/features/payment'
 import { usePosStore } from '@/shared/features/pos'
 import { CartItem } from '@/shared/features/pos/types/cart.types'
 import { toast } from '@/shared/store'
@@ -75,17 +75,10 @@ export const useViceScreen = () => {
           quantity: cartItem.quantity,
         }))
 
-        const subtotal = cartItems.reduce(
-          (sum: number, item: any) => sum + item.product.price * item.quantity,
-          0,
-        )
+        const subtotal = calculateSubtotal(cartItems)
         const discount = calculateVoucherDiscount(cartItems, appliedVoucher || null)
-        const tax = cartItems.reduce(
-          (sum: number, item: any) =>
-            sum + item.product.price * (item.product.taxRate / 100) * item.quantity,
-          0,
-        )
-        const total = Math.max(0, subtotal - discount) + tax
+        const tax = calculateTotalTax(cartItems, appliedVoucher || null)
+        const total = Math.max(0, subtotal - discount)
 
         // Gửi sự kiện cập nhật
         ViceService.updateCart({ items, subtotal, discount, tax, total })

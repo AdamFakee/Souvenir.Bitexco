@@ -103,6 +103,7 @@ export interface IOrder {
   paymentsSnapshot: PaymentSnapshot[]
   isDeleted: boolean
   canReturn: boolean
+  canExchange?: boolean
   createdAt: Date
   updatedAt: Date
   refund?: RefundReceiptData

@@ -116,7 +116,7 @@ export const PrinterService = {
 
       return { success: true }
     } catch (error) {
-      console.log('lỗi máy in', error)
+
       throw error
     }
   },

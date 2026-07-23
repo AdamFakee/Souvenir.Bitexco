@@ -38,7 +38,7 @@ export const createMixCheckoutActor = fromPromise(
       unitId: item.product.unitId || (item.product as any).unit_id || '---',
       qty: item.quantity,
       unitPrice: item.price ?? item.product.price ?? 0,
-      discountAmount: item.discountAmount ?? 0,
+      discountAmount: 0,
       taxRate: item.product.taxRate ?? 8,
     }))
 

@@ -163,9 +163,9 @@ export default function OrderListSession() {
           data={cart}
           keyExtractor={(item) => item.product.id}
           renderItem={({ item, index }) => {
-            // Thành tiền = đơn giá × SL × (1 + VAT%)
+            // Đơn giá đã bao gồm thuế (Tax-inclusive)
             const taxRate = item.product.taxRate ?? 0
-            const itemTotal = Math.round(item.price * item.quantity * (1 + taxRate / 100))
+            const itemTotal = Math.round(item.price * item.quantity)
             return (
               <View className="flex-row items-center border-b border-surface-100 bg-white px-6 py-4">
                 <Text className="w-12 text-sm font-bold text-surface-on-variant">{index + 1}</Text>

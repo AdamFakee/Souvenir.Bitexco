@@ -1,6 +1,5 @@
 import { Button } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
-import { LucideIcon } from 'lucide-react-native'
 import React, { memo } from 'react'
 import { Text, View } from 'react-native'
 
@@ -9,13 +8,6 @@ const TEXT_PRIMARY = '#303036'
 const TEXT_MUTED = '#747475'
 const BRAND = '#1C4E68'
 const ERROR = '#DC2626'
-
-export interface ExchangePaymentMethodOption {
-  type: string
-  label: string
-  icon?: LucideIcon | React.ComponentType<any>
-  disabled?: boolean
-}
 
 interface ExchangeSummaryFooterProps {
   returnedValue: number
@@ -27,12 +19,11 @@ interface ExchangeSummaryFooterProps {
   isOriginalOrderVoucherApplied: boolean
   canSubmit: boolean
   isProcessing: boolean
-  paymentMethods: ExchangePaymentMethodOption[]
   onClose: () => void
-  onSelectPaymentMethod: (methodType: string) => void
+  onConfirmEqual: () => void
 }
 
-/** Footer cột phải: tóm tắt + PTTT (khi Cần thu > 0) + Hủy. Không nút “xác nhận đổi ngang”. */
+/** Footer: tóm tắt + xác nhận đổi ngang giá (không PTTT). */
 export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
   returnedValue,
   replacementSubtotal,
@@ -43,13 +34,10 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
   isOriginalOrderVoucherApplied,
   canSubmit,
   isProcessing,
-  paymentMethods,
   onClose,
-  onSelectPaymentMethod,
+  onConfirmEqual,
 }: ExchangeSummaryFooterProps) {
-  const needsPayment = differenceAmount > 0
-  const collect = Math.max(0, differenceAmount)
-  const payDisabled = !canSubmit || isProcessing
+  const isEqual = differenceAmount === 0 && selectedReturnCount > 0 && replacementCount > 0
 
   const blockReasons: string[] = []
   if (isOriginalOrderVoucherApplied) {
@@ -57,12 +45,9 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
   } else {
     if (selectedReturnCount <= 0) blockReasons.push('Chọn ít nhất 1 món khách trả')
     if (replacementCount <= 0) blockReasons.push('Thêm ít nhất 1 món đổi mới')
-    if (differenceAmount < 0) blockReasons.push('Giá hàng mới phải ≥ hàng trả')
-  }
-
-  const rows: ExchangePaymentMethodOption[][] = []
-  for (let i = 0; i < paymentMethods.length; i += 2) {
-    rows.push(paymentMethods.slice(i, i + 2))
+    if (selectedReturnCount > 0 && replacementCount > 0 && differenceAmount !== 0) {
+      blockReasons.push('Chỉ hỗ trợ đổi sản phẩm có cùng giá với sản phẩm gốc')
+    }
   }
 
   return (
@@ -72,16 +57,8 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
     >
       <View style={{ gap: 4 }}>
         <SummaryRow label="Hàng trả" value={formatCurrency(returnedValue)} valueColor={ERROR} />
-        <SummaryRow
-          label="Hàng mới"
-          value={formatCurrency(replacementSubtotal)}
-          valueColor={BRAND}
-        />
-        <SummaryRow
-          label="VAT hàng mới"
-          value={formatCurrency(replacementVat)}
-          valueColor={BRAND}
-        />
+        <SummaryRow label="Hàng mới" value={formatCurrency(replacementSubtotal)} valueColor={BRAND} />
+        <SummaryRow label="VAT hàng mới" value={formatCurrency(replacementVat)} valueColor={BRAND} />
 
         <View className="mt-2" style={{ borderTopWidth: 1, borderColor: BORDER, paddingTop: 10 }}>
           <View className="flex-row items-center justify-between">
@@ -89,17 +66,17 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
               className="text-lg font-extrabold uppercase tracking-tight"
               style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
             >
-              Cần thu
+              Chênh lệch
             </Text>
             <Text
               className="text-2xl font-extrabold"
               style={{
-                color: differenceAmount < 0 ? ERROR : BRAND,
+                color: isEqual ? BRAND : ERROR,
                 fontFamily: 'Manrope-Bold',
               }}
               numberOfLines={1}
             >
-              {formatCurrency(collect)}
+              {formatCurrency(differenceAmount)}
             </Text>
           </View>
         </View>
@@ -123,25 +100,14 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
       )}
 
       <View className="mt-3 gap-2">
-        {needsPayment &&
-          rows.map((row, rowIndex) => (
-            <View key={rowIndex} className="flex-row gap-2">
-              {row.map((method) => {
-                const isDisabled = payDisabled || !!method.disabled
-                return (
-                  <Button
-                    key={method.type}
-                    label={method.label}
-                    loading={isProcessing}
-                    disabled={isDisabled}
-                    onPress={() => onSelectPaymentMethod(method.type)}
-                    className="h-14 min-h-[56px] flex-1 rounded-xl px-3"
-                  />
-                )
-              })}
-            </View>
-          ))}
-
+        <Button
+          label={isProcessing ? 'Đang xử lý…' : 'Xác nhận đổi hàng'}
+          variant="primary"
+          className="h-14 min-h-[56px] w-full rounded-xl"
+          onPress={onConfirmEqual}
+          loading={isProcessing}
+          disabled={!canSubmit || isProcessing || !isEqual}
+        />
         <Button
           label="Hủy bỏ"
           variant="outline"

@@ -10,7 +10,7 @@ export interface ModalBaseProps {
   children: React.ReactNode
   className?: string
   dismissible?: boolean
-  size?: 'default' | '90%' | 'full'
+  size?: 'default' | '90%' | 'full' | '80%'
 }
 
 export const ModalBase = ({
@@ -31,6 +31,7 @@ export const ModalBase = ({
     default: 'relative w-full overflow-hidden rounded-md bg-surface-50 shadow-2xl',
     '90%': 'h-[90%] w-[90%] max-w-none overflow-hidden rounded-[32px] bg-[#f8fafc]',
     full: 'h-full w-full max-w-none rounded-none bg-[#f8fafc]',
+    '80%': 'h-[80%] w-[80%] max-w-none overflow-hidden rounded-[32px] bg-[#f8fafc]',
   }
 
   return (

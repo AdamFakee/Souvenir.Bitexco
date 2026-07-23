@@ -22,8 +22,7 @@ export const StaffSelect = memo(function StaffSelect({
   triggerTextClassName,
 }: StaffSelectProps) {
   const { employees, isLoading } = useEmployees(shiftId)
-  console.log('shiftId', shiftId)
-  console.log('employees', employees)
+
   const options = useMemo(() => {
     const opts: SelectOption<string>[] = [{ label: 'Tất cả nhân viên', value: '' }]
     employees?.forEach((emp) => {

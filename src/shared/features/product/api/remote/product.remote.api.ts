@@ -68,6 +68,13 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
     warehouseId?: string
     limit?: number
   }) => Promise<PosLookupResult[]>
+  /** SP cùng category với sku(s) món trả — multi sku + page */
+  listCategoryBySku: (params: {
+    skus: string[]
+    warehouseId?: string
+    page?: number
+    limit?: number
+  }) => Promise<{ items: PosLookupResult[]; page: number; limit: number; hasMore: boolean }>
 } = {
   /**
    * 4.1 Tra cứu chính xác theo barcode hoặc SKU trực tuyến
@@ -115,6 +122,54 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
       },
     })
     return response.data
+  },
+
+  /**
+   * SP cùng category theo sku món trả (đổi hàng).
+   * Multi sku: sku=A&sku=B. Response: { items, page, limit, hasMore } — không total.
+   */
+  listCategoryBySku: async (params: {
+    skus: string[]
+    warehouseId?: string
+    page?: number
+    limit?: number
+  }): Promise<{ items: PosLookupResult[]; page: number; limit: number; hasMore: boolean }> => {
+    const axios = AxiosService.getInstance()
+    const skus = params.skus.map((s) => s.trim()).filter(Boolean)
+    const page = params.page && params.page > 0 ? params.page : 1
+    const limit = params.limit || 40
+
+    if (skus.length === 0) {
+      return { items: [], page, limit, hasMore: false }
+    }
+
+    const response = await axios.get<{
+      items?: PosLookupResult[]
+      page?: number
+      limit?: number
+      hasMore?: boolean
+    }>('/v1/pos/category', {
+      params: {
+        sku: skus,
+        warehouseId: params.warehouseId,
+        page,
+        limit,
+      },
+      paramsSerializer: {
+        // sku=A&sku=B (repeat)
+        indexes: null,
+      } as any,
+    })
+
+    const data = response.data ?? {}
+    const items = Array.isArray(data.items) ? data.items : []
+
+    return {
+      items,
+      page: data.page ?? page,
+      limit: data.limit ?? limit,
+      hasMore: typeof data.hasMore === 'boolean' ? data.hasMore : false,
+    }
   },
 
   /**

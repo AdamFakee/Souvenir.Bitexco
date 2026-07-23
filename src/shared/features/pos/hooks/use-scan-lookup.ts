@@ -30,7 +30,7 @@ export function useScanLookup() {
                 // warehouseId
               })
               if (remoteResult) {
-                console.log('remoteResult', remoteResult)
+
                 product = {
                   id: remoteResult.variantId,
                   name: remoteResult.productName,

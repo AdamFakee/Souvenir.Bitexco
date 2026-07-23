@@ -9,11 +9,11 @@ import { useActorRef, useSelector } from '@xstate/react'
 import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
-import type { CartItem } from '@/shared/features/pos'
+import type { CartItem, AppliedVoucher } from '@/shared/features/pos'
 import { OrderStatus } from '@/shared/lib/database'
 import { cashPaymentMachine, SavedOrder } from '../machines/cash-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
-import { calculateSubtotal, calculateTotalTax, getCashSuggestions, roundCashAmount } from '../utils'
+import { calculateSubtotal, calculateTotalTax, calculateLineDiscount, getCashSuggestions, roundCashAmount } from '../utils'
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -30,12 +30,10 @@ function buildReceiptOrder(
   discount: number,
   staffId: string,
   shiftId: string,
+  appliedVoucher?: AppliedVoucher | null,
 ): IOrder {
   const orderId = savedOrder.source === 'online' ? savedOrder.orderCode : savedOrder.id
-  const totalTax = items.reduce(
-    (sum, i) => sum + i.price * i.quantity * ((i.product.taxRate ?? 0) / 100),
-    0,
-  )
+  const totalTax = calculateTotalTax(items, appliedVoucher)
 
   return {
     id: orderId,
@@ -52,17 +50,24 @@ function buildReceiptOrder(
     canReturn: false,
     createdAt: new Date(),
     updatedAt: new Date(),
-    itemsSnapshot: items.map((i) => ({
-      productId: i.product.id,
-      sku: i.product.sku,
-      name: i.product.name,
-      price: i.price,
-      quantity: i.quantity,
-      subtotal: i.price * i.quantity,
-      taxRate: i.product.taxRate ?? 0,
-      taxAmount: i.price * i.quantity * ((i.product.taxRate ?? 0) / 100),
-      discountAmount: i.discountAmount ?? 0,
-    })),
+    itemsSnapshot: items.map((i) => {
+      const lineDiscount = calculateLineDiscount(i, items, appliedVoucher)
+      const preTax = i.price * i.quantity
+      const netPrice = Math.max(0, preTax - lineDiscount)
+      const taxRate = i.product.taxRate ?? 0
+      const taxAmount = taxRate > 0 ? Math.round(netPrice * (taxRate / (100 + taxRate))) : 0
+      return {
+        productId: i.product.id,
+        sku: i.product.sku,
+        name: i.product.name,
+        price: i.price,
+        quantity: i.quantity,
+        subtotal: preTax,
+        taxRate,
+        taxAmount,
+        discountAmount: lineDiscount,
+      }
+    }),
     paymentsSnapshot: [
       {
         method: 'cash',
@@ -152,7 +157,7 @@ export const CashPaymentPopup = memo(
 
         const paid = Number(cashTendered)
         const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
-        const tax = calculateTotalTax(items)
+        const tax = calculateTotalTax(items, appliedVoucher)
 
         ViceService.paymentSuccess({
           subtotal,
@@ -196,7 +201,7 @@ export const CashPaymentPopup = memo(
           actorRef.send({ type: 'START', input: freshInput })
 
           const subtotal = calculateSubtotal(items)
-          const tax = calculateTotalTax(items)
+          const tax = calculateTotalTax(items, appliedVoucher)
           ViceService.showCashPayment({
             subtotal,
             discount,
@@ -219,7 +224,7 @@ export const CashPaymentPopup = memo(
           const paid = Number(cashTendered) || 0
           const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
           const subtotal = calculateSubtotal(items)
-          const tax = calculateTotalTax(items)
+          const tax = calculateTotalTax(items, appliedVoucher)
           ViceService.showCashPayment({
             subtotal,
             discount,
@@ -240,7 +245,7 @@ export const CashPaymentPopup = memo(
       useEffect(() => {
         if (!visible && !isSuccess) {
           const subtotal = calculateSubtotal(items)
-          const tax = calculateTotalTax(items)
+          const tax = calculateTotalTax(items, appliedVoucher)
           ViceService.updateCart({
             items: items.map((i) => ({
               id: i.id,
@@ -435,6 +440,7 @@ export const CashPaymentPopup = memo(
                         discount,
                         staffId,
                         shiftId,
+                        appliedVoucher,
                       )}
                       staffName={staffName}
                     />

@@ -18,8 +18,6 @@ export function createCancelOrderActor(reason: string, logTag: string) {
         staffId: input.staffId,
         reason,
       })
-    } catch (err) {
-      console.error(`[${logTag}] cancelOrder error:`, err)
-    }
+    } catch (err) {}
   })
 }

@@ -70,7 +70,7 @@ export const ExchangePortablePaymentPopup = memo(
       })
 
       const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items)
+      const tax = calculateTotalTax(items, appliedVoucher)
 
       const actorRef = useActorRef(exchangePortablePaymentMachine, {
         input: {

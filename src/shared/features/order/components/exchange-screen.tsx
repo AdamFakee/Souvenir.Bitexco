@@ -1,94 +1,98 @@
 import { HardwareBarcodeScanner } from '@/shared/components/common'
-import { IconButton } from '@/shared/components/ui'
+import { Button, ControlledInput, IconButton } from '@/shared/components/ui'
 import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
 import { useAppStore } from '@/shared/features/app/store/use-app-store'
-import {
-  CashPaymentPopup,
-  ExchangePortablePaymentPopup,
-  ExchangePortablePaymentPopupRef,
-  ExchangeQrPaymentPopup,
-  ExchangeQrPaymentPopupRef,
-  PAYMENT_REGISTRY,
-  PaymentPopupRef,
-  PaymentResult,
-} from '@/shared/features/payment'
-import type { CartItem } from '@/shared/features/pos'
 import { UnifiedProduct } from '@/shared/features/pos/hooks/use-product-search'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { PrinterService } from '@/shared/services'
 import { appSettings, toast, useConnectionStore } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
+import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useMachine } from '@xstate/react'
 import { useRouter } from 'expo-router'
 import { X } from 'lucide-react-native'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Text, View } from 'react-native'
+import { useForm } from 'react-hook-form'
+import { StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import * as v from 'valibot'
 import {
   calculateExchangeReplacementSubtotal,
   calculateExchangeReplacementValue,
   calculateExchangeReplacementVat,
   calculateExchangeReturnedValue,
-  ExchangeSelectedPayment,
-  ExchangePaymentMethod,
   exchangeOrderMachine,
 } from '../machines/exchange-order.machine'
 import { IOrder, RefundReceiptData } from '../types'
 import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
-import { ExchangeReplacementItemsList } from './exchange-replacement-items-list'
 import { ExchangeReplacementSearchPanel } from './exchange-replacement-search-panel'
 import { ExchangeReturnItemsPanel } from './exchange-return-items-panel'
 import { ExchangeSummaryFooter } from './exchange-summary-footer'
 import { RefundReceiptTemplate } from './refund-receipt-template'
+import { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 
-const EXCHANGE_PAYMENT_TYPES = new Set(['cash', 'qr_bidv', 'card_bidv'])
+const BRAND = '#1C4E68'
+const TEXT_MUTED = '#747475'
+
+const managerSchema = v.object({
+  employeeCode: v.pipe(v.string(), v.minLength(1, 'Mã quản lý là bắt buộc')),
+  pin: v.pipe(v.string(), v.minLength(1, 'PIN là bắt buộc')),
+})
+type ManagerForm = v.InferOutput<typeof managerSchema>
 
 interface ExchangeScreenProps {
   order: IOrder
   onDone?: () => void
 }
 
-/**
- * Màn đổi hàng full-screen.
- * Cash: CashPaymentPopup (POS). QR/Card: Exchange* popup seed paymentId sau exchange submit.
- */
+/** Màn đổi hàng ngang giá — không thu chênh lệch. */
 export const ExchangeScreen = memo(function ExchangeScreen({
   order: initialOrder,
   onDone,
 }: ExchangeScreenProps) {
   const router = useRouter()
   const [state, send] = useMachine(exchangeOrderMachine)
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const refundPrintRef = useRef(null)
   const salePrintRef = useRef(null)
   const printedReceiptKeyRef = useRef<string | null>(null)
   const businessChecklistModalRef = useRef<BusinessChecklistModalRef>(null)
-  const popupRefs = useRef<
-    Record<
-      string,
-      PaymentPopupRef | ExchangeQrPaymentPopupRef | ExchangePortablePaymentPopupRef | null
-    >
-  >({})
   const startedRef = useRef(false)
-  /** Tránh open popup lặp khi waitingForOnlinePayment re-render */
-  const onlinePaymentOpenedKeyRef = useRef<string | null>(null)
 
-  const { employee, cashSessionId, paymentMethods } = useAppContext()
+  const { employee, cashSessionId } = useAppContext()
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
-  const isPosConnected = useConnectionStore((s) => s.isPosConnected)
 
-  const { order, reason, returnedLines, replacementLines, result, selectedPayment } = state.context
+  const {
+    order,
+    reason,
+    returnedLines,
+    replacementLines,
+    result,
+    focusedReturnProductId,
+    managerAuthError,
+    managerApprovalMessage,
+  } = state.context
   const activeOrder = order ?? initialOrder
 
   const isProcessing =
     state.matches('lookingUpScan') ||
     state.matches('submittingExchange') ||
-    state.matches('receivingReturnedItems') ||
-    state.matches('issuingReplacementItems')
+    state.matches('processing') ||
+    state.matches('fetchingOrderDetails')
   const isCompleted = state.matches('completed')
+  const isWaitingManager = state.matches('waitingManagerApproval')
+  const isDraft = state.matches('draft')
 
-  // Boot machine once
+  const {
+    control: managerControl,
+    handleSubmit: handleManagerSubmit,
+    reset: resetManagerForm,
+    setError: setManagerError,
+  } = useForm<ManagerForm>({
+    resolver: valibotResolver(managerSchema),
+    defaultValues: { employeeCode: '', pin: '' },
+  })
+
   useEffect(() => {
     if (startedRef.current) return
     startedRef.current = true
@@ -100,6 +104,12 @@ export const ExchangeScreen = memo(function ExchangeScreen({
       staffId: appContext?.employee?.id || employee?.id || '',
     })
   }, [initialOrder, send, cashSessionId, employee?.id])
+
+  useEffect(() => {
+    if (managerAuthError) {
+      setManagerError('pin', { type: 'manual', message: managerAuthError })
+    }
+  }, [managerAuthError, setManagerError])
 
   const returnedValue = useMemo(
     () => calculateExchangeReturnedValue(activeOrder, returnedLines),
@@ -118,101 +128,46 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     [replacementLines],
   )
   const differenceAmount = replacementValue - returnedValue
-  const collectAmount = Math.max(0, differenceAmount)
   const selectedReturnCount = returnedLines.filter((line) => line.qty > 0).length
   const isOriginalOrderVoucherApplied =
-    !!activeOrder?.voucherCode || !!activeOrder?.voucherDiscount || !!activeOrder?.discount
+    !!activeOrder?.voucherCode ||
+    (activeOrder?.voucherDiscount != null && activeOrder.voucherDiscount > 0) ||
+    (activeOrder?.discount != null && activeOrder.discount > 0)
+
   const canSubmit =
-    state.matches('draft') &&
+    isDraft &&
     selectedReturnCount > 0 &&
     replacementLines.length > 0 &&
-    replacementValue >= returnedValue &&
+    differenceAmount === 0 &&
     !isOriginalOrderVoucherApplied
 
-  /**
-   * Settlement line cho popup POS (cash/QR/card).
-   * Server validate unitPrice ≈ catalog (≤5%). grandTotal = (price−discount)×(1+tax).
-   * payment.amount phải == grandTotal, không thì order kẹt UNPAID / "chưa thanh toán".
-   */
-  const settlementCheckout = useMemo(() => {
-    if (collectAmount <= 0) {
-      return { items: [] as CartItem[], payTotal: 0 }
+  const selectedReturnItems = useMemo(() => {
+    const items = activeOrder?.itemsSnapshot || []
+    return returnedLines
+      .filter((l) => l.qty > 0)
+      .map((l) => items.find((i) => i.productId === l.productId))
+      .filter((i): i is ItemSnapshot => !!i)
+  }, [activeOrder, returnedLines])
+
+  const seedSkus = useMemo(
+    () =>
+      selectedReturnItems
+        .map((i) => i.sku?.trim())
+        .filter((s): s is string => !!s),
+    [selectedReturnItems],
+  )
+
+  const focusedItem = useMemo(() => {
+    if (focusedReturnProductId) {
+      return selectedReturnItems.find((i) => i.productId === focusedReturnProductId) ?? selectedReturnItems[0] ?? null
     }
-    const candidates = replacementLines.filter((l) => l.qty > 0)
-    const source =
-      candidates.find((l) => l.price >= collectAmount) || candidates[0] || replacementLines[0]
-    if (!source) return { items: [] as CartItem[], payTotal: collectAmount }
+    return selectedReturnItems[0] ?? null
+  }, [focusedReturnProductId, selectedReturnItems])
 
-    const catalogPrice = Math.max(0, Math.round(Number(source.price) || 0))
-    const rawTax = Number(source.taxRate) || 0
-    // 8|10 = percent; 0.08|0.1 = decimal
-    const taxFactor = rawTax > 1 ? rawTax / 100 : rawTax
-    const taxRateForApi = rawTax > 1 ? rawTax : rawTax > 0 ? rawTax * 100 : 0
-
-    // net * (1+tax) ≈ collect → chọn net integer sao cho grand gần collect nhất
-    const net = taxFactor > 0 ? Math.round(collectAmount / (1 + taxFactor)) : collectAmount
-    const discountAmount = Math.max(0, catalogPrice - net)
-    const lineNet = catalogPrice - discountAmount
-    const taxAmt = Math.round(lineNet * taxFactor)
-    const payTotal = lineNet + taxAmt
-
-    const items: CartItem[] = [
-      {
-        id: source.variantId,
-        product: {
-          id: source.variantId,
-          name: source.name || 'Chênh lệch đổi hàng',
-          price: catalogPrice,
-          sku: source.sku || 'EXCHANGE-DIFF',
-          unit: source.unitCode || '',
-          unitId: source.unitId || '',
-          taxRate: taxRateForApi,
-          stock: source.stock,
-        },
-        quantity: 1,
-        price: catalogPrice,
-        discountAmount,
-      },
-    ]
-    return { items, payTotal: payTotal > 0 ? payTotal : collectAmount }
-  }, [collectAmount, replacementLines])
-
-  const paymentItems = settlementCheckout.items
-  const paymentTotal = settlementCheckout.payTotal
-
-  const activePaymentMethods = useMemo(() => {
-    let list =
-      !paymentMethods || paymentMethods.length === 0
-        ? PAYMENT_REGISTRY.filter((s) => EXCHANGE_PAYMENT_TYPES.has(String(s.type)))
-        : paymentMethods
-            .filter((method) => method.enabled)
-            .map((method) => {
-              const original = PAYMENT_REGISTRY.find((s) => s.type === method.code)
-              if (!original || !EXCHANGE_PAYMENT_TYPES.has(String(original.type))) return null
-              return {
-                ...original,
-                label: method.name,
-                displayOrder: method.displayOrder || 99,
-              }
-            })
-            .filter((s): s is NonNullable<typeof s> => s !== null)
-
-    if (list.length === 0) {
-      const cash = PAYMENT_REGISTRY.find((s) => s.type === 'cash')
-      if (cash) list = [cash]
-    }
-
-    return list
-      .sort((a, b) => ((a as any).displayOrder || 99) - ((b as any).displayOrder || 99))
-      .map((method) => ({
-        type: String(method.type),
-        label: method.label,
-        icon: method.icon,
-        disabled:
-          (method.type === 'qr_bidv' && !isNetworkConnected) ||
-          (method.type === 'card_bidv' && !isPosConnected),
-      }))
-  }, [paymentMethods, isNetworkConnected, isPosConnected])
+  const suggestedUnitPrice =
+    focusedItem && focusedItem.quantity > 0
+      ? focusedItem.subtotal / focusedItem.quantity
+      : focusedItem?.price
 
   const getReturnLineQty = useCallback(
     (productId: string) => returnedLines.find((line) => line.productId === productId)?.qty ?? 0,
@@ -224,9 +179,12 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     return (item.subtotal / item.quantity) * qty
   }, [])
 
-  /** Bill 1: phiếu trả (refund) từ hàng khách trả */
   const refundReceipt = useMemo((): RefundReceiptData | null => {
-    if (!activeOrder || !result) return null
+    if (!result) return null
+    if (result.return?.receipt) {
+      return result.return.receipt
+    }
+    if (!activeOrder) return null
     const lines = returnedLines
       .filter((line) => line.qty > 0)
       .map((line) => {
@@ -257,14 +215,52 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     }
   }, [activeOrder, reason, result, returnedLines, returnedValue])
 
-  /** Bill 2: hóa đơn bán hàng mới (replacement) */
   const saleOrder = useMemo((): IOrder | null => {
-    if (!result?.newOrder) return null
-    const newOrder = result.newOrder
-    const method = selectedPayment?.method || 'cash'
-    const paid =
-      selectedPayment?.amount ?? newOrder.paidTotal ?? newOrder.grandTotal ?? replacementValue
+    if (!result) return null
 
+    // Nếu backend trả về receipt cho đơn bán mới, map trực tiếp từ receipt
+    if (result.receipt) {
+      const receipt = result.receipt
+      const itemsSnapshot = (receipt.lines || []).map((line) => ({
+        productId: line.productId || line.variantId || '',
+        sku: line.sku || '',
+        name: line.name || '',
+        price: line.unitPrice || 0,
+        quantity: line.qty || 0,
+        subtotal: (line.unitPrice || 0) * (line.qty || 0),
+        taxRate: line.taxRate ?? 0,
+        taxAmount: line.taxAmount ?? 0,
+        discountAmount: line.discountAmount ?? 0,
+      }))
+
+      const paymentsSnapshot = (receipt.payments || []).map((p) => ({
+        method: (p.method?.toLowerCase() || 'cash') as PaymentMethodCode,
+        amount: p.amount || 0,
+      }))
+
+      return {
+        id: receipt.orderId,
+        code: receipt.orderCode,
+        shiftId: cashSessionId || '',
+        staffId: employee?.id || '',
+        status: 'COMPLETED',
+        subtotal: receipt.subTotal || 0,
+        discount: receipt.discountTotal ?? 0,
+        voucherDiscount: receipt.voucherDiscount ?? 0,
+        total: receipt.grandTotal || 0,
+        totalTax: receipt.taxTotal || 0,
+        customerTaxInfo: null,
+        isDeleted: false,
+        canReturn: true,
+        createdAt: receipt.issuedAt ? new Date(receipt.issuedAt) : new Date(),
+        updatedAt: receipt.issuedAt ? new Date(receipt.issuedAt) : new Date(),
+        itemsSnapshot,
+        paymentsSnapshot,
+      }
+    }
+
+    if (!result.newOrder) return null
+    const newOrder = result.newOrder
     const itemsSnapshot = replacementLines
       .filter((line) => line.qty > 0)
       .map((line) => {
@@ -299,15 +295,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
       createdAt: new Date(),
       updatedAt: new Date(),
       itemsSnapshot,
-      paymentsSnapshot: [
-        {
-          method,
-          amount: paid,
-          cashTendered: selectedPayment?.cashTendered,
-          cashChange: selectedPayment?.cashChange,
-          referenceCode: selectedPayment?.referenceCode,
-        },
-      ],
+      paymentsSnapshot: [],
     }
   }, [
     cashSessionId,
@@ -317,18 +305,16 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     replacementValue,
     replacementVat,
     result,
-    selectedPayment,
   ])
 
   const leave = useCallback(() => {
-    if (isProcessing || isPaymentOpen) return
+    if (isProcessing) return
     send({ type: 'RESET' })
     if (onDone) onDone()
     else if (router.canGoBack()) router.back()
     else router.replace('/(tab)/orders')
-  }, [isProcessing, isPaymentOpen, onDone, router, send])
+  }, [isProcessing, onDone, router, send])
 
-  // Đổi xong: in 2 bill × 2 liên — await print xong mới leave (tránh unmount ref giữa capture)
   useEffect(() => {
     if (!isCompleted) return
     const receiptKey =
@@ -336,236 +322,74 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     if (printedReceiptKeyRef.current === receiptKey) return
 
     let cancelled = false
-
     const finish = async () => {
-      // 1 frame + short delay: off-screen receipt trees mount trước captureRef
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 120)))
       if (cancelled) return
-
       try {
-        if (refundReceipt) {
-          if (!refundPrintRef.current) {
-            throw new Error('Chưa sẵn sàng in phiếu trả hàng')
-          }
+        if (refundReceipt && refundPrintRef.current) {
           await PrinterService.printComponent(refundPrintRef, { doubleCopy: true })
         }
         if (cancelled) return
-
-        if (saleOrder) {
-          if (!salePrintRef.current) {
-            throw new Error('Chưa sẵn sàng in hóa đơn đơn mới')
-          }
+        if (saleOrder && salePrintRef.current) {
           await PrinterService.printComponent(salePrintRef, { doubleCopy: true })
         }
-
         printedReceiptKeyRef.current = receiptKey
       } catch (error: any) {
         toast.error(error.message || 'Lỗi khi in phiếu đổi hàng')
       } finally {
         if (cancelled) return
-        // In xong (hoặc fail) mới đóng popup / leave — giữ tree mount suốt await print
-        setIsPaymentOpen(false)
         if (onDone) onDone()
         else if (router.canGoBack()) router.back()
         else router.replace('/(tab)/orders')
-        // RESET sau navigate: tránh clear result → unmount template giữa print
         setTimeout(() => send({ type: 'RESET' }), 0)
       }
     }
-
     finish()
     return () => {
       cancelled = true
     }
   }, [isCompleted, refundReceipt, saleOrder, result, onDone, router, send])
 
-  const submitExchange = useCallback(
-    (payment: ExchangeSelectedPayment | null) => {
-      send({ type: 'SUBMIT', payment })
-    },
-    [send],
-  )
-
-  const paymentMethodLabel = useCallback((method: string) => {
-    if (method === 'cash') return 'tiền mặt'
-    if (method === 'qr_bidv') return 'QR'
-    if (method === 'card_bidv') return 'thẻ'
-    return method
-  }, [])
-
-  /** Confirm thống nhất TRƯỚC khi thu tiền / submit — cash & QR/thẻ cùng 1 dialog */
-  const confirmBeforePay = useCallback(
-    (methodType: ExchangePaymentMethod, onConfirm: () => void) => {
-      const methodLabel = paymentMethodLabel(methodType)
-      const message = `Xác nhận đổi ${selectedReturnCount} sản phẩm, thu chênh lệch ${formatCurrency(
-        collectAmount,
-      )} qua ${methodLabel}?`
-
-      const exchangeRequireChecklist = appSettings.get('exchangeRequireChecklist')
-      if (exchangeRequireChecklist) {
-        businessChecklistModalRef.current?.open({
-          title: 'Checklist Xác nhận Nghiệp vụ',
-          subtitle: 'Vui lòng xác nhận trước khi thu tiền / hoàn tất đổi hàng.',
-          items: [
-            'Tôi đã nhận lại sản phẩm lỗi/cũ từ khách hàng.',
-            'Tôi đã giao đầy đủ sản phẩm mới thay thế cho khách hàng.',
-            `Tôi sẽ thu đúng chênh lệch ${formatCurrency(collectAmount)} qua ${methodLabel}.`,
-          ],
-          onDontShowAgain: () => appSettings.set('exchangeRequireChecklist', false),
-          onConfirm,
-        })
-        return
-      }
-
-      toast.confirm({
-        title: 'Xác nhận đổi hàng',
-        message,
-        onConfirm,
-      })
-    },
-    [collectAmount, paymentMethodLabel, selectedReturnCount],
-  )
-
-  const handlePaymentSuccess = useCallback(
-    (paymentResult: PaymentResult) => {
-      setIsPaymentOpen(false)
-      const method = paymentResult.method
-
-      // QR/thẻ: exchange đã submit, chỉ chốt capture
-      if (method === 'qr_bidv' || method === 'card_bidv') {
-        send({ type: 'PAYMENT_SUCCESS', paymentResult })
-        return
-      }
-
-      if (!canSubmit || method !== 'cash') {
-        if (method !== 'cash') toast.error('Phương thức thanh toán không hỗ trợ cho đổi hàng.')
-        return
-      }
-
-      // Tiền mặt: đã confirm trước khi mở popup → submit thẳng, không hỏi lại
-      submitExchange({
-        method: 'cash',
-        amount: collectAmount,
-        cashTendered: paymentResult.paidAmount,
-        cashChange: paymentResult.change,
-        provider: null,
-        cardTerminalId: null,
-        referenceCode: paymentResult.referenceCode || paymentResult.orderId,
-      })
-    },
-    [canSubmit, collectAmount, send, submitExchange],
-  )
-
-  const handlePaymentCancel = useCallback(() => {
-    setIsPaymentOpen(false)
-    onlinePaymentOpenedKeyRef.current = null
-    // Chỉ QR/thẻ: exchange có thể đã commit trên server
-    if (state.matches('waitingForOnlinePayment')) {
-      toast.info(
-        'Đã hủy thu QR/thẻ. Nếu đơn đổi đã tạo trên server, kiểm tra lại trước khi đổi lần nữa.',
-      )
-      send({ type: 'PAYMENT_CANCEL' })
-    }
-  }, [send, state])
-
-  const handleSelectPaymentMethod = useCallback(
-    (methodType: string) => {
-      if (!canSubmit || isProcessing) return
-      if (methodType !== 'cash' && methodType !== 'qr_bidv' && methodType !== 'card_bidv') {
-        toast.error('Phương thức thanh toán không hỗ trợ cho đổi hàng.')
-        return
-      }
-
-      confirmBeforePay(methodType, () => {
-        if (methodType === 'cash') {
-          const ref = popupRefs.current.cash
-          if (!ref) {
-            toast.error('Phương thức thanh toán chưa sẵn sàng.')
-            return
-          }
-          setIsPaymentOpen(true)
-          ref.open()
-          return
-        }
-
-        submitExchange({
-          method: methodType,
-          amount: collectAmount,
-          provider: methodType === 'qr_bidv' ? 'bidv' : 'card-bidv',
-          cardTerminalId: null,
-        })
-      })
-    },
-    [canSubmit, isProcessing, confirmBeforePay, collectAmount, submitExchange],
-  )
-
-  // Sau exchange submit: mở popup QR/thẻ nếu payment INITIATED; không thì thoát waiting (tránh hang)
-  useEffect(() => {
-    if (!state.matches('waitingForOnlinePayment')) {
-      onlinePaymentOpenedKeyRef.current = null
-      return
-    }
-    if (!result?.newOrder) return
-
-    const initiatedPayment = result.newOrder.payments?.find(
-      (p: any) =>
-        p.state === 'INITIATED' &&
-        (p.method === 'qr_bidv' || p.method === 'card_bidv') &&
-        !!p.paymentId,
-    )
-
-    if (!initiatedPayment) {
-      toast.error(
-        'Đổi hàng đã tạo nhưng không có payment online INITIATED. Vui lòng kiểm tra lại đơn.',
-      )
-      send({ type: 'PAYMENT_CANCEL' })
+  const handleConfirmEqual = useCallback(() => {
+    if (!canSubmit || isProcessing) return
+    if (!isNetworkConnected) {
+      toast.error('Đổi hàng chỉ hỗ trợ khi có kết nối mạng.')
       return
     }
 
-    const openKey = `${initiatedPayment.method}:${initiatedPayment.paymentId}`
-    if (onlinePaymentOpenedKeyRef.current === openKey) return
+    const run = () => send({ type: 'SUBMIT' })
 
-    const method = initiatedPayment.method
-    const ref = popupRefs.current[method]
-    if (!ref) {
-      toast.error('Phương thức thanh toán online chưa sẵn sàng.')
-      send({ type: 'PAYMENT_CANCEL' })
-      return
-    }
-
-    onlinePaymentOpenedKeyRef.current = openKey
-    setIsPaymentOpen(true)
-
-    if (method === 'qr_bidv') {
-      ;(ref as ExchangeQrPaymentPopupRef).open({
-        paymentId: initiatedPayment.paymentId,
-        orderId: result.newOrder.orderId,
-        billNumber: result.newOrder.orderCode ?? result.newOrder.orderId,
+    if (appSettings.get('exchangeRequireChecklist')) {
+      businessChecklistModalRef.current?.open({
+        title: 'Checklist xác nhận',
+        subtitle: 'Xác nhận trước khi hoàn tất đổi ngang giá.',
+        items: [
+          'Tôi đã nhận lại sản phẩm lỗi/cũ từ khách hàng.',
+          'Tôi đã giao đầy đủ sản phẩm mới thay thế cho khách hàng.',
+          'Sản phẩm đổi mới có cùng giá trị với sản phẩm trả lại (Đổi ngang).',
+        ],
+        onDontShowAgain: () => appSettings.set('exchangeRequireChecklist', false),
+        onConfirm: run,
       })
       return
     }
 
-    if (method === 'card_bidv') {
-      ;(ref as ExchangePortablePaymentPopupRef).open({
-        paymentId: initiatedPayment.paymentId,
-        orderId: result.newOrder.orderId,
-        grandTotal: result.newOrder.grandTotal,
-        taxTotal: result.newOrder.taxTotal ?? 0,
-      })
-    }
-  }, [state, result, send])
+    toast.confirm({
+      title: 'Xác nhận đổi hàng',
+      message: `Đổi ngang ${selectedReturnCount} món · giá trị ${formatCurrency(returnedValue)}?`,
+      onConfirm: run,
+    })
+  }, [canSubmit, isProcessing, isNetworkConnected, selectedReturnCount, returnedValue, send])
 
   const stepText = useMemo(() => {
     if (state.matches('fetchingOrderDetails')) return 'Đang tải chi tiết đơn...'
-    if (state.matches('lookingUpScan')) return 'Đang quét mã sản phẩm đổi mới...'
+    if (state.matches('lookingUpScan')) return 'Đang quét mã...'
     if (state.matches('submittingExchange')) return 'Đang xử lý đổi hàng...'
-    if (state.matches('receivingReturnedItems')) return 'Đang nhập kho hàng trả...'
-    if (state.matches('issuingReplacementItems')) return 'Đang xuất kho hàng đổi mới...'
+    if (state.matches('processing')) return 'Đang hoàn tất...'
+    if (state.matches('waitingManagerApproval')) return 'Chờ duyệt quản lý...'
     if (state.matches('completed')) return 'Đổi hàng hoàn tất'
-    if (state.matches('waitingForOnlinePayment')) return 'Chờ thanh toán QR/thẻ...'
-    if (collectAmount > 0) return 'Chọn hàng và thu chênh lệch'
-    return 'Chọn hàng trả và hàng đổi mới'
-  }, [state, collectAmount])
+    return 'Đổi ngang giá · chọn hàng trả và hàng mới'
+  }, [state])
 
   if (!activeOrder) {
     return (
@@ -577,7 +401,6 @@ export const ExchangeScreen = memo(function ExchangeScreen({
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>
-      {/* Off-screen print targets: refund bill + new sale bill */}
       {refundReceipt && (
         <View style={{ position: 'absolute', left: -2000, top: 0 }}>
           <View collapsable={false} ref={refundPrintRef}>
@@ -593,7 +416,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         </View>
       )}
 
-      {!isPaymentOpen && (
+      {!isWaitingManager && (
         <HardwareBarcodeScanner onScan={(codes) => send({ type: 'SCAN_CODES', codes })} />
       )}
 
@@ -604,13 +427,13 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         <View>
           <Text
             className="text-2xl font-extrabold"
-            style={{ color: '#1C4E68', fontFamily: 'Manrope-Bold' }}
+            style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
           >
             Đổi hàng
           </Text>
           <Text
             className="mt-1 text-base font-bold"
-            style={{ color: '#747475', fontFamily: 'Manrope-Bold' }}
+            style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
           >
             {activeOrder.code || activeOrder.id} · {stepText}
           </Text>
@@ -618,13 +441,12 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         <IconButton
           icon={X}
           size={28}
-          color="#747475"
+          color={TEXT_MUTED}
           onPress={leave}
-          disabled={isProcessing || isPaymentOpen}
+          disabled={isProcessing}
         />
       </View>
 
-      {/* 2 cột như cũ: trái trả | phải mới + footer */}
       <View className="min-h-0 flex-1 flex-row px-3 pb-3 pt-2">
         <View
           className="min-h-0 flex-1 overflow-hidden rounded-[12px] bg-white"
@@ -638,7 +460,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         >
           <ExchangeReturnItemsPanel
             items={activeOrder.itemsSnapshot || []}
-            isDraft={state.matches('draft')}
+            isDraft={isDraft}
             isProcessing={isProcessing}
             getLineQty={getReturnLineQty}
             getLineAmount={getReturnLineAmount}
@@ -662,25 +484,30 @@ export const ExchangeScreen = memo(function ExchangeScreen({
           />
         </View>
 
-        <View className="ml-2 min-h-0 flex-1 overflow-hidden rounded-[12px] border border-outline-variant bg-surface-50">
+        <View
+          className="ml-2 min-h-0 flex-1 overflow-hidden rounded-[12px] bg-white"
+          style={{
+            shadowColor: '#A8A8A8',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.12,
+            shadowRadius: 10,
+            elevation: 3,
+          }}
+        >
           <ExchangeReplacementSearchPanel
-            isDraft={state.matches('draft')}
+            isDraft={isDraft}
             isProcessing={isProcessing}
+            seedSkus={seedSkus}
+            suggestedUnitPrice={suggestedUnitPrice}
+            selectedLines={replacementLines}
             onSelectProduct={(product: UnifiedProduct) =>
               send({ type: 'ADD_REPLACEMENT_ITEM', product })
             }
+            onChangeQty={(variantId, qty) =>
+              send({ type: 'UPDATE_REPLACEMENT_QTY', variantId, qty })
+            }
+            onRemoveItem={(variantId) => send({ type: 'REMOVE_REPLACEMENT_ITEM', variantId })}
           />
-          <View className="min-h-0 flex-1">
-            <ExchangeReplacementItemsList
-              lines={replacementLines}
-              isDraft={state.matches('draft')}
-              isProcessing={isProcessing}
-              onChangeQty={(variantId, qty) =>
-                send({ type: 'UPDATE_REPLACEMENT_QTY', variantId, qty })
-              }
-              onRemoveItem={(variantId) => send({ type: 'REMOVE_REPLACEMENT_ITEM', variantId })}
-            />
-          </View>
           <ExchangeSummaryFooter
             returnedValue={returnedValue}
             replacementSubtotal={replacementSubtotal}
@@ -691,57 +518,95 @@ export const ExchangeScreen = memo(function ExchangeScreen({
             isOriginalOrderVoucherApplied={isOriginalOrderVoucherApplied}
             canSubmit={canSubmit}
             isProcessing={isProcessing}
-            paymentMethods={activePaymentMethods}
             onClose={leave}
-            onSelectPaymentMethod={handleSelectPaymentMethod}
+            onConfirmEqual={handleConfirmEqual}
           />
         </View>
       </View>
 
       <BusinessChecklistModal ref={businessChecklistModalRef} />
 
-      {/* Popup POS gốc — total = grandTotal settlement (khớp lines), không phải raw collectAmount */}
-      <CashPaymentPopup
-        ref={(r) => {
-          popupRefs.current.cash = r
-        }}
-        total={paymentTotal}
-        discount={0}
-        items={paymentItems}
-        staffId={employee?.id ?? ''}
-        shiftId={cashSessionId ?? ''}
-        activeSessionId={cashSessionId}
-        staffName={employee?.displayName}
-        onSuccess={handlePaymentSuccess}
-      />
-      <ExchangeQrPaymentPopup
-        ref={(r) => {
-          popupRefs.current.qr_bidv = r
-        }}
-        total={paymentTotal}
-        discount={0}
-        items={paymentItems}
-        staffId={employee?.id ?? ''}
-        shiftId={cashSessionId ?? ''}
-        activeSessionId={cashSessionId}
-        staffName={employee?.displayName}
-        onSuccess={handlePaymentSuccess}
-        onCancel={handlePaymentCancel}
-      />
-      <ExchangePortablePaymentPopup
-        ref={(r) => {
-          popupRefs.current.card_bidv = r
-        }}
-        total={paymentTotal}
-        discount={0}
-        items={paymentItems}
-        staffId={employee?.id ?? ''}
-        shiftId={cashSessionId ?? ''}
-        activeSessionId={cashSessionId}
-        staffName={employee?.displayName}
-        onSuccess={handlePaymentSuccess}
-        onCancel={handlePaymentCancel}
-      />
+      {(isWaitingManager ||
+        (state.matches('submittingExchange') && state.context.managerAuth !== null)) && (
+        <View style={styles.managerOverlay}>
+          <View style={styles.managerCard}>
+            <Text style={styles.managerTitle}>Cần duyệt quản lý</Text>
+            <Text style={styles.managerSubtitle}>
+              {managerApprovalMessage ||
+                'Nhập tài khoản và PIN quản lý để phê duyệt đổi hàng.'}
+            </Text>
+            <View style={{ gap: 12 }}>
+              <ControlledInput
+                control={managerControl}
+                name="employeeCode"
+                label="Tài khoản quản lý"
+                placeholder="Mã nhân viên quản lý"
+              />
+              <ControlledInput
+                control={managerControl}
+                name="pin"
+                label="Mã PIN"
+                placeholder="PIN / mật khẩu"
+                secureTextEntry
+              />
+            </View>
+            <View className="mt-2 flex-row gap-3">
+              <Button
+                label="Huỷ"
+                variant="outline"
+                className="h-14 flex-1 rounded-xl"
+                disabled={state.matches('submittingExchange')}
+                onPress={() => {
+                  resetManagerForm()
+                  send({ type: 'CANCEL' })
+                }}
+              />
+              <Button
+                label="Xác nhận"
+                variant="primary"
+                className="h-14 flex-1 rounded-xl"
+                loading={state.matches('submittingExchange')}
+                onPress={handleManagerSubmit((data) => {
+                  send({
+                    type: 'SUBMIT_MANAGER_PIN',
+                    managerAuth: { employeeCode: data.employeeCode, pin: data.pin },
+                  })
+                })}
+              />
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   )
+})
+
+const styles = StyleSheet.create({
+  managerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 50,
+    padding: 24,
+  },
+  managerCard: {
+    width: '100%',
+    maxWidth: 460,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    gap: 14,
+  },
+  managerTitle: {
+    fontSize: 22,
+    fontFamily: 'Manrope-Bold',
+    color: BRAND,
+  },
+  managerSubtitle: {
+    fontSize: 15,
+    fontFamily: 'Manrope-Medium',
+    color: TEXT_MUTED,
+    lineHeight: 22,
+  },
 })

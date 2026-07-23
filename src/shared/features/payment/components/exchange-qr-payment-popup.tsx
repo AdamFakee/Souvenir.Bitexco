@@ -6,7 +6,7 @@ import { useActorRef, useSelector } from '@xstate/react'
 import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
 import { exchangeQrPaymentMachine } from '../machines/exchange-qr-payment.machine'
 import { PAYMENT_ERROR_CODES, PaymentPopupProps } from '../types'
-import { calculateSubtotal, calculateTotalTax } from '../utils'
+import { calculateSubtotal, calculateTotalTax, calculateLineDiscount } from '../utils'
 import { QrPaymentView } from './qr-payment-view'
 
 export type ExchangeQrOpenInput = {
@@ -57,7 +57,7 @@ export const ExchangeQrPaymentPopup = memo(
       }, [timeLeftSecs])
 
       const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items)
+      const tax = calculateTotalTax(items, appliedVoucher)
 
       const actorRef = useActorRef(exchangeQrPaymentMachine, {
         input: {
@@ -256,15 +256,23 @@ export const ExchangeQrPaymentPopup = memo(
             subtotal,
             discount,
             totalTax: tax,
-            itemsSnapshot: items.map((i) => ({
-              sku: i.product.sku,
-              name: i.product.name,
-              price: i.product.price,
-              quantity: i.quantity,
-              subtotal: i.product.price * i.quantity,
-              taxRate: i.product.taxRate || 0,
-              taxAmount: i.product.price * i.quantity * ((i.product.taxRate || 0) / 100),
-            })),
+            itemsSnapshot: items.map((i) => {
+              const lineDiscount = calculateLineDiscount(i, items, appliedVoucher)
+              const preTax = i.price * i.quantity
+              const netPrice = Math.max(0, preTax - lineDiscount)
+              const taxRate = i.product.taxRate || 0
+              const taxAmount = taxRate > 0 ? Math.round(netPrice * (taxRate / (100 + taxRate))) : 0
+              return {
+                sku: i.product.sku,
+                name: i.product.name,
+                price: i.price,
+                quantity: i.quantity,
+                subtotal: preTax,
+                taxRate,
+                taxAmount,
+                discountAmount: lineDiscount,
+              }
+            }),
             paymentsSnapshot: [{ method: 'qr_bidv', amount: total }],
           } as any)
         : null

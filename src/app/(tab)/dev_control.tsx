@@ -336,6 +336,7 @@ export default function DevControlScreen() {
     try {
       toast.info('Đang gọi API lấy Payment Methods...')
       const response = await AxiosService.getInstance().get<any[]>('/v1/payment-methods')
+      console.log('Payment Methods:', response.data)
       const enabledMethods = response.data.filter((m) => m.enabled)
       const appService = useAppStore.getState().appService
       if (appService) {

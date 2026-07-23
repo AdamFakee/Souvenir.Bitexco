@@ -109,12 +109,12 @@ export default function CheckoutPanel() {
     return calculateVoucherDiscount(cart, appliedVoucher)
   }, [cart, appliedVoucher])
 
-  const tax = useMemo(() => calculateTotalTax(cart), [cart])
+  const tax = useMemo(() => calculateTotalTax(cart, appliedVoucher), [cart, appliedVoucher])
 
-  // Voucher sau thuế: Tổng = (tạm tính + thuế) − giảm giá
+  // Đơn giá sau thuế (Tax-inclusive): Tổng thanh toán = tạm tính - giảm giá
   const total = useMemo(() => {
-    return Math.max(0, subtotal + tax - discount)
-  }, [subtotal, discount, tax])
+    return Math.max(0, subtotal - discount)
+  }, [subtotal, discount])
 
   const paymentContext: PaymentContext = useMemo(
     () => ({

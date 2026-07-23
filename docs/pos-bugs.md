@@ -1,175 +1,194 @@
-### [BUG] Lỗi Đồng bộ Trạng thái Đơn hàng (vẫn hiển thị "Chờ thanh toán") và Không ghi nhận VAT/Voucher khi thanh toán qua BIDV EDC thẻ di động
+# Báo cáo Lỗi Tính toán Checkout API (Backend)
 
-- **Chuỗi API FE gọi tuần tự thành công:**
-  1. `POST /v1/pos/checkout` -> Tạo đơn hàng, trả về Payment `INITIATED` (Version 1).
-  2. `POST /v1/payments/{paymentId}/transitions` (action: `"process"`, expectedVersion: 1) -> Payment chuyển sang `PROCESSING` (Version 2).
-  3. `POST /v1/payments/{paymentId}/card-capture` -> Ghi nhận thông tin giao dịch từ máy EDC thành công.
-  4. `POST /v1/payments/{paymentId}/transitions` (action: `"authorize"`, expectedVersion: 2) -> Payment chuyển sang `AUTHORIZED` (Version 3).
-  5. `POST /v1/payments/{paymentId}/transitions` (action: `"capture"`, expectedVersion: 3) -> Payment chuyển sang `CAPTURED` (Version 4).
+Đội ngũ phát triển POS gửi thông tin lỗi tính toán trên Backend khi thực hiện checkout có áp dụng Voucher và VAT.
 
-- **Các vấn đề lỗi phát hiện:**
-  1. **Trạng thái đơn hàng không đổi:** Dù Payment đã đi đến trạng thái cuối cùng là `CAPTURED` (đã trừ tiền thành công), nhưng trạng thái đơn hàng trên hệ thống Admin quản trị vẫn ở trạng thái **"Chờ thanh toán"** (chưa chuyển sang đã hoàn thành).
-  2. **Hóa đơn chưa ghi nhận VAT:** Đơn hàng / hóa đơn trả về không hiển thị thông tin thuế suất (VAT).
-  3. **Voucher không được áp dụng:** Không giảm trừ hoặc không ghi nhận voucher giảm giá vào đơn hàng.
+---
 
-- **Dữ liệu Log Test Thực Tế:**
-  - **Request Payload checkout (`POST /v1/pos/checkout`):**
+## 1. Tóm tắt các lỗi chính của Backend
 
-    ```json
-    {
-      "cashSessionId": "019f4629-9a2c-73d6-b8b0-ac1f6b40f1d5",
-      "customerId": null,
-      "currency": "VND",
-      "notes": null,
-      "lines": [
-        {
-          "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
-          "unitId": "00000000-0000-0000-0000-000000000010",
-          "qty": 1,
-          "unitPrice": 100000,
-          "discountAmount": 0,
-          "taxRate": 0
-        }
-      ],
-      "payments": [
-        {
-          "method": "card_bidv",
-          "amount": 108000,
-          "provider": "card-bidv",
-          "cardTerminalId": null
-        }
-      ],
-      "voucherCode": null,
-      "issueInvoice": false,
-      "customerName": null,
-      "customerTaxId": null,
-      "customerAddress": null,
-      "affiliateId": null,
-      "agentType": null
-    }
-    ```
+1. **Lỗi giảm giá 2 lần (Double Discount):**
+   * **Mô tả:** Backend tự động cộng dồn cả `discountAmount` (truyền trong từng dòng sản phẩm `lines`) và `voucherDiscount`/`voucherCode` (ở cấp độ root payload) vào tổng giảm giá `discountTotal`.
+   * **Hệ quả:** Khách hàng được giảm gấp đôi số tiền voucher (Ví dụ: voucher 12,000 VND -> Backend giảm 24,000 VND).
 
-  - **Response checkout:**
+2. **Lỗi tính VAT theo đơn giá gồm thuế (Tax-inclusive) thay vì trước thuế (Tax-exclusive):**
+   * **Mô tả:** Theo công thức quy chuẩn của POS:
+     * `giá_net = giá_trước_thuế - (giá_trước_thuế × %voucher)`
+     * `tiền_VAT = giá_net × %VAT`
+     * `thành_tiền = giá_net + tiền_VAT`
+     * *Với đơn giá trước thuế là 100,000 VND, voucher 12% (12,000 VND), VAT 8%: giá net = 88,000 VND; VAT = 7,040 VND; thành tiền = 95,040 VND.*
+   * **Backend tính sai:** Backend coi đơn giá 100,000 VND đã bao gồm VAT nên quy đổi ngược:
+     * `giá_sau_giảm_gồm_thuế = 100,000 - 12,000 = 88,000`
+     * `giá_net_trước_thuế = 88,000 / 1.08 = 81,481`
+     * `taxTotal (VAT) = 81,481 × 8% = 6,519`
+     * `subTotal` (Tổng trước thuế trước giảm giá) = `81,481 + 12,000 = 93,481`
+   * **Hệ quả:** Tính sai lệch toàn bộ `subTotal`, `taxTotal` và `grandTotal`.
 
-    ```json
-    {
-      "orderId": "019f6518-bd5e-70ba-b38e-5adf7412431c",
-      "orderCode": "SO-2607150925F17F",
-      "orderState": "CONFIRMED",
-      "subTotal": 100000,
-      "discountTotal": 0,
-      "taxTotal": 0,
-      "grandTotal": 100000,
-      "paidTotal": 0,
-      "roundingTotal": 0,
-      "change": 0,
-      "payments": [
-        {
-          "paymentId": "019f6518-be1c-7e45-8602-489d1d04923b",
-          "method": "card_bidv",
-          "amount": 108000,
-          "state": "INITIATED"
-        }
-      ],
-      "invoiceId": null,
-      "invoiceNo": null,
-      "voucherDiscount": null,
-      "invoiceRequestToken": null,
-      "invoiceRequestUrl": null
-    }
-    ```
+3. **Lỗi tự ý thay đổi số tiền thanh toán của các cổng thanh toán QR/Thẻ (QR/Card Payment Amount):**
+   * **Mô tả:** Khi FE gửi yêu cầu thanh toán qua QR (`qr_bidv`) hoặc Thẻ (`card_bidv`) với số tiền khớp đúng với hóa đơn là `95,040` VND. Do Backend tính sai `grandTotal` thành `76,000` VND, Backend tự ý ghi đè số tiền giao dịch của cổng thanh toán xuống `76,000` VND trong phản hồi trả về.
+   * **Hệ quả:** Máy POS hoặc mã QR hiển thị sai số tiền thanh toán (thực tế khách phải trả 95,040 VND nhưng chỉ thu của khách 76,000 VND).
 
-  - **API transition `"process"` (expectedVersion: 1) Response:**
+---
 
-    ```json
-    {
-      "id": "019f6518-be1c-7e45-8602-489d1d04923b",
-      "tenantId": "a0000000-0000-0000-0000-000000000001",
-      "code": "PAY-2607150925724E",
-      "orderId": "019f6518-bd5e-70ba-b38e-5adf7412431c",
-      "method": "card_bidv",
-      "amount": 108000,
-      "currency": "VND",
-      "state": "PROCESSING",
-      "provider": "card-bidv",
-      "providerRef": null,
-      "cashSessionId": "019f4629-9a2c-73d6-b8b0-ac1f6b40f1d5",
-      "cardTerminalId": null,
-      "initiatedBy": "e1000000-0000-0000-0000-000000000005",
-      "capturedAt": null,
-      "refundedAmount": 0,
-      "failedReason": null,
-      "version": 2,
-      "createdAt": "2026-07-15T09:25:48.18925Z",
-      "updatedAt": "2026-07-15T09:25:48.18925Z"
-    }
-    ```
+## 2. Chi tiết Log & Dữ liệu Đối chiếu (Thực tế vs Kỳ vọng)
 
-  - **API `card-capture` Response:**
+### Case 1: Thanh toán Tiền mặt (Cash Checkout)
+* **API:** `POST /v1/pos/checkout`
+* **Request Payload từ FE (Gửi đúng số tiền khách trả 95,000 VND cho đơn giá 100,000 VND trước thuế, giảm 12,000 VND, VAT 8% = 95,040 VND):**
+  ```json
+  {
+    "cashSessionId": "019f6528-76be-72cc-a263-28fb19c72440",
+    "lines": [
+      {
+        "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
+        "qty": 1,
+        "unitPrice": 100000,
+        "discountAmount": 12000,
+        "taxRate": 8
+      }
+    ],
+    "payments": [
+      {
+        "method": "cash",
+        "amount": 95000
+      }
+    ],
+    "voucherCode": "XXXXXXXXXX"
+  }
+  ```
+* **Response thực tế từ Backend (Sai):**
+  ```json
+  {
+    "subTotal": 93481,        // SAI (Kỳ vọng: 100,000)
+    "discountTotal": 24000,   // SAI - Bị nhân đôi (Kỳ vọng: 12,000)
+    "taxTotal": 6519,         // SAI (Kỳ vọng: 7,040)
+    "grandTotal": 76000,      // SAI (Kỳ vọng: 95,040)
+    "change": 19000,          // SAI - Trả lại thừa do grandTotal sai (Kỳ vọng: 0)
+    "voucherDiscount": 12000
+  }
+  ```
 
-    ```json
-    {
-      "id": "019f6519-1d03-7d4a-9b6a-890a3a3891f7",
-      "tenantId": "a0000000-0000-0000-0000-000000000001",
-      "paymentId": "019f6518-be1c-7e45-8602-489d1d04923b",
-      "terminalId": "01684838",
-      "merchantId": "000000925126645",
-      "maskedPan": "5151 XXXX XXXX 4768",
-      "authCode": "314171",
-      "rrn": "619601164021",
-      "responseCode": "00",
-      "capturedAt": "2026-07-15T09:26:12.4834746Z",
-      "createdAt": "2026-07-15T09:26:12.4834751Z"
-    }
-    ```
+---
 
-  - **API transition `"authorize"` (expectedVersion: 2) Response:**
+### Case 2: Thanh toán QR (QR BIDV Checkout)
+* **API:** `POST /v1/pos/checkout`
+* **Request Payload từ FE (Yêu cầu thanh toán QR đúng số tiền 95,040 VND):**
+  ```json
+  {
+    "lines": [
+      {
+        "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
+        "qty": 1,
+        "unitPrice": 100000,
+        "discountAmount": 12000,
+        "taxRate": 8
+      }
+    ],
+    "payments": [
+      {
+        "method": "qr_bidv",
+        "amount": 95040
+      }
+    ],
+    "voucherCode": "XXXXXXXXXX"
+  }
+  ```
+* **Response thực tế từ Backend (Sai):**
+  ```json
+  {
+    "grandTotal": 76000,
+    "payments": [
+      {
+        "method": "qr_bidv",
+        "amount": 76000,      // SAI - Tự ý giảm số tiền QR từ 95,040 xuống 76,000
+        "state": "INITIATED"
+      }
+    ]
+  }
+  ```
 
-    ```json
-    {
-      "id": "019f6518-be1c-7e45-8602-489d1d04923b",
-      "tenantId": "a0000000-0000-0000-0000-000000000001",
-      "code": "PAY-2607150925724E",
-      "orderId": "019f6518-bd5e-70ba-b38e-5adf7412431c",
-      "method": "card_bidv",
-      "amount": 108000,
-      "currency": "VND",
-      "state": "AUTHORIZED",
-      "provider": "card-bidv",
-      "providerRef": null,
-      "cashSessionId": "019f4629-9a2c-73d6-b8b0-ac1f6b40f1d5",
-      "cardTerminalId": null,
-      "initiatedBy": "e1000000-0000-0000-0000-000000000005",
-      "capturedAt": null,
-      "refundedAmount": 0,
-      "failedReason": null,
-      "version": 3,
-      "createdAt": "2026-07-15T09:25:48.18925Z",
-      "updatedAt": "2026-07-15T09:25:48.605505Z"
-    }
-    ```
+---
 
-  - **API transition `"capture"` (expectedVersion: 3) Response:**
-    ```json
-    {
-      "id": "019f6518-be1c-7e45-8602-489d1d04923b",
-      "tenantId": "a0000000-0000-0000-0000-000000000001",
-      "code": "PAY-2607150925724E",
-      "orderId": "019f6518-bd5e-70ba-b38e-5adf7412431c",
-      "method": "card_bidv",
-      "amount": 108000,
-      "currency": "VND",
-      "state": "CAPTURED",
-      "provider": "card-bidv",
-      "providerRef": null,
-      "cashSessionId": "019f4629-9a2c-73d6-b8b0-ac1f6b40f1d5",
-      "cardTerminalId": null,
-      "initiatedBy": "e1000000-0000-0000-0000-000000000005",
-      "capturedAt": null,
-      "refundedAmount": 0,
-      "failedReason": null,
-      "version": 4,
-      "createdAt": "2026-07-15T09:25:48.18925Z",
-      "updatedAt": "2026-07-15T09:26:12.763838Z"
-    }
-    ```
+### Case 3: Thanh toán Thẻ di động (Portable Card Checkout)
+* **API:** `POST /v1/pos/checkout`
+* **Request Payload từ FE (Yêu cầu thanh toán thẻ đúng số tiền 95,040 VND):**
+  ```json
+  {
+    "lines": [
+      {
+        "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
+        "qty": 1,
+        "unitPrice": 100000,
+        "discountAmount": 12000,
+        "taxRate": 8
+      }
+    ],
+    "payments": [
+      {
+        "method": "card_bidv",
+        "amount": 95040
+      }
+    ],
+    "voucherCode": "XXXXXXXXXX"
+  }
+  ```
+* **Response thực tế từ Backend (Sai):**
+  ```json
+  {
+    "grandTotal": 76000,
+    "payments": [
+      {
+        "method": "card_bidv",
+        "amount": 76000,      // SAI - Tự ý giảm số tiền yêu cầu quẹt thẻ xuống 76,000
+        "state": "INITIATED"
+      }
+    ]
+  }
+  ```
+
+---
+
+### Case 4: Thanh toán Hỗn hợp (Mix Payment - Cash + QR)
+* **API:** `POST /v1/pos/checkout`
+* **Request Payload từ FE (Khách trả 10,000 VND tiền mặt + quẹt QR 85,040 VND):**
+  ```json
+  {
+    "lines": [
+      {
+        "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
+        "qty": 1,
+        "unitPrice": 100000,
+        "discountAmount": 12000,
+        "taxRate": 8
+      }
+    ],
+    "payments": [
+      {
+        "method": "cash",
+        "amount": 10000
+      },
+      {
+        "method": "qr_bidv",
+        "amount": 85040
+      }
+    ],
+    "voucherCode": "XXXXXXXXXX"
+  }
+  ```
+* **Response thực tế từ Backend (Sai):**
+  ```json
+  {
+    "grandTotal": 76000,
+    "payments": [
+      {
+        "method": "cash",
+        "amount": 10000,
+        "state": "CAPTURED"
+      },
+      {
+        "method": "qr_bidv",
+        "amount": 66000,      // SAI - Tự ý giảm số tiền quẹt QR xuống 66,000 (76,000 - 10,000)
+        "state": "INITIATED"
+      }
+    ]
+  }
+  ```

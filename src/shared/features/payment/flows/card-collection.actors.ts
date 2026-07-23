@@ -1,7 +1,7 @@
 import { PaymentRemoteAPI } from '@/shared/features/payment/api/remote/payment.remote.api'
-import { PortablePaymentService } from '../utils/portable-payment.service'
-import { PortablePaymentCommandResult } from '../types'
 import { fromPromise } from 'xstate'
+import { PortablePaymentCommandResult } from '../types'
+import { PortablePaymentService } from '../utils/portable-payment.service'
 
 /**
  * Kiểm tra xem lỗi có phải do mất kết nối socket hay timeout giữa chừng không

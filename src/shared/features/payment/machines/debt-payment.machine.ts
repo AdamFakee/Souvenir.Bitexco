@@ -1,11 +1,12 @@
 import {
-  OrderRemoteAPI,
-  PosCartLine,
-  PosCheckoutRequest,
+    OrderRemoteAPI,
+    PosCartLine,
+    PosCheckoutRequest,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { assign, fromPromise, setup } from 'xstate'
+import { calculateLineDiscount } from '../utils'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ export const debtPaymentMachine = setup({
         unitId: item.product.unitId || (item.product as any).unit_id || '---',
         qty: item.quantity,
         unitPrice: item.price ?? item.product.price ?? 0,
-        discountAmount: item.discountAmount ?? 0,
+        discountAmount: 0,
         taxRate: item.product.taxRate ?? 8,
       }))
 

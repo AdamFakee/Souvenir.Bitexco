@@ -1,6 +1,6 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { type ShiftStatistics } from '@/shared/mocks/mock-data'
-import { StateResponse } from '@/shared/types/api'
+import { PagedResponse, StateResponse } from '@/shared/types/api'
 
 export interface OpenShiftPayload {
   posDeviceId: string
@@ -59,35 +59,42 @@ export interface ZReportResponse {
   staffs?: ZReportStaffItem[]
 }
 
+function unwrapSessions(data: unknown): CashSession[] {
+  if (Array.isArray(data)) return data
+  if (data && typeof data === 'object' && Array.isArray((data as PagedResponse<CashSession>).items)) {
+    return (data as PagedResponse<CashSession>).items
+  }
+  return []
+}
+
 export const ShiftRemoteAPI = {
   getOpenSessions: async (posDeviceId: string): Promise<CashSession[]> => {
     const axios = AxiosService.getInstance()
 
     try {
       // 1. Kiểm tra ca ở trạng thái OPEN
-      const openRes = await axios.get<CashSession[]>('/v1/cash-sessions', {
+      const openRes = await axios.get<PagedResponse<CashSession> | CashSession[]>('/v1/cash-sessions', {
         params: { state: 'OPEN', posDeviceId },
       })
-      if (openRes.data && openRes.data.length > 0) {
-        return openRes.data
-      }
+      const openSessions = unwrapSessions(openRes.data)
+      if (openSessions.length > 0) return openSessions
 
       // 2. Kiểm tra ca ở trạng thái CLOSING
-      const closingRes = await axios.get<CashSession[]>('/v1/cash-sessions', {
-        params: { state: 'CLOSING', posDeviceId },
-      })
-      if (closingRes.data && closingRes.data.length > 0) {
-        return closingRes.data
-      }
+      const closingRes = await axios.get<PagedResponse<CashSession> | CashSession[]>(
+        '/v1/cash-sessions',
+        { params: { state: 'CLOSING', posDeviceId } },
+      )
+      const closingSessions = unwrapSessions(closingRes.data)
+      if (closingSessions.length > 0) return closingSessions
 
       // 3. Kiểm tra ca ở trạng thái RECONCILING
-      const reconcilingRes = await axios.get<CashSession[]>('/v1/cash-sessions', {
-        params: { state: 'RECONCILING', posDeviceId },
-      })
-      if (reconcilingRes.data && reconcilingRes.data.length > 0) {
-        return reconcilingRes.data
-      }
-    } catch {}
+      const reconcilingRes = await axios.get<PagedResponse<CashSession> | CashSession[]>(
+        '/v1/cash-sessions',
+        { params: { state: 'RECONCILING', posDeviceId } },
+      )
+      const reconcilingSessions = unwrapSessions(reconcilingRes.data)
+      if (reconcilingSessions.length > 0) return reconcilingSessions
+    } catch (e) {}
 
     return []
   },

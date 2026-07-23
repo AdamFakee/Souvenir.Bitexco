@@ -1,17 +1,17 @@
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import {
-  OrderRemoteAPI,
-  PosCartLine,
-  PosCheckoutRequest,
-  PosCheckoutResult,
+    OrderRemoteAPI,
+    PosCartLine,
+    PosCheckoutRequest,
+    PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
+import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { PrinterService } from '@/shared/services'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
 import { assign, fromPromise, setup } from 'xstate'
 import { PaymentResult } from '../types'
-import { getOrderErrorMessage } from '@/shared/features/order/constants'
-import { calculateVoucherDiscount, roundCashAmount } from '../utils'
+import { calculateVoucherDiscount, calculateLineDiscount, roundCashAmount } from '../utils'
 
 // ─── Saved Order Types ────────────────────────────────────────────────────────
 
@@ -102,15 +102,13 @@ export const cashPaymentMachine = setup({
             const unitId = item.product.unitId || (item.product as any).unit_id || '---'
             const qty = item.quantity
             const unitPrice = item.price || item.product.price
-            const discountAmount = item.discountAmount ?? 0
             const taxRate = item.product.taxRate ?? 8
-
             return {
               variantId,
               unitId,
               qty,
               unitPrice,
-              discountAmount,
+              discountAmount: 0,
               taxRate,
             }
           })

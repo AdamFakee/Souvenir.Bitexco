@@ -53,10 +53,14 @@ export interface ExchangeOrderContext {
   idempotencyKey: string
   shiftId: string
   staffId: string
-  selectedPayment: ExchangeSelectedPayment | null
+  /** last toggled return product — seed category suggest */
+  focusedReturnProductId: string | null
   result: ExchangeOrderResult | null
   error: string | null
   lookupLines: any[]
+  managerAuth: { employeeCode: string; pin: string } | null
+  managerAuthError: string | null
+  managerApprovalMessage: string | null
 }
 
 export type ExchangeOrderEvent =
@@ -69,9 +73,9 @@ export type ExchangeOrderEvent =
   | { type: 'UPDATE_REPLACEMENT_QTY'; variantId: string; qty: number }
   | { type: 'REMOVE_REPLACEMENT_ITEM'; variantId: string }
   | { type: 'SCAN_CODES'; codes: string[] }
-  | { type: 'SUBMIT'; payment?: ExchangeSelectedPayment | null }
-  | { type: 'PAYMENT_SUCCESS'; paymentResult: any }
-  | { type: 'PAYMENT_CANCEL' }
+  | { type: 'SUBMIT' }
+  | { type: 'SUBMIT_MANAGER_PIN'; managerAuth: { employeeCode: string; pin: string } }
+  | { type: 'CANCEL' }
   | { type: 'RESET' }
 
 type ExchangeProductInput = {
@@ -95,9 +99,12 @@ const DEFAULT_CONTEXT: ExchangeOrderContext = {
   idempotencyKey: '',
   shiftId: '',
   staffId: '',
-  selectedPayment: null,
+  focusedReturnProductId: null,
   result: null,
   error: null,
+  managerAuth: null,
+  managerAuthError: null,
+  managerApprovalMessage: null,
   lookupLines: [],
 }
 
@@ -151,7 +158,7 @@ export const calculateExchangeReplacementVat = (lines: ExchangeReplacementLine[]
 }
 
 export const calculateExchangeReplacementValue = (lines: ExchangeReplacementLine[]) => {
-  return calculateExchangeReplacementSubtotal(lines) + calculateExchangeReplacementVat(lines)
+  return calculateExchangeReplacementSubtotal(lines)
 }
 
 export const calculateExchangeDifference = (
@@ -230,7 +237,10 @@ const getValidationMessage = (context: ExchangeOrderContext) => {
     if (isExpired) {
       return 'Đơn hàng đã quá hạn 1 ngày (24 giờ), không được phép đổi hàng.'
     }
-    return 'Đơn hàng không đủ điều kiện đổi (trạng thái không hợp lệ, có voucher hoặc đã bị khóa đổi).'
+    if (context.order.originalOrderId) {
+      return 'Đơn hàng đã được đổi trước đó, không đổi lại được.'
+    }
+    return 'Đơn hàng không đủ điều kiện đổi (trạng thái, voucher/KM, đã trả, hoặc công nợ).'
   }
 
   const selectedReturnLines = context.returnedLines.filter((line) => line.qty > 0)
@@ -252,18 +262,8 @@ const getValidationMessage = (context: ExchangeOrderContext) => {
 
   const returnedValue = calculateExchangeReturnedValue(context.order, context.returnedLines)
   const replacementValue = calculateExchangeReplacementValue(context.replacementLines)
-  if (replacementValue < returnedValue) {
-    return 'Giá trị hàng đổi mới phải lớn hơn hoặc bằng giá trị hàng trả.'
-  }
-
-  const difference = Math.max(0, replacementValue - returnedValue)
-  if (difference > 0 && !context.selectedPayment) {
-    return 'Vui lòng chọn phương thức thanh toán cho phần chênh lệch.'
-  }
-  if (difference > 0 && context.selectedPayment) {
-    if (context.selectedPayment.amount < difference) {
-      return 'Số tiền thanh toán chưa đủ phần chênh lệch.'
-    }
+  if (replacementValue !== returnedValue) {
+    return 'Chỉ hỗ trợ đổi sản phẩm có cùng giá với sản phẩm trên hóa đơn gốc.'
   }
 
   return null
@@ -340,8 +340,6 @@ export const exchangeOrderMachine = setup({
       async ({ input }: { input: ExchangeOrderContext }): Promise<ExchangeOrderResult> => {
         if (!input.order) throw new Error('Không tìm thấy đơn hàng cần đổi.')
 
-        const replacementValue = calculateExchangeReplacementValue(input.replacementLines)
-
         const mappedReturnLines = await Promise.all(
           input.returnedLines
             .filter((line) => line.qty > 0)
@@ -415,21 +413,16 @@ export const exchangeOrderMachine = setup({
             }),
         )
 
-        const returnedValue = calculateExchangeReturnedValue(input.order, input.returnedLines)
-        const difference = Math.max(0, replacementValue - returnedValue)
-        const payments =
-          difference <= 0
-            ? []
-            : [
-                {
-                  method: input.selectedPayment?.method ?? 'cash',
-                  amount: difference,
-                  provider: input.selectedPayment?.provider ?? null,
-                  cardTerminalId: input.selectedPayment?.cardTerminalId ?? null,
-                },
-              ]
+        const paymentsPayload = [
+          {
+            method: 'cash' as const,
+            amount: 0,
+            provider: null,
+            cardTerminalId: null,
+          },
+        ]
 
-        return await OrderRemoteAPI.exchangeOrder({
+        const payload = {
           orderId: input.order.id,
           idempotencyKey: input.idempotencyKey,
           reason: input.reason.trim(),
@@ -437,13 +430,41 @@ export const exchangeOrderMachine = setup({
           staffId: input.staffId,
           returnLines: mappedReturnLines,
           newLines: input.replacementLines.filter((line) => line.qty > 0).map(toReplacementRequest),
-          payments,
-        })
+          payments: paymentsPayload,
+          managerAuth: input.managerAuth,
+        }
+
+        try {
+          const res = await OrderRemoteAPI.exchangeOrder(payload)
+          return res
+        } catch (err: any) {
+          throw err
+        }
       },
     ),
   },
   guards: {
     canSubmit: ({ context }) => getValidationMessage(context) === null,
+    isManagerAuthError: ({ event }) => {
+      const error = (event as any).error
+      const errData = error?.response?.data
+      const code = errData?.errorCode || errData?.error || (error instanceof OrderApiError ? error.code : undefined)
+      return (
+        code === 'auth.invalid_manager_credentials' ||
+        code === 'auth.insufficient_manager_permissions'
+      )
+    },
+    needsManagerApproval: ({ event }) => {
+      const error = (event as any).error
+      const errData = error?.response?.data
+      const code = errData?.errorCode || errData?.error || (error instanceof OrderApiError ? error.code : undefined)
+      const status = error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
+      return (
+        status === 403 ||
+        code === 'order.manager_approval_required' ||
+        code === 'refund.cashier_threshold'
+      )
+    },
   },
   actions: {
     setOrder: assign(({ event }) => {
@@ -456,13 +477,6 @@ export const exchangeOrderMachine = setup({
         idempotencyKey: createIdempotencyKey(),
       }
     }),
-    setSelectedPayment: assign(({ event }) => {
-      if (event.type !== 'SUBMIT') return {}
-      return {
-        selectedPayment: event.payment ?? null,
-        error: null,
-      }
-    }),
     setReason: assign({
       reason: ({ event }) => (event.type === 'SET_REASON' ? event.reason : ''),
       error: null,
@@ -473,21 +487,32 @@ export const exchangeOrderMachine = setup({
       const qty = Math.min(Math.max(0, Math.floor(Number(event.qty) || 0)), maxQuantity)
       return {
         returnedLines: upsertReturnLineQuantity(context.returnedLines, event.productId, qty),
+        focusedReturnProductId: event.productId,
         error: null,
       }
     }),
-    setAllReturnLines: assign(({ context }) => ({
-      returnedLines:
-        context.order?.itemsSnapshot?.map((item) => ({
-          productId: item.productId,
-          qty: item.quantity,
-        })) ?? [],
-      error: null,
-    })),
+    setAllReturnLines: assign(({ context }) => {
+      const firstId = context.order?.itemsSnapshot?.[0]?.productId ?? null
+      return {
+        returnedLines:
+          context.order?.itemsSnapshot?.map((item) => ({
+            productId: item.productId,
+            qty: item.quantity,
+          })) ?? [],
+        focusedReturnProductId: firstId,
+        error: null,
+      }
+    }),
     clearReturnLine: assign(({ context, event }) => {
       if (event.type !== 'CLEAR_RETURN_LINE') return {}
+      const returnedLines = context.returnedLines.filter((line) => line.productId !== event.productId)
+      const focusedReturnProductId =
+        context.focusedReturnProductId === event.productId
+          ? returnedLines[0]?.productId ?? null
+          : context.focusedReturnProductId
       return {
-        returnedLines: context.returnedLines.filter((line) => line.productId !== event.productId),
+        returnedLines,
+        focusedReturnProductId,
         error: null,
       }
     }),
@@ -569,17 +594,32 @@ export const exchangeOrderMachine = setup({
     },
     notifyError: ({ event }) => {
       const error = (event as any).error
-      const message =
-        error instanceof OrderApiError
-          ? getOrderErrorMessage(error.code, error.status)
-          : error?.message || 'Có lỗi xảy ra khi xử lý đổi hàng.'
-      toast.error(message)
+      const errData = error?.response?.data
+      const code =
+        errData?.errorCode ||
+        errData?.error ||
+        (error instanceof OrderApiError ? error.code : undefined)
+      const status =
+        error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
+      toast.error(
+        code
+          ? getOrderErrorMessage(code, status)
+          : error?.message || 'Có lỗi xảy ra khi xử lý đổi hàng.',
+      )
     },
     recordError: assign({
       error: ({ event }) => {
         const error = (event as any).error
-        if (error instanceof OrderApiError) return getOrderErrorMessage(error.code, error.status)
-        return error?.message || 'Có lỗi xảy ra khi xử lý đổi hàng.'
+        const errData = error?.response?.data
+        const code =
+          errData?.errorCode ||
+          errData?.error ||
+          (error instanceof OrderApiError ? error.code : undefined)
+        const status =
+          error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
+        return code
+          ? getOrderErrorMessage(code, status)
+          : error?.message || 'Có lỗi xảy ra khi xử lý đổi hàng.'
       },
       pendingScanCodes: [],
     }),
@@ -587,10 +627,7 @@ export const exchangeOrderMachine = setup({
       lookupLines: ({ event }) => (event as any).output?.lines || [],
       error: null,
     }),
-    resetContext: assign(DEFAULT_CONTEXT),
-    showDevelopmentToast: () => {
-      toast.info('Tính năng đang phát triển')
-    },
+    resetContext: assign(() => ({ ...DEFAULT_CONTEXT })),
   },
 }).createMachine({
   id: 'exchangeOrder',
@@ -652,7 +689,10 @@ export const exchangeOrderMachine = setup({
         },
         SUBMIT: {
           target: 'validating',
-          actions: 'setSelectedPayment',
+        },
+        CANCEL: {
+          target: 'idle',
+          actions: 'resetContext',
         },
         RESET: {
           target: 'idle',
@@ -690,51 +730,101 @@ export const exchangeOrderMachine = setup({
       invoke: {
         src: 'exchangeOrderActor',
         input: ({ context }) => context,
-        onDone: [
+        onDone: {
+          target: 'processing',
+          actions: 'assignResult',
+        },
+        onError: [
           {
-            target: 'waitingForOnlinePayment',
-            guard: ({ event }) => {
-              const payments = (event as any).output?.newOrder?.payments
-              return payments?.some(
-                (p: any) =>
-                  p.state === 'INITIATED' && (p.method === 'qr_bidv' || p.method === 'card_bidv'),
+            guard: 'isManagerAuthError',
+            target: 'waitingManagerApproval',
+            actions: assign({
+              managerAuthError: ({ event }) => {
+                const error = (event as any).error
+                const errData = error?.response?.data
+                return errData?.message || 'Thông tin phê duyệt của Quản lý không hợp lệ.'
+              },
+            }),
+          },
+          {
+            guard: ({ context, event }) => {
+              if (context.managerAuth !== null) return false
+              const error = (event as any).error
+              const errData = error?.response?.data
+              const code =
+                errData?.errorCode ||
+                errData?.error ||
+                (error instanceof OrderApiError ? error.code : undefined)
+              const status =
+                error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
+              return (
+                status === 403 ||
+                code === 'order.manager_approval_required' ||
+                code === 'refund.cashier_threshold'
               )
             },
-            actions: 'assignResult',
+            target: 'waitingManagerApproval',
+            actions: assign({
+              managerApprovalMessage: ({ event }) => {
+                const error = (event as any).error
+                const errData = error?.response?.data
+                return errData?.message || 'Yêu cầu quyền Quản lý để thực hiện đổi hàng.'
+              },
+            }),
           },
           {
-            target: 'receivingReturnedItems',
-            actions: 'assignResult',
+            guard: ({ context, event }) => {
+              if (context.managerAuth === null) return false
+              const error = (event as any).error
+              const errData = error?.response?.data
+              const code =
+                errData?.errorCode ||
+                errData?.error ||
+                (error instanceof OrderApiError ? error.code : undefined)
+              const status =
+                error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
+              return (
+                status === 403 ||
+                code === 'order.manager_approval_required' ||
+                code === 'refund.cashier_threshold'
+              )
+            },
+            target: 'waitingManagerApproval',
+            actions: assign({
+              managerAuthError: ({ event }) => {
+                const error = (event as any).error
+                const errData = error?.response?.data
+                return errData?.message || 'Tài khoản không có quyền phê duyệt.'
+              },
+            }),
+          },
+          {
+            target: 'draft',
+            actions: ['recordError', 'notifyError'],
           },
         ],
-        onError: {
-          target: 'draft',
-          actions: ['recordError', 'notifyError'],
-        },
       },
     },
-    // Exchange đã commit; chờ capture QR/thẻ. Cancel → draft + key mới (không undo server).
-    waitingForOnlinePayment: {
+    waitingManagerApproval: {
       on: {
-        PAYMENT_SUCCESS: {
-          target: 'receivingReturnedItems',
+        SUBMIT_MANAGER_PIN: {
+          actions: assign({
+            managerAuth: ({ event }) => event.managerAuth,
+            managerAuthError: null,
+          }),
+          target: 'submittingExchange',
         },
-        PAYMENT_CANCEL: {
+        CANCEL: {
           target: 'draft',
           actions: assign({
-            result: null,
-            selectedPayment: null,
-            idempotencyKey: () => createIdempotencyKey(),
+            managerAuth: null,
+            managerAuthError: null,
+            managerApprovalMessage: null,
           }),
         },
       },
     },
-    receivingReturnedItems: {
-      after: {
-        700: 'issuingReplacementItems',
-      },
-    },
-    issuingReplacementItems: {
+    processing: {
       after: {
         700: {
           target: 'completed',
@@ -749,7 +839,7 @@ export const exchangeOrderMachine = setup({
           actions: 'resetContext',
         },
         START: {
-          target: 'draft',
+          target: 'fetchingOrderDetails',
           actions: 'setOrder',
         },
       },

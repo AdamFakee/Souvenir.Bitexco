@@ -136,10 +136,7 @@ export const closeShiftMachine = setup({
     printZReport: fromPromise(async ({ input }: { input: { printRef: React.RefObject<any> } }) => {
       await new Promise((resolve) => setTimeout(resolve, 200))
       if (input.printRef && input.printRef.current) {
-        console.log('Printing Z-report via machine actor...')
         await PrinterService.printComponent(input.printRef)
-      } else {
-        console.warn('printRef.current is null, skipping print')
       }
     }),
   },

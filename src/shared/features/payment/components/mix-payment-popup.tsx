@@ -18,9 +18,10 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import * as v from 'valibot'
 
+import type { AppliedVoucher } from '@/shared/features/pos'
 import { mixPaymentMachine } from '../machines/mix-payment.machine'
 import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
-import { calculateSubtotal, calculateTotalTax, getMixPaymentSuggestions } from '../utils'
+import { calculateLineDiscount, calculateSubtotal, calculateTotalTax, getMixPaymentSuggestions } from '../utils'
 import {
   ManualCardDetailsFormData,
   manualCardDetailsSchema,
@@ -40,9 +41,10 @@ function buildReceiptOrder(
   discount: number,
   staffId: string,
   shiftId: string,
+  appliedVoucher: AppliedVoucher | null | undefined,
 ): IOrder {
   const orderId = checkoutResult?.orderCode || checkoutResult?.orderId || 'unknown'
-  const totalTax = calculateTotalTax(items)
+  const totalTax = calculateTotalTax(items, appliedVoucher)
 
   return {
     id: orderId,
@@ -59,17 +61,22 @@ function buildReceiptOrder(
     canReturn: false,
     createdAt: new Date(),
     updatedAt: new Date(),
-    itemsSnapshot: items.map((i) => ({
-      productId: i.product?.id,
-      sku: i.product?.sku,
-      name: i.product?.name,
-      price: i.price,
-      quantity: i.quantity,
-      subtotal: i.price * i.quantity,
-      taxRate: i.product?.taxRate ?? 0,
-      taxAmount: i.price * i.quantity * ((i.product?.taxRate ?? 0) / 100),
-      discountAmount: i.discountAmount ?? 0,
-    })),
+    itemsSnapshot: items.map((i) => {
+      const lineDiscount = calculateLineDiscount(i, items, appliedVoucher)
+      const netAmount = Math.max(0, i.price * i.quantity - lineDiscount)
+      const taxRate = i.product?.taxRate ?? 0
+      return {
+        productId: i.product?.id,
+        sku: i.product?.sku,
+        name: i.product?.name,
+        price: i.price,
+        quantity: i.quantity,
+        subtotal: i.price * i.quantity,
+        taxRate,
+        taxAmount: taxRate > 0 ? Math.round(netAmount * (taxRate / (100 + taxRate))) : 0,
+        discountAmount: lineDiscount,
+      }
+    }),
     paymentsSnapshot: [
       {
         method: 'cash',
@@ -135,7 +142,7 @@ export const MixPaymentPopup = memo(
       }, [paymentMethods])
 
       const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items)
+      const tax = calculateTotalTax(items, appliedVoucher)
 
       const actorRef = useActorRef(mixPaymentMachine, {
         input: {
@@ -448,28 +455,7 @@ export const MixPaymentPopup = memo(
         }
       }, [isCancelled, cashAmount, checkoutResult])
 
-      // Log error details for troubleshooting
-      useEffect(() => {
-        if (error) {
-          console.error('[MixPaymentPopup Error]', {
-            state: machineState,
-            error,
-            selectedMethod,
-            cashAmount,
-            nonCashAmount,
-            retryCount,
-            rawCommandResult,
-          })
-        }
-      }, [
-        error,
-        machineState,
-        selectedMethod,
-        cashAmount,
-        nonCashAmount,
-        retryCount,
-        rawCommandResult,
-      ])
+
 
       useImperativeHandle(
         ref,
@@ -984,6 +970,7 @@ export const MixPaymentPopup = memo(
             discount,
             staffId,
             shiftId,
+            appliedVoucher,
           )
         : null
 

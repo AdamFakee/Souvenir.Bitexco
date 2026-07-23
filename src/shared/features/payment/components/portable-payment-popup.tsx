@@ -8,16 +8,16 @@ import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle, CreditCard, Wifi } from 'lucide-react-native'
-import React, { forwardRef, useEffect, useImperativeHandle, useState, memo } from 'react'
+import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
 
 import {
-  getPortablePaymentStatusLabel,
-  portablePaymentMachine,
+    getPortablePaymentStatusLabel,
+    portablePaymentMachine,
 } from '../machines/portable-payment.machine'
 import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
-import { calculateSubtotal, calculateTotalTax } from '../utils'
+import { calculateLineDiscount, calculateSubtotal, calculateTotalTax } from '../utils'
 import { ManualCardDetailsFormData, manualCardDetailsSchema } from '../validation'
 
 const STAGES = ['Khởi tạo', 'Kết nối', 'Quẹt thẻ', 'Hoàn tất']
@@ -53,7 +53,7 @@ export const PortablePaymentPopup = memo(
       })
 
       const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items)
+      const tax = calculateTotalTax(items, appliedVoucher)
 
       const actorRef = useActorRef(portablePaymentMachine, {
         input: {
@@ -580,16 +580,22 @@ export const PortablePaymentPopup = memo(
                           subtotal,
                           discount,
                           totalTax: checkoutResult.taxTotal,
-                          itemsSnapshot: items.map((i) => ({
-                            sku: i.product.sku,
-                            name: i.product.name,
-                            price: i.product.price,
-                            quantity: i.quantity,
-                            subtotal: i.product.price * i.quantity,
-                            taxRate: i.product.taxRate || 0,
-                            taxAmount:
-                              i.product.price * i.quantity * ((i.product.taxRate || 0) / 100),
-                          })),
+                          itemsSnapshot: items.map((i) => {
+                            const lineDiscount = calculateLineDiscount(i, items, appliedVoucher)
+                            const preTax = i.price * i.quantity
+                            const netAmount = Math.max(0, preTax - lineDiscount)
+                            const taxRate = i.product.taxRate || 0
+                            return {
+                              sku: i.product.sku,
+                              name: i.product.name,
+                              price: i.price,
+                              quantity: i.quantity,
+                              subtotal: preTax,
+                              taxRate,
+                              taxAmount: taxRate > 0 ? Math.round(netAmount * (taxRate / (100 + taxRate))) : 0,
+                              discountAmount: lineDiscount,
+                            }
+                          }),
                           paymentsSnapshot: [
                             {
                               method: 'card_bidv',

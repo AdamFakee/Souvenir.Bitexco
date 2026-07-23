@@ -32,9 +32,9 @@ export function ProductSearch() {
 
   const renderProductItem = useCallback(
     ({ item: p }: { item: UnifiedProduct }) => {
-      // Giá sau thuế + làm tròn
+      // Đơn giá từ backend đã bao gồm thuế (Tax-inclusive)
       const taxRate = p.taxRate ?? 0
-      const priceAfterTax = Math.round(p.price * (1 + taxRate / 100))
+      const priceAfterTax = Math.round(p.price)
       return (
         <Pressable
           key={p.id}

@@ -78,7 +78,7 @@
     "react-native-gifted-charts": "^1.4.76",
     "react-native-keyboard-controller": "1.18.5",
     "react-native-mmkv": "^4.1.0",
-    "react-native-nitro-modules": "^0.33.9",
+    "react-native-nitro-modules": "^0.35.9",
     "react-native-printer-imin": "^0.10.11",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "~4.1.1",

@@ -1,25 +1,24 @@
-import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { assign, fromPromise, setup } from 'xstate'
-import {
-  OrderRemoteAPI,
-  RefundOrderLineRequest,
-  RefundOrderResult,
-} from '../api/remote/order.remote.api'
+import { OrderRemoteAPI, RefundOrderResult } from '../api/remote/order.remote.api'
 import { getOrderErrorMessage } from '../constants'
 import { IOrder } from '../types'
-import { checkCanReturn } from '../utils'
+import {
+  buildRefundPaymentsFromSnapshot,
+  checkCanReturn,
+  RefundPaymentAllocation,
+} from '../utils'
 
 export interface RefundOrderContext {
   order: IOrder | null
   reason: string
-  lines: { productId: string; qty: number }[]
-  lookupLines: any[]
   idempotencyKey: string
   refundAmount: number
+  previewRefundAmount: number
   shiftId: string
   staffId: string
+  refundPayments: RefundPaymentAllocation[]
   result: RefundOrderResult | null
   error: string | null
   managerAuth: { employeeCode: string; pin: string } | null
@@ -30,9 +29,6 @@ export interface RefundOrderContext {
 export type RefundOrderEvent =
   | { type: 'START'; order: IOrder; shiftId: string; staffId: string }
   | { type: 'SET_REASON'; reason: string }
-  | { type: 'SET_LINE_QTY'; productId: string; qty: number }
-  | { type: 'SET_ALL_LINES' }
-  | { type: 'CLEAR_LINE'; productId: string }
   | { type: 'SUBMIT' }
   | { type: 'SUBMIT_MANAGER_PIN'; managerAuth: { employeeCode: string; pin: string } }
   | { type: 'CANCEL' }
@@ -41,12 +37,12 @@ export type RefundOrderEvent =
 const DEFAULT_CONTEXT: RefundOrderContext = {
   order: null,
   reason: '',
-  lines: [],
-  lookupLines: [],
   idempotencyKey: '',
   refundAmount: 0,
+  previewRefundAmount: 0,
   shiftId: '',
   staffId: '',
+  refundPayments: [],
   result: null,
   error: null,
   managerAuth: null,
@@ -59,51 +55,22 @@ const createIdempotencyKey = () => {
   return `refund-${Date.now()}-${randomPart}`
 }
 
-const getOriginalQuantity = (order: IOrder | null, productId: string) => {
-  return order?.itemsSnapshot?.find((item) => item.productId === productId)?.quantity ?? 0
-}
-
-const getMaxRefundableQuantity = (order: IOrder | null, productId: string) => {
-  const item = order?.itemsSnapshot?.find((item) => item.productId === productId)
-  if (!item) return 0
-  const returnedQty = typeof item.returnedQty === 'number' ? item.returnedQty : 0
-  const maxRefundableQty =
-    typeof item.remainingQty === 'number' ? item.remainingQty : item.quantity - returnedQty
-  return Math.max(0, maxRefundableQty)
-}
-
-const upsertLineQuantity = (
-  lines: { productId: string; qty: number }[],
-  productId: string,
-  qty: number,
-): { productId: string; qty: number }[] => {
-  const normalizedQty = Math.max(0, Math.floor(Number(qty) || 0))
-  const nextLines = lines.filter((line) => line.productId !== productId)
-
-  if (normalizedQty === 0) return nextLines
-  return [...nextLines, { productId, qty: normalizedQty }]
-}
-
 const getValidationMessage = (context: RefundOrderContext) => {
-  if (!context.shiftId)
+  if (!context.shiftId) {
     return 'Không tìm thấy ca làm việc hiện tại. Vui lòng kiểm tra lại trạng thái ca.'
+  }
   if (!context.staffId) return 'Không tìm thấy nhân viên đang đăng nhập. Vui lòng đăng nhập lại.'
   if (!context.order) return 'Không tìm thấy đơn hàng cần trả.'
   if (!checkCanReturn(context.order)) {
-    return 'Trạng thái đơn hàng không cho phép trả hàng.'
+    return 'Đơn hàng không đủ điều kiện trả hàng (trạng thái, voucher/KM, đã trả, hoặc công nợ).'
   }
-  if (!context.lookupLines || context.lookupLines.length === 0) {
-    return 'Chưa tải xong hoặc không tìm thấy thông tin chi tiết đơn hàng trực tuyến.'
+
+  const payments = buildRefundPaymentsFromSnapshot(context.order.paymentsSnapshot)
+  if (!payments.ok) return payments.error
+  if (!context.refundPayments.length) {
+    return 'Không xác định được phương thức hoàn tiền.'
   }
-  const selectedLines = context.lines.filter((line) => line.qty > 0)
-  if (selectedLines.length === 0) return 'Vui lòng chọn ít nhất 1 sản phẩm để trả hàng.'
 
-  const hasInvalidQty = selectedLines.some((line) => {
-    const maxRefundableQty = getMaxRefundableQuantity(context.order, line.productId)
-    return line.qty <= 0 || line.qty > maxRefundableQty
-  })
-
-  if (hasInvalidQty) return 'Số lượng trả hàng không hợp lệ.'
   return null
 }
 
@@ -113,87 +80,9 @@ export const refundOrderMachine = setup({
     events: {} as RefundOrderEvent,
   },
   actors: {
-    lookupOrderActor: fromPromise(async ({ input }: { input: string }): Promise<any> => {
-      if (!input) throw new Error('Không tìm thấy thông tin đơn hàng.')
-      const response = await OrderRemoteAPI.lookupOrder(input)
-      return response
-    }),
     refundOrderActor: fromPromise(
       async ({ input }: { input: RefundOrderContext }): Promise<RefundOrderResult> => {
         if (!input.order) throw new Error('Không tìm thấy đơn hàng cần trả.')
-
-        const mappedLines: RefundOrderLineRequest[] = await Promise.all(
-          input.lines
-            .filter((line) => line.qty > 0)
-            .map(async (line) => {
-              const itemSnapshot = input.order?.itemsSnapshot?.find(
-                (item) => item.productId === line.productId,
-              )
-              const localIndex =
-                input.order?.itemsSnapshot?.findIndex(
-                  (item) => item.productId === line.productId,
-                ) ?? -1
-
-              let matchedLookupLine = null
-
-              // 1. Try direct ID match
-              let found = input.lookupLines?.find(
-                (l) => l.variantId === line.productId || l.productId === line.productId,
-              )
-
-              if (found) {
-                matchedLookupLine = found
-              } else if (localIndex !== -1 && input.lookupLines && input.lookupLines[localIndex]) {
-                // 2. Try index-based price match
-                const candidate = input.lookupLines[localIndex]
-                const snapshotPrice =
-                  itemSnapshot && itemSnapshot.quantity > 0
-                    ? itemSnapshot.subtotal / itemSnapshot.quantity
-                    : 0
-                if (Math.abs(snapshotPrice - candidate.unitPrice) < 2) {
-                  matchedLookupLine = candidate
-                }
-              }
-
-              // 3. Try fallback match by price only
-              if (!matchedLookupLine && input.lookupLines) {
-                const snapshotPrice =
-                  itemSnapshot && itemSnapshot.quantity > 0
-                    ? itemSnapshot.subtotal / itemSnapshot.quantity
-                    : 0
-                const foundByPrice = input.lookupLines.find(
-                  (l) => Math.abs(l.unitPrice - snapshotPrice) < 2,
-                )
-                if (foundByPrice) {
-                  matchedLookupLine = foundByPrice
-                }
-              }
-
-              let variantId = matchedLookupLine?.variantId
-
-              // 4. Try online SKU lookup if variantId is still unknown
-              if (!variantId && itemSnapshot?.sku) {
-                try {
-                  const remoteProduct = await ProductRemoteAPI.lookupProduct({
-                    sku: itemSnapshot.sku,
-                  })
-                  if (remoteProduct?.variantId) {
-                    variantId = remoteProduct.variantId
-                  }
-                } catch {}
-              }
-
-              // Final fallback
-              if (!variantId) {
-                variantId = line.productId
-              }
-
-              return {
-                variantId,
-                qty: line.qty,
-              }
-            }),
-        )
 
         const payload = {
           orderId: input.order.id,
@@ -201,20 +90,12 @@ export const refundOrderMachine = setup({
           reason: input.reason.trim(),
           shiftId: input.shiftId,
           staffId: input.staffId,
-          lines: mappedLines,
           managerAuth: input.managerAuth,
         }
+
         try {
-          const result = await OrderRemoteAPI.refundOrder(payload)
-          return result
+          return await OrderRemoteAPI.refundOrder(payload)
         } catch (error: any) {
-          console.log('[REFUND ORDER API ERROR] Payload:', JSON.stringify(payload, null, 2))
-          console.log('[REFUND ORDER API ERROR] Status:', error?.response?.status)
-          console.log(
-            '[REFUND ORDER API ERROR] Data:',
-            JSON.stringify(error?.response?.data, null, 2),
-          )
-          console.log('[REFUND ORDER API ERROR] Message:', error?.message)
           throw error
         }
       },
@@ -226,49 +107,27 @@ export const refundOrderMachine = setup({
   actions: {
     setOrder: assign(({ event }) => {
       if (event.type !== 'START') return {}
+
+      const paymentsResult = buildRefundPaymentsFromSnapshot(event.order.paymentsSnapshot)
+      const refundPayments = paymentsResult.ok ? paymentsResult.items : []
+      const previewRefundAmount =
+        event.order.total ??
+        refundPayments.reduce((sum, p) => sum + p.amount, 0)
+
       return {
         ...DEFAULT_CONTEXT,
         order: event.order,
         shiftId: event.shiftId,
         staffId: event.staffId,
         idempotencyKey: createIdempotencyKey(),
+        refundPayments,
+        previewRefundAmount,
+        error: paymentsResult.ok ? null : paymentsResult.error,
       }
     }),
     setReason: assign({
       reason: ({ event }) => (event.type === 'SET_REASON' ? event.reason : ''),
       error: null,
-    }),
-    setLineQuantity: assign(({ context, event }) => {
-      if (event.type !== 'SET_LINE_QTY' || !context.lookupLines?.length) return {}
-      const maxQuantity = getMaxRefundableQuantity(context.order, event.productId)
-      const qty = Math.min(Math.max(0, Math.floor(Number(event.qty) || 0)), maxQuantity)
-      return {
-        lines: upsertLineQuantity(context.lines, event.productId, qty),
-        error: null,
-      }
-    }),
-    setAllLines: assign(({ context }) => {
-      if (!context.lookupLines?.length) return {}
-      return {
-        lines:
-          context.order?.itemsSnapshot
-            ?.map((item) => {
-              const maxQty = getMaxRefundableQuantity(context.order, item.productId)
-              return {
-                productId: item.productId,
-                qty: maxQty,
-              }
-            })
-            .filter((line) => line.qty > 0) ?? [],
-        error: null,
-      }
-    }),
-    clearLine: assign(({ context, event }) => {
-      if (event.type !== 'CLEAR_LINE' || !context.lookupLines?.length) return {}
-      return {
-        lines: context.lines.filter((line) => line.productId !== event.productId),
-        error: null,
-      }
     }),
     recordValidationError: assign({
       error: ({ context }) => getValidationMessage(context),
@@ -283,11 +142,10 @@ export const refundOrderMachine = setup({
       error: null,
     }),
     notifySuccess: ({ context }) => {
-      toast.success(`Đã xử lý trả hàng cho đơn hàng #${context.order?.id ?? ''}`)
+      toast.success(`Đã xử lý trả hàng cho đơn hàng #${context.order?.code || context.order?.id || ''}`)
     },
     notifyError: ({ event }) => {
       const error = (event as any).error
-      console.log('[REFUND MACHINE notifyError] Event error detail:', error)
       const errData = error?.response?.data
       const code = errData?.errorCode || errData?.error
       const status = error?.response?.status
@@ -307,11 +165,7 @@ export const refundOrderMachine = setup({
           : error?.message || 'Có lỗi xảy ra khi xử lý trả hàng.'
       },
     }),
-    assignLookupLines: assign({
-      lookupLines: ({ event }) => (event as any).output?.lines || [],
-      error: null,
-    }),
-    resetContext: assign(DEFAULT_CONTEXT),
+    resetContext: assign(() => ({ ...DEFAULT_CONTEXT })),
   },
 }).createMachine({
   id: 'refundOrder',
@@ -321,42 +175,19 @@ export const refundOrderMachine = setup({
     idle: {
       on: {
         START: {
-          target: 'fetchingOrderDetails',
+          target: 'draft',
           actions: 'setOrder',
-        },
-      },
-    },
-    fetchingOrderDetails: {
-      invoke: {
-        src: 'lookupOrderActor',
-        input: ({ context }) => context.order?.id ?? '',
-        onDone: {
-          target: 'draft',
-          actions: 'assignLookupLines',
-        },
-        onError: {
-          target: 'draft',
-          actions: ['recordError', 'notifyError'],
         },
       },
     },
     draft: {
       on: {
         START: {
-          target: 'fetchingOrderDetails',
+          target: 'draft',
           actions: 'setOrder',
         },
         SET_REASON: {
           actions: 'setReason',
-        },
-        SET_LINE_QTY: {
-          actions: 'setLineQuantity',
-        },
-        SET_ALL_LINES: {
-          actions: 'setAllLines',
-        },
-        CLEAR_LINE: {
-          actions: 'clearLine',
         },
         SUBMIT: {
           target: 'validating',
@@ -388,7 +219,7 @@ export const refundOrderMachine = setup({
         src: 'refundOrderActor',
         input: ({ context }) => context,
         onDone: {
-          target: 'receivingReturnedItems',
+          target: 'processing',
           actions: 'assignResult',
         },
         onError: [
@@ -414,7 +245,6 @@ export const refundOrderMachine = setup({
           {
             guard: ({ context, event }) => {
               if (context.managerAuth === null) return false
-
               const error = (event as any).error
               const errData = error?.response?.data
               const code = errData?.errorCode || errData?.error
@@ -437,7 +267,6 @@ export const refundOrderMachine = setup({
           {
             guard: ({ context, event }) => {
               if (context.managerAuth !== null) return false
-
               const error = (event as any).error
               const errData = error?.response?.data
               const code = errData?.errorCode || errData?.error
@@ -492,12 +321,7 @@ export const refundOrderMachine = setup({
         },
       },
     },
-    receivingReturnedItems: {
-      after: {
-        700: 'refundProcessing',
-      },
-    },
-    refundProcessing: {
+    processing: {
       after: {
         700: {
           target: 'completed',
@@ -512,7 +336,7 @@ export const refundOrderMachine = setup({
           actions: 'resetContext',
         },
         START: {
-          target: 'fetchingOrderDetails',
+          target: 'draft',
           actions: 'setOrder',
         },
       },

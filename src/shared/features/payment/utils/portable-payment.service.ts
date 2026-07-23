@@ -50,7 +50,6 @@ export const PortablePaymentService = {
     }
 
     const res = await PaymentPortable.doCommand(command)
-    console.log('[PortablePOS] Direct Command Response:', res)
     return res
   },
 }

@@ -1,8 +1,8 @@
 import { TenantConfig } from '@/shared/features/app/types/app.types'
 import {
-  OrderRemoteAPI,
-  PosCartLine,
-  PosCheckoutRequest,
+    OrderRemoteAPI,
+    PosCartLine,
+    PosCheckoutRequest,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
@@ -11,11 +11,12 @@ import { toast } from '@/shared/store/use-alert-store'
 import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import { createCancelOrderActor } from '../flows/cancel-order.actor'
+import { calculateLineDiscount } from '../utils'
 import {
-  checkQrPaymentStatusActor,
-  fetchQrActor,
-  forceCaptureQrActor,
-  voidPaymentActor,
+    checkQrPaymentStatusActor,
+    fetchQrActor,
+    forceCaptureQrActor,
+    voidPaymentActor,
 } from '../flows/qr-collection.actors'
 import { PAYMENT_ERROR_CODES, PaymentErrorCode, PaymentResult } from '../types'
 
@@ -88,7 +89,7 @@ export const qrPaymentMachine = setup({
           unitId,
           qty: item.quantity,
           unitPrice: item.price ?? item.product.price ?? 0,
-          discountAmount: item.discountAmount ?? 0,
+          discountAmount: 0,
           taxRate: item.product.taxRate ?? 8,
         }
       })

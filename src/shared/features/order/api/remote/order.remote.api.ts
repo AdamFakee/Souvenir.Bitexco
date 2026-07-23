@@ -15,7 +15,7 @@ import {
   Partner,
   RefundReceiptData,
 } from '../../types'
-import { checkCanReturn } from '../../utils'
+import { checkCanExchange, checkCanReturn } from '../../utils'
 
 // ─── POS Atomic Checkout ──────────────────────────────────────────────────────
 
@@ -134,6 +134,7 @@ interface OrderListApiItem {
   paymentsSnapshot?: PaymentSnapshot[] | null
   isDeleted: boolean
   canReturn?: boolean
+  canExchange?: boolean
   createdAt: string | number | Date
   updatedAt: string | number | Date
   totalRefunded?: number
@@ -171,20 +172,14 @@ export interface GetRemoteOrdersParams {
 }
 
 /**
- * Tham số hoàn tiền đơn hàng
+ * Tham số hoàn tiền full-order — BE tự resolve remaining lines từ orderId.
  */
-export interface RefundOrderLineRequest {
-  variantId: string
-  qty: number
-}
-
 export interface RefundOrderParams {
   orderId: string
   idempotencyKey: string
   reason: string
   shiftId: string
   staffId: string
-  lines: RefundOrderLineRequest[]
   managerAuth?: {
     employeeCode: string
     pin: string
@@ -252,7 +247,7 @@ export interface PosReturnResponse {
   orderCode: string
   refundAmount: number
   status: string
-  receipt?: any
+  receipt?: RefundReceiptData
 }
 
 export interface ExchangeReceiptData {
@@ -269,6 +264,38 @@ export interface ExchangeReceiptData {
   replacementLines: ExchangeReceiptLine[]
 }
 
+/** Hóa đơn đơn mới (hàng đổi vào) — in bill như checkout */
+export interface ExchangeSaleReceiptLine {
+  variantId?: string
+  productId?: string
+  sku?: string
+  name: string
+  qty: number
+  unitPrice: number
+  discountAmount?: number
+  taxRate?: number
+  taxAmount?: number
+  lineTotal: number
+}
+
+export interface ExchangeSaleReceipt {
+  orderId: string
+  orderCode: string
+  issuedAt?: string
+  reason?: string
+  originalOrderId?: string
+  originalOrderCode?: string
+  subTotal: number
+  discountTotal?: number
+  voucherDiscount?: number
+  taxTotal: number
+  grandTotal: number
+  paidTotal?: number
+  change?: number
+  lines: ExchangeSaleReceiptLine[]
+  payments?: { method?: string; amount?: number }[]
+}
+
 export interface ExchangeOrderResult {
   originalOrderId: string
   originalOrderCode: string
@@ -277,6 +304,8 @@ export interface ExchangeOrderResult {
   refundValue: number
   newOrderTotal: number
   difference: number
+  /** Hóa đơn hàng mua vào (đơn mới) — BE nên trả để FE in */
+  receipt?: ExchangeSaleReceipt
 }
 
 export interface CancelOrderParams {
@@ -350,10 +379,27 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   itemsSnapshot: order.itemsSnapshot ?? [],
   paymentsSnapshot: order.paymentsSnapshot ?? [],
   isDeleted: order.isDeleted ?? false,
-  // Trạng thái cho phép trả hàng theo helper thống nhất
-  canReturn:
-    order.canReturn ??
-    checkCanReturn({ status: order.status || order.state, canReturn: order.canReturn }),
+  // Eligibility thống nhất: voucher/status/return/cong_no (voucher luôn chặn)
+  canReturn: checkCanReturn({
+    status: order.status || order.state,
+    canReturn: order.canReturn,
+    voucherCode: order.voucherCode,
+    voucherDiscount: order.voucherDiscount,
+    discount: order.discount,
+    returnStatus: order.returnStatus,
+    paymentsSnapshot: order.paymentsSnapshot ?? [],
+  }),
+  canExchange: order.canExchange !== undefined ? order.canExchange : checkCanExchange({
+    status: order.status || order.state,
+    canReturn: order.canReturn,
+    voucherCode: order.voucherCode,
+    voucherDiscount: order.voucherDiscount,
+    discount: order.discount,
+    returnStatus: order.returnStatus,
+    paymentsSnapshot: order.paymentsSnapshot ?? [],
+    createdAt: order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt).toISOString(),
+    originalOrderId: order.originalOrderId,
+  }),
   createdAt: new Date(order.createdAt),
   updatedAt: new Date(order.updatedAt),
   totalRefunded: order.totalRefunded ?? 0,
@@ -625,11 +671,12 @@ export const OrderRemoteAPI = {
   },
 
   /**
-   * Trả hàng/hoàn tiền online bằng endpoint atomic.
+   * Trả hàng full-order online (atomic).
+   * BE tự full remaining từ orderId — FE không gửi lines.
    * Backend trả raw JSON object, không có envelope { success, data }.
    */
   refundOrder: async (params: RefundOrderParams): Promise<RefundOrderResult> => {
-    const { orderId, idempotencyKey, reason, shiftId, staffId, lines, managerAuth } = params
+    const { orderId, idempotencyKey, reason, shiftId, staffId, managerAuth } = params
 
     try {
       const response = await AxiosService.getInstance().post<RefundOrderResult>(
@@ -639,7 +686,6 @@ export const OrderRemoteAPI = {
           reason,
           shiftId,
           staffId,
-          lines,
           ...(managerAuth
             ? {
                 managerAuth: {
@@ -693,14 +739,10 @@ export const OrderRemoteAPI = {
           : {}),
       }
 
-      console.log('>>> [ExchangeOrder API] REQUEST PAYLOAD:', JSON.stringify(payload, null, 2))
-
       const response = await AxiosService.getInstance().post<ExchangeOrderResult>(
         `/v1/pos/orders/${orderId}/exchange`,
         payload,
       )
-
-      console.log('>>> [ExchangeOrder API] RESPONSE DATA:', JSON.stringify(response.data, null, 2))
 
       return response.data
     } catch (error) {
@@ -712,11 +754,6 @@ export const OrderRemoteAPI = {
       const data = typedError?.response?.data
       const code = typeof data?.error === 'string' ? data.error : undefined
       const traceId = typeof data?.traceId === 'string' ? data.traceId : undefined
-
-      console.error(
-        '>>> [ExchangeOrder API] ERROR RESPONSE:',
-        JSON.stringify(typedError?.response?.data || typedError.message, null, 2),
-      )
 
       throw new OrderApiError(code || typedError?.message || 'order.exchange_failed', {
         code,
@@ -759,21 +796,13 @@ export const OrderRemoteAPI = {
    * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
    */
   checkout: async (payload: PosCheckoutRequest): Promise<PosCheckoutResult> => {
-    console.log('[checkout API INPUT] Payload:', JSON.stringify(payload, null, 2))
     try {
       const res = await AxiosService.getInstance().post<PosCheckoutResult>(
         '/v1/pos/checkout',
         payload,
       )
-      console.log('[checkout API RESPONSE] Data:', JSON.stringify(res.data, null, 2))
       return res.data
     } catch (error) {
-      const typedError = error as { message?: string; response?: { data?: unknown } }
-      console.error(
-        '[checkout API ERROR]:',
-        typedError?.message,
-        typedError?.response?.data || error,
-      )
       throw error
     }
   },
@@ -823,12 +852,6 @@ export const OrderRemoteAPI = {
         pageSize: data.pageSize || params?.limit || 10,
       }
     } catch (err) {
-      const typedErr = err as { message?: string; response?: { data?: unknown } }
-      console.error(
-        '[getAffiliates API ERROR]:',
-        typedErr?.message,
-        typedErr?.response?.data || err,
-      )
       throw err
     }
   },
@@ -862,8 +885,6 @@ export const OrderRemoteAPI = {
         pageSize: data.pageSize || params?.limit || 10,
       }
     } catch (err) {
-      const typedErr = err as { message?: string; response?: { data?: unknown } }
-      console.error('[getPartners API ERROR]:', typedErr?.message, typedErr?.response?.data || err)
       throw err
     }
   },
