@@ -389,17 +389,23 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
     returnStatus: order.returnStatus,
     paymentsSnapshot: order.paymentsSnapshot ?? [],
   }),
-  canExchange: order.canExchange !== undefined ? order.canExchange : checkCanExchange({
-    status: order.status || order.state,
-    canReturn: order.canReturn,
-    voucherCode: order.voucherCode,
-    voucherDiscount: order.voucherDiscount,
-    discount: order.discount,
-    returnStatus: order.returnStatus,
-    paymentsSnapshot: order.paymentsSnapshot ?? [],
-    createdAt: order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt).toISOString(),
-    originalOrderId: order.originalOrderId,
-  }),
+  canExchange:
+    order.canExchange !== undefined
+      ? order.canExchange
+      : checkCanExchange({
+          status: order.status || order.state,
+          canReturn: order.canReturn,
+          voucherCode: order.voucherCode,
+          voucherDiscount: order.voucherDiscount,
+          discount: order.discount,
+          returnStatus: order.returnStatus,
+          paymentsSnapshot: order.paymentsSnapshot ?? [],
+          createdAt:
+            order.createdAt instanceof Date
+              ? order.createdAt
+              : new Date(order.createdAt).toISOString(),
+          originalOrderId: order.originalOrderId,
+        }),
   createdAt: new Date(order.createdAt),
   updatedAt: new Date(order.updatedAt),
   totalRefunded: order.totalRefunded ?? 0,

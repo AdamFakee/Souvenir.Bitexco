@@ -57,8 +57,16 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
     >
       <View style={{ gap: 4 }}>
         <SummaryRow label="Hàng trả" value={formatCurrency(returnedValue)} valueColor={ERROR} />
-        <SummaryRow label="Hàng mới" value={formatCurrency(replacementSubtotal)} valueColor={BRAND} />
-        <SummaryRow label="VAT hàng mới" value={formatCurrency(replacementVat)} valueColor={BRAND} />
+        <SummaryRow
+          label="Hàng mới"
+          value={formatCurrency(replacementSubtotal)}
+          valueColor={BRAND}
+        />
+        <SummaryRow
+          label="VAT hàng mới"
+          value={formatCurrency(replacementVat)}
+          valueColor={BRAND}
+        />
 
         <View className="mt-2" style={{ borderTopWidth: 1, borderColor: BORDER, paddingTop: 10 }}>
           <View className="flex-row items-center justify-between">

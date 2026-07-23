@@ -4,11 +4,7 @@ import { assign, fromPromise, setup } from 'xstate'
 import { OrderRemoteAPI, RefundOrderResult } from '../api/remote/order.remote.api'
 import { getOrderErrorMessage } from '../constants'
 import { IOrder } from '../types'
-import {
-  buildRefundPaymentsFromSnapshot,
-  checkCanReturn,
-  RefundPaymentAllocation,
-} from '../utils'
+import { buildRefundPaymentsFromSnapshot, checkCanReturn, RefundPaymentAllocation } from '../utils'
 
 export interface RefundOrderContext {
   order: IOrder | null
@@ -111,8 +107,7 @@ export const refundOrderMachine = setup({
       const paymentsResult = buildRefundPaymentsFromSnapshot(event.order.paymentsSnapshot)
       const refundPayments = paymentsResult.ok ? paymentsResult.items : []
       const previewRefundAmount =
-        event.order.total ??
-        refundPayments.reduce((sum, p) => sum + p.amount, 0)
+        event.order.total ?? refundPayments.reduce((sum, p) => sum + p.amount, 0)
 
       return {
         ...DEFAULT_CONTEXT,
@@ -142,7 +137,9 @@ export const refundOrderMachine = setup({
       error: null,
     }),
     notifySuccess: ({ context }) => {
-      toast.success(`Đã xử lý trả hàng cho đơn hàng #${context.order?.code || context.order?.id || ''}`)
+      toast.success(
+        `Đã xử lý trả hàng cho đơn hàng #${context.order?.code || context.order?.id || ''}`,
+      )
     },
     notifyError: ({ event }) => {
       const error = (event as any).error

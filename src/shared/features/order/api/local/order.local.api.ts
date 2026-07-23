@@ -114,7 +114,8 @@ export const OrderLocalAPI = {
     // Xây snapshot items
     const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => {
       const taxRate = i.product.taxRate || 0
-      const taxAmount = taxRate > 0 ? Math.round(i.price * i.quantity * (taxRate / (100 + taxRate))) : 0
+      const taxAmount =
+        taxRate > 0 ? Math.round(i.price * i.quantity * (taxRate / (100 + taxRate))) : 0
       return {
         productId: i.product.id,
         sku: i.product.sku,
@@ -178,7 +179,8 @@ export const OrderLocalAPI = {
   createOrderByQr: async (payload: CheckoutPayload): Promise<OrderModel> => {
     const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => {
       const taxRate = i.product.taxRate || 0
-      const taxAmount = taxRate > 0 ? Math.round(i.price * i.quantity * (taxRate / (100 + taxRate))) : 0
+      const taxAmount =
+        taxRate > 0 ? Math.round(i.price * i.quantity * (taxRate / (100 + taxRate))) : 0
       return {
         productId: i.product.id,
         sku: i.product.sku,
@@ -225,7 +227,8 @@ export const OrderLocalAPI = {
   createOrderByPos: async (payload: CheckoutPayload): Promise<OrderModel> => {
     const itemsSnapshot: ItemSnapshot[] = payload.items.map((i) => {
       const taxRate = i.product.taxRate || 0
-      const taxAmount = taxRate > 0 ? Math.round(i.price * i.quantity * (taxRate / (100 + taxRate))) : 0
+      const taxAmount =
+        taxRate > 0 ? Math.round(i.price * i.quantity * (taxRate / (100 + taxRate))) : 0
       return {
         productId: i.product.id,
         sku: i.product.sku,

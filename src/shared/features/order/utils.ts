@@ -86,11 +86,7 @@ export const checkCanReturn = (order: {
 }): boolean => {
   if (order.canReturn === false) return false
 
-  if (
-    order.voucherCode ||
-    ((order.voucherDiscount ?? 0) > 0) ||
-    ((order.discount ?? 0) > 0)
-  ) {
+  if (order.voucherCode || (order.voucherDiscount ?? 0) > 0 || (order.discount ?? 0) > 0) {
     return false
   }
 

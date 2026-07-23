@@ -1,4 +1,8 @@
-import { calculateVoucherDiscount, calculateTotalTax, calculateSubtotal } from '@/shared/features/payment'
+import {
+  calculateVoucherDiscount,
+  calculateTotalTax,
+  calculateSubtotal,
+} from '@/shared/features/payment'
 import { usePosStore } from '@/shared/features/pos'
 import { CartItem } from '@/shared/features/pos/types/cart.types'
 import { toast } from '@/shared/store'

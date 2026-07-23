@@ -1,8 +1,8 @@
 import { TenantConfig } from '@/shared/features/app/types/app.types'
 import {
-    OrderRemoteAPI,
-    PosCartLine,
-    PosCheckoutRequest,
+  OrderRemoteAPI,
+  PosCartLine,
+  PosCheckoutRequest,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
@@ -13,10 +13,10 @@ import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import { createCancelOrderActor } from '../flows/cancel-order.actor'
 import { calculateLineDiscount } from '../utils'
 import {
-    checkQrPaymentStatusActor,
-    fetchQrActor,
-    forceCaptureQrActor,
-    voidPaymentActor,
+  checkQrPaymentStatusActor,
+  fetchQrActor,
+  forceCaptureQrActor,
+  voidPaymentActor,
 } from '../flows/qr-collection.actors'
 import { PAYMENT_ERROR_CODES, PaymentErrorCode, PaymentResult } from '../types'
 

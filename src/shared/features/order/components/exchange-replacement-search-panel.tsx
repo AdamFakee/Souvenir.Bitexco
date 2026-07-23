@@ -61,14 +61,10 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
   const warehouseId = device?.warehouseId
 
   const skusKey = useMemo(
-    () =>
-      [...new Set(seedSkus.map((s) => s.trim()).filter(Boolean))].sort().join('|'),
+    () => [...new Set(seedSkus.map((s) => s.trim()).filter(Boolean))].sort().join('|'),
     [seedSkus],
   )
-  const skus = useMemo(
-    () => (skusKey ? skusKey.split('|') : []),
-    [skusKey],
-  )
+  const skus = useMemo(() => (skusKey ? skusKey.split('|') : []), [skusKey])
   const seedSkuSet = useMemo(() => new Set(skus), [skus])
 
   const categoryQuery = useInfiniteQuery({
@@ -185,9 +181,7 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
             }
           }}
           onEndReachedThreshold={0.35}
-          ListFooterComponent={
-            categoryQuery.isFetchingNextPage ? <LoadMore isLoading /> : null
-          }
+          ListFooterComponent={categoryQuery.isFetchingNextPage ? <LoadMore isLoading /> : null}
           renderItem={({ item, index }) => {
             const selected = selectedMap.get(item.id)
             const samePrice = suggestedUnitPrice != null && item.price === suggestedUnitPrice

@@ -150,16 +150,17 @@ export const ExchangeScreen = memo(function ExchangeScreen({
   }, [activeOrder, returnedLines])
 
   const seedSkus = useMemo(
-    () =>
-      selectedReturnItems
-        .map((i) => i.sku?.trim())
-        .filter((s): s is string => !!s),
+    () => selectedReturnItems.map((i) => i.sku?.trim()).filter((s): s is string => !!s),
     [selectedReturnItems],
   )
 
   const focusedItem = useMemo(() => {
     if (focusedReturnProductId) {
-      return selectedReturnItems.find((i) => i.productId === focusedReturnProductId) ?? selectedReturnItems[0] ?? null
+      return (
+        selectedReturnItems.find((i) => i.productId === focusedReturnProductId) ??
+        selectedReturnItems[0] ??
+        null
+      )
     }
     return selectedReturnItems[0] ?? null
   }, [focusedReturnProductId, selectedReturnItems])
@@ -438,13 +439,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
             {activeOrder.code || activeOrder.id} · {stepText}
           </Text>
         </View>
-        <IconButton
-          icon={X}
-          size={28}
-          color={TEXT_MUTED}
-          onPress={leave}
-          disabled={isProcessing}
-        />
+        <IconButton icon={X} size={28} color={TEXT_MUTED} onPress={leave} disabled={isProcessing} />
       </View>
 
       <View className="min-h-0 flex-1 flex-row px-3 pb-3 pt-2">
@@ -532,8 +527,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
           <View style={styles.managerCard}>
             <Text style={styles.managerTitle}>Cần duyệt quản lý</Text>
             <Text style={styles.managerSubtitle}>
-              {managerApprovalMessage ||
-                'Nhập tài khoản và PIN quản lý để phê duyệt đổi hàng.'}
+              {managerApprovalMessage || 'Nhập tài khoản và PIN quản lý để phê duyệt đổi hàng.'}
             </Text>
             <View style={{ gap: 12 }}>
               <ControlledInput

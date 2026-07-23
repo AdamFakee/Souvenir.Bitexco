@@ -13,8 +13,8 @@ import { useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
 
 import {
-    getPortablePaymentStatusLabel,
-    portablePaymentMachine,
+  getPortablePaymentStatusLabel,
+  portablePaymentMachine,
 } from '../machines/portable-payment.machine'
 import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
 import { calculateLineDiscount, calculateSubtotal, calculateTotalTax } from '../utils'
@@ -592,7 +592,10 @@ export const PortablePaymentPopup = memo(
                               quantity: i.quantity,
                               subtotal: preTax,
                               taxRate,
-                              taxAmount: taxRate > 0 ? Math.round(netAmount * (taxRate / (100 + taxRate))) : 0,
+                              taxAmount:
+                                taxRate > 0
+                                  ? Math.round(netAmount * (taxRate / (100 + taxRate)))
+                                  : 0,
                               discountAmount: lineDiscount,
                             }
                           }),

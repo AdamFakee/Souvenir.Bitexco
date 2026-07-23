@@ -61,7 +61,11 @@ export interface ZReportResponse {
 
 function unwrapSessions(data: unknown): CashSession[] {
   if (Array.isArray(data)) return data
-  if (data && typeof data === 'object' && Array.isArray((data as PagedResponse<CashSession>).items)) {
+  if (
+    data &&
+    typeof data === 'object' &&
+    Array.isArray((data as PagedResponse<CashSession>).items)
+  ) {
     return (data as PagedResponse<CashSession>).items
   }
   return []
@@ -73,9 +77,12 @@ export const ShiftRemoteAPI = {
 
     try {
       // 1. Kiểm tra ca ở trạng thái OPEN
-      const openRes = await axios.get<PagedResponse<CashSession> | CashSession[]>('/v1/cash-sessions', {
-        params: { state: 'OPEN', posDeviceId },
-      })
+      const openRes = await axios.get<PagedResponse<CashSession> | CashSession[]>(
+        '/v1/cash-sessions',
+        {
+          params: { state: 'OPEN', posDeviceId },
+        },
+      )
       const openSessions = unwrapSessions(openRes.data)
       if (openSessions.length > 0) return openSessions
 

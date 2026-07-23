@@ -85,4 +85,3 @@ export const calculateLineDiscount = (
   const share = (item.price * item.quantity) / applicableTotal
   return Math.round(totalDiscount * share)
 }
-

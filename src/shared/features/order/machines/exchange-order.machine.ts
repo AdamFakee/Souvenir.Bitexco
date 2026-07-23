@@ -448,7 +448,10 @@ export const exchangeOrderMachine = setup({
     isManagerAuthError: ({ event }) => {
       const error = (event as any).error
       const errData = error?.response?.data
-      const code = errData?.errorCode || errData?.error || (error instanceof OrderApiError ? error.code : undefined)
+      const code =
+        errData?.errorCode ||
+        errData?.error ||
+        (error instanceof OrderApiError ? error.code : undefined)
       return (
         code === 'auth.invalid_manager_credentials' ||
         code === 'auth.insufficient_manager_permissions'
@@ -457,8 +460,12 @@ export const exchangeOrderMachine = setup({
     needsManagerApproval: ({ event }) => {
       const error = (event as any).error
       const errData = error?.response?.data
-      const code = errData?.errorCode || errData?.error || (error instanceof OrderApiError ? error.code : undefined)
-      const status = error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
+      const code =
+        errData?.errorCode ||
+        errData?.error ||
+        (error instanceof OrderApiError ? error.code : undefined)
+      const status =
+        error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
       return (
         status === 403 ||
         code === 'order.manager_approval_required' ||
@@ -505,10 +512,12 @@ export const exchangeOrderMachine = setup({
     }),
     clearReturnLine: assign(({ context, event }) => {
       if (event.type !== 'CLEAR_RETURN_LINE') return {}
-      const returnedLines = context.returnedLines.filter((line) => line.productId !== event.productId)
+      const returnedLines = context.returnedLines.filter(
+        (line) => line.productId !== event.productId,
+      )
       const focusedReturnProductId =
         context.focusedReturnProductId === event.productId
-          ? returnedLines[0]?.productId ?? null
+          ? (returnedLines[0]?.productId ?? null)
           : context.focusedReturnProductId
       return {
         returnedLines,
@@ -756,7 +765,8 @@ export const exchangeOrderMachine = setup({
                 errData?.error ||
                 (error instanceof OrderApiError ? error.code : undefined)
               const status =
-                error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
+                error?.response?.status ??
+                (error instanceof OrderApiError ? error.status : undefined)
               return (
                 status === 403 ||
                 code === 'order.manager_approval_required' ||
@@ -782,7 +792,8 @@ export const exchangeOrderMachine = setup({
                 errData?.error ||
                 (error instanceof OrderApiError ? error.code : undefined)
               const status =
-                error?.response?.status ?? (error instanceof OrderApiError ? error.status : undefined)
+                error?.response?.status ??
+                (error instanceof OrderApiError ? error.status : undefined)
               return (
                 status === 403 ||
                 code === 'order.manager_approval_required' ||

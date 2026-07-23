@@ -116,7 +116,6 @@ export const PrinterService = {
 
       return { success: true }
     } catch (error) {
-
       throw error
     }
   },

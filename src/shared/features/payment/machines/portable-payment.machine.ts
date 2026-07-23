@@ -1,31 +1,31 @@
 import {
-    OrderRemoteAPI,
-    PosCartLine,
-    PosCheckoutRequest,
-    PosCheckoutResult,
+  OrderRemoteAPI,
+  PosCartLine,
+  PosCheckoutRequest,
+  PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import {
-    PAYMENT_ERROR_CODES,
-    PaymentErrorCode,
-    PaymentResult,
-    PortablePaymentCommandResult,
+  PAYMENT_ERROR_CODES,
+  PaymentErrorCode,
+  PaymentResult,
+  PortablePaymentCommandResult,
 } from '../types'
 
 import {
-    authorizePaymentActor,
-    cancelPaymentActor,
-    capturePaymentActor,
-    cardCaptureActor,
-    cardCaptureManualActor,
-    connectPosActor,
-    isCommunicationLossError,
-    processPaymentActor,
-    sendCardSaleCommandActor,
-    verifyLastTransactionActor,
+  authorizePaymentActor,
+  cancelPaymentActor,
+  capturePaymentActor,
+  cardCaptureActor,
+  cardCaptureManualActor,
+  connectPosActor,
+  isCommunicationLossError,
+  processPaymentActor,
+  sendCardSaleCommandActor,
+  verifyLastTransactionActor,
 } from '../flows/card-collection.actors'
 import { printReceiptActor } from '../flows/print.actors'
 

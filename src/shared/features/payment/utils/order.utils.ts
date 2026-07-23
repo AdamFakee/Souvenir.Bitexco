@@ -11,10 +11,7 @@ export const calculateSubtotal = (items: CartItem[]): number => {
 /**
  * Tính tổng tiền thuế VAT (trên giá net = đơn giá đã gồm thuế - giảm giá)
  */
-export const calculateTotalTax = (
-  items: CartItem[],
-  voucher?: AppliedVoucher | null,
-): number => {
+export const calculateTotalTax = (items: CartItem[], voucher?: AppliedVoucher | null): number => {
   return items.reduce((sum, item) => {
     const grossPrice = item.price * item.quantity
     const discount = voucher ? calculateLineDiscount(item, items, voucher) : 0
@@ -31,4 +28,3 @@ export const calculateTotalTax = (
 export const calculateTotalQuantity = (items: CartItem[]): number => {
   return items.reduce((sum, item) => sum + item.quantity, 0)
 }
-

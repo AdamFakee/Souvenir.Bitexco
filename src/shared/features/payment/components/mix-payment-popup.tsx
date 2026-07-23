@@ -21,7 +21,12 @@ import * as v from 'valibot'
 import type { AppliedVoucher } from '@/shared/features/pos'
 import { mixPaymentMachine } from '../machines/mix-payment.machine'
 import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
-import { calculateLineDiscount, calculateSubtotal, calculateTotalTax, getMixPaymentSuggestions } from '../utils'
+import {
+  calculateLineDiscount,
+  calculateSubtotal,
+  calculateTotalTax,
+  getMixPaymentSuggestions,
+} from '../utils'
 import {
   ManualCardDetailsFormData,
   manualCardDetailsSchema,
@@ -454,8 +459,6 @@ export const MixPaymentPopup = memo(
           return () => clearTimeout(timer)
         }
       }, [isCancelled, cashAmount, checkoutResult])
-
-
 
       useImperativeHandle(
         ref,

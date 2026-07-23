@@ -1,9 +1,9 @@
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import {
-    OrderRemoteAPI,
-    PosCartLine,
-    PosCheckoutRequest,
-    PosCheckoutResult,
+  OrderRemoteAPI,
+  PosCartLine,
+  PosCheckoutRequest,
+  PosCheckoutResult,
 } from '@/shared/features/order/api/remote/order.remote.api'
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'

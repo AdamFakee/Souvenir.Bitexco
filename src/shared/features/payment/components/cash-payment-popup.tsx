@@ -13,7 +13,13 @@ import type { CartItem, AppliedVoucher } from '@/shared/features/pos'
 import { OrderStatus } from '@/shared/lib/database'
 import { cashPaymentMachine, SavedOrder } from '../machines/cash-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
-import { calculateSubtotal, calculateTotalTax, calculateLineDiscount, getCashSuggestions, roundCashAmount } from '../utils'
+import {
+  calculateSubtotal,
+  calculateTotalTax,
+  calculateLineDiscount,
+  getCashSuggestions,
+  roundCashAmount,
+} from '../utils'
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 

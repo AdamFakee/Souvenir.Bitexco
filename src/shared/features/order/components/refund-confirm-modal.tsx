@@ -1,10 +1,4 @@
-import {
-  Button,
-  Chip,
-  ControlledInput,
-  IconButton,
-  ModalBase,
-} from '@/shared/components/ui'
+import { Button, Chip, ControlledInput, IconButton, ModalBase } from '@/shared/components/ui'
 import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { PrinterService } from '@/shared/services'
@@ -14,14 +8,7 @@ import { valibotResolver } from '@hookform/resolvers/valibot'
 import { FlashList } from '@shopify/flash-list'
 import { useMachine } from '@xstate/react'
 import { X } from 'lucide-react-native'
-import React, {
-  memo,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import React, { memo, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as v from 'valibot'
@@ -86,7 +73,6 @@ function PaymentCard({ payment }: { payment: RefundPaymentAllocation }) {
     </View>
   )
 }
-
 
 export const RefundConfirmModal = memo(
   React.forwardRef<RefundConfirmModalRef, RefundConfirmModalProps>(({ onSuccess }, ref) => {
@@ -223,24 +209,24 @@ export const RefundConfirmModal = memo(
 
         if (hasCashPortion && cashPayment) {
           checklistItems.push(
-            `Đã chi trả trực tiếp số tiền mặt ${formatCurrency(cashPayment.amount)} cho khách.`
+            `Đã chi trả trực tiếp số tiền mặt ${formatCurrency(cashPayment.amount)} cho khách.`,
           )
         }
 
         if (hasQrPortion && qrPayment) {
           checklistItems.push(
-            `Đã hướng dẫn khách hàng: số tiền hoàn QR ${formatCurrency(qrPayment.amount)} sẽ được kế toán đối soát ngân hàng và chuyển khoản trả lại sau 7-10 ngày làm việc.`
+            `Đã hướng dẫn khách hàng: số tiền hoàn QR ${formatCurrency(qrPayment.amount)} sẽ được kế toán đối soát ngân hàng và chuyển khoản trả lại sau 7-10 ngày làm việc.`,
           )
         }
 
         if (hasCardPortion && cardPayment) {
           checklistItems.push(
-            `Đã hướng dẫn và thực hiện thao tác VOID (hủy) giao dịch thẻ ${formatCurrency(cardPayment.amount)} thủ công trên máy POS vật lý.`
+            `Đã hướng dẫn và thực hiện thao tác VOID (hủy) giao dịch thẻ ${formatCurrency(cardPayment.amount)} thủ công trên máy POS vật lý.`,
           )
         }
 
         checklistItems.push(
-          'Đồng ý cập nhật báo cáo doanh thu và đối soát két ca bán hàng trên hệ thống.'
+          'Đồng ý cập nhật báo cáo doanh thu và đối soát két ca bán hàng trên hệ thống.',
         )
 
         businessChecklistModalRef.current?.open({
@@ -419,7 +405,11 @@ export const RefundConfirmModal = memo(
               <View className="flex-1 bg-gray-50">
                 <ScrollView
                   className="flex-1"
-                  contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 }}
+                  contentContainerStyle={{
+                    paddingHorizontal: 24,
+                    paddingTop: 20,
+                    paddingBottom: 16,
+                  }}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                 >
@@ -432,8 +422,11 @@ export const RefundConfirmModal = memo(
 
                   {refundPayments.length === 0 ? (
                     <View
-                      className="rounded-2xl border p-4 items-center justify-center"
-                      style={{ borderColor: 'rgba(220,38,38,0.15)', backgroundColor: 'rgba(220,38,38,0.04)' }}
+                      className="items-center justify-center rounded-2xl border p-4"
+                      style={{
+                        borderColor: 'rgba(220,38,38,0.15)',
+                        backgroundColor: 'rgba(220,38,38,0.04)',
+                      }}
                     >
                       <Text
                         className="text-base font-extrabold"
@@ -449,7 +442,7 @@ export const RefundConfirmModal = memo(
                   )}
 
                   <View
-                    className="mt-2 rounded-2xl border p-4 flex-row items-center justify-between shadow-sm"
+                    className="mt-2 flex-row items-center justify-between rounded-2xl border p-4 shadow-sm"
                     style={{
                       borderColor: 'rgba(28,78,104,0.12)',
                     }}
@@ -483,7 +476,7 @@ export const RefundConfirmModal = memo(
                         label={r}
                         active={reason === r}
                         onPress={() => send({ type: 'SET_REASON', reason: r })}
-                        className="h-13 self-start px-5 justify-center"
+                        className="h-13 justify-center self-start px-5"
                         textClassName="text-base font-bold"
                         disabled={!isDraft || isProcessing}
                       />
@@ -544,8 +537,7 @@ export const RefundConfirmModal = memo(
               <View style={styles.managerCard}>
                 <Text style={styles.managerCardTitle}>Cần duyệt quản lý</Text>
                 <Text style={styles.managerCardSubtitle}>
-                  {managerApprovalMessage ||
-                    'Nhập tài khoản và PIN quản lý để phê duyệt trả hàng.'}
+                  {managerApprovalMessage || 'Nhập tài khoản và PIN quản lý để phê duyệt trả hàng.'}
                 </Text>
 
                 <View style={styles.managerFormGroup}>
