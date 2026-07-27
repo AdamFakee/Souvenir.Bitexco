@@ -1,198 +1,144 @@
-# Báo cáo Lỗi Tính toán Checkout API (Backend)
+---
 
-Đội ngũ phát triển POS gửi thông tin lỗi tính toán trên Backend khi thực hiện checkout có áp dụng Voucher và VAT.
+## 1. Lỗi Auth & Trạng thái Phiên Làm Việc (Refresh Token Session Issue)
+
+### Case 5: Làm mới Token làm mất liên kết phiên bán hàng (Session Linkage Loss)
+
+- **API:** `POST /v1/device/auth/refresh`
+- **Request Payload từ FE (Gửi Refresh Token để gia hạn phiên làm việc):**
+  ```json
+  {
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uSWQiOiIwMTlmNjUyOC03NmJlLTcyY2MtYTI2My0yOGZiMTljNzI0NDAiLCJleHAiOjE3MTcyOTYwMDB9..."
+  }
+  ```
+- **Hành vi gặp lỗi (Real Behavior):**
+  1. API `/v1/device/auth/refresh` phản hồi thành công (`200 OK`) kèm theo cặp `accessToken` và `refreshToken` mới.
+  2. Tuy nhiên, cặp token mới này hoàn toàn bị tách rời khỏi session cũ. Backend không ánh xạ (map) token mới này tới:
+     - Phiên bán hàng đang hoạt động của thiết bị (`cashSessionId`).
+     - Thông tin phân quyền/ngữ cảnh thiết bị (device context) được thiết lập khi đăng nhập ban đầu.
+  3. Khi FE sử dụng `accessToken` mới này để thực hiện các nghiệp vụ tiếp theo (như `POST /v1/pos/checkout` hoặc `POST /v1/cash-sessions/close`), Backend trả về lỗi `403 Forbidden` hoặc `401 Unauthorized` kèm thông báo *"Không tìm thấy ca làm việc hoạt động"* hoặc *"Thiết bị chưa được kích hoạt/cấu hình"*, mặc dù trước khi refresh thì ca làm việc và thiết bị vẫn hoạt động bình thường.
+
+- **Kỳ vọng từ Backend (Expected Behavior):**
+  - Khi thực hiện Refresh Token, Backend phải truy vấn thông tin session/device context được liên kết với `refreshToken` cũ.
+  - Cặp `accessToken` và `refreshToken` mới sinh ra phải được tự động liên kết (link) sang cùng một session ID và ngữ cảnh thiết bị đó để đảm bảo quá trình làm việc của thu ngân diễn ra liên tục, không bị đứt gãy trạng thái đăng nhập hay mất ca bán hàng hiện tại.
 
 ---
 
-## 1. Tóm tắt các lỗi chính của Backend
+## 2. Lỗi tính toán sai thuế / tổng tiền đơn hàng khi đồng bộ Offline (Offline Order Sync Tax Double Calculation Issue)
 
-1. **Lỗi giảm giá 2 lần (Double Discount):**
-   - **Mô tả:** Backend tự động cộng dồn cả `discountAmount` (truyền trong từng dòng sản phẩm `lines`) và `voucherDiscount`/`voucherCode` (ở cấp độ root payload) vào tổng giảm giá `discountTotal`.
-   - **Hệ quả:** Khách hàng được giảm gấp đôi số tiền voucher (Ví dụ: voucher 12,000 VND -> Backend giảm 24,000 VND).
+- **API:** `POST /v1/pos/sync/orders`
+- **Request Payload từ FE (Gửi danh sách đơn hàng offline lên Server để đồng bộ):**
 
-2. **Lỗi tính VAT theo đơn giá gồm thuế (Tax-inclusive) thay vì trước thuế (Tax-exclusive):**
-   - **Mô tả:** Theo công thức quy chuẩn của POS:
-     - `giá_net = giá_trước_thuế - (giá_trước_thuế × %voucher)`
-     - `tiền_VAT = giá_net × %VAT`
-     - `thành_tiền = giá_net + tiền_VAT`
-     - _Với đơn giá trước thuế là 100,000 VND, voucher 12% (12,000 VND), VAT 8%: giá net = 88,000 VND; VAT = 7,040 VND; thành tiền = 95,040 VND._
-   - **Backend tính sai:** Backend coi đơn giá 100,000 VND đã bao gồm VAT nên quy đổi ngược:
-     - `giá_sau_giảm_gồm_thuế = 100,000 - 12,000 = 88,000`
-     - `giá_net_trước_thuế = 88,000 / 1.08 = 81,481`
-     - `taxTotal (VAT) = 81,481 × 8% = 6,519`
-     - `subTotal` (Tổng trước thuế trước giảm giá) = `81,481 + 12,000 = 93,481`
-   - **Hệ quả:** Tính sai lệch toàn bộ `subTotal`, `taxTotal` và `grandTotal`.
-
-3. **Lỗi tự ý thay đổi số tiền thanh toán của các cổng thanh toán QR/Thẻ (QR/Card Payment Amount):**
-   - **Mô tả:** Khi FE gửi yêu cầu thanh toán qua QR (`qr_bidv`) hoặc Thẻ (`card_bidv`) với số tiền khớp đúng với hóa đơn là `95,040` VND. Do Backend tính sai `grandTotal` thành `76,000` VND, Backend tự ý ghi đè số tiền giao dịch của cổng thanh toán xuống `76,000` VND trong phản hồi trả về.
-   - **Hệ quả:** Máy POS hoặc mã QR hiển thị sai số tiền thanh toán (thực tế khách phải trả 95,040 VND nhưng chỉ thu của khách 76,000 VND).
-
----
-
-## 2. Chi tiết Log & Dữ liệu Đối chiếu (Thực tế vs Kỳ vọng)
-
-### Case 1: Thanh toán Tiền mặt (Cash Checkout)
-
-- **API:** `POST /v1/pos/checkout`
-- **Request Payload từ FE (Gửi đúng số tiền khách trả 95,000 VND cho đơn giá 100,000 VND trước thuế, giảm 12,000 VND, VAT 8% = 95,040 VND):**
   ```json
   {
-    "cashSessionId": "019f6528-76be-72cc-a263-28fb19c72440",
-    "lines": [
+    "orders": [
       {
-        "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
-        "qty": 1,
-        "unitPrice": 100000,
-        "discountAmount": 12000,
-        "taxRate": 8
-      }
-    ],
-    "payments": [
-      {
-        "method": "cash",
-        "amount": 95000
-      }
-    ],
-    "voucherCode": "XXXXXXXXXX"
-  }
-  ```
-- **Response thực tế từ Backend (Sai):**
-  ```json
-  {
-    "subTotal": 93481, // SAI (Kỳ vọng: 100,000)
-    "discountTotal": 24000, // SAI - Bị nhân đôi (Kỳ vọng: 12,000)
-    "taxTotal": 6519, // SAI (Kỳ vọng: 7,040)
-    "grandTotal": 76000, // SAI (Kỳ vọng: 95,040)
-    "change": 19000, // SAI - Trả lại thừa do grandTotal sai (Kỳ vọng: 0)
-    "voucherDiscount": 12000
-  }
-  ```
-
----
-
-### Case 2: Thanh toán QR (QR BIDV Checkout)
-
-- **API:** `POST /v1/pos/checkout`
-- **Request Payload từ FE (Yêu cầu thanh toán QR đúng số tiền 95,040 VND):**
-  ```json
-  {
-    "lines": [
-      {
-        "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
-        "qty": 1,
-        "unitPrice": 100000,
-        "discountAmount": 12000,
-        "taxRate": 8
-      }
-    ],
-    "payments": [
-      {
-        "method": "qr_bidv",
-        "amount": 95040
-      }
-    ],
-    "voucherCode": "XXXXXXXXXX"
-  }
-  ```
-- **Response thực tế từ Backend (Sai):**
-  ```json
-  {
-    "grandTotal": 76000,
-    "payments": [
-      {
-        "method": "qr_bidv",
-        "amount": 76000, // SAI - Tự ý giảm số tiền QR từ 95,040 xuống 76,000
-        "state": "INITIATED"
+        "id": "71ef7d51-3446-4f09-a2c3-e7da1425672d",
+        "shiftId": "019f9235-54e0-771e-bd82-8c11a4851115",
+        "staffId": "e1000000-0000-0000-0000-000000000017",
+        "status": "COMPLETED",
+        "subTotal": 100000,
+        "discount": 0,
+        "voucherCode": null,
+        "voucherDiscount": 0,
+        "totalTax": 7407,
+        "total": 100000,
+        "note": null,
+        "refundReason": null,
+        "originalOrderId": null,
+        "customerTaxInfo": null,
+        "createdAt": "2026-07-24T09:45:28.507Z",
+        "updatedAt": "2026-07-24T09:45:28.507Z",
+        "itemsSnapshot": [
+          {
+            "productId": "019ef30d-0945-70fd-a2de-d5d32e2d6a5e",
+            "sku": "2030102000054",
+            "name": "Áo SKD xanh trời 3XL",
+            "price": 100000,
+            "quantity": 1,
+            "subtotal": 100000,
+            "taxRate": 8,
+            "taxAmount": 7407,
+            "discountAmount": 0
+          }
+        ],
+        "paymentsSnapshot": [
+          {
+            "method": "CASH",
+            "amount": 100000,
+            "cashTendered": 100000,
+            "cashChange": 0
+          }
+        ]
       }
     ]
   }
   ```
 
----
+- **Hành vi gặp lỗi (Real Behavior):**
+  - FE gửi lên đơn giá sản phẩm và tổng tiền là giá đã bao gồm thuế (ví dụ: `price: 100,000đ`, `subTotal: 100,000đ` với thuế `totalTax: 7,407đ` trích xuất bên trong).
+  - Tuy nhiên, Backend của API đồng bộ đơn hàng offline lại tự động cộng thêm thuế lần nữa trên giá trị này (tính thành `100,000 * 1.08 = 108,000đ` tổng thanh toán), dẫn tới lệch dữ liệu và sai tổng tiền đơn hàng khi hiển thị/đối soát trên hệ thống.
 
-### Case 3: Thanh toán Thẻ di động (Portable Card Checkout)
-
-- **API:** `POST /v1/pos/checkout`
-- **Request Payload từ FE (Yêu cầu thanh toán thẻ đúng số tiền 95,040 VND):**
-  ```json
-  {
-    "lines": [
-      {
-        "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
-        "qty": 1,
-        "unitPrice": 100000,
-        "discountAmount": 12000,
-        "taxRate": 8
-      }
-    ],
-    "payments": [
-      {
-        "method": "card_bidv",
-        "amount": 95040
-      }
-    ],
-    "voucherCode": "XXXXXXXXXX"
-  }
-  ```
-- **Response thực tế từ Backend (Sai):**
-  ```json
-  {
-    "grandTotal": 76000,
-    "payments": [
-      {
-        "method": "card_bidv",
-        "amount": 76000, // SAI - Tự ý giảm số tiền yêu cầu quẹt thẻ xuống 76,000
-        "state": "INITIATED"
-      }
-    ]
-  }
-  ```
+- **Kỳ vọng từ Backend (Expected Behavior):**
+  - Backend khi nhận đơn đồng bộ offline phải hoạt động giống hệt như API Checkout online (`POST /v1/pos/checkout`): trích xuất thuế VAT từ đơn giá đã bao gồm thuế được gửi lên, không được tự ý cộng thêm thuế chồng lên. Tổng tiền thanh toán (`total`) phải luôn bằng `subTotal - discount` đối với cấu hình sản phẩm giá đã bao gồm thuế (tax-inclusive).
 
 ---
 
-### Case 4: Thanh toán Hỗn hợp (Mix Payment - Cash + QR)
+## 3. Lỗi lọc sản phẩm đồng bộ theo thời gian (Sync Products Filtering Issue by lastSyncedAt)
 
-- **API:** `POST /v1/pos/checkout`
-- **Request Payload từ FE (Khách trả 10,000 VND tiền mặt + quẹt QR 85,040 VND):**
+- **API:** `GET /v1/pos/products/sync`
+- **Request Parameters từ FE (Gửi yêu cầu đồng bộ sản phẩm thay đổi):**
+
   ```json
   {
-    "lines": [
-      {
-        "variantId": "019ef30c-fc08-7d47-926f-81f3653c4deb",
-        "qty": 1,
-        "unitPrice": 100000,
-        "discountAmount": 12000,
-        "taxRate": 8
-      }
-    ],
-    "payments": [
-      {
-        "method": "cash",
-        "amount": 10000
-      },
-      {
-        "method": "qr_bidv",
-        "amount": 85040
-      }
-    ],
-    "voucherCode": "XXXXXXXXXX"
+    "lastSyncedAt": "2026-07-24T09:03:52.165Z",
+    "page": 0,
+    "limit": 200,
+    "warehouseId": "c0000000-0000-0000-0000-000000000002"
   }
   ```
-- **Response thực tế từ Backend (Sai):**
-  ```json
-  {
-    "grandTotal": 76000,
-    "payments": [
-      {
-        "method": "cash",
-        "amount": 10000,
-        "state": "CAPTURED"
-      },
-      {
-        "method": "qr_bidv",
-        "amount": 66000, // SAI - Tự ý giảm số tiền quẹt QR xuống 66,000 (76,000 - 10,000)
-        "state": "INITIATED"
-      }
-    ]
-  }
-  ```
+
+- **Hành vi gặp lỗi (Real Behavior):**
+  - Khi FE gửi tham số `lastSyncedAt` (thời điểm đồng bộ lần cuối cục bộ của thiết bị), Backend không thực hiện lọc hoặc lọc không chính xác các sản phẩm đã thay đổi.
+  - Kết quả là Backend trả về danh sách trống (`items: []`) mặc dù thực tế trên server có những sản phẩm vừa được cập nhật hoặc thêm mới (có `updatedAt` hoặc `createdAt` lớn hơn `lastSyncedAt`), làm cho thiết bị thu ngân không thể cập nhật thông tin sản phẩm mới nhất khi chạy đồng bộ incremental.
+
+- **Kỳ vọng từ Backend (Expected Behavior):**
+  - Backend cần so sánh thời điểm `lastSyncedAt` gửi lên với thuộc tính thời gian cập nhật/tạo của sản phẩm trên server (`updatedAt > lastSyncedAt` hoặc `createdAt > lastSyncedAt`).
+  - Chỉ trả về các sản phẩm đã được thay đổi hoặc tạo mới kể từ thời điểm `lastSyncedAt` để giảm thiểu tải băng thông và cập nhật chính xác dữ liệu dưới client.
+
+---
+
+## 4. Lỗi chưa trừ tiền mặt trong ca làm việc khi hoàn trả/đổi trả đơn hàng thành công (Cash Shift/Session Deduction on Return Issue)
+
+- **API:** `POST /v1/pos/orders/{id}/refund` và `GET /api/v1/shifts/:shiftId/statistics`
+
+- **Hành vi gặp lỗi (Real Behavior):**
+  - Đối với các đơn đổi trả thành công có liên quan đến hoàn trả tiền mặt (đơn gốc thanh toán bằng tiền mặt hoặc yêu cầu hoàn lại bằng tiền mặt), Backend xử lý tạo phiếu trả hàng thành công (`200 OK`) và tính toán đúng số tiền cần hoàn (`refundAmount`).
+  - Tuy nhiên, hệ thống chưa tự động trừ số tiền mặt hoàn trả này vào quỹ tiền mặt của ca làm việc (`shift_id`) hiện tại. Khi gọi API `GET /api/v1/shifts/:shiftId/statistics` hoặc thực hiện đóng ca, số tiền mặt dự kiến cuối ca (`expectedEndingCash`) vẫn giữ nguyên như thể chưa có giao dịch hoàn tiền mặt nào xảy ra, dẫn đến chênh lệch giữa số tiền thực tế trong két và số tiền ghi nhận trên hệ thống.
+
+- **Kỳ vọng từ Backend (Expected Behavior):**
+  - Đối với các đơn đổi trả thành công có phương thức thanh toán hoàn trả bằng tiền mặt (cash refund), Backend phải tự động trừ số tiền hoàn trả (`refundAmount`) trực tiếp vào quỹ tiền mặt của ca làm việc đó (`expectedEndingCash`).
+
+---
+
+## 5. Lỗi API lấy danh sách nhân viên khi không truyền shiftId hoặc shiftId bằng undefined (Get Employees without shiftId Issue)
+
+- **API:** `GET /v1/pos/employees`
+
+- **Hành vi gặp lỗi (Real Behavior):**
+  - Khi FE gọi API lấy danh sách toàn bộ nhân viên (không truyền tham số `shiftId` hoặc khi tham số này nhận giá trị `undefined`), Backend trả về danh sách rỗng (`[]`)
+  - Hiện tại, điều này làm lỗi phần lọc "Tất cả nhân viên" trên giao diện **Đơn hàng** và **Báo cáo**.
+
+- **Kỳ vọng từ Backend (Expected Behavior) & Định nghĩa Chi tiết API:**
+
+  ### Request Parameters (Query)
+
+  | Tham số   | Kiểu dữ liệu  | Bắt buộc | Mô tả                                                                                                                                                             |
+  | :-------- | :------------ | :------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `shiftId` | string (UUID) |  Không   | Lọc nhân viên có phiên làm việc (ca) tương ứng. Nếu không truyền hoặc truyền `undefined`/`null`/`""` -> Mặc định trả về tất cả nhân viên.                         |
+  | `status`  | string        |  Không   | Lọc theo trạng thái hoạt động: `active` hoặc `inactive` (hoặc dạng hoa `ACTIVE`/`INACTIVE`).                                                                      |
+  | `isPos`   | boolean       |  Không   | `true` để chỉ lấy nhân viên có quyền truy cập và thực hiện bán hàng tại POS (ví dụ: Cashier, Store Manager). Tránh trả về các tài khoản Admin/HQ không liên quan. |
+
+  ### Mẫu Request hợp lệ từ Client:
+
+  `GET /v1/pos/employees?status=active&isPos=true`

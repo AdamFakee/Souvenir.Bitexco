@@ -68,6 +68,7 @@ export const appMachine = setup({
     }),
     saveShift: assign(({ event }) => {
       if (event.type !== 'SHIFT_OPENED') return {}
+      console.log('[AppMachine] SHIFT_OPENED event received - cashSessionId:', event.cashSessionId)
       return { cashSessionId: event.cashSessionId, error: null }
     }),
     clearShift: assign({ cashSessionId: null }),
@@ -219,11 +220,15 @@ export const appMachine = setup({
         paymentMethods: ({ event }) => event.paymentMethods,
         tenantConfig: ({ event, context }) => {
           const bankTransferMethod = event.paymentMethods.find((m) => m.code === 'qr_bidv')
-          return bankTransferMethod?.bankConfig ?? context.tenantConfig
+          const config = bankTransferMethod?.bankConfig ?? context.tenantConfig
+          console.log('[AppMachine] tenantConfig (qr_bidv):', JSON.stringify(config, null, 2))
+          return config
         },
         terminalConfig: ({ event, context }) => {
           const cardMethod = event.paymentMethods.find((m) => m.code === 'card_bidv')
-          return cardMethod?.terminalConfig ?? context.terminalConfig
+          const config = cardMethod?.terminalConfig ?? context.terminalConfig
+          console.log('[AppMachine] terminalConfig (card_bidv):', JSON.stringify(config, null, 2))
+          return config
         },
       }),
     },
@@ -291,8 +296,28 @@ export const appMachine = setup({
             }),
           },
           {
-            target: 'unauthenticated',
-            actions: 'clearAuth',
+            target: 'noShift',
+            actions: assign({
+              accessToken: ({ event }) => event.output.accessToken,
+              employee: ({ event }) => event.output.employee,
+              cashSessionId: null,
+              device: ({ event, context }) =>
+                context.device && event.output.warehouseId
+                  ? { ...context.device, warehouseId: event.output.warehouseId }
+                  : context.device,
+              paymentMethods: ({ event, context }) =>
+                event.output.paymentMethods ?? context.paymentMethods,
+              tenantConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const bankTransferMethod = methods?.find((m) => m.code === 'qr_bidv')
+                return bankTransferMethod?.bankConfig ?? context.tenantConfig
+              },
+              terminalConfig: ({ event, context }) => {
+                const methods = event.output.paymentMethods ?? context.paymentMethods
+                const cardMethod = methods?.find((m) => m.code === 'card_bidv')
+                return cardMethod?.terminalConfig ?? context.terminalConfig
+              },
+            }),
           },
         ],
         onError: [
@@ -321,7 +346,7 @@ export const appMachine = setup({
      * Token vẫn còn trong MMKV. Khi có mạng trở lại → NETWORK_RESTORED → refreshingAuth.
      */
     restoreOffline: {
-      always: [{ guard: 'hasCachedSession', target: 'shiftOpen' }, { target: 'unauthenticated' }],
+      always: [{ guard: 'hasCachedSession', target: 'shiftOpen' }, { target: 'noShift' }],
     },
 
     /**

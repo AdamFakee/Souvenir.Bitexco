@@ -83,6 +83,7 @@ export const checkCanReturn = (order: {
   discount?: number
   returnStatus?: string | null
   paymentsSnapshot?: { method?: string | null }[] | null
+  createdAt?: Date | string | null
 }): boolean => {
   if (order.canReturn === false) return false
 
@@ -101,6 +102,12 @@ export const checkCanReturn = (order: {
   }
 
   if (status && !RETURN_ELIGIBLE_STATUSES.includes(status)) return false
+
+  if (order.createdAt) {
+    const createdAtTime = new Date(order.createdAt).getTime()
+    if (Number.isNaN(createdAtTime)) return false
+    if (Date.now() - createdAtTime > 24 * 60 * 60 * 1000) return false
+  }
 
   return true
 }

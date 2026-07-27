@@ -5,8 +5,8 @@ import { database } from '../database'
 
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import {
-  OrderRemoteAPI,
   OrderRaw,
+  OrderRemoteAPI,
   localIdToGuid,
 } from '@/shared/features/order/api/remote/order.remote.api'
 

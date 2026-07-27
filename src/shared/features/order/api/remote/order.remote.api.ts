@@ -379,7 +379,6 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
   itemsSnapshot: order.itemsSnapshot ?? [],
   paymentsSnapshot: order.paymentsSnapshot ?? [],
   isDeleted: order.isDeleted ?? false,
-  // Eligibility thống nhất: voucher/status/return/cong_no (voucher luôn chặn)
   canReturn: checkCanReturn({
     status: order.status || order.state,
     canReturn: order.canReturn,
@@ -388,24 +387,22 @@ const mapOrderListApiItemToIOrder = (order: OrderListApiItem): IOrder => ({
     discount: order.discount,
     returnStatus: order.returnStatus,
     paymentsSnapshot: order.paymentsSnapshot ?? [],
+    createdAt:
+      order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt).toISOString(),
   }),
-  canExchange:
-    order.canExchange !== undefined
-      ? order.canExchange
-      : checkCanExchange({
-          status: order.status || order.state,
-          canReturn: order.canReturn,
-          voucherCode: order.voucherCode,
-          voucherDiscount: order.voucherDiscount,
-          discount: order.discount,
-          returnStatus: order.returnStatus,
-          paymentsSnapshot: order.paymentsSnapshot ?? [],
-          createdAt:
-            order.createdAt instanceof Date
-              ? order.createdAt
-              : new Date(order.createdAt).toISOString(),
-          originalOrderId: order.originalOrderId,
-        }),
+  canExchange: checkCanExchange({
+    status: order.status || order.state,
+    canReturn: order.canReturn,
+    canExchange: order.canExchange,
+    voucherCode: order.voucherCode,
+    voucherDiscount: order.voucherDiscount,
+    discount: order.discount,
+    returnStatus: order.returnStatus,
+    paymentsSnapshot: order.paymentsSnapshot ?? [],
+    createdAt:
+      order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt).toISOString(),
+    originalOrderId: order.originalOrderId,
+  }),
   createdAt: new Date(order.createdAt),
   updatedAt: new Date(order.updatedAt),
   totalRefunded: order.totalRefunded ?? 0,
@@ -506,7 +503,7 @@ export const OrderRemoteAPI = {
             discountAmount: item.discountAmount,
           })),
           paymentsSnapshot: (order.payments_snapshot || []).map((payment) => ({
-            method: (payment.method || 'CASH').toUpperCase(),
+            method: payment.method || 'cash',
             amount: payment.amount,
             cashTendered: payment.cashTendered ?? 0,
             cashChange: payment.cashChange ?? 0,
@@ -745,13 +742,23 @@ export const OrderRemoteAPI = {
           : {}),
       }
 
+      console.log(
+        `[OrderRemoteAPI] exchangeOrder request (orderId: ${orderId}) payload:`,
+        JSON.stringify(payload, null, 2),
+      )
+
       const response = await AxiosService.getInstance().post<ExchangeOrderResult>(
         `/v1/pos/orders/${orderId}/exchange`,
         payload,
       )
 
+      console.log(
+        `[OrderRemoteAPI] exchangeOrder response:`,
+        JSON.stringify(response.data, null, 2),
+      )
       return response.data
     } catch (error) {
+      console.error(`[OrderRemoteAPI] exchangeOrder error:`, error)
       const typedError = error as {
         response?: { status?: number; data?: { error?: string; traceId?: string } }
         message?: string
@@ -802,13 +809,16 @@ export const OrderRemoteAPI = {
    * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
    */
   checkout: async (payload: PosCheckoutRequest): Promise<PosCheckoutResult> => {
+    console.log('[OrderRemoteAPI] checkout request payload:', JSON.stringify(payload, null, 2))
     try {
       const res = await AxiosService.getInstance().post<PosCheckoutResult>(
         '/v1/pos/checkout',
         payload,
       )
+      console.log('[OrderRemoteAPI] checkout response:', JSON.stringify(res.data, null, 2))
       return res.data
     } catch (error) {
+      console.error('[OrderRemoteAPI] checkout error:', error)
       throw error
     }
   },

@@ -28,9 +28,11 @@ import CategoryModel from '@/shared/lib/database/models/category'
 import OrderModel from '@/shared/lib/database/models/order'
 import ProductModel from '@/shared/lib/database/models/product'
 import { storage } from '@/shared/lib/storage'
+import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services/printer-service'
 import { toast } from '@/shared/store'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
+import * as Clipboard from 'expo-clipboard'
 import React, { useEffect, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import PrinterImin from 'react-native-printer-imin'
@@ -336,11 +338,36 @@ export default function DevControlScreen() {
     try {
       toast.info('Đang gọi API lấy Payment Methods...')
       const response = await AxiosService.getInstance().get<any[]>('/v1/payment-methods')
-      console.log('Payment Methods:', response.data)
-      const enabledMethods = response.data.filter((m) => m.enabled)
+      console.log(
+        '[DevControl] Payment Methods Raw Response:',
+        JSON.stringify(response.data, null, 2),
+      )
+
+      const cardMethod = response.data.find((m: any) => m.code === 'card_bidv')
+      const qrMethod = response.data.find((m: any) => m.code === 'qr_bidv')
+
+      console.log(
+        '[DevControl] Terminal Config (card_bidv):',
+        JSON.stringify(cardMethod?.terminalConfig, null, 2),
+      )
+      console.log(
+        '[DevControl] Bank Config / Tenant Config (qr_bidv):',
+        JSON.stringify(qrMethod?.bankConfig, null, 2),
+      )
+
+      const enabledMethods = response.data.filter((m: any) => m.enabled)
       const appService = useAppStore.getState().appService
       if (appService) {
         appService.send({ type: 'PAYMENT_METHODS_UPDATED', paymentMethods: enabledMethods })
+        const currentCtx = appService.getSnapshot().context
+        console.log(
+          '[DevControl] App Machine Context terminalConfig:',
+          JSON.stringify(currentCtx.terminalConfig, null, 2),
+        )
+        console.log(
+          '[DevControl] App Machine Context tenantConfig:',
+          JSON.stringify(currentCtx.tenantConfig, null, 2),
+        )
         toast.success(
           `Đã cập nhật ${enabledMethods.length} phương thức khả dụng vào Machine! Xem console.`,
         )
@@ -350,6 +377,23 @@ export default function DevControlScreen() {
     } catch (error: any) {
       const errData = error.response?.data
       toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message))
+    }
+  }
+
+  const handleLogCurrentTerminalConfig = () => {
+    const appService = useAppStore.getState().appService
+    if (appService) {
+      const ctx = appService.getSnapshot().context
+      console.log('=============== [DevControl] CURRENT APP MACHINE CONTEXT ===============')
+      console.log('📌 Terminal Config (Card POS):', JSON.stringify(ctx.terminalConfig, null, 2))
+      console.log('📌 Tenant Config (QR Bank):', JSON.stringify(ctx.tenantConfig, null, 2))
+      console.log('📌 Payment Methods:', JSON.stringify(ctx.paymentMethods, null, 2))
+      console.log('📌 Device:', JSON.stringify(ctx.device, null, 2))
+      console.log('📌 Cash Session ID:', ctx.cashSessionId)
+      console.log('=======================================================================')
+      toast.success('Đã log Terminal Config & Machine Context ra console!')
+    } else {
+      toast.warning('App Service chưa sẵn sàng.')
     }
   }
 
@@ -462,6 +506,23 @@ export default function DevControlScreen() {
     } catch (error: any) {
       const errMsg = error?.response?.data?.message || error.message || 'Lỗi không xác định'
       toast.error('Lỗi: ' + errMsg)
+    } finally {
+      setIsFetchingChanges(false)
+    }
+  }
+
+  const handleSyncProductsFromServer = async () => {
+    try {
+      setIsFetchingChanges(true)
+      toast.info('Đang đồng bộ và lưu Sản phẩm & Danh mục từ Server vào Local DB...')
+      console.log('[DevControl] Bắt đầu đồng bộ pullMasterData...')
+      await SyncService.pullMasterData()
+      console.log('[DevControl] Đồng bộ pullMasterData thành công!')
+      toast.success('Đồng bộ & Lưu Local DB thành công!')
+      await loadData()
+    } catch (error: any) {
+      console.error('[DevControl] Lỗi đồng bộ:', error)
+      toast.error('Lỗi đồng bộ: ' + (error.message || 'Không xác định'))
     } finally {
       setIsFetchingChanges(false)
     }
@@ -1179,6 +1240,11 @@ export default function DevControlScreen() {
             onPress={handleTestGetPaymentMethods}
           />
           <Button
+            label="Log Terminal Config & Context hiện tại"
+            className="bg-purple-700"
+            onPress={handleLogCurrentTerminalConfig}
+          />
+          <Button
             label="Test API: Device Context (/v1/pos/device-context)"
             className="bg-teal-600"
             onPress={handleTestGetDeviceContext}
@@ -1198,6 +1264,12 @@ export default function DevControlScreen() {
             className="bg-orange-600"
             loading={isFetchingChanges}
             onPress={handleTestFetchChanges}
+          />
+          <Button
+            label="Đồng bộ sản phẩm & danh mục từ Server (Lưu Local DB)"
+            className="bg-emerald-700"
+            loading={isFetchingChanges}
+            onPress={handleSyncProductsFromServer}
           />
         </View>
       </Container>

@@ -32,6 +32,9 @@ export const useAppGate = () => {
     const inTabGroup = segment0 === '(tab)'
     const inExchange = segment0 === 'exchange'
 
+    // ponytail: debug gate — gỡ khi session restore ổn
+    console.log('[AppAuth] gate', { stateValue, segment0, segment1 })
+
     switch (stateValue) {
       case 'deviceInactive':
         if (segment1 !== 'device-activation') router.replace(ROUTES.DEVICE_ACTIVATION.path())
@@ -43,7 +46,10 @@ export const useAppGate = () => {
         if (segment1 !== 'staff-login') router.replace(ROUTES.STAFF_LOGIN.path())
         break
       case 'noShift':
-        if (segment1 !== 'open-shift') router.replace(ROUTES.OPEN_SHIFT.path())
+        if (segment1 !== 'open-shift') {
+          console.log('[AppAuth] gate → OPEN_SHIFT (noShift)')
+          router.replace(ROUTES.OPEN_SHIFT.path())
+        }
         break
       case 'shiftOpen':
         // Tab POS + màn exchange full-screen; không kick về POS khi đang đổi hàng

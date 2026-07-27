@@ -290,7 +290,10 @@ export default function TabLayout() {
           tabBar={() => null}
           screenOptions={{
             headerShown: false,
+            // Lần 1: mount khi vào. Lần sau: native show + freeze inactive → không re-render tab ẩn
+            lazy: true,
             freezeOnBlur: true,
+            sceneStyle: { backgroundColor: COLORS.surface[50] },
           }}
         >
           <Tabs.Screen name="pos" options={{ title: 'Bán hàng' }} />

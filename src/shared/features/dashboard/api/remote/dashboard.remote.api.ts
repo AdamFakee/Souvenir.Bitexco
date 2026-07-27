@@ -1,6 +1,8 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { DashboardOverviewResponse, ProductRevenueResponse } from '../../types'
 
+const DASHBOARD_TIMEOUT_MS = 12_000
+
 export const DashboardRemoteAPI = {
   /**
    * Lấy tổng quan báo cáo doanh thu ca (Aggregate)
@@ -14,7 +16,9 @@ export const DashboardRemoteAPI = {
     if (staffId) params.staffId = staffId
     const response = await axios.get<DashboardOverviewResponse>('/v1/pos/dashboard/overview', {
       params,
+      timeout: DASHBOARD_TIMEOUT_MS,
     })
+    console.log('fetchDashboardOverview', response.data)
     return response.data
   },
 
@@ -33,7 +37,9 @@ export const DashboardRemoteAPI = {
     if (staffId) queryParams.staffId = staffId
     const response = await axios.get<ProductRevenueResponse>('/v1/pos/dashboard/product-revenue', {
       params: queryParams,
+      timeout: DASHBOARD_TIMEOUT_MS,
     })
+    console.log('fetchProductRevenueReport', response.data)
     return response.data
   },
 }

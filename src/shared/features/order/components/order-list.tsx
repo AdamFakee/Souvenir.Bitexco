@@ -281,8 +281,7 @@ const OrderRow = memo(
   }) {
     const isEven = index % 2 === 1
     const order = display._order
-    const canExchange =
-      order.canExchange !== undefined ? order.canExchange : checkCanExchange(order)
+    const canExchange = checkCanExchange(order)
     const canReturn = checkCanReturn(order)
 
     return (

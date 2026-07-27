@@ -1,18 +1,63 @@
 import { Shimmer } from '@/shared/components/ui/shimmer'
-import { useAppContext } from '@/shared/features/app'
 import { formatCurrency } from '@/shared/utils'
-import React from 'react'
-import { FlatList, Text, View } from 'react-native'
+import { FlashList } from '@shopify/flash-list'
+import React, { memo, useCallback } from 'react'
+import { Text, View } from 'react-native'
 import { useProductRevenue } from '../hooks'
 
 interface ProductRevenuePanelProps {
   staffId?: string | null
+  shiftId?: string
 }
 
-export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
-  const { cashSessionId } = useAppContext()
+const ProductRow = memo(function ProductRow({
+  name,
+  qty,
+  total,
+}: {
+  name: string
+  qty: number
+  total: number
+}) {
+  return (
+    <View className="mb-2 flex-row rounded-xl border border-[#e5e7eb]/30 bg-white px-4 py-4">
+      <View className="flex-[3] justify-center">
+        <Text className="text-[15px] font-extrabold text-[#111827]" numberOfLines={2}>
+          {name}
+        </Text>
+      </View>
+      <View className="flex-[1.2] items-center justify-center">
+        <Text className="text-[15px] font-bold text-[#374151]">{qty}</Text>
+      </View>
+      <View className="flex-[2] items-end justify-center">
+        <Text className="text-[15px] font-extrabold text-[#111827]">{formatCurrency(total)}</Text>
+      </View>
+    </View>
+  )
+})
+
+export const ProductRevenuePanel = memo(function ProductRevenuePanel({
+  staffId,
+  shiftId,
+}: ProductRevenuePanelProps) {
   const { products, totalRevenue, totalItems, isLoading, isFetchingNextPage, hasMore, loadMore } =
-    useProductRevenue(cashSessionId ?? undefined, staffId)
+    useProductRevenue(shiftId, staffId)
+
+  const renderItem = useCallback(
+    ({ item }: { item: { name: string; qty: number; total: number } }) => (
+      <ProductRow name={item.name} qty={item.qty} total={item.total} />
+    ),
+    [],
+  )
+
+  const keyExtractor = useCallback(
+    (item: { name: string; sku?: string }, idx: number) => item.sku || `${item.name}-${idx}`,
+    [],
+  )
+
+  const onEndReached = useCallback(() => {
+    if (hasMore && !isFetchingNextPage) loadMore()
+  }, [hasMore, isFetchingNextPage, loadMore])
 
   if (isLoading) {
     return (
@@ -21,14 +66,11 @@ export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
         className="flex-[2] flex-col justify-between overflow-hidden rounded-2xl border border-[#e5e7eb]/40"
       >
         <View className="w-full flex-1 flex-col">
-          {/* Header */}
           <View className="px-6 py-5">
             <Text className="text-[18px] font-extrabold text-[#1f2937]">
               Chi tiết doanh thu theo sản phẩm
             </Text>
           </View>
-
-          {/* Product Table Header */}
           <View className="flex-col px-6 pb-4">
             <View
               style={{ backgroundColor: 'rgba(235, 239, 244, 1)' }}
@@ -44,13 +86,11 @@ export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
                 <Text className="text-sm font-extrabold text-[#374151]">Số tiền</Text>
               </View>
             </View>
-
-            {/* Shimmer Rows */}
             <View className="mt-3 gap-2">
               {[1, 2, 3, 4, 5].map((idx) => (
                 <View
                   key={idx}
-                  className="flex-row rounded-xl border border-[#e5e7eb]/30 bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  className="flex-row rounded-xl border border-[#e5e7eb]/30 bg-white px-4 py-4"
                 >
                   <View className="flex-[3] justify-center">
                     <Shimmer className="h-5 w-40" />
@@ -66,8 +106,6 @@ export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
             </View>
           </View>
         </View>
-
-        {/* Footer Shimmer */}
         <View
           style={{ backgroundColor: '#719BB0' }}
           className="flex-row items-center justify-between px-6 py-5"
@@ -79,12 +117,8 @@ export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
     )
   }
 
-  // Compute overall total sum from the product revenue report rows
-  const computedTotalRevenue = products.reduce((acc, curr) => acc + curr.total, 0)
-  const displayTotalRevenue = totalRevenue ?? computedTotalRevenue
-
-  const computedTotalItems = products.reduce((acc, curr) => acc + curr.qty, 0)
-  const displayTotalItems = totalItems ?? computedTotalItems
+  const displayTotalRevenue = totalRevenue ?? products.reduce((acc, curr) => acc + curr.total, 0)
+  const displayTotalItems = totalItems ?? products.reduce((acc, curr) => acc + curr.qty, 0)
 
   return (
     <View
@@ -92,21 +126,16 @@ export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
       className="flex-[2] flex-col justify-between overflow-hidden rounded-2xl border border-[#e5e7eb]/40"
     >
       <View className="w-full flex-1 flex-col">
-        {/* Header */}
         <View className="flex-row items-center justify-between px-6 py-5">
           <Text className="text-[18px] font-extrabold text-[#1f2937]">
             Chi tiết doanh thu theo sản phẩm
           </Text>
-          {displayTotalItems !== undefined && (
-            <Text className="text-[15px] font-bold text-[#4b5563]">
-              Số lượng: {displayTotalItems}
-            </Text>
-          )}
+          <Text className="text-[15px] font-bold text-[#4b5563]">
+            Số lượng: {displayTotalItems}
+          </Text>
         </View>
 
-        {/* Product Table */}
         <View className="flex-1 flex-col px-6 pb-4">
-          {/* Table Header Grid */}
           <View
             style={{ backgroundColor: 'rgba(235, 239, 244, 1)' }}
             className="flex-row rounded-xl px-4 py-3"
@@ -122,49 +151,26 @@ export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
             </View>
           </View>
 
-          {/* Table Rows (Scrollable list of 20 products occupying all remaining UI space) */}
           <View className="mt-3 flex-1">
-            <FlatList
+            <FlashList
               data={products}
-              nestedScrollEnabled={true}
-              keyExtractor={(_, idx) => idx.toString()}
-              renderItem={({ item }) => (
-                <View className="mb-2 flex-row rounded-xl border border-[#e5e7eb]/30 bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  <View className="flex-[3] justify-center">
-                    <Text className="text-[15px] font-extrabold text-[#111827]">{item.name}</Text>
-                  </View>
-                  <View className="flex-[1.2] items-center justify-center">
-                    <Text className="text-[15px] font-bold text-[#374151]">{item.qty}</Text>
-                  </View>
-                  <View className="flex-[2] items-end justify-center">
-                    <Text className="text-[15px] font-extrabold text-[#111827]">
-                      {formatCurrency(item.total)}
-                    </Text>
-                  </View>
-                </View>
-              )}
-              contentContainerStyle={{ paddingBottom: 16 }}
-              showsVerticalScrollIndicator={true}
-              onEndReached={() => {
-                if (hasMore && !isFetchingNextPage) {
-                  loadMore()
-                }
-              }}
+              keyExtractor={keyExtractor}
+              renderItem={renderItem}
+              onEndReached={onEndReached}
               onEndReachedThreshold={0.2}
-              ListFooterComponent={() => {
-                if (!isFetchingNextPage) return null
-                return (
+              contentContainerStyle={{ paddingBottom: 16 }}
+              ListFooterComponent={
+                isFetchingNextPage ? (
                   <View className="items-center py-4">
                     <Shimmer className="h-6 w-32 rounded-lg" />
                   </View>
-                )
-              }}
+                ) : null
+              }
             />
           </View>
         </View>
       </View>
 
-      {/* Total Revenue Footer Bar */}
       <View
         style={{ backgroundColor: '#719BB0' }}
         className="flex-row items-center justify-between px-6 py-5"
@@ -181,4 +187,4 @@ export function ProductRevenuePanel({ staffId }: ProductRevenuePanelProps) {
       </View>
     </View>
   )
-}
+})

@@ -1,35 +1,24 @@
-import { database } from '@/shared/lib/database'
-import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
-import { useDebounce } from 'use-debounce'
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { OrderRemoteAPI } from '../api'
+import { useOrderFilterStore } from '../store'
 
 export const useOrders = (params: {
   status?: any
-  searchQuery?: string
   dateFrom?: Date | null
   dateTo?: Date | null
-  /** Mã nhân viên để lọc đơn hàng. null = tất cả nhân viên */
+  /** null = tất cả nhân viên */
   staffId?: string | null
   affiliateId?: string | null
   partnerId?: string | null
-  /** Phân loại chế độ xem guide: 'collaborator' | 'agent' — dùng để invalidate cache khi switch tab */
   guideType?: 'collaborator' | 'agent' | null
   paymentMethod?: string | null
 }) => {
-  const {
-    status,
-    searchQuery,
-    dateFrom,
-    dateTo,
-    staffId,
-    affiliateId,
-    partnerId,
-    guideType,
-    paymentMethod,
-  } = params
-  const normalizedSearchQuery = searchQuery?.trim() || ''
-  const [debouncedSearchQuery] = useDebounce(normalizedSearchQuery, 300)
+  const { status, dateFrom, dateTo, staffId, affiliateId, partnerId, guideType, paymentMethod } =
+    params
+
+  // Search đã debounce ở OrderSearchInput trước khi vào store
+  const searchQuery = useOrderFilterStore((s) => s.searchQuery.trim())
   const dateFromKey = dateFrom?.toISOString() || null
   const dateToKey = dateTo?.toISOString() || null
 
@@ -37,7 +26,7 @@ export const useOrders = (params: {
     queryKey: [
       'orders',
       status,
-      debouncedSearchQuery,
+      searchQuery,
       dateFromKey,
       dateToKey,
       staffId,
@@ -46,10 +35,10 @@ export const useOrders = (params: {
       guideType ?? null,
       paymentMethod,
     ],
-    queryFn: async ({ pageParam = 1 }) => {
-      return await OrderRemoteAPI.getOrders({
+    queryFn: async ({ pageParam = 1 }) =>
+      OrderRemoteAPI.getOrders({
         status,
-        searchQuery: debouncedSearchQuery,
+        searchQuery,
         dateFrom,
         dateTo,
         page: pageParam as number,
@@ -59,53 +48,45 @@ export const useOrders = (params: {
         partnerId,
         agentType: guideType,
         paymentMethod,
-      })
-    },
+      }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       const meta = lastPage.meta as any
       return meta?.hasNextPage ? Number(meta.page || 1) + 1 : undefined
     },
-    staleTime: 30000, // 30 seconds stale time
+    staleTime: 30_000,
     networkMode: 'always',
-    // Giữ page cũ khi đổi tab/filter key — tránh skeleton blank ~2s
     placeholderData: keepPreviousData,
   })
 
-  const queryClient = useQueryClient()
+  // ponytail: không observe WatermelonDB orders → local write (bán hàng) từng storm refetch.
+  // Invalidate tường minh sau refund/exchange/sync.
 
-  // ponytail: sync only when app returns from background (network reconnect), not on every DB change.
-  // withChangesForTables fires on every local write → aggressive refetch loop.
-  // Re-evaluate if real-time sync across devices becomes a requirement.
-  useEffect(() => {
-    const subscription = database.withChangesForTables(['orders']).subscribe(() => {
-      // Chỉ invalidate khi có thay đổi từ xa (sync push), không phải từ local writes
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
-    })
-
-    return () => subscription.unsubscribe()
-  }, [queryClient])
-
-  const orders = useMemo(() => {
-    return query.data?.pages.flatMap((page) => page.data || []) || []
-  }, [query.data])
+  const orders = useMemo(
+    () => query.data?.pages.flatMap((page) => page.data || []) || [],
+    [query.data],
+  )
 
   const stats = useMemo(() => {
-    const firstPageMeta = query.data?.pages[0]?.meta as any
-
-    // Calculate client-side totals across loaded orders as a fallback
-    let clientTotalItems = 0
-    let clientTotalRevenue = 0
-    orders.forEach((o) => {
-      const itemQty = o.itemsSnapshot?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0
-      clientTotalItems += itemQty
-      clientTotalRevenue += o.total || 0
-    })
-
+    const meta = query.data?.pages[0]?.meta as any
+    if (meta?.total != null && meta?.totalItems != null && meta?.totalRevenue != null) {
+      return {
+        count: meta.total,
+        totalItems: meta.totalItems,
+        totalRevenue: meta.totalRevenue,
+      }
+    }
+    // Fallback chỉ khi API chưa trả aggregate
+    let totalItems = 0
+    let totalRevenue = 0
+    for (const o of orders) {
+      totalItems += o.itemsSnapshot?.reduce((s, it) => s + (it.quantity || 0), 0) ?? 0
+      totalRevenue += o.total || 0
+    }
     return {
-      count: firstPageMeta?.total ?? orders.length,
-      totalItems: firstPageMeta?.totalItems || clientTotalItems,
-      totalRevenue: firstPageMeta?.totalRevenue || clientTotalRevenue,
+      count: meta?.total ?? orders.length,
+      totalItems: meta?.totalItems || totalItems,
+      totalRevenue: meta?.totalRevenue || totalRevenue,
     }
   }, [query.data, orders])
 
@@ -115,7 +96,6 @@ export const useOrders = (params: {
     fetchNextPage: query.fetchNextPage,
     hasNextPage: query.hasNextPage,
     isFetchingNextPage: query.isFetchingNextPage,
-    // Skeleton chỉ khi chưa có data (kể cả placeholder)
     isLoading: query.isLoading && orders.length === 0,
     isFetching: query.isFetching,
     isError: query.isError,

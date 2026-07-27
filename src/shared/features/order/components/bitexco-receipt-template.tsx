@@ -14,6 +14,17 @@ interface BitexcoReceiptTemplateProps {
   copyNumber?: number
 }
 
+const formatReceiptCode = (codeOrId: string | null | undefined): string => {
+  if (!codeOrId) return '---'
+  const isUuid =
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(codeOrId)
+  if (isUuid) {
+    const clean = codeOrId.replace(/-/g, '')
+    return clean.substring(0, 12).toUpperCase()
+  }
+  return codeOrId.toUpperCase()
+}
+
 export const BitexcoReceiptTemplate = ({
   order,
   staffName,
@@ -74,7 +85,7 @@ export const BitexcoReceiptTemplate = ({
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
           <Text style={S.fs28}>Receipt:</Text>
-          <Text style={S.fs28}>{code || orderId ? (code || orderId).toUpperCase() : '---'}</Text>
+          <Text style={S.fs28}>{formatReceiptCode(code || orderId)}</Text>
         </View>
       </View>
 
@@ -95,9 +106,8 @@ export const BitexcoReceiptTemplate = ({
 
       <DashedLine />
 
-      {/* Items */}
       {items.map((item: ItemSnapshot, index: number) => {
-        const finalLineAmount = item.price * item.quantity + (item.taxAmount || 0)
+        const finalLineAmount = item.price * item.quantity - (item.discountAmount || 0)
         const taxPercent = item.taxRate
           ? item.taxRate <= 1 && item.taxRate > 0
             ? Math.round(item.taxRate * 100)
@@ -138,7 +148,9 @@ export const BitexcoReceiptTemplate = ({
             <Text style={S.fs28}>{totalQty}</Text>
           </View>
           <View style={{ flex: 2 }}>
-            <Text style={{ ...S.fs28, textAlign: 'right' }}>{formatCurrency(subtotal)}</Text>
+            <Text style={{ ...S.fs28, textAlign: 'right' }}>
+              {formatCurrency((total || 0) + discount)}
+            </Text>
           </View>
         </View>
         {totalTax > 0 && (

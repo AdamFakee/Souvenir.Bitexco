@@ -1,7 +1,8 @@
 import { useAppContext } from '@/shared/features/app'
 import { EmployeeItem, StaffRemoteAPI } from '@/shared/features/auth/api/remote'
+import { useIsFocused } from '@react-navigation/native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * Hook lấy danh sách nhân viên.
@@ -11,6 +12,7 @@ import { useEffect } from 'react'
 export const useEmployees = (shiftId?: string) => {
   const { employee } = useAppContext()
   const queryClient = useQueryClient()
+  const isFocused = useIsFocused()
 
   const query = useQuery<EmployeeItem[]>({
     queryKey: shiftId ? ['employees', 'shift', shiftId] : ['employees', 'store'],
@@ -22,11 +24,26 @@ export const useEmployees = (shiftId?: string) => {
     networkMode: 'always',
   })
 
-  // Khi đăng nhập lại/đổi nhân vật, tự động xóa cache và tải lại danh sách nhân viên mới
+  // Gọi lại API khi chuyển sang tab chứa component này
   useEffect(() => {
-    if (employee?.id) {
+    if (isFocused) {
+      console.log(
+        `[useEmployees] Screen focused, triggering employee list refetch. shiftId:`,
+        shiftId,
+      )
+      query.refetch()
+    }
+  }, [isFocused, query.refetch])
+
+  // Chỉ invalidate khi đổi NV thật — không storm mỗi mount dashboard/orders
+  const lastEmpRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!employee?.id) return
+    if (lastEmpRef.current === employee.id) return
+    if (lastEmpRef.current != null) {
       queryClient.invalidateQueries({ queryKey: ['employees'] })
     }
+    lastEmpRef.current = employee.id
   }, [employee?.id, queryClient])
 
   return {

@@ -77,7 +77,7 @@ function buildReceiptOrder(
     paymentsSnapshot: [
       {
         method: 'cash',
-        amount: Number(cashTendered) || roundedTotal,
+        amount: roundedTotal,
         cashTendered: Number(cashTendered) || roundedTotal,
         cashChange: Number(cashTendered) >= roundedTotal ? Number(cashTendered) - roundedTotal : 0,
       },

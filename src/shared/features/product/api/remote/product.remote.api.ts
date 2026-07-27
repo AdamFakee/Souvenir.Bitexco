@@ -213,6 +213,11 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
         if (data && data.items) {
           allItems = allItems.concat(data.items)
           hasMore = data.hasMore
+          console.log(`[ProductRemoteAPI] Phản hồi trang ${page}:`, {
+            itemsCount: data?.items?.length ?? 0,
+            hasMore: data?.hasMore,
+            syncedAt: data?.syncedAt,
+          })
           if (data.syncedAt) {
             syncedAtFromServer =
               typeof data.syncedAt === 'string' ? new Date(data.syncedAt).getTime() : data.syncedAt
@@ -223,10 +228,19 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
         page++
       }
 
+      // Khử trùng lặp ID sản phẩm nhận được từ Server để tránh sqlite error 1555 (UNIQUE constraint failed: products.id)
+      const uniqueItemsMap = new Map<string, any>()
+      for (const item of allItems) {
+        if (item.id) {
+          uniqueItemsMap.set(item.id, item)
+        }
+      }
+      const uniqueItems = Array.from(uniqueItemsMap.values())
+
       // Lấy danh sách IDs đã tồn tại dưới DB Local để quyết định CREATE hay UPDATE
       const existingIds = new Set<string>()
-      if (lastPulledAt && allItems.length > 0) {
-        const productIds = allItems.map((item) => item.id).filter(Boolean)
+      if (lastPulledAt && uniqueItems.length > 0) {
+        const productIds = uniqueItems.map((item) => item.id).filter(Boolean)
         const chunkSize = 500
         for (let i = 0; i < productIds.length; i += chunkSize) {
           const chunk = productIds.slice(i, i + chunkSize)
@@ -242,7 +256,7 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
       const updated: ProductRaw[] = []
       const deleted: string[] = []
 
-      for (const item of allItems) {
+      for (const item of uniqueItems) {
         const mapped: ProductRaw = {
           id: item.id,
           sku: item.sku,

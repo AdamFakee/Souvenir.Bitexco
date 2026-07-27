@@ -36,7 +36,7 @@ export function useProductSearch(searchText: string) {
         const isNetworkConnected = useConnectionStore.getState().isNetworkConnected
 
         // 1. Luồng Online First
-        if (isNetworkConnected) {
+        if (false) {
           try {
             const remoteResults = await ProductRemoteAPI.searchProducts({
               q: debouncedSearch,

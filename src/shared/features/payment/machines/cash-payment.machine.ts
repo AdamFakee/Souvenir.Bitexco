@@ -11,7 +11,7 @@ import { PrinterService } from '@/shared/services'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
 import { assign, fromPromise, setup } from 'xstate'
 import { PaymentResult } from '../types'
-import { calculateVoucherDiscount, calculateLineDiscount, roundCashAmount } from '../utils'
+import { calculateVoucherDiscount, roundCashAmount } from '../utils'
 
 // ─── Saved Order Types ────────────────────────────────────────────────────────
 
@@ -172,7 +172,7 @@ export const cashPaymentMachine = setup({
           note: undefined,
           payment: {
             method: 'cash',
-            amount: input.amountTendered,
+            amount: finalTotal,
             cashTendered: input.amountTendered,
             cashChange: input.change,
             referenceCode: undefined,

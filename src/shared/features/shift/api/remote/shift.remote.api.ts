@@ -61,47 +61,75 @@ export interface ZReportResponse {
 
 function unwrapSessions(data: unknown): CashSession[] {
   if (Array.isArray(data)) return data
-  if (
-    data &&
-    typeof data === 'object' &&
-    Array.isArray((data as PagedResponse<CashSession>).items)
-  ) {
-    return (data as PagedResponse<CashSession>).items
+  if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>
+    if (Array.isArray(obj.items)) return obj.items as CashSession[]
+    if (Array.isArray(obj.data)) return obj.data as CashSession[]
+    if (obj.data && typeof obj.data === 'object' && Array.isArray((obj.data as any).items)) {
+      return (obj.data as any).items as CashSession[]
+    }
+    if (Array.isArray(obj.sessions)) return obj.sessions as CashSession[]
   }
   return []
 }
 
 export const ShiftRemoteAPI = {
+  /**
+   * Lấy ca đang mở (OPEN / CLOSING / RECONCILING).
+   * ⚠️ Không nuốt lỗi mạng/auth — caller (refreshAuthFlow) cần throw để restoreOffline
+   * giữ cashSessionId cache. Chỉ trả [] khi server trả 200 rỗng thật.
+   */
   getOpenSessions: async (posDeviceId: string): Promise<CashSession[]> => {
     const axios = AxiosService.getInstance()
+    console.log('[AppAuth] getOpenSessions request', { posDeviceId })
 
+    const byState = async (state: 'OPEN' | 'CLOSING' | 'RECONCILING') => {
+      const res = await axios.get<PagedResponse<CashSession> | CashSession[]>('/v1/cash-sessions', {
+        params: { state, posDeviceId },
+      })
+      const items = unwrapSessions(res.data)
+      console.log(`[AppAuth] getOpenSessions ${state}`, {
+        count: items.length,
+        rawType: Array.isArray(res.data) ? 'array' : typeof res.data,
+        sample: items[0]
+          ? { id: items[0].id, state: items[0].state, posDeviceId: items[0].posDeviceId }
+          : null,
+      })
+      return items
+    }
+
+    const openSessions = await byState('OPEN')
+    if (openSessions.length > 0) return openSessions
+
+    const closingSessions = await byState('CLOSING')
+    if (closingSessions.length > 0) return closingSessions
+
+    const reconcilingSessions = await byState('RECONCILING')
+    if (reconcilingSessions.length > 0) return reconcilingSessions
+
+    // Fallback: list OPEN không filter device — JWT sau refresh đôi khi không bind device
+    // khiến filter posDeviceId trả []. Match client-side.
     try {
-      // 1. Kiểm tra ca ở trạng thái OPEN
-      const openRes = await axios.get<PagedResponse<CashSession> | CashSession[]>(
-        '/v1/cash-sessions',
-        {
-          params: { state: 'OPEN', posDeviceId },
-        },
-      )
-      const openSessions = unwrapSessions(openRes.data)
-      if (openSessions.length > 0) return openSessions
-
-      // 2. Kiểm tra ca ở trạng thái CLOSING
-      const closingRes = await axios.get<PagedResponse<CashSession> | CashSession[]>(
-        '/v1/cash-sessions',
-        { params: { state: 'CLOSING', posDeviceId } },
-      )
-      const closingSessions = unwrapSessions(closingRes.data)
-      if (closingSessions.length > 0) return closingSessions
-
-      // 3. Kiểm tra ca ở trạng thái RECONCILING
-      const reconcilingRes = await axios.get<PagedResponse<CashSession> | CashSession[]>(
-        '/v1/cash-sessions',
-        { params: { state: 'RECONCILING', posDeviceId } },
-      )
-      const reconcilingSessions = unwrapSessions(reconcilingRes.data)
-      if (reconcilingSessions.length > 0) return reconcilingSessions
-    } catch (e) {}
+      const res = await axios.get<PagedResponse<CashSession> | CashSession[]>('/v1/cash-sessions', {
+        params: { state: 'OPEN' },
+      })
+      const all = unwrapSessions(res.data)
+      const matched = all.filter((s) => !posDeviceId || s.posDeviceId === posDeviceId)
+      console.log('[AppAuth] getOpenSessions OPEN fallback(no device filter)', {
+        all: all.length,
+        matched: matched.length,
+        sample: matched[0]
+          ? { id: matched[0].id, state: matched[0].state, posDeviceId: matched[0].posDeviceId }
+          : all[0]
+            ? { id: all[0].id, state: all[0].state, posDeviceId: all[0].posDeviceId }
+            : null,
+      })
+      if (matched.length > 0) return matched
+      // Không match device nhưng server vẫn còn OPEN session → trả all (dev/single-POS)
+      if (all.length > 0) return all
+    } catch (e) {
+      console.log('[AppAuth] getOpenSessions fallback FAIL', e)
+    }
 
     return []
   },
@@ -122,8 +150,21 @@ export const ShiftRemoteAPI = {
    */
   getShiftById: async (shiftId: string): Promise<CashSession> => {
     const axios = AxiosService.getInstance()
-    const response = await axios.get<{ session: CashSession }>(`/v1/cash-sessions/${shiftId}`)
-    return response.data.session
+    const response = await axios.get<
+      CashSession | { session: CashSession } | { data: CashSession }
+    >(`/v1/cash-sessions/${shiftId}`)
+    const raw = response.data as any
+    const session: CashSession | undefined =
+      raw?.session ?? raw?.data ?? (raw?.id ? raw : undefined)
+    console.log('[AppAuth] getShiftById', {
+      shiftId,
+      rawKeys: raw && typeof raw === 'object' ? Object.keys(raw) : null,
+      id: session?.id,
+      state: session?.state,
+      posDeviceId: session?.posDeviceId,
+    })
+    if (!session?.id) throw new Error(`getShiftById: invalid payload for ${shiftId}`)
+    return session
   },
 
   /**

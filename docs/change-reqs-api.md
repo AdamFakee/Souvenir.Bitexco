@@ -164,3 +164,126 @@ Khi `isExchangeOrder = true` (tức `originalOrderId != null`):
 1. Map `OrderListApiItem.originalOrderId` + `isExchangeOrder` → `IOrder`.
 2. `checkCanExchange` đã check `!originalOrderId` — khi BE fix, sẽ hoạt động đúng tự động.
 3. Fallback hiện tại: FE detect `paymentsSnapshot[].method === 'exchange'` để nhận biết đơn exchange-child — **nhưng đây chỉ là workaround**, cần BE set `originalOrderId` đúng.
+
+---
+
+## Note 4: Lưu trữ và hiển thị thông tin tiền khách đưa (`cashTendered`) và tiền thừa (`cashChange`)
+
+> **[Vấn đề]**: Khi thực hiện thanh toán tiền mặt ở chế độ Online, API checkout hiện chỉ ghi nhận số tiền thanh toán thực tế khớp với hóa đơn (`amount = 100,000đ`). Backend chưa hỗ trợ lưu trữ số tiền mặt khách đưa thực tế (ví dụ: `200,000đ`) và số tiền chênh lệch/tiền thừa phải trả lại khách (`100,000đ`). Điều này dẫn đến việc khi xem lại chi tiết đơn hàng (OrderDetail) hoặc in lại hóa đơn lịch sử, thông tin khách đưa và tiền thừa đều bị hiển thị sai lệch thành `100,000đ` và `0đ`.
+
+### Yêu cầu BE
+
+#### 1. Bổ sung các trường vào payload `POST /v1/pos/checkout`
+
+Trong danh sách `payments` gửi lên, hỗ trợ nhận thêm `cashTendered` (tiền khách đưa) và `cashChange` (tiền thừa):
+
+```json
+"payments": [
+  {
+    "method": "cash",
+    "amount": 100000,
+    "cashTendered": 200000,
+    "cashChange": 100000
+  }
+]
+```
+
+#### 2. Lưu trữ và trả về thông tin này trong API lấy chi tiết đơn hàng
+
+Trong response của API chi tiết đơn hàng và danh sách đơn hàng (`GET /v1/pos/orders` / `GET /v1/pos/orders/{id}`), cấu trúc của `paymentsSnapshot` (hoặc `payments`) cần chứa thông tin tiền khách đưa và tiền thừa:
+
+```json
+"paymentsSnapshot": [
+  {
+    "method": "cash",
+    "amount": 100000,
+    "cashTendered": 200000,
+    "cashChange": 100000
+  }
+]
+```
+
+### FE notes
+
+1. FE đã chuẩn bị sẵn luồng thu thập `cashTendered` và `cashChange` từ giao diện Numpad thanh toán.
+2. Khi BE hỗ trợ lưu trữ các trường này trong database và trả về qua API, FE sẽ hiển thị chính xác lịch sử tiền khách đưa và tiền thừa tại màn hình **OrderDetail** cũng như khi in lại bill từ lịch sử.
+
+---
+
+## Note 5: Lệch dữ liệu doanh thu giữa `GET /v1/pos/dashboard/product-revenue` và `GET /v1/pos/dashboard/overview`
+
+> **[Vấn đề]**: Khi thống kê doanh thu ca:
+>
+> - API overview (`/v1/pos/dashboard/overview`) trả về đúng doanh thu thực tế bán ra (`totalRevenue = 100,000đ`).
+> - API chi tiết sản phẩm (`/v1/pos/dashboard/product-revenue`) tính toán sai doanh thu bằng cách tự cộng thêm thuế vào giá đã gồm thuế cho cả **từng mặt hàng** (`items[].total = 108,000đ` thay vì `100,000đ` đối với sản phẩm đơn giá 100k số lượng 1) và **tổng doanh thu báo cáo** (`totalRevenue = 108,000đ`).
+
+### Ví dụ dữ liệu thực tế bị lệch:
+
+- **API product-revenue (Sai)**:
+
+```json
+{
+  "items": [
+    {
+      "name": "Áo SKD trang 3XL",
+      "price": 100000,
+      "qty": 1,
+      "total": 108000
+    }
+  ],
+  "page": 0,
+  "pageSize": 10,
+  "totalCount": 1,
+  "totalItems": 1,
+  "totalRevenue": 108000
+}
+```
+
+- **API overview (Đúng)**:
+
+```json
+{
+  "cancelledOrders": 0,
+  "completedOrders": 1,
+  "employeeCode": "1234",
+  "employeeName": "Dev Ops Engineer",
+  "paymentMethods": [
+    {
+      "amount": 100000,
+      "method": "cash",
+      "name": "Tiền mặt"
+    }
+  ],
+  "shiftStart": "03:04",
+  "shiftTime": "0:02",
+  "totalProductsSold": 1,
+  "totalRevenue": 100000
+}
+```
+
+### Yêu cầu BE:
+
+Sửa lại công thức tính doanh thu trong API `/v1/pos/dashboard/product-revenue` để không cộng dồn thêm thuế VAT vào giá bán thực tế của sản phẩm (giá bán đã bao gồm thuế). Tổng doanh thu và doanh thu từng sản phẩm trong báo cáo sản phẩm phải khớp với tổng doanh thu trong báo cáo overview.
+
+---
+
+## Note 6: Hỗ trợ bộ lọc trạng thái hoạt động và giao dịch cho danh sách CTV và Đại lý (API hiện tại)
+
+> **[Bối cảnh]**: Các API danh sách Cộng tác viên (`GET /v1/pos/affiliates`) và Đại lý (`GET /v1/pos/partners`) hiện có trên hệ thống cần hỗ trợ các tham số truy vấn (Query Parameters) sau để phục vụ tính năng lọc trên giao diện Đơn hàng.
+
+### Các tham số lọc cần hỗ trợ:
+
+1. **Lọc trạng thái hoạt động:**
+   - **Tham số:** `isActive` (boolean).
+   - **Mô tả:** `true` = chỉ lấy các CTV/Đại lý đang hoạt động (Active); `false` = chỉ lấy các đối tượng đã tạm dừng hoạt động.
+
+2. **Lọc theo lịch sử giao dịch:**
+   - **Tham số:** `hasTransaction` (boolean).
+   - **Mô tả:** `true` = chỉ hiển thị các CTV/Đại lý đã từng phát sinh ít nhất một giao dịch/đơn hàng thành công; `false` = hiển thị các CTV/Đại lý chưa phát sinh đơn hàng.
+
+### Ví dụ Request từ Client:
+
+- Lọc danh sách CTV đang hoạt động và đã phát sinh giao dịch:
+  `GET /v1/pos/affiliates?isActive=true&hasTransaction=true`
+- Lọc danh sách Đại lý đang hoạt động và đã phát sinh giao dịch:
+  `GET /v1/pos/partners?isActive=true&hasTransaction=true`
