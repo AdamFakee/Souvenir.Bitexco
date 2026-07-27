@@ -31,9 +31,7 @@ export const PaymentRemoteAPI = {
   getPaymentMethods: async (): Promise<PaymentMethodConfig[]> => {
     try {
       const res = await AxiosService.getInstance().get<PaymentMethodConfig[]>('/v1/payment-methods')
-      return res.data.filter(
-        (method) => method.enabled && ALLOWED_PAYMENT_METHOD_CODES.includes(method.code),
-      )
+      return res.data.filter((method) => ALLOWED_PAYMENT_METHOD_CODES.includes(method.code))
     } catch (error) {
       throw error
     }

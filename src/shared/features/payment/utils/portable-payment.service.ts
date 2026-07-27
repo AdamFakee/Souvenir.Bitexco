@@ -1,3 +1,4 @@
+import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { storage } from '@/shared/lib/storage'
 import PaymentPortable from '../../../../../modules/payment-portable'
 
@@ -29,13 +30,27 @@ export const PortablePaymentService = {
    * Thực hiện kết nối socket trực tiếp tới thiết bị POS Sandbox.
    */
   connect: async (): Promise<string> => {
-    const posUrl = getPortablePosUrl()
-    // console.log(`[PortablePOS] Connecting socket directly to ${posUrl}...`)
     if (!PaymentPortable || typeof PaymentPortable.doConnect !== 'function') {
       throw new Error('NATIVE_MODULE_UNAVAILABLE: Expo module PaymentPortable is not loaded!')
     }
 
-    const res = await PaymentPortable.doConnect(posUrl, MERCHANT_NAME, CASHIER_ID, LICENSE)
+    // Lấy config terminal động từ app store/appMachine context
+    const appService = useAppStore.getState().appService
+    const terminalConfig = appService?.getSnapshot().context.terminalConfig
+
+    if (
+      !terminalConfig ||
+      !terminalConfig.posUrl ||
+      !terminalConfig.merchantName ||
+      !terminalConfig.cashierId ||
+      !terminalConfig.license
+    ) {
+      throw new Error('Admin chưa cấu hình đủ tham số kết nối máy POS thanh toán.')
+    }
+
+    const { posUrl, merchantName, cashierId, license } = terminalConfig
+
+    const res = await PaymentPortable.doConnect(posUrl, merchantName, cashierId, license)
     // console.log('[PortablePOS] Direct Connection Response:', res)
     return res
   },

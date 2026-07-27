@@ -6,6 +6,7 @@ import {
 import { getOrderErrorMessage } from '@/shared/features/order/constants'
 import type { AgentType, AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { assign, fromPromise, setup } from 'xstate'
+import { printReceiptActor } from '../flows/print.actors'
 import { calculateLineDiscount } from '../utils'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -18,6 +19,8 @@ export interface DebtPaymentContext {
   shiftId: string
   discount: number
   appliedVoucher: AppliedVoucher | null
+  printRef?: React.RefObject<any>
+  savedOrder?: any | null
 
   error: string | null
   /** Chặn double CONFIRM / double checkout */
@@ -38,6 +41,7 @@ export type DebtPaymentInput = {
   shiftId: string
   discount: number
   appliedVoucher: AppliedVoucher | null
+  printRef?: React.RefObject<any>
 }
 
 // ─── Machine ────────────────────────────────────────────────────────────────────
@@ -95,6 +99,7 @@ export const debtPaymentMachine = setup({
       }
       return response
     }),
+    printReceipt: printReceiptActor,
   },
 }).createMachine({
   id: 'debtPayment',
@@ -107,6 +112,8 @@ export const debtPaymentMachine = setup({
     shiftId: input?.shiftId ?? '',
     discount: input?.discount ?? 0,
     appliedVoucher: input?.appliedVoucher ?? null,
+    printRef: input?.printRef,
+    savedOrder: null,
     error: null,
     submitted: false,
   }),
@@ -117,7 +124,7 @@ export const debtPaymentMachine = setup({
           target: 'idle',
           actions: assign(({ event }) => {
             const inp = event.input
-            if (!inp) return { submitted: false, error: null }
+            if (!inp) return { submitted: false, error: null, savedOrder: null }
             return {
               total: inp.total ?? 0,
               items: inp.items ?? [],
@@ -126,6 +133,8 @@ export const debtPaymentMachine = setup({
               shiftId: inp.shiftId ?? '',
               discount: inp.discount ?? 0,
               appliedVoucher: inp.appliedVoucher ?? null,
+              printRef: inp.printRef,
+              savedOrder: null,
               error: null,
               submitted: false,
             }
@@ -145,7 +154,12 @@ export const debtPaymentMachine = setup({
         id: 'checkoutDebt',
         src: 'checkoutDebt',
         input: ({ context }) => ({ ...context }),
-        onDone: { target: 'done' },
+        onDone: {
+          target: 'preparingReceipt',
+          actions: assign({
+            savedOrder: ({ event }) => (event as any).output ?? null,
+          }),
+        },
         onError: {
           target: 'error',
           actions: assign({
@@ -170,6 +184,22 @@ export const debtPaymentMachine = setup({
       },
     },
 
+    preparingReceipt: {
+      after: {
+        800: { target: 'printingReceipt' },
+      },
+    },
+
+    printingReceipt: {
+      invoke: {
+        id: 'printReceipt',
+        src: 'printReceipt',
+        input: ({ context }) => ({ printRef: context.printRef }),
+        onDone: { target: 'done' },
+        onError: { target: 'done' },
+      },
+    },
+
     error: {
       on: {
         RETRY: {
@@ -182,7 +212,7 @@ export const debtPaymentMachine = setup({
           target: 'idle',
           actions: assign(({ event }) => {
             const inp = event.input
-            if (!inp) return { error: null, submitted: false }
+            if (!inp) return { error: null, submitted: false, savedOrder: null }
             return {
               total: inp.total ?? 0,
               items: inp.items ?? [],
@@ -191,6 +221,8 @@ export const debtPaymentMachine = setup({
               shiftId: inp.shiftId ?? '',
               discount: inp.discount ?? 0,
               appliedVoucher: inp.appliedVoucher ?? null,
+              printRef: inp.printRef,
+              savedOrder: null,
               error: null,
               submitted: false,
             }
@@ -200,8 +232,28 @@ export const debtPaymentMachine = setup({
     },
 
     done: {
-      // final: không CONFIRM/RETRY lại — chặn thanh toán công nợ 2 lần
-      type: 'final',
+      on: {
+        START: {
+          target: 'idle',
+          actions: assign(({ event }) => {
+            const inp = event.input
+            if (!inp) return { error: null, submitted: false, savedOrder: null }
+            return {
+              total: inp.total ?? 0,
+              items: inp.items ?? [],
+              affiliateId: inp.affiliateId ?? null,
+              agentType: inp.agentType ?? null,
+              shiftId: inp.shiftId ?? '',
+              discount: inp.discount ?? 0,
+              appliedVoucher: inp.appliedVoucher ?? null,
+              printRef: inp.printRef,
+              savedOrder: null,
+              error: null,
+              submitted: false,
+            }
+          }),
+        },
+      },
     },
   },
 })

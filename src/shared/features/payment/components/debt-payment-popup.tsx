@@ -1,5 +1,9 @@
 import DebtIcon from '@/assets/icons/Debt.svg'
 import { Button, ModalBase, Shimmer } from '@/shared/components/ui'
+import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
+import { IOrder } from '@/shared/features/order/types'
+import type { CartItem, AppliedVoucher } from '@/shared/features/pos'
+import { OrderStatus } from '@/shared/lib/database'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
@@ -11,10 +15,80 @@ import type {
   PaymentPopupRef,
   PaymentResult,
 } from '../types/payment-strategy.type'
+import { calculateSubtotal, calculateTotalTax, calculateLineDiscount } from '../utils'
+
+function buildReceiptOrder(
+  savedOrder: any,
+  items: CartItem[],
+  total: number,
+  subtotal: number,
+  discount: number,
+  staffId: string,
+  shiftId: string,
+  appliedVoucher?: AppliedVoucher | null,
+): IOrder {
+  const orderId = savedOrder.orderCode || savedOrder.orderId || '---'
+  const totalTax = calculateTotalTax(items, appliedVoucher)
+
+  return {
+    id: orderId,
+    code: savedOrder.orderCode || null,
+    shiftId,
+    staffId,
+    status: OrderStatus.COMPLETED,
+    subtotal,
+    discount,
+    voucherDiscount: discount,
+    total,
+    totalTax,
+    customerTaxInfo: null,
+    isDeleted: false,
+    canReturn: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    itemsSnapshot: items.map((i) => {
+      const lineDiscount = calculateLineDiscount(i, items, appliedVoucher)
+      const preTax = i.price * i.quantity
+      const netPrice = Math.max(0, preTax - lineDiscount)
+      const taxRate = i.product.taxRate ?? 0
+      const taxAmount = taxRate > 0 ? Math.round(netPrice * (taxRate / (100 + taxRate))) : 0
+      return {
+        productId: i.product.id,
+        sku: i.product.sku,
+        name: i.product.name,
+        price: i.price,
+        quantity: i.quantity,
+        subtotal: preTax,
+        taxRate,
+        taxAmount,
+        discountAmount: lineDiscount,
+      }
+    }),
+    paymentsSnapshot: [
+      {
+        method: 'cong_no',
+        amount: total,
+        cashTendered: 0,
+        cashChange: 0,
+      },
+    ],
+  }
+}
 
 export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
   function DebtPaymentPopup(
-    { total, items, affiliate, staffId, shiftId, appliedVoucher, discount, onSuccess },
+    {
+      total,
+      items,
+      affiliate,
+      staffId,
+      shiftId,
+      staffName,
+      appliedVoucher,
+      discount,
+      printRef,
+      onSuccess,
+    },
     ref,
   ) {
     const [visible, setVisible] = useState(false)
@@ -28,13 +102,20 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         shiftId,
         discount,
         appliedVoucher: appliedVoucher || null,
+        printRef,
       },
     })
 
     const machineState = useSelector(actorRef, (s) => s.value)
     const error = useSelector(actorRef, (s) => s.context.error)
+    const savedOrder = useSelector(actorRef, (s) => s.context.savedOrder)
 
-    const isCheckingOut = machineState === 'checkingOut'
+    const subtotal = React.useMemo(() => calculateSubtotal(items), [items])
+
+    const isCheckingOut =
+      machineState === 'checkingOut' ||
+      machineState === 'preparingReceipt' ||
+      machineState === 'printingReceipt'
     const isError = machineState === 'error'
     const isDone = machineState === 'done'
 
@@ -51,6 +132,7 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             shiftId,
             discount,
             appliedVoucher: appliedVoucher || null,
+            printRef,
           },
         })
         setVisible(true)
@@ -235,6 +317,27 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
                 disabled={isCheckingOut}
                 className="h-16"
               />
+            </View>
+
+            {/* Hidden Printer Template — Rendered inside popup using real saved data */}
+            <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+              {savedOrder && (
+                <View collapsable={false} ref={printRef}>
+                  <BitexcoReceiptTemplate
+                    order={buildReceiptOrder(
+                      savedOrder,
+                      items,
+                      total,
+                      subtotal,
+                      discount,
+                      staffId,
+                      shiftId,
+                      appliedVoucher,
+                    )}
+                    staffName={staffName}
+                  />
+                </View>
+              )}
             </View>
           </View>
         )}

@@ -265,6 +265,7 @@ export default function OrdersScreen() {
   )
 
   const handleOpenDetails = useCallback((order: IOrder) => {
+    console.log('detail:: ', order)
     if (!mountModalsRef.current) {
       pendingDetail.current = order
       mountModalsRef.current = true

@@ -44,7 +44,6 @@ export default function CheckoutPanel() {
       list = [...PAYMENT_REGISTRY]
     } else {
       list = paymentMethods
-        .filter((method) => method.enabled)
         .map((method) => {
           // Tìm strategy tương ứng bằng PaymentMethodCode trực tiếp
           const originalStrategy = PAYMENT_REGISTRY.find((s) => s.type === method.code)
@@ -55,6 +54,7 @@ export default function CheckoutPanel() {
             ...originalStrategy,
             label: method.name, // Đổi tên nút theo cấu hình API động!
             displayOrder: method.displayOrder || 99,
+            enabled: method.enabled,
           }
         })
         .filter((s): s is NonNullable<typeof s> => s !== null)
@@ -362,6 +362,7 @@ export default function CheckoutPanel() {
                   const isDisabled =
                     cart.length === 0 ||
                     !isAvailable ||
+                    method.enabled === false ||
                     (method.type === 'qr_bidv' && !isNetworkConnected) ||
                     (method.type === 'card_bidv' && !isPosConnected)
                   const Icon = method.icon

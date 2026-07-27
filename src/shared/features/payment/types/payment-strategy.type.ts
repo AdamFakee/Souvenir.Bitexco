@@ -95,6 +95,8 @@ export interface PaymentStrategy {
   icon: LucideIcon | React.FC<any>
   /** Thứ tự hiển thị trên giao diện */
   displayOrder?: number
+  /** Trạng thái kích hoạt của phương thức thanh toán từ backend */
+  enabled?: boolean
   /**
    * Hàm kiểm tra xem phương thức này có được phép dùng không.
    * VD: Thanh toán QR trả về false nếu đang mất mạng (isOffline = true).

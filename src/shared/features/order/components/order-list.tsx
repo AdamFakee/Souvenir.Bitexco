@@ -103,7 +103,6 @@ const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethodCode | '' }[]
   { label: 'Tiền mặt', value: 'cash' },
   { label: 'QR Code', value: 'qr_bidv' },
   { label: 'Thẻ POS', value: 'card_bidv' },
-  { label: 'Hỗn hợp', value: 'mix' },
   { label: 'Công nợ', value: 'cong_no' },
 ]
 
@@ -112,8 +111,6 @@ const STATUS_OPTIONS: { label: string; value: string | null }[] = [
   { label: 'Tất cả', value: null },
   { label: 'Hoàn thành', value: 'COMPLETED' },
   { label: 'Hoàn hàng', value: 'REFUNDED,RETURNED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED' },
-  { label: 'Đã hủy', value: 'CANCELLED' },
-  { label: 'Đang xử lý', value: 'PENDING' },
 ]
 
 // ── Sortable Header Cell (Thanh toán / Trạng thái header mở popover filter) ──

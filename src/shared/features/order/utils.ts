@@ -207,13 +207,7 @@ export const getOrderDisplayStatus = (order: {
   }
 
   // 2. Hoàn trả hàng (REFUNDED)
-  if (
-    order.returnStatus === 'RETURNED' ||
-    order.returnStatus === 'PARTIAL' ||
-    order.status === 'REFUNDED' ||
-    order.status === 'RETURNED' ||
-    order.code?.startsWith('RT')
-  ) {
+  if (order.status === 'REFUNDED' || order.status === 'RETURNED' || order.code?.startsWith('RT')) {
     return { label: 'Hoàn hàng', color: '#2563EB', bgColor: '#DBEAFE' }
   }
 
