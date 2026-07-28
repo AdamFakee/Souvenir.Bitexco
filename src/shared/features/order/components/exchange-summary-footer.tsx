@@ -1,13 +1,8 @@
+import { COLORS } from '@/shared/constants'
 import { Button } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
 import { Text, View } from 'react-native'
-
-const BORDER = '#DFE0E1'
-const TEXT_PRIMARY = '#303036'
-const TEXT_MUTED = '#747475'
-const BRAND = '#1C4E68'
-const ERROR = '#DC2626'
 
 interface ExchangeSummaryFooterProps {
   returnedValue: number
@@ -23,7 +18,6 @@ interface ExchangeSummaryFooterProps {
   onConfirmEqual: () => void
 }
 
-/** Footer: tóm tắt + xác nhận đổi ngang giá (không PTTT). */
 export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
   returnedValue,
   replacementSubtotal,
@@ -51,37 +45,32 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
   }
 
   return (
-    <View
-      className="px-5 py-4"
-      style={{ borderTopWidth: 1, borderColor: BORDER, backgroundColor: '#fff' }}
-    >
-      <View style={{ gap: 4 }}>
-        <SummaryRow label="Hàng trả" value={formatCurrency(returnedValue)} valueColor={ERROR} />
+    <View className="border-t border-surface-200 bg-white px-5 py-4">
+      <View className="gap-1.5">
+        <SummaryRow
+          label="Hàng trả"
+          value={formatCurrency(returnedValue)}
+          valueColor={COLORS.error.default}
+        />
         <SummaryRow
           label="Hàng mới"
           value={formatCurrency(replacementSubtotal)}
-          valueColor={BRAND}
+          valueColor={COLORS.primary.default}
         />
         <SummaryRow
           label="VAT hàng mới"
           value={formatCurrency(replacementVat)}
-          valueColor={BRAND}
+          valueColor={COLORS.primary.default}
         />
 
-        <View className="mt-2" style={{ borderTopWidth: 1, borderColor: BORDER, paddingTop: 10 }}>
+        <View className="mt-2 border-t border-surface-200 pt-2.5">
           <View className="flex-row items-center justify-between">
-            <Text
-              className="text-lg font-extrabold uppercase tracking-tight"
-              style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
-            >
+            <Text className="text-[16px] font-bold uppercase tracking-tight text-surface-on">
               Chênh lệch
             </Text>
             <Text
-              className="text-2xl font-extrabold"
-              style={{
-                color: isEqual ? BRAND : ERROR,
-                fontFamily: 'Manrope-Bold',
-              }}
+              className="text-[22px] font-bold"
+              style={{ color: isEqual ? COLORS.primary.default : COLORS.error.default }}
               numberOfLines={1}
             >
               {formatCurrency(differenceAmount)}
@@ -91,16 +80,9 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
       </View>
 
       {blockReasons.length > 0 && (
-        <View
-          className="mt-3 rounded-xl px-3 py-2"
-          style={{ backgroundColor: 'rgba(220,38,38,0.08)' }}
-        >
+        <View className="mt-3 rounded-xl bg-error/10 px-3 py-2">
           {blockReasons.map((r) => (
-            <Text
-              key={r}
-              className="text-sm font-bold"
-              style={{ color: ERROR, fontFamily: 'Manrope-Bold' }}
-            >
+            <Text key={r} className="text-[13px] font-bold text-error">
               • {r}
             </Text>
           ))}
@@ -139,12 +121,10 @@ function SummaryRow({
 }) {
   return (
     <View className="flex-row items-center justify-between">
-      <Text className="text-sm font-bold" style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}>
-        {label}
-      </Text>
+      <Text className="text-[13px] font-bold text-surface-on-variant">{label}</Text>
       <Text
-        className="text-sm font-extrabold"
-        style={{ color: valueColor || TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+        className="text-[13px] font-bold"
+        style={{ color: valueColor || COLORS.surface.on }}
         numberOfLines={1}
       >
         {value}

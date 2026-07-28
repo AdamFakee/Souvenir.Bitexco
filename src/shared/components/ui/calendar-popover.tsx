@@ -85,22 +85,28 @@ export function CalendarPopover({
     [selectedDate, year, month],
   )
 
+  const minTime = useMemo(() => {
+    if (!minDate) return null
+    const min = new Date(minDate)
+    min.setHours(0, 0, 0, 0)
+    return min.getTime()
+  }, [minDate])
+
+  const maxTime = useMemo(() => {
+    if (!maxDate) return null
+    const max = new Date(maxDate)
+    max.setHours(23, 59, 59, 999)
+    return max.getTime()
+  }, [maxDate])
+
   const isDisabled = useCallback(
     (day: number) => {
-      const d = new Date(year, month, day)
-      if (minDate) {
-        const min = new Date(minDate)
-        min.setHours(0, 0, 0, 0)
-        if (d < min) return true
-      }
-      if (maxDate) {
-        const max = new Date(maxDate)
-        max.setHours(23, 59, 59, 999)
-        if (d > max) return true
-      }
+      const time = new Date(year, month, day).getTime()
+      if (minTime !== null && time < minTime) return true
+      if (maxTime !== null && time > maxTime) return true
       return false
     },
-    [year, month, minDate, maxDate],
+    [year, month, minTime, maxTime],
   )
 
   const changeMonth = useCallback(
@@ -131,27 +137,31 @@ export function CalendarPopover({
     close: () => setVisible(false),
   }))
 
-  if (!anchorPosition) return null
-
   // Calculate position: below the anchor
-  let left = anchorPosition.x
-  if (left + POPOVER_WIDTH > windowWidth - 20) {
-    left = windowWidth - POPOVER_WIDTH - 20
-  }
+  const left = useMemo(() => {
+    if (!anchorPosition) return 0
+    let l = anchorPosition.x
+    if (l + POPOVER_WIDTH > windowWidth - 20) {
+      l = windowWidth - POPOVER_WIDTH - 20
+    }
+    return l
+  }, [anchorPosition, windowWidth])
+
+  const top = anchorPosition ? anchorPosition.y + anchorPosition.height + 12 : 0
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={() => setVisible(false)}
     >
       <Pressable className="flex-1 bg-black/10" onPress={() => setVisible(false)}>
         <View
           className="absolute overflow-hidden rounded-3xl border border-outline-variant bg-white shadow-2xl"
           style={{
-            top: anchorPosition.y + anchorPosition.height + 12,
-            left: left,
+            top,
+            left,
             width: POPOVER_WIDTH,
           }}
           onStartShouldSetResponder={() => true}

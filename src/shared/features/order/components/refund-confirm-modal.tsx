@@ -23,6 +23,7 @@ import * as v from 'valibot'
 import { refundOrderMachine } from '../machines/refund-order.machine'
 import { IOrder } from '../types'
 import { RefundPaymentAllocation } from '../utils'
+import { RefundReceiptTemplate } from './refund-receipt-template'
 import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
 
 export interface RefundConfirmModalRef {
@@ -154,7 +155,6 @@ const RefundModalBody = memo(function RefundModalBody({
   const printedReceiptKeyRef = useRef<string | null>(null)
   const businessChecklistModalRef = useRef<BusinessChecklistModalRef>(null)
   const [printReady, setPrintReady] = useState(false)
-  const RefundReceiptTemplateRef = useRef<React.ComponentType<any> | null>(null)
   const startedRef = useRef(false)
 
   const {
@@ -214,10 +214,6 @@ const RefundModalBody = memo(function RefundModalBody({
       try {
         if (receipt && printedReceiptKeyRef.current !== receiptKey) {
           printedReceiptKeyRef.current = receiptKey
-          if (!RefundReceiptTemplateRef.current) {
-            const mod = await import('./refund-receipt-template')
-            RefundReceiptTemplateRef.current = mod.RefundReceiptTemplate
-          }
           setPrintReady(true)
           await new Promise((r) => requestAnimationFrame(() => r(null)))
           if (receiptPrintRef.current) {
@@ -336,14 +332,12 @@ const RefundModalBody = memo(function RefundModalBody({
     send({ type: 'CANCEL' })
   }
 
-  const PrintTpl = RefundReceiptTemplateRef.current
-
   return (
     <>
-      {printReady && receipt && PrintTpl ? (
+      {printReady && receipt ? (
         <View style={{ position: 'absolute', left: -2000, top: 0 }}>
           <View collapsable={false} ref={receiptPrintRef}>
-            <PrintTpl receipt={receipt} />
+            <RefundReceiptTemplate receipt={receipt} />
           </View>
         </View>
       ) : null}

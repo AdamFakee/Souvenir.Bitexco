@@ -37,6 +37,8 @@ export interface PosPaymentRequest {
   amount: number
   provider: string | null
   cardTerminalId: string | null
+  cashTendered?: number
+  cashChange?: number
 }
 
 export interface PosCheckoutRequest {
@@ -830,6 +832,8 @@ export const OrderRemoteAPI = {
     q?: string
     limit?: number
     page?: number
+    isActive?: boolean
+    hasTransaction?: boolean
   }): Promise<{ items: Affiliate[]; totalCount: number; page: number; pageSize: number }> => {
     try {
       const response = await AxiosService.getInstance().get<
@@ -845,6 +849,8 @@ export const OrderRemoteAPI = {
           q: params?.q || undefined,
           limit: params?.limit || undefined,
           page: params?.page || undefined,
+          isActive: params?.isActive !== undefined ? params.isActive : undefined,
+          hasTransaction: params?.hasTransaction !== undefined ? params.hasTransaction : undefined,
         },
       })
 
@@ -879,6 +885,8 @@ export const OrderRemoteAPI = {
     search?: string
     page?: number
     limit?: number
+    isActive?: boolean
+    hasTransaction?: boolean
   }): Promise<{ items: Partner[]; totalCount: number; page: number; pageSize: number }> => {
     try {
       const response = await AxiosService.getInstance().get<
@@ -888,6 +896,8 @@ export const OrderRemoteAPI = {
           search: params?.search || undefined,
           page: params?.page || undefined,
           limit: params?.limit || undefined,
+          isActive: params?.isActive !== undefined ? params.isActive : undefined,
+          hasTransaction: params?.hasTransaction !== undefined ? params.hasTransaction : undefined,
         },
       })
 

@@ -5,7 +5,7 @@ import { setupInterceptorsTo } from './axios.interceptor'
 export class AxiosService {
   private static instance: AxiosService
   private axiosInstance: AxiosInstance
-  readonly baseUrl: string = 'https://api-wms-dev.aidx.vn'
+  readonly baseUrl: string = 'https://wms-api-uat.aidx.vn'
 
   constructor() {
     this.axiosInstance = setupInterceptorsTo(

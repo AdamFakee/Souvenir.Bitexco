@@ -235,15 +235,17 @@ export default function OrdersScreen() {
   const dateTo = useOrderFilterStore((s) => s.dateTo)
 
   const { data: affiliates = [] } = useQuery({
-    queryKey: ['pos-affiliates-list'],
-    queryFn: async () => (await OrderRemoteAPI.getAffiliates()).items,
+    queryKey: ['pos-affiliates-list', { isActive: true, hasTransaction: true }],
+    queryFn: async () =>
+      (await OrderRemoteAPI.getAffiliates({ isActive: true, hasTransaction: true })).items,
     enabled: mode === 'collaborator',
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: partners = [] } = useQuery({
-    queryKey: ['pos-partners-list'],
-    queryFn: async () => (await OrderRemoteAPI.getPartners()).items,
+    queryKey: ['pos-partners-list', { isActive: true, hasTransaction: true }],
+    queryFn: async () =>
+      (await OrderRemoteAPI.getPartners({ isActive: true, hasTransaction: true })).items,
     enabled: mode === 'agent',
     staleTime: 5 * 60 * 1000,
   })
@@ -295,6 +297,8 @@ export default function OrdersScreen() {
 
   const handleRefundSuccess = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['orders'] })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
   }, [queryClient])
 
   const handlePreviewReconciliation = useCallback(() => {

@@ -70,13 +70,6 @@ export const DashboardInfoBar = memo(function DashboardInfoBar({
         </View>
       </View>
 
-      <View className="flex-col items-center">
-        <Text className="text-[13px] font-extrabold uppercase tracking-widest text-[#6b7280]">
-          Ca làm việc
-        </Text>
-        <Text className="mt-1.5 text-lg font-black text-[#111827]">{overview.shiftTime}</Text>
-      </View>
-
       <View className="flex-col items-end">
         <Text className="text-[13px] font-extrabold uppercase tracking-widest text-[#6b7280]">
           Thời gian vào ca

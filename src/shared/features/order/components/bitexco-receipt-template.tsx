@@ -65,8 +65,19 @@ export const BitexcoReceiptTemplate = ({
     return amount.toLocaleString('vi-VN')
   }
 
-  const totalPaid = (payments || []).reduce((acc, p: PaymentSnapshot) => acc + (p.amount || 0), 0)
-  const changeAmount = Math.max(0, totalPaid - total)
+  const totalPaid = (payments || []).reduce((acc, p: PaymentSnapshot) => {
+    if (p.method === 'cash' && p.cashTendered !== undefined && p.cashTendered > 0) {
+      return acc + p.cashTendered
+    }
+    return acc + (p.amount || 0)
+  }, 0)
+  const changeAmount =
+    (payments || []).reduce((acc, p: PaymentSnapshot) => {
+      if (p.method === 'cash' && p.cashChange !== undefined) {
+        return acc + p.cashChange
+      }
+      return acc
+    }, 0) || Math.max(0, totalPaid - total)
   const totalQty = items.reduce((sum: number, i: ItemSnapshot) => sum + (i.quantity || 0), 0)
 
   const discountPercentStr = (() => {

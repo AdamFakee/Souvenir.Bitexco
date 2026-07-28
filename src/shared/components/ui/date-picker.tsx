@@ -3,7 +3,7 @@ import { formatDate } from '@/shared/utils'
 import { Calendar } from 'lucide-react-native'
 import React, { useRef } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { CalendarPopover, CalendarPopoverRef } from './calendar-popover'
+import { CalendarPopover, CalendarPopoverRef, AnchorPosition } from './calendar-popover'
 
 interface DatePickerProps {
   value: Date | null
@@ -28,17 +28,30 @@ export function DatePicker({
 }: DatePickerProps) {
   const calendarRef = useRef<CalendarPopoverRef>(null)
   const viewRef = useRef<View>(null)
+  const layoutRef = useRef<AnchorPosition | null>(null)
 
   const handleOpen = () => {
+    if (layoutRef.current) {
+      calendarRef.current?.open(layoutRef.current)
+    } else {
+      viewRef.current?.measureInWindow(
+        (winX: number, winY: number, winWidth: number, winHeight: number) => {
+          calendarRef.current?.open({ x: winX, y: winY + 20, width: winWidth, height: winHeight })
+        },
+      )
+    }
+  }
+
+  const handleLayout = () => {
     viewRef.current?.measureInWindow(
       (winX: number, winY: number, winWidth: number, winHeight: number) => {
-        calendarRef.current?.open({ x: winX, y: winY + 20, width: winWidth, height: winHeight })
+        layoutRef.current = { x: winX, y: winY + 20, width: winWidth, height: winHeight }
       },
     )
   }
 
   return (
-    <View ref={viewRef} className={className}>
+    <View ref={viewRef} className={className} onLayout={handleLayout}>
       <Pressable
         onPress={handleOpen}
         className={`h-11 flex-row items-center rounded-xl border border-outline-variant bg-white px-4 ${triggerClassName ?? ''}`}

@@ -130,6 +130,8 @@ export const cashPaymentMachine = setup({
                 amount: finalTotal || 0,
                 provider: null,
                 cardTerminalId: null,
+                cashTendered: input.amountTendered,
+                cashChange: input.change,
               },
             ],
             voucherCode: input.appliedVoucher?.code ?? null,

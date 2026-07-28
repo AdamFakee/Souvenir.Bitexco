@@ -2,7 +2,7 @@ import { API_CONSTANT } from '@/shared/constants'
 import type { useAppStore as UseAppStoreType } from '@/shared/features/app/store/use-app-store'
 import type { AuthAPI as AuthAPIType } from '@/shared/features/auth/api/auth.api'
 import { storage } from '@/shared/lib/storage'
-import { toast } from '@/shared/store'
+import { toast } from '@/shared/store/use-alert-store'
 import {
   AxiosError,
   AxiosHeaders,

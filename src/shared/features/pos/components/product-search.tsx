@@ -1,7 +1,7 @@
 import { EmptyState, LoadMore, SearchInput, Shimmer } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
 import { SearchX } from 'lucide-react-native'
-import React, { useState, useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Keyboard, Pressable, Text, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { usePosActor, useProductSearch } from '../hooks'
@@ -42,14 +42,14 @@ export function ProductSearch() {
           className="flex-row items-center justify-between border-b border-surface-200 px-6 py-5 active:bg-surface-100"
         >
           <View className="flex-1">
-            <Text className="text-[18px] font-bold text-surface-on">{p.name}</Text>
-            <Text className="mt-1 text-base font-medium text-surface-on-variant">{p.sku}</Text>
+            <Text className="text-[20px] font-bold text-surface-on">{p.name}</Text>
+            <Text className="mt-1 text-[17px] font-medium text-surface-on-variant">{p.sku}</Text>
           </View>
           <View className="items-end">
-            <Text className="text-xl font-bold text-primary" numberOfLines={1}>
+            <Text className="text-[22px] font-bold text-primary" numberOfLines={1}>
               {formatCurrency(priceAfterTax)}
             </Text>
-            <Text className="mt-1 text-sm text-surface-on-variant">
+            <Text className="mt-1 text-[15px] text-surface-on-variant">
               Kho: {p.stock} {p.unitCode}
               {taxRate > 0 ? ` · VAT ${taxRate}%` : ''}
             </Text>
@@ -70,7 +70,6 @@ export function ProductSearch() {
         onClear={handleClear}
         autoCorrect={false}
         autoCapitalize="none"
-        size="md"
       />
 
       {/* Search Autocomplete / Loading */}

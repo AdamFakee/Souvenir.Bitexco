@@ -64,16 +64,21 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
   const mapped = useMemo(() => {
     if (!overview?.paymentMethods) return []
     const defaultColors = ['#6366f1', '#f97316', '#0ea5e9', '#ec4899', '#8b5cf6']
-    return overview.paymentMethods.map((pm, idx) => {
-      const rawName = pm.name || pm.method || ''
-      const rawValue = pm.value !== undefined ? pm.value : pm.amount !== undefined ? pm.amount : 0
-      const code = rawName.toLowerCase() as PaymentMethodCode
-      return {
-        name: PAYMENT_METHOD_LABELS[code] || rawName,
-        value: rawValue,
-        color: PAYMENT_CHART_COLORS[code] || defaultColors[idx % defaultColors.length],
-      }
-    })
+    return overview.paymentMethods
+      .filter((pm) => {
+        const method = (pm.method || pm.name || '').toLowerCase()
+        return method !== 'exchange'
+      })
+      .map((pm, idx) => {
+        const rawName = pm.name || pm.method || ''
+        const rawValue = pm.value !== undefined ? pm.value : pm.amount !== undefined ? pm.amount : 0
+        const code = rawName.toLowerCase() as PaymentMethodCode
+        return {
+          name: PAYMENT_METHOD_LABELS[code] || rawName,
+          value: rawValue,
+          color: PAYMENT_CHART_COLORS[code] || defaultColors[idx % defaultColors.length],
+        }
+      })
   }, [overview])
 
   const pieData = useMemo(

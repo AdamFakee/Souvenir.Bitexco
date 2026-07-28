@@ -84,6 +84,7 @@ export default function CheckoutPanel() {
   }, [paymentMethods, affiliate])
 
   const [voucherInput, setVoucherInput] = useState('')
+  const [isFocused, setIsFocused] = useState(false)
 
   // Sync voucherInput with appliedVoucher when switching sessions or clearing cart
   React.useEffect(() => {
@@ -185,28 +186,28 @@ export default function CheckoutPanel() {
 
   return (
     <KeyboardAvoidingView
-      behavior="padding"
+      behavior={isFocused ? 'padding' : undefined}
       keyboardVerticalOffset={24}
       className="w-full"
       style={{ zIndex: 10 }}
     >
       <View className="w-full rounded-2xl border border-outline-variant bg-white p-4 shadow-sm">
-        <View className="flex-row items-stretch gap-4">
+        <View className="flex-row items-stretch gap-3">
           {/* Col 1: khách + ghi chú + voucher */}
           <View className="min-w-0 flex-1 gap-3">
-            <View className="min-h-[64px] flex-row items-center justify-between rounded-2xl border border-outline-variant bg-slate-50 px-3 py-3">
+            <View className="min-h-[72px] flex-row items-center justify-between rounded-2xl border border-outline-variant bg-slate-50 px-4 py-4">
               <View className="min-w-0 flex-1 flex-row items-center gap-3 pr-2">
-                <View className="h-11 w-11 items-center justify-center rounded-full bg-primary/10">
-                  <User size={20} color={COLORS.primary.default} />
+                <View className="h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <User size={22} color={COLORS.primary.default} />
                 </View>
                 <View className="min-w-0 flex-1">
-                  <Text className="mb-0.5 text-[11px] font-bold uppercase tracking-widest text-muted">
+                  <Text className="mb-0.5 text-[13px] font-bold uppercase tracking-widest text-muted">
                     Khách hàng
                   </Text>
                   {affiliate ? (
                     <View className="gap-0.5">
                       <Text
-                        className="text-[16px] font-black text-surface-on"
+                        className="text-[18px] font-black text-surface-on"
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -225,7 +226,7 @@ export default function CheckoutPanel() {
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
                         <Text
-                          className="text-[13px] font-bold text-primary"
+                          className="text-[15px] font-bold text-primary"
                           numberOfLines={1}
                           ellipsizeMode="tail"
                         >
@@ -239,7 +240,7 @@ export default function CheckoutPanel() {
                       </Pressable>
                       {!!affiliate.phone && (
                         <Text
-                          className="text-[13px] font-bold text-surface-on-variant"
+                          className="text-[15px] font-bold text-surface-on-variant"
                           numberOfLines={1}
                         >
                           {affiliate.phone}
@@ -247,55 +248,59 @@ export default function CheckoutPanel() {
                       )}
                     </View>
                   ) : (
-                    <Text className="text-[16px] font-black text-surface-on">Khách lẻ</Text>
+                    <Text className="text-[18px] font-black text-surface-on">Khách lẻ</Text>
                   )}
                 </View>
               </View>
               {affiliate?.agentType === 'agent' && affiliate.isDebt && (
-                <View className="rounded-lg border border-error/20 bg-error/10 px-2.5 py-1">
-                  <Text className="text-[11px] font-black uppercase tracking-widest text-error">
+                <View className="rounded-lg border border-error/20 bg-error/10 px-3 py-1.5">
+                  <Text className="text-[13px] font-black uppercase tracking-widest text-error">
                     Công nợ
                   </Text>
                 </View>
               )}
             </View>
 
-            <View className="min-h-[56px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
-              <PenSquare size={20} color={COLORS.muted} />
+            <View className="min-h-[64px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
+              <PenSquare size={22} color={COLORS.muted} />
               <TextInput
-                className="m-0 min-h-[48px] flex-1 py-2 text-[16px] font-bold text-surface-on"
+                className="m-0 min-h-[52px] flex-1 py-2 text-[18px] font-bold text-surface-on"
                 placeholder="Nhập ghi chú đơn hàng..."
                 placeholderTextColor="#8D8E8F"
                 value={note}
                 onChangeText={(text) => cartActor?.send({ type: 'SET_NOTE', note: text })}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
               />
             </View>
 
-            <View className="min-h-[56px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
-              <Ticket size={20} color={appliedVoucher ? COLORS.primary.default : COLORS.muted} />
+            <View className="min-h-[64px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
+              <Ticket size={22} color={appliedVoucher ? COLORS.primary.default : COLORS.muted} />
               <TextInput
-                className="m-0 min-h-[48px] flex-1 py-2 text-[16px] font-bold text-surface-on"
+                className="m-0 min-h-[52px] flex-1 py-2 text-[18px] font-bold text-surface-on"
                 placeholder="Nhập mã giảm giá"
                 placeholderTextColor="#8D8E8F"
                 value={voucherInput}
                 onChangeText={setVoucherInput}
                 autoCapitalize="characters"
                 editable={!appliedVoucher && !isVerifying}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
               />
               <View className="mx-1 h-6 w-px bg-outline-variant" />
               {appliedVoucher ? (
                 <Pressable
-                  className="min-h-[44px] min-w-[64px] flex-row items-center justify-center gap-1.5 px-2"
+                  className="min-h-[44px] min-w-[72px] flex-row items-center justify-center gap-1.5 px-2"
                   onPress={handleRemoveVoucher}
                   accessibilityRole="button"
                   accessibilityLabel="Hủy mã giảm giá"
                 >
-                  <XCircle size={18} color={COLORS.error.default} />
-                  <Text className="text-[15px] font-bold text-error">Hủy</Text>
+                  <XCircle size={20} color={COLORS.error.default} />
+                  <Text className="text-[17px] font-bold text-error">Hủy</Text>
                 </Pressable>
               ) : (
                 <Pressable
-                  className="min-h-[44px] min-w-[72px] items-center justify-center px-2"
+                  className="min-h-[44px] min-w-[80px] items-center justify-center px-2"
                   onPress={handleApplyVoucher}
                   disabled={!voucherInput.trim() || isVerifying}
                   accessibilityRole="button"
@@ -304,7 +309,7 @@ export default function CheckoutPanel() {
                     { opacity: !voucherInput.trim() || isVerifying ? 0.4 : pressed ? 0.7 : 1 },
                   ]}
                 >
-                  <Text className="text-[15px] font-bold text-primary">
+                  <Text className="text-[17px] font-bold text-primary">
                     {isVerifying ? '...' : 'Áp dụng'}
                   </Text>
                 </Pressable>
@@ -313,38 +318,38 @@ export default function CheckoutPanel() {
           </View>
 
           {/* Col 2: tổng tiền */}
-          <View className="w-[280px] justify-between rounded-2xl border border-outline-variant/60 bg-slate-50 px-4 py-3">
-            <View className="gap-2.5">
+          <View className="w-[320px] justify-between rounded-2xl border border-outline-variant/60 bg-slate-50 px-4 py-4">
+            <View className="gap-3">
               <View className="flex-row items-center justify-between">
-                <Text className="text-[15px] font-bold text-surface-on-variant">Số lượng</Text>
-                <Text className="text-[15px] font-bold text-surface-on" numberOfLines={1}>
+                <Text className="text-[17px] font-bold text-surface-on-variant">Số lượng</Text>
+                <Text className="text-[17px] font-bold text-surface-on" numberOfLines={1}>
                   {totalQty} món
                 </Text>
               </View>
               <View className="flex-row items-center justify-between">
-                <Text className="text-[15px] font-bold text-surface-on-variant">Tạm tính</Text>
-                <Text className="text-[15px] font-bold text-surface-on" numberOfLines={1}>
+                <Text className="text-[17px] font-bold text-surface-on-variant">Tạm tính</Text>
+                <Text className="text-[17px] font-bold text-surface-on" numberOfLines={1}>
                   {formatCurrency(subtotal)}
                 </Text>
               </View>
               <View className="flex-row items-center justify-between">
-                <Text className="text-[15px] font-bold text-surface-on-variant">Thuế</Text>
-                <Text className="text-[15px] font-bold text-surface-on" numberOfLines={1}>
+                <Text className="text-[17px] font-bold text-surface-on-variant">Thuế</Text>
+                <Text className="text-[17px] font-bold text-surface-on" numberOfLines={1}>
                   {formatCurrency(tax)}
                 </Text>
               </View>
               <View className="flex-row items-center justify-between">
-                <Text className="text-[15px] font-bold text-surface-on-variant">Giảm giá</Text>
-                <Text className="text-[15px] font-bold text-success" numberOfLines={1}>
+                <Text className="text-[17px] font-bold text-surface-on-variant">Giảm giá</Text>
+                <Text className="text-[17px] font-bold text-success" numberOfLines={1}>
                   -{formatCurrency(discount)}
                 </Text>
               </View>
             </View>
 
-            <View className="mt-3 flex-row items-center justify-between border-t border-outline-variant pt-3">
-              <Text className="text-[16px] font-extrabold text-surface-on">Tổng cộng</Text>
+            <View className="mt-4 flex-row items-center justify-between border-t border-outline-variant pt-4">
+              <Text className="text-[18px] font-extrabold text-surface-on">Tổng cộng</Text>
               <Text
-                className="text-[24px] font-black text-[#FB6514]"
+                className="text-[28px] font-black text-[#FB6514]"
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
@@ -354,7 +359,7 @@ export default function CheckoutPanel() {
           </View>
 
           {/* Col 3: PTTT — nút to, dễ bấm tablet */}
-          <View className="w-[360px] justify-end gap-3">
+          <View className="w-[360px] justify-end gap-2">
             {paymentRows.map((row, rowIndex) => (
               <View key={rowIndex} className="flex-row gap-3">
                 {row.map((method) => {
@@ -376,7 +381,7 @@ export default function CheckoutPanel() {
                       accessibilityState={{ disabled: isDisabled }}
                       accessibilityLabel={method.label}
                       onPress={() => handleStartPayment(String(method.type))}
-                      className={`min-h-[64px] flex-1 flex-row items-center justify-center gap-2.5 rounded-2xl border px-3 ${
+                      className={`min-h-[72px] flex-1 flex-row items-center justify-center gap-2.5 rounded-2xl border px-3 ${
                         isDebt ? 'border-error bg-error' : 'border-outline-variant bg-primary'
                       } ${isDisabled ? 'opacity-45' : 'opacity-100'}`}
                       style={
@@ -384,10 +389,10 @@ export default function CheckoutPanel() {
                       }
                     >
                       {Icon ? (
-                        <Icon size={24} color="#ffffff" width={24} height={24} fill="#ffffff" />
+                        <Icon size={28} color="#ffffff" width={28} height={28} fill="#ffffff" />
                       ) : null}
                       <Text
-                        className="text-center text-[16px] font-bold text-white"
+                        className="text-center text-[18px] font-bold text-white"
                         numberOfLines={1}
                       >
                         {method.label}

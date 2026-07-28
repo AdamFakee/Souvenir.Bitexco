@@ -41,6 +41,8 @@ export default function ExchangeRoute() {
       order={order}
       onDone={() => {
         queryClient.invalidateQueries({ queryKey: ['orders'] })
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
         queryClient.removeQueries({ queryKey: ['exchange-order', orderId] })
         if (router.canGoBack()) router.back()
         else router.replace('/(tab)/orders')

@@ -37,7 +37,7 @@ const MENU_ITEMS: MenuItem[] = [
   { name: 'pos', label: 'Bán hàng', icon: CartIcon },
   { name: 'orders', label: 'Đơn hàng', icon: DebtIcon },
   { name: 'dashboard', label: 'Báo cáo', icon: WorkingIcon },
-  { name: 'dev_control', label: 'Dev Control', icon: Terminal },
+  ...(__DEV__ ? [{ name: 'dev_control', label: 'Dev Control', icon: Terminal }] : []),
 ]
 
 const NoteSidebarButton = React.memo(() => {
@@ -299,7 +299,13 @@ export default function TabLayout() {
           <Tabs.Screen name="pos" options={{ title: 'Bán hàng' }} />
           <Tabs.Screen name="orders" options={{ title: 'Đơn hàng' }} />
           <Tabs.Screen name="dashboard" options={{ title: 'Báo cáo' }} />
-          <Tabs.Screen name="dev_control" options={{ title: 'Dev Control' }} />
+          <Tabs.Screen
+            name="dev_control"
+            options={{
+              title: 'Dev Control',
+              href: __DEV__ ? undefined : null,
+            }}
+          />
         </Tabs>
       </View>
 

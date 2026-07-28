@@ -17,9 +17,9 @@ export default function PosScreen() {
   if (!isShiftOpen) {
     return (
       <View className="flex-1 items-center justify-center bg-surface-200 p-6">
-        <Store size={80} color={COLORS.primary.default} />
-        <Text className="mt-4 text-headline-md font-bold text-surface-on">Chưa mở ca làm việc</Text>
-        <Text className="mb-8 mt-2 max-w-md text-center text-body-base text-surface-on-variant">
+        <Store size={100} color={COLORS.primary.default} />
+        <Text className="mt-4 text-[28px] font-bold text-surface-on">Chưa mở ca làm việc</Text>
+        <Text className="mb-8 mt-2 max-w-md text-center text-[18px] text-surface-on-variant">
           Bạn cần mở ca làm việc và kiểm đếm tiền mặt đầu ca trước khi thực hiện bán hàng.
         </Text>
       </View>

@@ -14,10 +14,6 @@ import { Pressable, Text, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { ExchangeReplacementLine } from '../machines/exchange-order.machine'
 
-const BORDER = '#DFE0E1'
-const TEXT_PRIMARY = '#303036'
-const TEXT_MUTED = '#747475'
-const BRAND = '#1C4E68'
 const ZEBRA = '#FAFAFB'
 const PAGE_SIZE = 40
 
@@ -36,7 +32,6 @@ const toUnified = (r: PosLookupResult): UnifiedProduct => ({
 interface ExchangeReplacementSearchPanelProps {
   isDraft: boolean
   isProcessing: boolean
-  /** SKU các món trả đang chọn → GET /v1/pos/category?sku=A&sku=B */
   seedSkus: string[]
   suggestedUnitPrice?: number
   selectedLines: ExchangeReplacementLine[]
@@ -45,7 +40,6 @@ interface ExchangeReplacementSearchPanelProps {
   onRemoveItem: (variantId: string) => void
 }
 
-/** Một list: SP cùng category · multi-sku · pagination · tap chọn. */
 export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementSearchPanel({
   isDraft,
   isProcessing,
@@ -124,14 +118,8 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
 
   return (
     <View className="min-h-0 flex-1 bg-white">
-      <View
-        className="flex-row items-center justify-between px-5 py-3"
-        style={{ borderBottomWidth: 1, borderColor: BORDER, backgroundColor: ZEBRA }}
-      >
-        <Text
-          className="text-sm font-extrabold uppercase tracking-wider"
-          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
-        >
+      <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-5 py-3">
+        <Text className="text-[13px] font-bold uppercase tracking-widest text-surface-on-variant">
           Hàng đổi mới
         </Text>
       </View>
@@ -191,44 +179,27 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
               <Pressable
                 onPress={() => handlePress(item)}
                 disabled={!isDraft || isProcessing}
-                className="flex-row items-center px-5 py-4 active:opacity-70"
+                className="flex-row items-center border-b border-surface-100 px-5 py-4 active:opacity-70"
                 style={{
-                  borderBottomWidth: 0.5,
-                  borderColor: BORDER,
-                  backgroundColor: selected ? 'rgba(28,78,104,0.06)' : isEven ? ZEBRA : '#fff',
+                  backgroundColor: selected ? 'rgba(83,123,144,0.06)' : isEven ? ZEBRA : '#fff',
                 }}
               >
                 <View className="min-w-0 flex-1 pr-3">
-                  <Text
-                    className="text-lg font-extrabold"
-                    style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
-                    numberOfLines={2}
-                  >
+                  <Text className="text-[16px] font-bold text-surface-on" numberOfLines={2}>
                     {item.name}
                   </Text>
                   <View className="mt-1 flex-row flex-wrap items-center gap-2">
-                    <Text
-                      className="text-sm font-bold"
-                      style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Medium' }}
-                    >
+                    <Text className="text-[13px] font-medium text-surface-on-variant">
                       {item.sku}
                     </Text>
                     {samePrice && (
-                      <Text
-                        className="text-xs font-extrabold"
-                        style={{ color: '#059669', fontFamily: 'Manrope-Bold' }}
-                      >
-                        Cùng giá
-                      </Text>
+                      <Text className="text-[11px] font-bold text-success">Cùng giá</Text>
                     )}
                   </View>
                 </View>
 
                 <View className="items-end">
-                  <Text
-                    className="text-lg font-extrabold"
-                    style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
-                  >
+                  <Text className="text-[16px] font-bold text-primary" numberOfLines={1}>
                     {formatCurrency(item.price)}
                   </Text>
                   {selected ? (
@@ -246,10 +217,7 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
                       />
                     </View>
                   ) : (
-                    <Text
-                      className="mt-1 text-sm font-bold"
-                      style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Medium' }}
-                    >
+                    <Text className="mt-1 text-[13px] font-medium text-surface-on-variant">
                       Kho {item.stock}
                     </Text>
                   )}

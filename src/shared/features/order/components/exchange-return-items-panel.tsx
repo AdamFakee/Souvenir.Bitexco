@@ -5,10 +5,6 @@ import { FlashList } from '@shopify/flash-list'
 import React, { memo, useCallback, useMemo } from 'react'
 import { Text, View } from 'react-native'
 
-const BORDER = '#DFE0E1'
-const TEXT_PRIMARY = '#303036'
-const TEXT_MUTED = '#747475'
-
 interface ExchangeReturnItemsPanelProps {
   items: ItemSnapshot[]
   isDraft: boolean
@@ -47,53 +43,30 @@ export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
 
   return (
     <View className="flex-1 bg-white">
-      {/* Section header */}
-      <View
-        className="flex-row items-center px-5 py-3"
-        style={{ borderBottomWidth: 1, borderColor: BORDER, backgroundColor: '#FAFAFB' }}
-      >
-        <Text
-          className="text-sm font-extrabold uppercase tracking-wider"
-          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
-        >
+      <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-5 py-3">
+        <Text className="text-[13px] font-bold uppercase tracking-widest text-surface-on-variant">
           Hàng khách trả
         </Text>
       </View>
 
-      {/* Column header */}
-      <View
-        className="flex-row items-center px-5 py-3"
-        style={{ borderBottomWidth: 1, borderColor: BORDER }}
-      >
-        <View className="w-12 items-center justify-center">
+      <View className="flex-row items-center border-b border-surface-200 bg-white px-2 py-3">
+        <View className="w-16 items-center justify-center">
           <Checkbox
             checked={allSelected}
             onChange={handleToggleAll}
             disabled={!isDraft || isProcessing}
           />
         </View>
-        <Text
-          className="ml-4 flex-1 text-sm font-extrabold uppercase tracking-wider"
-          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
-        >
+        <Text className="flex-1 text-[14px] font-bold uppercase tracking-widest text-surface-on-variant">
           Sản phẩm
         </Text>
-        <Text
-          className="w-20 text-center text-sm font-extrabold uppercase tracking-wider"
-          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
-        >
+        <Text className="w-[100px] text-center text-[14px] font-bold uppercase tracking-widest text-surface-on-variant">
           SL mua
         </Text>
-        <Text
-          className="w-36 text-center text-sm font-extrabold uppercase tracking-wider"
-          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
-        >
+        <Text className="w-[160px] text-center text-[14px] font-bold uppercase tracking-widest text-surface-on-variant">
           SL trả
         </Text>
-        <Text
-          className="w-28 text-right text-sm font-extrabold uppercase tracking-wider"
-          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
-        >
+        <Text className="w-[120px] pr-2 text-right text-[14px] font-bold uppercase tracking-widest text-surface-on-variant">
           Giá trị
         </Text>
       </View>
@@ -107,38 +80,27 @@ export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
           const lineAmount = getLineAmount(item, qty)
 
           return (
-            <View
-              className="flex-row items-center px-5 py-4"
-              style={{ borderBottomWidth: 0.5, borderColor: BORDER }}
-            >
+            <View className="flex-row items-center border-b border-surface-100 bg-white px-2 py-4">
               <Checkbox
                 checked={isSelected}
                 onChange={() => onToggleItem(item)}
                 disabled={!isDraft || isProcessing}
               />
-              <View className="ml-4 flex-1">
-                <Text
-                  className="text-lg font-extrabold"
-                  style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
-                  numberOfLines={1}
-                >
+              <View className="ml-4 flex-1 pr-2">
+                <Text className="text-[16px] font-bold text-surface-on" numberOfLines={1}>
                   {item.name}
                 </Text>
                 <Text
-                  className="mt-0.5 text-sm font-bold"
-                  style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Medium' }}
+                  className="mt-0.5 text-[13px] font-medium text-surface-on-variant"
                   numberOfLines={1}
                 >
                   {item.sku}
                 </Text>
               </View>
-              <Text
-                className="w-20 text-center text-lg font-extrabold"
-                style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
-              >
+              <Text className="w-[100px] text-center text-[16px] font-bold text-surface-on">
                 x{item.quantity}
               </Text>
-              <View className="w-36 items-center">
+              <View className="w-[160px] items-center">
                 <QuantityStepper
                   value={qty}
                   onChange={(nextQty) => onChangeQty(item, nextQty)}
@@ -148,8 +110,7 @@ export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
                 />
               </View>
               <Text
-                className="w-28 text-right text-lg font-extrabold"
-                style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+                className="w-[120px] pr-2 text-right text-[16px] font-bold text-error"
                 numberOfLines={1}
               >
                 {isSelected ? formatCurrency(lineAmount) : '-'}

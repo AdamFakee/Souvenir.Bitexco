@@ -1,7 +1,9 @@
 import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { Button, ControlledInput, IconButton } from '@/shared/components/ui'
+import { COLORS } from '@/shared/constants'
 import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
 import { useAppStore } from '@/shared/features/app/store/use-app-store'
+import { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 import { UnifiedProduct } from '@/shared/features/pos/hooks/use-product-search'
 import { ItemSnapshot } from '@/shared/lib/database/types'
 import { PrinterService } from '@/shared/services'
@@ -11,9 +13,9 @@ import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useMachine } from '@xstate/react'
 import { useRouter } from 'expo-router'
 import { X } from 'lucide-react-native'
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
-import { StyleSheet, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as v from 'valibot'
 import {
@@ -24,16 +26,12 @@ import {
   exchangeOrderMachine,
 } from '../machines/exchange-order.machine'
 import { IOrder, RefundReceiptData } from '../types'
-import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
+import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
 import { ExchangeReplacementSearchPanel } from './exchange-replacement-search-panel'
 import { ExchangeReturnItemsPanel } from './exchange-return-items-panel'
 import { ExchangeSummaryFooter } from './exchange-summary-footer'
 import { RefundReceiptTemplate } from './refund-receipt-template'
-import { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
-
-const BRAND = '#1C4E68'
-const TEXT_MUTED = '#747475'
 
 const managerSchema = v.object({
   employeeCode: v.pipe(v.string(), v.minLength(1, 'Mã quản lý là bắt buộc')),
@@ -421,25 +419,20 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         <HardwareBarcodeScanner onScan={(codes) => send({ type: 'SCAN_CODES', codes })} />
       )}
 
-      <View
-        className="flex-row items-center justify-between px-6 py-4"
-        style={{ borderBottomWidth: 1, borderColor: '#DFE0E1', backgroundColor: '#fff' }}
-      >
+      <View className="flex-row items-center justify-between border-b border-surface-200 bg-white px-6 py-4">
         <View>
-          <Text
-            className="text-2xl font-extrabold"
-            style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
-          >
-            Đổi hàng
-          </Text>
-          <Text
-            className="mt-1 text-base font-bold"
-            style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
-          >
+          <Text className="text-[28px] font-extrabold text-surface-on">Đổi hàng</Text>
+          <Text className="mt-1 text-[16px] font-bold text-surface-on-variant">
             {activeOrder.code || activeOrder.id} · {stepText}
           </Text>
         </View>
-        <IconButton icon={X} size={28} color={TEXT_MUTED} onPress={leave} disabled={isProcessing} />
+        <IconButton
+          icon={X}
+          size={28}
+          color={COLORS.surface.onVariant}
+          onPress={leave}
+          disabled={isProcessing}
+        />
       </View>
 
       <View className="min-h-0 flex-1 flex-row px-3 pb-3 pt-2">
@@ -523,10 +516,10 @@ export const ExchangeScreen = memo(function ExchangeScreen({
 
       {(isWaitingManager ||
         (state.matches('submittingExchange') && state.context.managerAuth !== null)) && (
-        <View style={styles.managerOverlay}>
-          <View style={styles.managerCard}>
-            <Text style={styles.managerTitle}>Cần duyệt quản lý</Text>
-            <Text style={styles.managerSubtitle}>
+        <View className="absolute inset-0 z-50 items-center justify-center bg-black/55 p-6">
+          <View className="w-full max-w-[460px] rounded-2xl bg-white p-6" style={{ gap: 14 }}>
+            <Text className="text-[22px] font-bold text-surface-on">Cần duyệt quản lý</Text>
+            <Text className="text-[15px] font-medium leading-6 text-surface-on-variant">
               {managerApprovalMessage || 'Nhập tài khoản và PIN quản lý để phê duyệt đổi hàng.'}
             </Text>
             <View style={{ gap: 12 }}>
@@ -573,34 +566,4 @@ export const ExchangeScreen = memo(function ExchangeScreen({
       )}
     </SafeAreaView>
   )
-})
-
-const styles = StyleSheet.create({
-  managerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 50,
-    padding: 24,
-  },
-  managerCard: {
-    width: '100%',
-    maxWidth: 460,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    gap: 14,
-  },
-  managerTitle: {
-    fontSize: 22,
-    fontFamily: 'Manrope-Bold',
-    color: BRAND,
-  },
-  managerSubtitle: {
-    fontSize: 15,
-    fontFamily: 'Manrope-Medium',
-    color: TEXT_MUTED,
-    lineHeight: 22,
-  },
 })
