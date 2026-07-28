@@ -46,9 +46,9 @@ export const OrderFilterBar = memo(function OrderFilterBar({
         <StaffSelect
           value={staffId}
           onChange={handleStaffChange}
-          className="w-52"
-          triggerClassName="h-14 rounded-xl"
-          triggerTextClassName="text-lg font-semibold text-surface-on"
+          className="w-60"
+          triggerClassName="h-[64px] rounded-xl"
+          triggerTextClassName="text-[20px] font-bold text-surface-on"
         />
       )}
     </View>

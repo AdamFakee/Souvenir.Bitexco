@@ -19,6 +19,7 @@ interface OrderListProps {
   fetchNextPage: () => void
   hasNextPage: boolean
   isFetchingNextPage: boolean
+  mode?: 'pos' | 'collaborator' | 'agent'
 }
 
 const BRAND = '#1C4E68'
@@ -79,12 +80,23 @@ function buildOrderDisplay(item: IOrder): OrderDisplay {
   const displayTotal = item.refund ? item.refund.refundAmount : item.total
   const displayStatus = getOrderDisplayStatus(item)
 
+  let collaboratorName = '—'
+  let collaboratorCode = ''
+
+  if (item.agentType === 'agent' && item.partner) {
+    collaboratorName = item.partner.nameVi || '—'
+    collaboratorCode = item.partner.code ? `#${item.partner.code}` : ''
+  } else if (item.affiliate) {
+    collaboratorName = item.affiliate.name || '—'
+    collaboratorCode = item.affiliate.code ? `#${item.affiliate.code}` : ''
+  }
+
   return {
     id: item.id,
     updatedAt: item.updatedAt,
     code: item.code || item.id,
-    collaboratorName: item.affiliate?.name || '—',
-    collaboratorCode: item.affiliate?.code ? `#${item.affiliate.code}` : '',
+    collaboratorName,
+    collaboratorCode,
     dateTime: formatDateTime(item.createdAt),
     ptttLabel: pttt.label,
     ptttColor: pttt.color,
@@ -122,6 +134,7 @@ interface HeaderCellProps {
   currentSort: SortField | null
   currentDir: 'asc' | 'desc'
   onSort: (field: SortField) => void
+  mode?: 'pos' | 'collaborator' | 'agent'
 }
 
 const HeaderCell = memo(function HeaderCell({
@@ -132,6 +145,7 @@ const HeaderCell = memo(function HeaderCell({
   currentSort,
   currentDir,
   onSort,
+  mode,
 }: HeaderCellProps) {
   const active = sortable && currentSort === field
 
@@ -156,6 +170,8 @@ const HeaderCell = memo(function HeaderCell({
     selectedLabel = statusFilter
       ? STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || 'Trạng thái'
       : 'Trạng thái'
+  } else if (field === 'collaborator' && mode === 'agent') {
+    selectedLabel = 'Đại lý'
   }
 
   const handlePress = useCallback(() => {
@@ -174,27 +190,27 @@ const HeaderCell = memo(function HeaderCell({
       <Pressable
         onPress={handlePress}
         disabled={!isPaymentCol && !isStatusCol && (!sortable || field === 'actions')}
-        className={`flex-row items-center gap-1 ${field === 'actions' ? 'justify-center px-2' : 'px-4'}`}
-        style={{ height: 60 }}
+        className={`flex-row items-center gap-1.5 ${field === 'actions' ? 'justify-center px-2' : 'px-4'}`}
+        style={{ height: 64 }}
       >
         <Text
-          className="text-xl font-bold"
           numberOfLines={1}
           style={{
             color: BRAND,
             fontFamily: 'Manrope-Bold',
+            fontSize: 22,
           }}
         >
           {selectedLabel}
         </Text>
         {active && !isPaymentCol && !isStatusCol && (
-          <Text style={{ color: BRAND, fontSize: 14 }}>{currentDir === 'asc' ? '▲' : '▼'}</Text>
+          <Text style={{ color: BRAND, fontSize: 15 }}>{currentDir === 'asc' ? '▲' : '▼'}</Text>
         )}
         {isPaymentCol && (
-          <Text style={{ color: BRAND, fontSize: 12 }}>{showPaymentPopover ? '▲' : '▼'}</Text>
+          <Text style={{ color: BRAND, fontSize: 13 }}>{showPaymentPopover ? '▲' : '▼'}</Text>
         )}
         {isStatusCol && (
-          <Text style={{ color: BRAND, fontSize: 12 }}>{showStatusPopover ? '▲' : '▼'}</Text>
+          <Text style={{ color: BRAND, fontSize: 13 }}>{showStatusPopover ? '▲' : '▼'}</Text>
         )}
       </Pressable>
 
@@ -202,7 +218,7 @@ const HeaderCell = memo(function HeaderCell({
       {isPaymentCol && showPaymentPopover ? (
         <View
           className="absolute left-4 z-10 rounded-xl border bg-white py-1 shadow-lg"
-          style={{ borderColor: BORDER, minWidth: 200, top: 60 }}
+          style={{ borderColor: BORDER, minWidth: 220, top: 64 }}
         >
           {PAYMENT_METHOD_OPTIONS.map((opt) => {
             const active = (paymentMethod ?? '') === opt.value
@@ -217,8 +233,11 @@ const HeaderCell = memo(function HeaderCell({
                 style={{ backgroundColor: active ? 'rgba(28,78,104,0.08)' : 'transparent' }}
               >
                 <Text
-                  className="text-lg font-bold"
-                  style={{ color: active ? BRAND : TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                  style={{
+                    color: active ? BRAND : TEXT_PRIMARY,
+                    fontFamily: 'Manrope-Bold',
+                    fontSize: 18,
+                  }}
                 >
                   {opt.label}
                 </Text>
@@ -232,7 +251,7 @@ const HeaderCell = memo(function HeaderCell({
       {isStatusCol && showStatusPopover ? (
         <View
           className="absolute left-4 z-10 rounded-xl border bg-white py-1 shadow-lg"
-          style={{ borderColor: BORDER, minWidth: 200, top: 60 }}
+          style={{ borderColor: BORDER, minWidth: 220, top: 64 }}
         >
           {STATUS_OPTIONS.map((opt) => {
             const active = statusFilter === opt.value
@@ -247,8 +266,11 @@ const HeaderCell = memo(function HeaderCell({
                 style={{ backgroundColor: active ? 'rgba(28,78,104,0.08)' : 'transparent' }}
               >
                 <Text
-                  className="text-lg font-bold"
-                  style={{ color: active ? BRAND : TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                  style={{
+                    color: active ? BRAND : TEXT_PRIMARY,
+                    fontFamily: 'Manrope-Bold',
+                    fontSize: 18,
+                  }}
                 >
                   {opt.label}
                 </Text>
@@ -286,60 +308,52 @@ const OrderRow = memo(
         onPress={onPress}
         className="flex-row items-center active:opacity-70"
         style={{
-          minHeight: 52,
+          minHeight: 62,
           backgroundColor: isEven ? ZEBRA : '#fff',
           paddingVertical: 8,
         }}
       >
         {/* Mã đơn */}
-        <View className="flex-1 justify-center px-4" style={{ height: 51 }}>
+        <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
           <Text
-            className="text-lg font-bold"
-            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
             numberOfLines={1}
+            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
           >
             {display.code}
           </Text>
         </View>
 
         {/* Cộng tác viên */}
-        <View className="flex-1 justify-center px-4" style={{ height: 51 }}>
+        <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
           <Text
-            className="text-lg font-bold"
-            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
             numberOfLines={1}
+            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
           >
             {display.collaboratorName}
           </Text>
           {display.collaboratorCode ? (
-            <Text
-              className="text-base font-bold"
-              style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold' }}
-            >
+            <Text style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold', fontSize: 16 }}>
               {display.collaboratorCode}
             </Text>
           ) : null}
         </View>
 
         {/* Ngày tạo */}
-        <View className="flex-1 justify-center px-4" style={{ height: 51 }}>
-          <Text
-            className="text-lg font-bold"
-            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
-          >
+        <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
+          <Text style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}>
             {display.dateTime}
           </Text>
         </View>
 
         {/* Thanh toán */}
-        <View className="justify-center px-4" style={{ flex: 0.7, height: 51 }}>
+        <View className="justify-center px-4" style={{ flex: 0.7, height: 60 }}>
           <View
             className="self-start rounded-md px-3 py-1"
             style={{ backgroundColor: display.ptttBg }}
           >
             <Text
-              className="text-lg font-bold uppercase tracking-tight"
-              style={{ color: display.ptttColor, fontFamily: 'Manrope-Bold' }}
+              className="uppercase tracking-tight"
+              style={{ color: display.ptttColor, fontFamily: 'Manrope-Bold', fontSize: 18 }}
             >
               {display.ptttLabel}
             </Text>
@@ -347,25 +361,19 @@ const OrderRow = memo(
         </View>
 
         {/* Giá trị */}
-        <View className="justify-center px-4" style={{ flex: 0.8, height: 51 }}>
-          <Text
-            className="text-lg font-bold"
-            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
-          >
+        <View className="justify-center px-4" style={{ flex: 0.8, height: 60 }}>
+          <Text style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}>
             {display.totalFormatted}
           </Text>
         </View>
 
         {/* Trạng thái */}
-        <View className="justify-center px-4" style={{ flex: 0.8, height: 51 }}>
+        <View className="justify-center px-4" style={{ flex: 0.8, height: 60 }}>
           <View
             className="self-start rounded-full px-3 py-1"
             style={{ backgroundColor: display.statusBg }}
           >
-            <Text
-              className="text-lg font-bold"
-              style={{ color: display.statusColor, fontFamily: 'Manrope-Bold' }}
-            >
+            <Text style={{ color: display.statusColor, fontFamily: 'Manrope-Bold', fontSize: 18 }}>
               {display.statusLabel}
             </Text>
           </View>
@@ -373,8 +381,8 @@ const OrderRow = memo(
 
         {/* Hành động: Đổi / Trả */}
         <View
-          className="flex-row items-center justify-center gap-1 px-2"
-          style={{ flex: 0.7, height: 51 }}
+          className="flex-row items-center justify-center gap-1.5 px-2"
+          style={{ flex: 0.7, height: 60 }}
         >
           <Pressable
             accessibilityRole="button"
@@ -385,13 +393,13 @@ const OrderRow = memo(
               e?.stopPropagation?.()
               if (canExchange) onExchange?.(order)
             }}
-            className="h-10 w-10 items-center justify-center rounded-lg"
+            className="h-11 w-11 items-center justify-center rounded-lg"
             style={{
               backgroundColor: canExchange ? 'rgba(28,78,104,0.1)' : 'transparent',
               opacity: canExchange && onExchange ? 1 : 0.35,
             }}
           >
-            <Repeat2 size={20} color={canExchange ? BRAND : TEXT_TERTIARY} />
+            <Repeat2 size={22} color={canExchange ? BRAND : TEXT_TERTIARY} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -402,13 +410,13 @@ const OrderRow = memo(
               e?.stopPropagation?.()
               if (canReturn) onRefund?.(order)
             }}
-            className="h-10 w-10 items-center justify-center rounded-lg"
+            className="h-11 w-11 items-center justify-center rounded-lg"
             style={{
               backgroundColor: canReturn ? 'rgba(220,38,38,0.08)' : 'transparent',
               opacity: canReturn && onRefund ? 1 : 0.35,
             }}
           >
-            <Undo2 size={20} color={canReturn ? '#DC2626' : TEXT_TERTIARY} />
+            <Undo2 size={22} color={canReturn ? '#DC2626' : TEXT_TERTIARY} />
           </Pressable>
         </View>
       </Pressable>
@@ -426,12 +434,12 @@ const OrderSkeleton = ({ index }: { index: number }) => {
   return (
     <View
       className="flex-row items-center"
-      style={{ minHeight: 52, backgroundColor: isEven ? ZEBRA : '#fff', paddingVertical: 8 }}
+      style={{ minHeight: 62, backgroundColor: isEven ? ZEBRA : '#fff', paddingVertical: 8 }}
     >
       {COLUMNS.map((col, i) => (
-        <View key={i} className="justify-center px-4" style={{ flex: col.flex, height: 51 }}>
-          <Shimmer className="h-5 w-24 rounded-md" />
-          {col.field === 'collaborator' && <Shimmer className="mt-1 h-4 w-16 rounded-md" />}
+        <View key={i} className="justify-center px-4" style={{ flex: col.flex, height: 60 }}>
+          <Shimmer className="h-6 w-28 rounded-md" />
+          {col.field === 'collaborator' && <Shimmer className="mt-1 h-4 w-20 rounded-md" />}
         </View>
       ))}
     </View>
@@ -443,12 +451,14 @@ interface TableHeaderProps {
   sortField: SortField | null
   sortDir: 'asc' | 'desc'
   onSort: (field: SortField) => void
+  mode?: 'pos' | 'collaborator' | 'agent'
 }
 
 export const TableHeader = memo(function TableHeader({
   sortField,
   sortDir,
   onSort,
+  mode,
 }: TableHeaderProps) {
   return (
     <View className="z-50 flex-row items-center border-b bg-white" style={{ borderColor: BORDER }}>
@@ -462,6 +472,7 @@ export const TableHeader = memo(function TableHeader({
           currentSort={sortField}
           currentDir={sortDir}
           onSort={onSort}
+          mode={mode}
         />
       ))}
     </View>
@@ -478,6 +489,7 @@ export const OrderList = memo(function OrderList({
   fetchNextPage,
   hasNextPage,
   isFetchingNextPage,
+  mode = 'pos',
 }: OrderListProps) {
   const resetFilters = useOrderFilterStore((s) => s.resetFilters)
   const [sortField, setSortField] = useState<SortField | null>(null)
@@ -553,7 +565,7 @@ export const OrderList = memo(function OrderList({
   if (isLoading && orders.length === 0) {
     return (
       <View className="flex-1">
-        <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+        <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} mode={mode} />
         {[...Array(6)].map((_, i) => (
           <OrderSkeleton key={i} index={i} />
         ))}
@@ -564,7 +576,7 @@ export const OrderList = memo(function OrderList({
   return (
     <View className="flex-1">
       {/* Header pinned outside FlashList so popover isn't clipped */}
-      <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+      <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} mode={mode} />
       <FlashList
         data={displays}
         keyExtractor={keyExtractor}

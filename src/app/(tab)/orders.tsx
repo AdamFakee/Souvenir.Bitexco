@@ -65,7 +65,7 @@ const TopTabs = memo(function TopTabs({
             }
           >
             <Text
-              className={`font-manrope-bold text-xl font-bold ${
+              className={`font-manrope-bold text-[22px] font-black ${
                 active ? 'text-primary' : 'text-neutral-900'
               }`}
               numberOfLines={1}
@@ -117,18 +117,18 @@ const GuideOwnerBar = memo(function GuideOwnerBar({
         onChange={onChangeId}
         placeholder={`Tất cả ${mode === 'collaborator' ? 'Cộng tác viên' : 'Đại lý'}`}
         className="flex-1"
-        triggerClassName="h-14 rounded-xl"
-        triggerTextClassName="text-lg font-bold"
+        triggerClassName="h-[64px] rounded-xl"
+        triggerTextClassName="text-[20px] font-bold"
       />
       {mode === 'collaborator' && (
         <Pressable
           onPress={onPreviewReconciliation}
           disabled={!activeId}
-          className={`h-14 items-center justify-center rounded-xl px-8 ${
+          className={`h-[64px] items-center justify-center rounded-xl px-8 ${
             activeId ? 'bg-primary' : 'bg-outline'
           }`}
         >
-          <Text className="font-manrope-bold text-lg font-bold text-white">Xem biên nhận</Text>
+          <Text className="font-manrope-bold text-[20px] font-black text-white">Xem biên nhận</Text>
         </Pressable>
       )}
     </View>
@@ -174,6 +174,7 @@ const OrdersResults = memo(function OrdersResults({
   return (
     <View className="flex-1 rounded-lg border border-outline">
       <OrderList
+        mode={mode}
         onOpenDetails={onOpenDetails}
         onExchange={onExchange}
         onRefund={onRefund}
@@ -267,7 +268,7 @@ export default function OrdersScreen() {
   )
 
   const handleOpenDetails = useCallback((order: IOrder) => {
-    console.log('detail:: ', order)
+    console.log('detail:: ', JSON.stringify(order, null, 2))
     if (!mountModalsRef.current) {
       pendingDetail.current = order
       mountModalsRef.current = true

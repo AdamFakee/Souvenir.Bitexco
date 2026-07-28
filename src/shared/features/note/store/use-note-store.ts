@@ -15,6 +15,8 @@ export interface HandoverNote {
   createdById: string
   createdByName: string
   createdByCode: string
+  isImportant?: boolean
+  stt?: number | null | string
 }
 
 interface NoteState {
@@ -29,6 +31,8 @@ interface NoteState {
     targetTime: string
     reminderTime: string
     isReminderActive: boolean
+    isImportant?: boolean
+    stt?: number | null | string
   }) => void
   updateNote: (
     id: string,
@@ -38,6 +42,8 @@ interface NoteState {
       targetTime: string
       reminderTime: string
       isReminderActive: boolean
+      isImportant?: boolean
+      stt?: number | null | string
     },
   ) => void
   toggleComplete: (id: string) => void
@@ -72,7 +78,7 @@ export const useNoteStore = create<NoteState>((set, get) => ({
     }
   },
 
-  addNote: ({ title, content, targetTime, reminderTime, isReminderActive }) => {
+  addNote: ({ title, content, targetTime, reminderTime, isReminderActive, isImportant, stt }) => {
     // Lấy thông tin nhân viên hiện tại đang đăng nhập từ appMachine context làm snapshot
     const employee = useAppStore.getState().appService?.getSnapshot()?.context?.employee
 
@@ -84,6 +90,8 @@ export const useNoteStore = create<NoteState>((set, get) => ({
       reminderTime,
       isCompleted: false,
       isReminderActive,
+      isImportant: !!isImportant,
+      stt: stt !== undefined ? stt : null,
       createdAt: new Date().toISOString(),
       createdById: employee?.id || 'unknown',
       createdByName: employee?.displayName || 'Nhân viên hệ thống',
@@ -100,7 +108,10 @@ export const useNoteStore = create<NoteState>((set, get) => ({
     get().scheduleNextReminder()
   },
 
-  updateNote: (id, { title, content, targetTime, reminderTime, isReminderActive }) => {
+  updateNote: (
+    id,
+    { title, content, targetTime, reminderTime, isReminderActive, isImportant, stt },
+  ) => {
     set((state) => {
       const updated = state.notes.map((n) =>
         n.id === id
@@ -111,6 +122,8 @@ export const useNoteStore = create<NoteState>((set, get) => ({
               targetTime,
               reminderTime,
               isReminderActive,
+              isImportant: !!isImportant,
+              stt: stt !== undefined ? stt : null,
             }
           : n,
       )

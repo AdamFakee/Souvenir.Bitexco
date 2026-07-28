@@ -1,5 +1,5 @@
 import React from 'react'
-import Svg, { ClipPath, Defs, G, Path, Rect, Text as SvgText } from 'react-native-svg'
+import Svg, { Circle, ClipPath, Defs, G, Path, Rect, Text as SvgText } from 'react-native-svg'
 
 interface IconProps {
   size?: number
@@ -108,6 +108,31 @@ export const LogoSkystore = ({
           <Rect width="140" height="64" fill="white" transform="translate(20 20)" />
         </ClipPath>
       </Defs>
+    </Svg>
+  )
+}
+
+export const CashDrawerIcon = ({ size = 24, color = '#ffffff' }: IconProps) => {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      {/* U-shaped outer casing housing */}
+      <Path d="M4 4H44V20H40V8H8V20H4V4Z" fill={color} />
+
+      {/* Drawer box sliding out with compartment and keyhole carved out */}
+      <Path
+        d="M8 12H40V42A2 2 0 0 1 38 44H10A2 2 0 0 1 8 42V12ZM11 14H37V33H11V14ZM22 37A2 2 0 1 0 26 37A2 2 0 1 0 22 37Z"
+        fill={color}
+        fillRule="evenodd"
+      />
+
+      {/* Banknote frame inside the drawer */}
+      <Path d="M15 17H33V29H15V17ZM16 19H32V27H16V19Z" fill={color} fillRule="evenodd" />
+      {/* Banknote center seal circle */}
+      <Circle cx="24" cy="23" r="2.5" fill={color} />
+
+      {/* Coins inside the drawer */}
+      <Circle cx="12.5" cy="23" r="2" fill={color} />
+      <Circle cx="35.5" cy="23" r="2" fill={color} />
     </Svg>
   )
 }

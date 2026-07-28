@@ -40,8 +40,8 @@ export const Input = ({
   return (
     <View
       className={cn(
-        props.multiline ? 'min-h-[140px] py-4' : 'h-[60px]',
-        'flex-row items-center rounded-lg border bg-white px-4',
+        'flex-row rounded-lg border bg-white px-4',
+        props.multiline ? 'min-h-[140px] items-start py-4' : 'h-[60px] items-center',
         error ? 'border-error bg-error-container' : isFocused ? 'border-primary' : 'border-outline',
         className,
       )}

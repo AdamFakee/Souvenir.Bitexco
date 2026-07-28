@@ -95,7 +95,7 @@ export default function OrderListSession() {
                     }}
                     hitSlop={10}
                   >
-                    <X size={16} color={isActive ? COLORS.primary.on : COLORS.neutral[400]} />
+                    <X size={22} color={isActive ? COLORS.primary.on : COLORS.neutral[400]} />
                   </Pressable>
                 </Pressable>
               )
@@ -105,10 +105,10 @@ export default function OrderListSession() {
         <Button
           label="Thêm phiên"
           leftIcon={Plus}
-          iconSize={22}
+          iconSize={26}
           variant="outline"
-          className="ml-3 h-[52px] rounded-full border-outline bg-surface-50 px-6 py-0"
-          textClassName="text-[16px] font-bold text-neutral-600"
+          className="ml-3 h-[58px] rounded-full border-outline bg-surface-50 px-6 py-0"
+          textClassName="text-[22px] font-bold text-neutral-600"
           onPress={() => addTabSheetRef.current?.open()}
         />
       </View>
@@ -138,25 +138,25 @@ export default function OrderListSession() {
       <View className="flex-1 bg-white">
         {/* Table Header */}
         <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-6 py-4">
-          <Text className="w-12 text-[16px] font-bold uppercase tracking-widest text-surface-on">
+          <Text className="w-[140px] text-start text-[22px] font-black uppercase tracking-widest text-primary">
             STT
           </Text>
-          <Text className="flex-1 text-[16px] font-bold uppercase tracking-widest text-surface-on">
+          <Text className="flex-1 text-[22px] font-black uppercase tracking-widest text-primary">
             Sản phẩm
           </Text>
-          <Text className="w-[160px] text-center text-[16px] font-bold uppercase tracking-widest text-surface-on">
+          <Text className="w-[180px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
             Đơn giá
           </Text>
-          <Text className="w-[80px] text-center text-[16px] font-bold uppercase tracking-widest text-surface-on">
+          <Text className="w-[100px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
             Thuế
           </Text>
-          <Text className="w-[180px] text-center text-[16px] font-bold uppercase tracking-widest text-surface-on">
+          <Text className="w-[220px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
             Số lượng
           </Text>
-          <Text className="w-[180px] pr-4 text-right text-[16px] font-bold uppercase tracking-widest text-surface-on">
+          <Text className="w-[220px] pr-4 text-right text-[22px] font-black uppercase tracking-widest text-primary">
             Thành tiền
           </Text>
-          <View className="w-12" />
+          <View className="w-16" />
         </View>
 
         <FlashList
@@ -164,34 +164,35 @@ export default function OrderListSession() {
           keyExtractor={(item) => item.product.id}
           renderItem={({ item, index }) => {
             // Đơn giá đã bao gồm thuế (Tax-inclusive)
-            const taxRate = item.product.taxRate ?? 0
             const itemTotal = Math.round(item.price * item.quantity)
             return (
               <View className="flex-row items-center border-b border-surface-100 bg-white px-6 py-5">
-                <Text className="w-12 text-base font-bold text-surface-on-variant">
-                  {index + 1}
-                </Text>
+                <View className="w-[140px] text-center">
+                  <Text className=" pl-4 text-[20px] font-black text-surface-on-variant">
+                    {index + 1}
+                  </Text>
+                </View>
                 <View className="flex-1 pr-2">
-                  <Text className="text-[18px] font-black text-surface-on" numberOfLines={1}>
+                  <Text className="text-[24px] font-medium text-surface-on" numberOfLines={1}>
                     {item.product.name}
                   </Text>
-                  <Text className="mt-1 text-[14px] font-bold text-primary" numberOfLines={1}>
+                  <Text className="mt-1 text-[18px] font-bold text-primary" numberOfLines={1}>
                     {item.product.sku}
                   </Text>
                 </View>
                 <Text
-                  className="w-[160px] text-center text-[17px] font-bold text-surface-on"
+                  className="w-[180px] text-center text-[22px] font-bold text-surface-on"
                   numberOfLines={1}
                   adjustsFontSizeToFit
                 >
                   {formatCurrency(item.price)}
                 </Text>
-                <View className="w-[80px] items-center">
-                  <Text className="text-[15px] font-bold text-surface-on" numberOfLines={1}>
+                <View className="w-[100px] items-center">
+                  <Text className="text-[20px] font-bold text-surface-on" numberOfLines={1}>
                     {item.product.taxRate}%
                   </Text>
                 </View>
-                <View className="w-[180px] items-center">
+                <View className="w-[220px] items-center">
                   <QuantityStepper
                     value={item.quantity}
                     onChange={(quantity) =>
@@ -208,17 +209,17 @@ export default function OrderListSession() {
                   />
                 </View>
                 <Text
-                  className="w-[180px] pr-4 text-right text-lg font-black text-primary"
+                  className="w-[220px] pr-4 text-right text-[24px] font-black text-primary"
                   numberOfLines={1}
                   adjustsFontSizeToFit
                 >
                   {formatCurrency(itemTotal)}
                 </Text>
-                <View className="w-12 items-center">
+                <View className="w-16 items-center">
                   <IconButton
                     icon={Trash2}
-                    className="h-10 w-10 rounded-lg"
-                    size={20}
+                    className="h-12 w-12 rounded-lg"
+                    size={22}
                     color={COLORS.error.default}
                     onPress={() =>
                       cartActor?.send({ type: 'REMOVE_ITEM', productId: item.product.id })

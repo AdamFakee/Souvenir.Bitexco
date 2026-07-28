@@ -11,12 +11,12 @@ import { useForm } from 'react-hook-form'
 import { ActivityIndicator, Text, View } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
-import { closeShiftMachine } from '../machines/close-shift.machine'
-import { closeShiftSchema, type CloseShiftInput } from '../validations/close-shift.validation'
 import {
   CloseShiftReceiptTemplate,
   type CloseShiftReceiptData,
 } from '@/shared/features/order/components/close-shift-receipt-template'
+import { closeShiftMachine } from '../machines/close-shift.machine'
+import { closeShiftSchema, type CloseShiftInput } from '../validations/close-shift.validation'
 
 export interface CloseShiftModalRef {
   open: () => void
@@ -150,51 +150,51 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
         send({ type: 'CANCEL' })
       }}
       dismissible={!isClosing}
-      className="max-w-[540px] overflow-hidden rounded-[24px] bg-surface-50"
+      className="w-[720px] max-w-[720px] overflow-hidden rounded-[28px] bg-surface-50"
     >
       {shouldRender ? (
-        <View className="bg-surface-50 px-5 pb-5 pt-5">
+        <View className="bg-surface-50 px-8 pb-8 pt-8">
           <KeyboardAwareScrollView showsVerticalScrollIndicator={false} bottomOffset={32}>
-            <View className="overflow-hidden rounded-[24px] border border-surface-200 bg-white px-5 py-5 shadow-sm">
+            <View className="overflow-hidden rounded-[28px] border border-surface-200 bg-white px-8 py-8 shadow-sm">
               <View className="items-center justify-center px-4 py-2">
-                <View className="h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                  <History size={36} color={COLORS.primary.default} />
+                <View className="h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                  <History size={44} color={COLORS.primary.default} />
                 </View>
-                <Text className="mt-3 text-center text-xl font-black text-surface-on">
+                <Text className="mt-4 text-center text-2xl font-black text-surface-on">
                   Kết thúc ca
                 </Text>
-                <Text className="mt-1 max-w-[400px] text-center text-sm leading-5 text-neutral-600">
+                <Text className="mt-2 max-w-[500px] text-center text-base leading-6 text-neutral-600">
                   Kiểm đếm tiền mặt tại quầy trước khi kết ca.
                 </Text>
               </View>
 
               {isOffline && (
-                <View className="mt-4 flex-row items-center gap-3 rounded-[20px] border border-error/20 bg-error-container/20 p-4">
-                  <WifiOff size={24} color={COLORS.error.default} />
+                <View className="mt-4 flex-row items-center gap-4 rounded-[20px] border border-error/20 bg-error-container/20 p-6">
+                  <WifiOff size={32} color={COLORS.error.default} />
                   <View className="flex-1">
-                    <Text className="text-lg font-black text-error">Thiết bị đang ngoại tuyến</Text>
-                    <Text className="mt-1 text-sm leading-5 text-slate-600">
+                    <Text className="text-xl font-black text-error">Thiết bị đang ngoại tuyến</Text>
+                    <Text className="mt-1 text-base leading-6 text-slate-600">
                       Vui lòng kiểm tra Wifi trước khi kết ca.
                     </Text>
                   </View>
                   <Button
                     label="Thử lại"
                     variant="primary"
-                    className="h-12 rounded-[16px] border-error bg-error px-5"
-                    textClassName="text-white text-base font-bold"
+                    className="h-14 rounded-[16px] border-error bg-error px-6"
+                    textClassName="text-white text-lg font-bold"
                     onPress={() => send({ type: 'RETRY' })}
                   />
                 </View>
               )}
 
               {(isUnsynced || isSyncing) && (
-                <View className="mt-4 flex-row items-center gap-3 rounded-[20px] border border-amber-200 bg-amber-50 p-4">
-                  <AlertTriangle size={24} color="#D97706" />
+                <View className="mt-4 flex-row items-center gap-4 rounded-[20px] border border-amber-200 bg-amber-50 p-6">
+                  <AlertTriangle size={32} color="#D97706" />
                   <View className="flex-1">
-                    <Text className="text-lg font-black text-amber-800">
+                    <Text className="text-xl font-black text-amber-800">
                       Còn {unsyncedCount} đơn chưa đồng bộ
                     </Text>
-                    <Text className="mt-1 text-sm leading-5 text-amber-700">
+                    <Text className="mt-1 text-base leading-6 text-amber-700">
                       Đồng bộ đơn hàng trước khi kết ca.
                     </Text>
                   </View>
@@ -203,32 +203,32 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
                     variant="primary"
                     loading={isSyncing}
                     leftIcon={RefreshCw}
-                    className="h-12 rounded-[16px] border-amber-600 bg-amber-600 px-5"
-                    textClassName="text-white text-base font-bold"
+                    className="h-14 rounded-[16px] border-amber-600 bg-amber-600 px-6"
+                    textClassName="text-white text-lg font-bold"
                     onPress={() => send({ type: 'SYNC' })}
                   />
                 </View>
               )}
 
               {(isChecking || isClosing) && (
-                <View className="mt-4 gap-3 rounded-[20px] border border-outline-variant bg-surface-50 p-4">
-                  <Text className="text-lg font-black text-surface-on">
+                <View className="mt-4 gap-4 rounded-[20px] border border-outline-variant bg-surface-50 p-6">
+                  <Text className="text-xl font-black text-surface-on">
                     {isChecking ? 'Đang kiểm tra số liệu chốt ca...' : 'Đang đóng ca.'}
                   </Text>
-                  <Shimmer className="h-10 w-full rounded-xl" />
-                  <Shimmer className="h-10 w-3/4 rounded-xl" />
+                  <Shimmer className="h-12 w-full rounded-xl" />
+                  <Shimmer className="h-12 w-3/4 rounded-xl" />
                 </View>
               )}
 
               {isReady && (
                 <View className="mt-4">
-                  <Text className="mb-2 text-base font-black text-surface-on">Số dư thực tế</Text>
+                  <Text className="mb-2 text-lg font-black text-surface-on">Số dư thực tế</Text>
                   <View className="relative">
                     <ControlledInput
                       control={control}
                       name="actualEndingCash"
                       keyboardType="numeric"
-                      className="h-16 rounded-[16px] border-2 border-outline-variant bg-white px-5 text-[32px] font-black text-surface-on"
+                      className="h-20 rounded-[18px] border-2 border-outline-variant bg-white px-6 text-[38px] font-black text-surface-on"
                       placeholder="0"
                       formatValue={(val) => {
                         if (!val) return ''
@@ -243,21 +243,21 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
                         })
                       }}
                     />
-                    <View className="absolute right-5 top-[22%]">
-                      <Text className="text-2xl font-black text-muted/30">đ</Text>
+                    <View className="absolute right-6 top-[24%]">
+                      <Text className="text-3xl font-black text-muted/30">đ</Text>
                     </View>
                   </View>
                 </View>
               )}
             </View>
 
-            <View className="mx-auto mt-3 w-full rounded-[20px] border border-surface-200 bg-white px-5 py-4 shadow-sm">
+            <View className="mx-auto mt-3 w-full rounded-[20px] border border-surface-200 bg-white px-6 py-4 shadow-sm">
               <View className="flex-row items-center justify-between py-1.5">
-                <Text className="text-base font-semibold text-neutral-600">Tiền mặt dự kiến</Text>
+                <Text className="text-lg font-semibold text-neutral-600">Tiền mặt dự kiến</Text>
                 {isChecking ? (
                   <Shimmer className="h-6 w-32 rounded-xl" />
                 ) : (
-                  <Text className="text-lg font-black text-primary" numberOfLines={1}>
+                  <Text className="text-xl font-black text-primary" numberOfLines={1}>
                     {formatCurrency(expectedEndingCash)}
                   </Text>
                 )}
@@ -265,8 +265,8 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
 
               {isReady && (
                 <View className="flex-row items-center justify-between py-1.5">
-                  <Text className="text-base font-semibold text-neutral-600">Thực tế kiểm đếm</Text>
-                  <Text className="text-lg font-black text-neutral-900" numberOfLines={1}>
+                  <Text className="text-lg font-semibold text-neutral-600">Thực tế kiểm đếm</Text>
+                  <Text className="text-xl font-black text-neutral-900" numberOfLines={1}>
                     {formatCurrency(actualEndingCashNum)}
                   </Text>
                 </View>
@@ -275,9 +275,9 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
               {isDiscrepancy && (isReady || isClosing) && (
                 <View className="mt-2 border-t border-surface-200 pt-3">
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-lg font-bold text-neutral-900">Chênh lệch</Text>
+                    <Text className="text-xl font-bold text-neutral-900">Chênh lệch</Text>
                     <Text
-                      className={`text-2xl font-black tracking-[-0.5px] ${actualEndingCashNum > expectedEndingCash ? 'text-success' : 'text-error'}`}
+                      className={`text-3xl font-black tracking-[-0.5px] ${actualEndingCashNum > expectedEndingCash ? 'text-success' : 'text-error'}`}
                     >
                       {actualEndingCashNum > expectedEndingCash ? '+' : ''}
                       {formatCurrency(actualEndingCashNum - expectedEndingCash)}
@@ -288,9 +288,9 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
             </View>
 
             {(isDiscrepancy || isReady === false) && (
-              <View className="mx-auto mt-3 w-full rounded-[20px] border border-surface-200 bg-white px-5 py-4 shadow-sm">
-                <Text className="text-base font-black text-surface-on">Lý do chênh lệch</Text>
-                <View className="mt-3 flex-row flex-wrap gap-2">
+              <View className="mx-auto mt-3 w-full rounded-[20px] border border-surface-200 bg-white px-6 py-4 shadow-sm">
+                <Text className="text-lg font-black text-surface-on">Lý do chênh lệch</Text>
+                <View className="mt-3 flex-row flex-wrap gap-2.5">
                   {DISCREPANCY_REASONS.map((reason) => {
                     const isActive =
                       (reason === 'Khác' && showManualInput) ||
@@ -311,8 +311,8 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
                           }
                         }}
                         disabled={!isReady}
-                        className="self-start px-3 py-1.5"
-                        textClassName="text-sm font-bold"
+                        className="self-start rounded-xl px-4 py-2"
+                        textClassName="text-base font-bold"
                       />
                     )
                   })}
@@ -327,7 +327,7 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
                     numberOfLines={2}
                     required
                     editable={isReady}
-                    className="mt-3 rounded-[16px] border border-outline-variant bg-white text-base font-medium text-surface-on"
+                    className="mt-3 rounded-[16px] border border-outline-variant bg-white text-lg font-medium text-surface-on"
                     textAlignVertical="top"
                   />
                 )}
@@ -335,12 +335,12 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
             )}
           </KeyboardAwareScrollView>
 
-          <View className="mx-auto mt-4 w-full flex-row gap-3">
+          <View className="mx-auto mt-4 w-full flex-row gap-4">
             <Button
               label="Hủy bỏ"
               variant="outline"
-              className="h-12 flex-1 rounded-[16px] border-surface-200 bg-white"
-              textClassName="text-base font-semibold text-neutral-500"
+              className="h-14 flex-1 rounded-[16px] border-surface-200 bg-white"
+              textClassName="text-lg font-bold text-neutral-500"
               onPress={() => {
                 setVisible(false)
                 send({ type: 'CANCEL' })
@@ -350,8 +350,8 @@ export const CloseShiftModal = ({ shiftId, ref }: CloseShiftModalProps) => {
             <Button
               label="Xác nhận đóng ca"
               variant="error"
-              className="h-12 flex-1 rounded-[16px]"
-              textClassName="text-base font-semibold"
+              className="h-14 flex-1 rounded-[16px]"
+              textClassName="text-lg font-bold"
               loading={isClosing}
               disabled={isCloseDisabled}
               onPress={handleSubmit(onConfirmClose)}

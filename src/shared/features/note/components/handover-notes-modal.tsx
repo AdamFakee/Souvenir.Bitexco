@@ -60,7 +60,7 @@ export const HandoverNotesModal = forwardRef<HandoverNotesModalRef, {}>((props, 
   // Hàm đếm số ghi chú chưa hoàn thành để làm Badge
   const pendingCount = notes.filter((n) => !n.isCompleted).length
   const overdueCount = notes.filter(
-    (n) => !n.isCompleted && new Date(n.targetTime) < new Date(),
+    (n) => !n.isCompleted && !n.isImportant && new Date(n.targetTime) < new Date(),
   ).length
 
   const handleCreateNote = React.useCallback(
@@ -70,6 +70,8 @@ export const HandoverNotesModal = forwardRef<HandoverNotesModalRef, {}>((props, 
       targetTime: string
       reminderTime: string
       isReminderActive: boolean
+      isImportant?: boolean
+      stt?: number | null | string
     }) => {
       addNote(newNote)
       toast.success('Đã tạo ghi chú thành công!')
@@ -84,6 +86,8 @@ export const HandoverNotesModal = forwardRef<HandoverNotesModalRef, {}>((props, 
       targetTime: string
       reminderTime: string
       isReminderActive: boolean
+      isImportant?: boolean
+      stt?: number | null | string
     }) => {
       if (selectedNoteId) {
         updateNote(selectedNoteId, newNote)

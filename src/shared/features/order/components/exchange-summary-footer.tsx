@@ -45,8 +45,8 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
   }
 
   return (
-    <View className="border-t border-surface-200 bg-white px-5 py-4">
-      <View className="gap-1.5">
+    <View className="border-t border-surface-200 bg-white px-6 py-[18px]">
+      <View className="gap-2">
         <SummaryRow
           label="Hàng trả"
           value={formatCurrency(returnedValue)}
@@ -63,13 +63,13 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
           valueColor={COLORS.primary.default}
         />
 
-        <View className="mt-2 border-t border-surface-200 pt-2.5">
+        <View className="mt-2.5 border-t border-surface-200 pt-3">
           <View className="flex-row items-center justify-between">
-            <Text className="text-[16px] font-bold uppercase tracking-tight text-surface-on">
+            <Text className="text-[19px] font-bold uppercase tracking-tight text-surface-on">
               Chênh lệch
             </Text>
             <Text
-              className="text-[22px] font-bold"
+              className="text-[27px] font-bold"
               style={{ color: isEqual ? COLORS.primary.default : COLORS.error.default }}
               numberOfLines={1}
             >
@@ -80,20 +80,21 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
       </View>
 
       {blockReasons.length > 0 && (
-        <View className="mt-3 rounded-xl bg-error/10 px-3 py-2">
+        <View className="mt-[15px] rounded-xl bg-error/10 px-3.5 py-2.5">
           {blockReasons.map((r) => (
-            <Text key={r} className="text-[13px] font-bold text-error">
+            <Text key={r} className="text-[16px] font-bold text-error">
               • {r}
             </Text>
           ))}
         </View>
       )}
 
-      <View className="mt-3 gap-2">
+      <View className="mt-[15px] gap-2.5">
         <Button
           label={isProcessing ? 'Đang xử lý…' : 'Xác nhận đổi hàng'}
           variant="primary"
-          className="h-14 min-h-[56px] w-full rounded-xl"
+          className="h-[68px] min-h-[68px] w-full rounded-xl"
+          textClassName="text-[19px] font-bold"
           onPress={onConfirmEqual}
           loading={isProcessing}
           disabled={!canSubmit || isProcessing || !isEqual}
@@ -101,7 +102,8 @@ export const ExchangeSummaryFooter = memo(function ExchangeSummaryFooter({
         <Button
           label="Hủy bỏ"
           variant="outline"
-          className="h-12 min-h-[44px] w-full rounded-xl"
+          className="h-[54px] min-h-[54px] w-full rounded-xl"
+          textClassName="text-[17px] font-bold"
           onPress={onClose}
           disabled={isProcessing}
         />
@@ -121,9 +123,9 @@ function SummaryRow({
 }) {
   return (
     <View className="flex-row items-center justify-between">
-      <Text className="text-[13px] font-bold text-surface-on-variant">{label}</Text>
+      <Text className="text-[16px] font-bold text-surface-on-variant">{label}</Text>
       <Text
-        className="text-[13px] font-bold"
+        className="text-[16px] font-bold"
         style={{ color: valueColor || COLORS.surface.on }}
         numberOfLines={1}
       >

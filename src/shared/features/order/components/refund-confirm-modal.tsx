@@ -54,25 +54,25 @@ interface RefundConfirmModalProps {
 function PaymentCard({ payment }: { payment: RefundPaymentAllocation }) {
   return (
     <View
-      className="mb-3 border bg-white p-4 shadow-sm"
+      className="mb-[15px] border bg-white p-5 shadow-sm"
       style={{
-        borderRadius: 16,
+        borderRadius: 20,
         borderColor: '#E2E8F0',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0, height: 1.2 },
         shadowOpacity: 0.03,
-        shadowRadius: 2,
+        shadowRadius: 2.4,
       }}
     >
       <View className="flex-row items-center justify-between">
         <Text
-          className="text-base font-extrabold"
+          className="text-[19px] font-extrabold"
           style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
         >
           {payment.label}
         </Text>
         <Text
-          className="text-xl font-extrabold"
+          className="text-[24px] font-extrabold"
           style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
           numberOfLines={1}
         >
@@ -93,16 +93,16 @@ const RefundItemRow = memo(function RefundItemRow({
   const isEven = index % 2 === 0
   return (
     <View
-      className="flex-row items-center px-5 py-4"
+      className="flex-row items-center px-6 py-[18px]"
       style={{
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderColor: BORDER,
         backgroundColor: isEven ? '#fff' : ZEBRA,
       }}
     >
-      <View className="flex-1 pr-3">
+      <View className="flex-1 pr-3.5">
         <Text
-          className="text-lg font-extrabold"
+          className="text-[22px] font-extrabold"
           style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
           numberOfLines={2}
         >
@@ -110,7 +110,7 @@ const RefundItemRow = memo(function RefundItemRow({
         </Text>
         {!!item.sku && (
           <Text
-            className="mt-0.5 text-sm font-bold"
+            className="mt-0.5 text-[17px] font-bold"
             style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Medium' }}
           >
             {item.sku}
@@ -118,20 +118,20 @@ const RefundItemRow = memo(function RefundItemRow({
         )}
       </View>
       <Text
-        className="w-16 text-center text-lg font-extrabold"
+        className="w-[78px] text-center text-[22px] font-extrabold"
         style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
       >
         {item.quantity}
       </Text>
       <Text
-        className="w-28 text-right text-base font-bold"
+        className="w-[136px] text-right text-[19px] font-bold"
         style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
         numberOfLines={1}
       >
         {formatCurrency(item.price)}
       </Text>
       <Text
-        className="w-32 text-right text-lg font-extrabold"
+        className="w-[155px] text-right text-[22px] font-extrabold"
         style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
         numberOfLines={1}
       >
@@ -222,7 +222,7 @@ const RefundModalBody = memo(function RefundModalBody({
           }
         }
       } catch (error: any) {
-        toast.error(error.message || 'Lỗi khi in phiếu trả hàng')
+        toast.error(error.message || 'Lỗi khi in phiếu hủy đơn')
       } finally {
         onSuccess?.()
         onClose()
@@ -254,7 +254,7 @@ const RefundModalBody = memo(function RefundModalBody({
 
     if (appSettings.get('refundRequireChecklist')) {
       const checklistItems = [
-        'Đã kiểm đếm và nhận lại đầy đủ số lượng sản phẩm trả hàng thực tế từ khách.',
+        'Đã kiểm đếm và nhận lại đầy đủ số lượng sản phẩm hủy đơn thực tế từ khách.',
       ]
 
       if (hasCashPortion && cashPayment) {
@@ -281,7 +281,7 @@ const RefundModalBody = memo(function RefundModalBody({
 
       businessChecklistModalRef.current?.open({
         title: 'Checklist xác nhận',
-        subtitle: 'Xác nhận trước khi hoàn tất trả hàng toàn bộ đơn.',
+        subtitle: 'Xác nhận trước khi hoàn tất hủy đơn toàn bộ đơn.',
         items: checklistItems,
         onDontShowAgain: () => appSettings.set('refundRequireChecklist', false),
         onConfirm: () => send({ type: 'SUBMIT' }),
@@ -290,7 +290,7 @@ const RefundModalBody = memo(function RefundModalBody({
     }
 
     toast.confirm({
-      title: 'Xác nhận trả hàng',
+      title: 'Xác nhận hủy đơn',
       message: `Trả toàn bộ đơn #${orderCode} · hoàn ${formatCurrency(displayRefundAmount)}?`,
       onConfirm: () => send({ type: 'SUBMIT' }),
     })
@@ -308,7 +308,7 @@ const RefundModalBody = memo(function RefundModalBody({
   ])
 
   const statusHint = useMemo(() => {
-    if (state.matches('submittingReturn')) return 'Đang gửi yêu cầu trả hàng…'
+    if (state.matches('submittingReturn')) return 'Đang gửi yêu cầu hủy đơn…'
     if (state.matches('processing')) return 'Đang hoàn tất…'
     if (state.matches('completed')) return 'Hoàn tất'
     return null
@@ -345,26 +345,26 @@ const RefundModalBody = memo(function RefundModalBody({
 
       <View className="flex-1">
         <View
-          className="flex-row items-center justify-between px-6 py-5"
+          className="flex-row items-center justify-between px-7 py-[22px]"
           style={{ borderBottomWidth: 1, borderColor: BORDER }}
         >
-          <View className="flex-1 pr-4">
+          <View className="flex-1 pr-[18px]">
             <Text
-              className="text-2xl font-extrabold"
+              className="text-[29px] font-extrabold"
               style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
             >
-              Trả hàng
+              Hủy Đơn
             </Text>
             <View className="mt-1 flex-row flex-wrap items-center gap-2">
               <Text
-                className="text-base font-bold"
+                className="text-[19px] font-bold"
                 style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
               >
                 #{orderCode}
               </Text>
               {!!statusHint && (
                 <Text
-                  className="text-sm font-bold"
+                  className="text-[17px] font-bold"
                   style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
                 >
                   {statusHint}
@@ -374,7 +374,7 @@ const RefundModalBody = memo(function RefundModalBody({
           </View>
           <IconButton
             icon={X}
-            size={28}
+            size={33}
             color={TEXT_MUTED}
             onPress={handleClose}
             disabled={isProcessing}
@@ -384,29 +384,29 @@ const RefundModalBody = memo(function RefundModalBody({
         <View className="flex-1 flex-row">
           <View className="flex-[1.55]" style={{ borderRightWidth: 1, borderColor: BORDER }}>
             <View
-              className="flex-row items-center px-5 py-3"
+              className="flex-row items-center px-6 py-[14px]"
               style={{ borderBottomWidth: 1, borderColor: BORDER, backgroundColor: ZEBRA }}
             >
               <Text
-                className="flex-1 text-sm font-extrabold uppercase tracking-wider"
+                className="flex-1 text-[17px] font-extrabold uppercase tracking-wider"
                 style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
               >
                 Sản phẩm
               </Text>
               <Text
-                className="w-16 text-center text-sm font-extrabold uppercase tracking-wider"
+                className="w-[78px] text-center text-[17px] font-extrabold uppercase tracking-wider"
                 style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
               >
                 SL
               </Text>
               <Text
-                className="w-28 text-right text-sm font-extrabold uppercase tracking-wider"
+                className="w-[136px] text-right text-[17px] font-extrabold uppercase tracking-wider"
                 style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
               >
                 Đơn giá
               </Text>
               <Text
-                className="w-32 text-right text-sm font-extrabold uppercase tracking-wider"
+                className="w-[155px] text-right text-[17px] font-extrabold uppercase tracking-wider"
                 style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
               >
                 Thành tiền
@@ -424,15 +424,15 @@ const RefundModalBody = memo(function RefundModalBody({
             <ScrollView
               className="flex-1"
               contentContainerStyle={{
-                paddingHorizontal: 24,
-                paddingTop: 20,
-                paddingBottom: 16,
+                paddingHorizontal: 29,
+                paddingTop: 24,
+                paddingBottom: 19,
               }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
               <Text
-                className="mb-3 text-base font-extrabold uppercase tracking-widest"
+                className="mb-3.5 text-[19px] font-extrabold uppercase tracking-widest"
                 style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
               >
                 Cách hoàn tiền
@@ -440,14 +440,14 @@ const RefundModalBody = memo(function RefundModalBody({
 
               {refundPayments.length === 0 ? (
                 <View
-                  className="items-center justify-center rounded-2xl border p-4"
+                  className="items-center justify-center rounded-2xl border p-5"
                   style={{
                     borderColor: 'rgba(220,38,38,0.15)',
                     backgroundColor: 'rgba(220,38,38,0.04)',
                   }}
                 >
                   <Text
-                    className="text-base font-extrabold"
+                    className="text-[19px] font-extrabold"
                     style={{ color: ERROR, fontFamily: 'Manrope-Bold' }}
                   >
                     {isDraft
@@ -462,17 +462,17 @@ const RefundModalBody = memo(function RefundModalBody({
               )}
 
               <View
-                className="mt-2 flex-row items-center justify-between rounded-2xl border p-4 shadow-sm"
+                className="mt-2.5 flex-row items-center justify-between rounded-3xl border p-5 shadow-sm"
                 style={{ borderColor: 'rgba(28,78,104,0.12)' }}
               >
                 <Text
-                  className="text-base font-extrabold uppercase tracking-wider"
+                  className="text-[19px] font-extrabold uppercase tracking-wider"
                   style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
                 >
                   Tổng hoàn trả
                 </Text>
                 <Text
-                  className="text-3xl font-extrabold"
+                  className="text-[36px] font-extrabold"
                   style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
                   numberOfLines={1}
                 >
@@ -481,21 +481,21 @@ const RefundModalBody = memo(function RefundModalBody({
               </View>
 
               <Text
-                className="mb-3 mt-6 text-lg font-extrabold uppercase tracking-wider"
+                className="mb-3.5 mt-[29px] text-[22px] font-extrabold uppercase tracking-wider"
                 style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
               >
                 Lý do (tuỳ chọn)
               </Text>
 
-              <View className="mb-4 flex-row flex-wrap gap-2.5">
+              <View className="mb-5 flex-row flex-wrap gap-3">
                 {QUICK_REASONS.map((r) => (
                   <Chip
                     key={r}
                     label={r}
                     active={reason === r}
                     onPress={() => send({ type: 'SET_REASON', reason: r })}
-                    className="h-13 justify-center self-start px-5"
-                    textClassName="text-base font-bold"
+                    className="h-[62px] justify-center self-start px-6"
+                    textClassName="text-[19px] font-bold"
                     disabled={!isDraft || isProcessing}
                   />
                 ))}
@@ -507,7 +507,7 @@ const RefundModalBody = memo(function RefundModalBody({
                 placeholder="Ghi chú thêm nếu cần…"
                 value={reason}
                 onChangeText={(text) => send({ type: 'SET_REASON', reason: text })}
-                className="min-h-[120px] rounded-2xl border px-5 py-4 text-lg"
+                className="min-h-[145px] rounded-3xl border px-6 py-5 text-[22px]"
                 style={{
                   borderColor: BORDER,
                   backgroundColor: '#fff',
@@ -521,7 +521,7 @@ const RefundModalBody = memo(function RefundModalBody({
             </ScrollView>
 
             <View
-              className="flex-row gap-3 px-6 py-4"
+              className="flex-row gap-4 px-7 py-[18px]"
               style={{
                 borderTopWidth: 1,
                 borderColor: BORDER,
@@ -531,14 +531,16 @@ const RefundModalBody = memo(function RefundModalBody({
               <Button
                 label="Huỷ"
                 variant="outline"
-                className="h-14 flex-1 rounded-xl"
+                className="h-[68px] flex-1 rounded-xl"
+                textClassName="text-[19px] font-bold"
                 onPress={handleClose}
                 disabled={isProcessing}
               />
               <Button
-                label={isProcessing ? statusHint || 'Đang xử lý…' : 'Xác nhận trả hàng'}
+                label={isProcessing ? statusHint || 'Đang xử lý…' : 'Xác nhận hủy đơn'}
                 variant="error"
-                className="h-14 flex-[1.4] rounded-xl"
+                className="h-[68px] flex-[1.4] rounded-xl"
+                textClassName="text-[19px] font-bold"
                 onPress={handleConfirm}
                 loading={isProcessing}
                 disabled={!isDraft || refundPayments.length === 0}
@@ -552,7 +554,7 @@ const RefundModalBody = memo(function RefundModalBody({
             <View style={styles.managerCard}>
               <Text style={styles.managerCardTitle}>Cần duyệt quản lý</Text>
               <Text style={styles.managerCardSubtitle}>
-                {managerApprovalMessage || 'Nhập tài khoản và PIN quản lý để phê duyệt trả hàng.'}
+                {managerApprovalMessage || 'Nhập tài khoản và PIN quản lý để phê duyệt hủy đơn.'}
               </Text>
 
               <View style={styles.managerFormGroup}>
@@ -571,19 +573,21 @@ const RefundModalBody = memo(function RefundModalBody({
                 />
               </View>
 
-              <View className="mt-1 flex-row gap-3">
+              <View className="mt-1 flex-row gap-4">
                 <Button
                   label="Huỷ"
                   variant="outline"
                   onPress={onManagerCancel}
-                  className="h-14 flex-1 rounded-xl"
+                  className="h-[68px] flex-1 rounded-xl"
+                  textClassName="text-[19px] font-bold"
                   disabled={isSubmitting}
                 />
                 <Button
                   label="Xác nhận"
                   variant="primary"
                   onPress={handleManagerSubmit(onManagerSubmit)}
-                  className="h-14 flex-1 rounded-xl"
+                  className="h-[68px] flex-1 rounded-xl"
+                  textClassName="text-[19px] font-bold"
                   loading={isSubmitting}
                 />
               </View>
@@ -630,7 +634,7 @@ export const RefundConfirmModal = memo(
         onClose={handleClose}
         dismissible={true}
         size="80%"
-        className="overflow-hidden rounded-2xl bg-white"
+        className="overflow-hidden rounded-3xl bg-white"
       >
         <RefundModalBody seedOrder={seedOrder} onClose={handleClose} onSuccess={onSuccess} />
       </ModalBase>
@@ -647,28 +651,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 50,
-    padding: 24,
+    padding: 29,
   },
   managerCard: {
     width: '100%',
-    maxWidth: 460,
+    maxWidth: 550,
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    gap: 14,
+    borderRadius: 24,
+    padding: 29,
+    gap: 17,
   },
   managerCardTitle: {
-    fontSize: 22,
+    fontSize: 27,
     fontFamily: 'Manrope-Bold',
     color: BRAND,
   },
   managerCardSubtitle: {
-    fontSize: 15,
+    fontSize: 18,
     fontFamily: 'Manrope-Medium',
     color: TEXT_MUTED,
-    lineHeight: 22,
+    lineHeight: 27,
   },
   managerFormGroup: {
-    gap: 12,
+    gap: 15,
   },
 })

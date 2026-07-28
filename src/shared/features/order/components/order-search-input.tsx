@@ -29,7 +29,7 @@ export const OrderSearchInput = memo(function OrderSearchInput() {
         pushStore(text)
       }}
       placeholder="Tìm kiếm đơn hàng..."
-      containerClassName="h-14 flex-1 rounded-xl"
+      containerClassName="h-[64px] flex-1 rounded-xl"
       size="md"
     />
   )

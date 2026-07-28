@@ -419,25 +419,25 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         <HardwareBarcodeScanner onScan={(codes) => send({ type: 'SCAN_CODES', codes })} />
       )}
 
-      <View className="flex-row items-center justify-between border-b border-surface-200 bg-white px-6 py-4">
+      <View className="flex-row items-center justify-between border-b border-surface-200 bg-white px-7 py-[18px]">
         <View>
-          <Text className="text-[28px] font-extrabold text-surface-on">Đổi hàng</Text>
-          <Text className="mt-1 text-[16px] font-bold text-surface-on-variant">
+          <Text className="text-[34px] font-extrabold text-surface-on">Đổi hàng</Text>
+          <Text className="mt-1 text-[19px] font-bold text-surface-on-variant">
             {activeOrder.code || activeOrder.id} · {stepText}
           </Text>
         </View>
         <IconButton
           icon={X}
-          size={28}
+          size={33}
           color={COLORS.surface.onVariant}
           onPress={leave}
           disabled={isProcessing}
         />
       </View>
 
-      <View className="min-h-0 flex-1 flex-row px-3 pb-3 pt-2">
+      <View className="min-h-0 flex-1 flex-row px-3.5 pb-3.5 pt-2.5">
         <View
-          className="min-h-0 flex-1 overflow-hidden rounded-[12px] bg-white"
+          className="min-h-0 flex-1 overflow-hidden rounded-[15px] bg-white"
           style={{
             shadowColor: '#A8A8A8',
             shadowOffset: { width: 0, height: 2 },
@@ -473,7 +473,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         </View>
 
         <View
-          className="ml-2 min-h-0 flex-1 overflow-hidden rounded-[12px] bg-white"
+          className="ml-2.5 min-h-0 flex-1 overflow-hidden rounded-[15px] bg-white"
           style={{
             shadowColor: '#A8A8A8',
             shadowOffset: { width: 0, height: 2 },
@@ -516,13 +516,13 @@ export const ExchangeScreen = memo(function ExchangeScreen({
 
       {(isWaitingManager ||
         (state.matches('submittingExchange') && state.context.managerAuth !== null)) && (
-        <View className="absolute inset-0 z-50 items-center justify-center bg-black/55 p-6">
-          <View className="w-full max-w-[460px] rounded-2xl bg-white p-6" style={{ gap: 14 }}>
-            <Text className="text-[22px] font-bold text-surface-on">Cần duyệt quản lý</Text>
-            <Text className="text-[15px] font-medium leading-6 text-surface-on-variant">
+        <View className="absolute inset-0 z-50 items-center justify-center bg-black/55 p-[29px]">
+          <View className="w-full max-w-[550px] rounded-3xl bg-white p-[29px]" style={{ gap: 17 }}>
+            <Text className="text-[27px] font-bold text-surface-on">Cần duyệt quản lý</Text>
+            <Text className="text-[18px] font-medium leading-7 text-surface-on-variant">
               {managerApprovalMessage || 'Nhập tài khoản và PIN quản lý để phê duyệt đổi hàng.'}
             </Text>
-            <View style={{ gap: 12 }}>
+            <View style={{ gap: 15 }}>
               <ControlledInput
                 control={managerControl}
                 name="employeeCode"
@@ -537,11 +537,12 @@ export const ExchangeScreen = memo(function ExchangeScreen({
                 secureTextEntry
               />
             </View>
-            <View className="mt-2 flex-row gap-3">
+            <View className="mt-2 flex-row gap-4">
               <Button
                 label="Huỷ"
                 variant="outline"
-                className="h-14 flex-1 rounded-xl"
+                className="h-[68px] flex-1 rounded-xl"
+                textClassName="text-[19px] font-bold"
                 disabled={state.matches('submittingExchange')}
                 onPress={() => {
                   resetManagerForm()
@@ -551,7 +552,8 @@ export const ExchangeScreen = memo(function ExchangeScreen({
               <Button
                 label="Xác nhận"
                 variant="primary"
-                className="h-14 flex-1 rounded-xl"
+                className="h-[68px] flex-1 rounded-xl"
+                textClassName="text-[19px] font-bold"
                 loading={state.matches('submittingExchange')}
                 onPress={handleManagerSubmit((data) => {
                   send({

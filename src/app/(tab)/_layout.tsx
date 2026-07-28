@@ -1,6 +1,7 @@
 import {
   Button,
   CartIcon,
+  CashDrawerIcon,
   Container,
   DebtIcon,
   IconButton,
@@ -25,6 +26,7 @@ import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { PrinterService } from '@/shared/services/printer-service'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type MenuItem = {
@@ -160,6 +162,15 @@ const CustomSidebar = React.memo(
       [activeTab, pendingTab, router],
     )
 
+    const handleOpenCashbox = useCallback(async () => {
+      try {
+        await PrinterService.openCashBox()
+        toast.success('Đã gửi lệnh mở két tiền thành công!')
+      } catch (err: any) {
+        toast.error('Lỗi mở két: ' + (err?.message ?? 'Không xác định'))
+      }
+    }, [])
+
     return (
       <View
         className="h-full w-[280px] flex-col justify-between bg-primary px-0"
@@ -200,6 +211,17 @@ const CustomSidebar = React.memo(
                 </Pressable>
               )
             })}
+
+            {/* Mở két (Cashbox) Button */}
+            <Pressable
+              onPress={handleOpenCashbox}
+              className="h-[120px] w-full flex-col items-center justify-center gap-2 bg-transparent px-6 py-3 active:bg-primary-deep/50"
+            >
+              <CashDrawerIcon size={46} color={COLORS.primary.on} />
+              <Text className="text-center font-manrope text-[20px] font-bold leading-[28px] text-white">
+                Mở két
+              </Text>
+            </Pressable>
           </View>
         </View>
 

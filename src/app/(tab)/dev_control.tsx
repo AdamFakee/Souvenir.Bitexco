@@ -27,12 +27,11 @@ import { database } from '@/shared/lib/database'
 import CategoryModel from '@/shared/lib/database/models/category'
 import OrderModel from '@/shared/lib/database/models/order'
 import ProductModel from '@/shared/lib/database/models/product'
-import { storage } from '@/shared/lib/storage'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
+import { storage } from '@/shared/lib/storage'
 import { PrinterService } from '@/shared/services/printer-service'
 import { toast } from '@/shared/store'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
-import * as Clipboard from 'expo-clipboard'
 import React, { useEffect, useRef, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import PrinterImin from 'react-native-printer-imin'
@@ -209,6 +208,15 @@ export default function DevControlScreen() {
       toast.error('Lỗi in CMD: ' + (err?.message ?? 'Không xác định'))
     } finally {
       setIsPrinting(false)
+    }
+  }
+
+  const handleOpenCashbox = async () => {
+    try {
+      await PrinterService.openCashBox()
+      toast.success('Đã gửi lệnh mở két tiền (Cashbox) thành công!')
+    } catch (err: any) {
+      toast.error('Lỗi mở két: ' + (err?.message ?? 'Không xác định'))
     }
   }
 
@@ -1424,6 +1432,16 @@ export default function DevControlScreen() {
               onPress={() => handlePrintTextCmd(n)}
             />
           ))}
+        </View>
+
+        <View className="mt-3 flex-row gap-3">
+          <Button
+            label="Mở két (Cashbox)"
+            variant="outline"
+            className="flex-1 border-amber-500"
+            textClassName="text-amber-600 font-bold"
+            onPress={handleOpenCashbox}
+          />
         </View>
       </View>
 

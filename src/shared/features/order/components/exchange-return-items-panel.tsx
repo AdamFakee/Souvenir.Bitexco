@@ -43,30 +43,30 @@ export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
 
   return (
     <View className="flex-1 bg-white">
-      <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-5 py-3">
-        <Text className="text-[13px] font-bold uppercase tracking-widest text-surface-on-variant">
+      <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-6 py-[14px]">
+        <Text className="text-[16px] font-bold uppercase tracking-widest text-surface-on-variant">
           Hàng khách trả
         </Text>
       </View>
 
-      <View className="flex-row items-center border-b border-surface-200 bg-white px-2 py-3">
-        <View className="w-16 items-center justify-center">
+      <View className="flex-row items-center border-b border-surface-200 bg-white px-[10px] py-[14px]">
+        <View className="w-[78px] items-center justify-center">
           <Checkbox
             checked={allSelected}
             onChange={handleToggleAll}
             disabled={!isDraft || isProcessing}
           />
         </View>
-        <Text className="flex-1 text-[14px] font-bold uppercase tracking-widest text-surface-on-variant">
+        <Text className="flex-1 text-[17px] font-bold uppercase tracking-widest text-surface-on-variant">
           Sản phẩm
         </Text>
-        <Text className="w-[100px] text-center text-[14px] font-bold uppercase tracking-widest text-surface-on-variant">
+        <Text className="w-[120px] text-center text-[17px] font-bold uppercase tracking-widest text-surface-on-variant">
           SL mua
         </Text>
-        <Text className="w-[160px] text-center text-[14px] font-bold uppercase tracking-widest text-surface-on-variant">
+        <Text className="w-[194px] text-center text-[17px] font-bold uppercase tracking-widest text-surface-on-variant">
           SL trả
         </Text>
-        <Text className="w-[120px] pr-2 text-right text-[14px] font-bold uppercase tracking-widest text-surface-on-variant">
+        <Text className="w-[145px] pr-2 text-right text-[17px] font-bold uppercase tracking-widest text-surface-on-variant">
           Giá trị
         </Text>
       </View>
@@ -80,27 +80,29 @@ export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
           const lineAmount = getLineAmount(item, qty)
 
           return (
-            <View className="flex-row items-center border-b border-surface-100 bg-white px-2 py-4">
-              <Checkbox
-                checked={isSelected}
-                onChange={() => onToggleItem(item)}
-                disabled={!isDraft || isProcessing}
-              />
-              <View className="ml-4 flex-1 pr-2">
-                <Text className="text-[16px] font-bold text-surface-on" numberOfLines={1}>
+            <View className="flex-row items-center border-b border-surface-100 bg-white px-[10px] py-[18px]">
+              <View className="w-[78px] items-center justify-center">
+                <Checkbox
+                  checked={isSelected}
+                  onChange={() => onToggleItem(item)}
+                  disabled={!isDraft || isProcessing}
+                />
+              </View>
+              <View className="ml-5 flex-1 pr-2">
+                <Text className="text-[19px] font-bold text-surface-on" numberOfLines={1}>
                   {item.name}
                 </Text>
                 <Text
-                  className="mt-0.5 text-[13px] font-medium text-surface-on-variant"
+                  className="mt-0.5 text-[16px] font-medium text-surface-on-variant"
                   numberOfLines={1}
                 >
                   {item.sku}
                 </Text>
               </View>
-              <Text className="w-[100px] text-center text-[16px] font-bold text-surface-on">
+              <Text className="w-[120px] text-center text-[19px] font-bold text-surface-on">
                 x{item.quantity}
               </Text>
-              <View className="w-[160px] items-center">
+              <View className="w-[194px] items-center">
                 <QuantityStepper
                   value={qty}
                   onChange={(nextQty) => onChangeQty(item, nextQty)}
@@ -110,7 +112,7 @@ export const ExchangeReturnItemsPanel = memo(function ExchangeReturnItemsPanel({
                 />
               </View>
               <Text
-                className="w-[120px] pr-2 text-right text-[16px] font-bold text-error"
+                className="w-[145px] pr-2 text-right text-[19px] font-bold text-error"
                 numberOfLines={1}
               >
                 {isSelected ? formatCurrency(lineAmount) : '-'}

@@ -84,10 +84,9 @@ export const Button = ({
             numberOfLines={1}
             style={{
               fontFamily: 'Manrope-Bold',
-              fontSize: 16,
             }}
             className={cn(
-              'text-center',
+              'text-center text-[20px]',
               variant === 'primary'
                 ? 'text-white'
                 : variant === 'secondary'

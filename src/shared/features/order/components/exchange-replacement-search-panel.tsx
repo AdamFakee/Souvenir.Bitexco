@@ -118,8 +118,8 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
 
   return (
     <View className="min-h-0 flex-1 bg-white">
-      <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-5 py-3">
-        <Text className="text-[13px] font-bold uppercase tracking-widest text-surface-on-variant">
+      <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-6 py-[14px]">
+        <Text className="text-[16px] font-bold uppercase tracking-widest text-surface-on-variant">
           Hàng đổi mới
         </Text>
       </View>
@@ -129,24 +129,24 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
           title="Không có kết nối mạng"
           description="Đổi hàng chỉ hỗ trợ khi online."
           icon={PackageSearch}
-          className="py-16"
+          className="py-20"
         />
       ) : skus.length === 0 ? (
         <EmptyState
           title="Chọn món trả bên trái"
           description="Chọn sản phẩm khách trả để hiện SP cùng danh mục."
           icon={PackageSearch}
-          className="py-16"
+          className="py-20"
         />
       ) : categoryQuery.isLoading ? (
-        <View className="p-4">
+        <View className="p-5">
           {[1, 2, 3, 4, 5].map((i) => (
-            <View key={i} className="mb-4 flex-row items-center justify-between">
+            <View key={i} className="mb-5 flex-row items-center justify-between">
               <View className="flex-1">
-                <Shimmer className="h-5 w-48 rounded-lg" />
-                <Shimmer className="mt-2 h-4 w-28 rounded-lg" />
+                <Shimmer className="h-6 w-56 rounded-lg" />
+                <Shimmer className="mt-2.5 h-5 w-32 rounded-lg" />
               </View>
-              <Shimmer className="h-5 w-20 rounded-lg" />
+              <Shimmer className="h-6 w-24 rounded-lg" />
             </View>
           ))}
         </View>
@@ -155,7 +155,7 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
           title="Không có sản phẩm"
           description="Không có SP cùng danh mục với món đang trả."
           icon={PackageSearch}
-          className="py-16"
+          className="py-20"
         />
       ) : (
         <FlatList
@@ -179,31 +179,31 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
               <Pressable
                 onPress={() => handlePress(item)}
                 disabled={!isDraft || isProcessing}
-                className="flex-row items-center border-b border-surface-100 px-5 py-4 active:opacity-70"
+                className="flex-row items-center border-b border-surface-100 px-6 py-[18px] active:opacity-70"
                 style={{
                   backgroundColor: selected ? 'rgba(83,123,144,0.06)' : isEven ? ZEBRA : '#fff',
                 }}
               >
-                <View className="min-w-0 flex-1 pr-3">
-                  <Text className="text-[16px] font-bold text-surface-on" numberOfLines={2}>
+                <View className="min-w-0 flex-1 pr-3.5">
+                  <Text className="text-[19px] font-bold text-surface-on" numberOfLines={2}>
                     {item.name}
                   </Text>
-                  <View className="mt-1 flex-row flex-wrap items-center gap-2">
-                    <Text className="text-[13px] font-medium text-surface-on-variant">
+                  <View className="mt-1.5 flex-row flex-wrap items-center gap-2">
+                    <Text className="text-[16px] font-medium text-surface-on-variant">
                       {item.sku}
                     </Text>
                     {samePrice && (
-                      <Text className="text-[11px] font-bold text-success">Cùng giá</Text>
+                      <Text className="text-[13px] font-bold text-success">Cùng giá</Text>
                     )}
                   </View>
                 </View>
 
                 <View className="items-end">
-                  <Text className="text-[16px] font-bold text-primary" numberOfLines={1}>
+                  <Text className="text-[19px] font-bold text-primary" numberOfLines={1}>
                     {formatCurrency(item.price)}
                   </Text>
                   {selected ? (
-                    <View className="mt-2" onStartShouldSetResponder={() => true}>
+                    <View className="mt-2.5" onStartShouldSetResponder={() => true}>
                       <QuantityStepper
                         value={selected.qty}
                         onChange={(qty) => {
@@ -217,7 +217,7 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
                       />
                     </View>
                   ) : (
-                    <Text className="mt-1 text-[13px] font-medium text-surface-on-variant">
+                    <Text className="mt-1.5 text-[16px] font-medium text-surface-on-variant">
                       Kho {item.stock}
                     </Text>
                   )}

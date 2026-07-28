@@ -32,27 +32,45 @@ export function ProductSearch() {
 
   const renderProductItem = useCallback(
     ({ item: p }: { item: UnifiedProduct }) => {
-      // Đơn giá từ backend đã bao gồm thuế (Tax-inclusive)
-      const taxRate = p.taxRate ?? 0
       const priceAfterTax = Math.round(p.price)
+      const taxRate = p.taxRate ?? 0
       return (
         <Pressable
           key={p.id}
           onPress={() => handleSelectItem(p)}
-          className="flex-row items-center justify-between border-b border-surface-200 px-6 py-5 active:bg-surface-100"
+          className="flex-row items-center border-b border-surface-200 px-6 py-5 active:bg-surface-100"
         >
-          <View className="flex-1">
-            <Text className="text-[20px] font-bold text-surface-on">{p.name}</Text>
-            <Text className="mt-1 text-[17px] font-medium text-surface-on-variant">{p.sku}</Text>
+          {/* Tên sản phẩm */}
+          <View style={{ flex: 3 }}>
+            <Text className="text-[24px] font-bold text-surface-on" numberOfLines={2}>
+              {p.name}
+            </Text>
           </View>
-          <View className="items-end">
-            <Text className="text-[22px] font-bold text-primary" numberOfLines={1}>
+
+          {/* SKU */}
+          <View style={{ flex: 1.5 }} className="px-2">
+            <Text className="text-[22px] font-medium text-black" numberOfLines={1}>
+              {p.sku}
+            </Text>
+          </View>
+
+          {/* Tồn kho */}
+          <View style={{ flex: 1 }} className="px-2">
+            <Text className="text-center text-[22px] font-medium text-black" numberOfLines={1}>
+              {p.stock}
+            </Text>
+          </View>
+
+          {/* Giá */}
+          <View style={{ flex: 1.5 }} className="items-end">
+            <Text className="text-right text-[26px] font-bold text-primary" numberOfLines={1}>
               {formatCurrency(priceAfterTax)}
             </Text>
-            <Text className="mt-1 text-[15px] text-surface-on-variant">
-              Kho: {p.stock} {p.unitCode}
-              {taxRate > 0 ? ` · VAT ${taxRate}%` : ''}
-            </Text>
+            {taxRate > 0 && (
+              <Text className="mt-0.5 text-right text-[17px] font-medium text-neutral-500">
+                VAT: {taxRate}%
+              </Text>
+            )}
           </View>
         </Pressable>
       )
@@ -92,17 +110,36 @@ export function ProductSearch() {
 
           <View
             className="absolute left-0 right-0 top-full z-[999] mt-2 overflow-hidden rounded-xl border border-outline-variant bg-surface-50 shadow-lg"
-            style={{ maxHeight: 400, elevation: 10 }}
+            style={{ maxHeight: 720, elevation: 10 }}
           >
             {isLoading ? (
-              <View className="p-2">
+              <View>
+                {/* Skeleton Header */}
+                <View className="flex-row items-center border-b border-surface-200 bg-surface-100 px-6 py-4">
+                  <Shimmer className="h-6 w-24 rounded-lg" style={{ flex: 3 }} />
+                  <Shimmer className="h-6 w-16 rounded-lg px-2" style={{ flex: 1.5 }} />
+                  <Shimmer className="h-6 w-16 self-center rounded-lg px-2" style={{ flex: 1 }} />
+                  <Shimmer className="h-6 w-20 rounded-lg text-right" style={{ flex: 1.5 }} />
+                </View>
+                {/* Skeleton Rows */}
                 {[1, 2, 3].map((i) => (
-                  <View key={i} className="flex-row items-center justify-between p-4">
-                    <View className="flex-1">
-                      <Shimmer className="h-6 w-48 rounded-lg" />
-                      <Shimmer className="mt-2 h-4 w-32 rounded-lg" />
+                  <View
+                    key={i}
+                    className="flex-row items-center border-b border-surface-200 px-6 py-5"
+                  >
+                    <View style={{ flex: 3 }}>
+                      <Shimmer className="h-7 w-48 rounded-lg" />
                     </View>
-                    <Shimmer className="h-6 w-24 rounded-lg" />
+                    <View style={{ flex: 1.5 }} className="px-2">
+                      <Shimmer className="h-6 w-24 rounded-lg" />
+                    </View>
+                    <View style={{ flex: 1 }} className="items-center px-2">
+                      <Shimmer className="h-6 w-12 rounded-lg" />
+                    </View>
+                    <View style={{ flex: 1.5 }}>
+                      <Shimmer className="h-7 w-20 self-end rounded-lg" />
+                      <Shimmer className="mt-1 h-5 w-12 self-end rounded-lg" />
+                    </View>
                   </View>
                 ))}
               </View>
@@ -114,18 +151,44 @@ export function ProductSearch() {
                 className="py-10"
               />
             ) : (
-              <FlatList
-                data={products}
-                renderItem={renderProductItem}
-                keyExtractor={(item) => item.id}
-                keyboardShouldPersistTaps="handled"
-                nestedScrollEnabled={true}
-                onEndReached={loadMore}
-                onEndReachedThreshold={0.3}
-                ListFooterComponent={isFetchingNextPage ? <LoadMore isLoading /> : null}
-                contentContainerStyle={{ flexGrow: 1 }}
-                showsVerticalScrollIndicator={true}
-              />
+              <View className="flex-1">
+                {/* Table Header */}
+                <View className="flex-row items-center border-b border-surface bg-primary/25 px-6 py-4">
+                  <Text className="text-[22px] font-bold text-neutral-600" style={{ flex: 3 }}>
+                    Tên sản phẩm
+                  </Text>
+                  <Text
+                    className="px-2 text-[22px] font-bold text-neutral-600"
+                    style={{ flex: 1.5 }}
+                  >
+                    SKU
+                  </Text>
+                  <Text
+                    className="px-2 text-center text-[22px] font-bold text-neutral-600"
+                    style={{ flex: 1 }}
+                  >
+                    Tồn kho
+                  </Text>
+                  <Text
+                    className="text-right text-[22px] font-bold text-neutral-600"
+                    style={{ flex: 1.5 }}
+                  >
+                    Giá bán
+                  </Text>
+                </View>
+                <FlatList
+                  data={products}
+                  renderItem={renderProductItem}
+                  keyExtractor={(item) => item.id}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled={true}
+                  onEndReached={loadMore}
+                  onEndReachedThreshold={0.3}
+                  ListFooterComponent={isFetchingNextPage ? <LoadMore isLoading /> : null}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                  showsVerticalScrollIndicator={true}
+                />
+              </View>
             )}
           </View>
         </>

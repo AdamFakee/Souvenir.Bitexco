@@ -102,8 +102,9 @@ export default function StaffLogin() {
               className="border-0 bg-transparent text-white"
               containerStyle={styles.inputContainer}
               focusedContainerStyle={styles.inputFocusedBorder}
-              labelClassName="text-white font-medium"
+              labelClassName="text-white text-xl font-bold mb-2.5"
               style={styles.textInput}
+              iconSize={26}
             />
 
             {/* Password field */}
@@ -120,8 +121,9 @@ export default function StaffLogin() {
               className="border-0 bg-transparent text-white"
               containerStyle={styles.inputContainer}
               focusedContainerStyle={styles.inputFocusedBorder}
-              labelClassName="text-white font-medium"
+              labelClassName="text-white text-xl font-bold mb-2.5"
               style={styles.textInput}
+              iconSize={26}
             />
           </View>
 
@@ -132,6 +134,9 @@ export default function StaffLogin() {
             onPress={handleSubmit(onSubmit)}
             loading={loading}
             rightIcon={ArrowRight}
+            className="h-20 rounded-[16px]"
+            textClassName="text-2xl font-black"
+            iconSize={26}
           />
         </View>
       </View>
@@ -160,7 +165,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Manrope-Bold',
-    fontSize: 48,
+    fontSize: 54,
     color: '#ffffff',
     textAlign: 'center',
     marginBottom: 8,
@@ -172,9 +177,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 12,
-    height: 60,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    height: 80,
+    paddingHorizontal: 20,
   },
   inputFocusedBorder: {
     borderColor: 'rgba(255, 255, 255, 0.5)',
@@ -183,7 +188,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontFamily: 'Manrope-Medium',
-    fontSize: 16,
+    fontSize: 22,
     color: '#ffffff',
     height: '100%',
   },

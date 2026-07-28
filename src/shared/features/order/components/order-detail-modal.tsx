@@ -191,7 +191,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
       return (
         <View
-          className="flex-row items-center px-5 py-4"
+          className="flex-row items-center px-6 py-[18px]"
           style={{
             borderBottomWidth: 0.5,
             borderColor: BORDER,
@@ -200,14 +200,14 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
         >
           <View className="flex-1">
             <Text
-              className="text-xl font-extrabold"
+              className="text-[24px] font-extrabold"
               style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
               numberOfLines={2}
             >
               {item.name}
             </Text>
             <Text
-              className="mt-0.5 text-base font-bold"
+              className="mt-0.5 text-[19px] font-bold"
               style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Medium' }}
             >
               {item.sku}
@@ -215,25 +215,25 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
           </View>
           {hasRefunds ? (
             <>
-              <View className="w-20 items-center">
+              <View className="w-[96px] items-center">
                 <Text
-                  className="text-xl font-extrabold"
+                  className="text-[24px] font-extrabold"
                   style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
                 >
                   {originalQty}
                 </Text>
               </View>
-              <View className="w-20 items-center">
+              <View className="w-[96px] items-center">
                 <Text
-                  className="text-xl font-extrabold"
+                  className="text-[24px] font-extrabold"
                   style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
                 >
                   {returnedQty}
                 </Text>
               </View>
-              <View className="w-20 items-center">
+              <View className="w-[96px] items-center">
                 <Text
-                  className="text-xl font-extrabold"
+                  className="text-[24px] font-extrabold"
                   style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
                 >
                   {remainingQty ?? 0}
@@ -241,27 +241,27 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
               </View>
             </>
           ) : (
-            <View className="w-20 items-center">
+            <View className="w-[96px] items-center">
               <Text
-                className="text-xl font-extrabold"
+                className="text-[24px] font-extrabold"
                 style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
               >
                 {item.quantity}
               </Text>
             </View>
           )}
-          <View className="w-28 items-end">
+          <View className="w-[136px] items-end">
             <Text
-              className="text-lg font-bold"
+              className="text-[22px] font-bold"
               style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
               numberOfLines={1}
             >
               {formatCurrency(item.price)}
             </Text>
           </View>
-          <View className="w-32 items-end">
+          <View className="w-[155px] items-end">
             <Text
-              className="text-xl font-extrabold"
+              className="text-[24px] font-extrabold"
               style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
               numberOfLines={1}
             >
@@ -269,7 +269,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
             </Text>
             {item.discountAmount > 0 && (
               <Text
-                className="mt-0.5 text-sm font-bold"
+                className="mt-0.5 text-[17px] font-bold"
                 style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
               >
                 -{formatCurrency(item.discountAmount)}
@@ -312,19 +312,19 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
         visible={visible}
         onClose={close}
         size="90%"
-        className="overflow-hidden rounded-2xl bg-white"
+        className="overflow-hidden rounded-3xl bg-white"
         dismissible={true}
       >
         <View className="flex-1">
           {/* ── Header ── */}
           <View
-            className="flex-row items-center justify-between px-6 py-5"
+            className="flex-row items-center justify-between px-7 py-[22px]"
             style={{ borderBottomWidth: 1, borderColor: BORDER }}
           >
             <View className="flex-1">
               <View>
                 <Text
-                  className="text-2xl font-extrabold"
+                  className="text-[29px] font-extrabold"
                   style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
                 >
                   Chi tiết đơn hàng
@@ -339,21 +339,23 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                   className="flex-row items-center gap-1.5 active:opacity-60"
                 >
                   <Text
-                    className="text-base font-bold"
+                    className="text-[19px] font-bold"
                     style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                   >
                     #{headerCode}
                   </Text>
-                  <Copy size={14} color={TEXT_MUTED} />
+                  <Copy size={17} color={TEXT_MUTED} />
                 </Pressable>
               </View>
             </View>
-            <IconButton icon={X} size={28} color={TEXT_MUTED} onPress={close} />
+            <IconButton icon={X} size={33} color={TEXT_MUTED} onPress={close} />
           </View>
 
           {!showBody || !order || !displayStatus ? (
             <View className="flex-1 items-center justify-center">
-              <Text style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}>Đang tải…</Text>
+              <Text style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold', fontSize: 18 }}>
+                Đang tải…
+              </Text>
             </View>
           ) : (
             <View className="flex-1 flex-row">
@@ -361,11 +363,11 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
               <View className="flex-[1.5]" style={{ borderRightWidth: 1, borderColor: BORDER }}>
                 {/* Table header */}
                 <View
-                  className="flex-row items-center px-5 py-3"
+                  className="flex-row items-center px-6 py-[14px]"
                   style={{ borderBottomWidth: 1, borderColor: BORDER, backgroundColor: '#FAFAFB' }}
                 >
                   <Text
-                    className="flex-1 text-base font-extrabold uppercase tracking-wider"
+                    className="flex-1 text-[19px] font-extrabold uppercase tracking-wider"
                     style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                   >
                     Sản phẩm
@@ -373,19 +375,19 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                   {hasRefunds ? (
                     <>
                       <Text
-                        className="w-20 text-center text-base font-extrabold uppercase tracking-wider"
+                        className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
                         style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                       >
                         Gốc
                       </Text>
                       <Text
-                        className="w-20 text-center text-base font-extrabold uppercase tracking-wider"
+                        className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
                         style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
                       >
                         Đã trả
                       </Text>
                       <Text
-                        className="w-20 text-center text-base font-extrabold uppercase tracking-wider"
+                        className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
                         style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
                       >
                         Còn
@@ -393,20 +395,20 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                     </>
                   ) : (
                     <Text
-                      className="w-20 text-center text-base font-extrabold uppercase tracking-wider"
+                      className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
                       style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                     >
                       SL
                     </Text>
                   )}
                   <Text
-                    className="w-28 text-right text-base font-extrabold uppercase tracking-wider"
+                    className="w-[136px] text-right text-[19px] font-extrabold uppercase tracking-wider"
                     style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                   >
                     Đơn giá
                   </Text>
                   <Text
-                    className="w-32 text-right text-base font-extrabold uppercase tracking-wider"
+                    className="w-[155px] text-right text-[19px] font-extrabold uppercase tracking-wider"
                     style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                   >
                     Thành tiền
@@ -422,9 +424,12 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
               {/* Right: summary */}
               <View className="flex-1 bg-gray-50">
-                <ScrollView className="flex-1 px-6 pb-20 pt-5" showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  className="flex-1 px-7 pb-[90px] pt-[22px]"
+                  showsVerticalScrollIndicator={false}
+                >
                   <Text
-                    className="mb-6 text-xl font-extrabold uppercase tracking-widest"
+                    className="mb-7 text-[24px] font-extrabold uppercase tracking-widest"
                     style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
                   >
                     Thông tin đơn hàng
@@ -468,17 +473,17 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
                     <View className="mt-1 flex-row items-center justify-between py-2">
                       <Text
-                        className="text-base font-bold"
+                        className="text-[19px] font-bold"
                         style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                       >
                         Trạng thái
                       </Text>
                       <View
-                        className="rounded-full px-4 py-1.5"
+                        className="rounded-full px-5 py-1.5"
                         style={{ backgroundColor: displayStatus.bgColor }}
                       >
                         <Text
-                          className="text-sm font-extrabold uppercase tracking-wide"
+                          className="text-[17px] font-extrabold uppercase tracking-wide"
                           style={{ color: displayStatus.color, fontFamily: 'Manrope-Bold' }}
                           numberOfLines={1}
                         >
@@ -495,17 +500,17 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                         />
                         {p.method === 'cash' && p.cashTendered !== undefined && (
                           <View
-                            className="flex-row items-center justify-between py-1.5 pl-4"
+                            className="flex-row items-center justify-between py-[7px] pl-5"
                             style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
                           >
                             <Text
-                              className="text-base font-bold"
+                              className="text-[19px] font-bold"
                               style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                             >
                               Khách đưa
                             </Text>
                             <Text
-                              className="text-base font-extrabold"
+                              className="text-[19px] font-extrabold"
                               style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                             >
                               {formatCurrency(p.cashTendered)}
@@ -514,17 +519,17 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                         )}
                         {p.method === 'cash' && p.cashChange !== undefined && (
                           <View
-                            className="flex-row items-center justify-between py-1.5 pl-4"
+                            className="flex-row items-center justify-between py-[7px] pl-5"
                             style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
                           >
                             <Text
-                              className="text-base font-bold"
+                              className="text-[19px] font-bold"
                               style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                             >
                               Tiền thừa
                             </Text>
                             <Text
-                              className="text-base font-extrabold"
+                              className="text-[19px] font-extrabold"
                               style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                             >
                               {formatCurrency(p.cashChange)}
@@ -542,11 +547,11 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
                     {!!(order.refund || (order.totalRefunded && order.totalRefunded > 0)) && (
                       <View
-                        className="mt-4"
-                        style={{ borderTopWidth: 2, borderColor: BORDER, paddingTop: 16 }}
+                        className="mt-5"
+                        style={{ borderTopWidth: 2, borderColor: BORDER, paddingTop: 19 }}
                       >
                         <Text
-                          className="mb-4 text-base font-extrabold uppercase tracking-widest"
+                          className="mb-[18px] text-[19px] font-extrabold uppercase tracking-widest"
                           style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
                         >
                           Thông tin trả hàng
@@ -613,18 +618,18 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
                   {/* Totals */}
                   <View
-                    className="mt-8"
-                    style={{ borderTopWidth: 2, borderColor: BORDER, paddingTop: 20 }}
+                    className="mt-9"
+                    style={{ borderTopWidth: 2, borderColor: BORDER, paddingTop: 24 }}
                   >
                     <View className="mb-4 flex-row items-center justify-between">
                       <Text
-                        className="text-xl font-bold"
+                        className="text-[24px] font-bold"
                         style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                       >
                         Tạm tính
                       </Text>
                       <Text
-                        className="text-xl font-extrabold"
+                        className="text-[24px] font-extrabold"
                         style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
                         numberOfLines={1}
                       >
@@ -634,13 +639,13 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                     {computed.discount > 0 && (
                       <View className="mb-4 flex-row items-center justify-between">
                         <Text
-                          className="text-xl font-bold"
+                          className="text-[24px] font-bold"
                           style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
                         >
                           Giảm giá
                         </Text>
                         <Text
-                          className="text-xl font-extrabold"
+                          className="text-[24px] font-extrabold"
                           style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
                         >
                           -{formatCurrency(computed.discount)}
@@ -650,13 +655,13 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                     {computed.tax > 0 && (
                       <View className="mb-4 flex-row items-center justify-between">
                         <Text
-                          className="text-xl font-bold"
+                          className="text-[24px] font-bold"
                           style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                         >
                           Thuế VAT
                         </Text>
                         <Text
-                          className="text-xl font-extrabold"
+                          className="text-[24px] font-extrabold"
                           style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
                           numberOfLines={1}
                         >
@@ -665,22 +670,22 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                       </View>
                     )}
                     <View
-                      className="mt-4 flex-row items-center justify-between"
+                      className="mt-4.5 flex-row items-center justify-between"
                       style={{
                         borderTopWidth: 2,
                         borderColor: BORDER,
-                        paddingTop: 16,
-                        paddingBottom: 60,
+                        paddingTop: 19,
+                        paddingBottom: 72,
                       }}
                     >
                       <Text
-                        className="text-2xl font-extrabold uppercase tracking-tight"
+                        className="text-[29px] font-extrabold uppercase tracking-tight"
                         style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
                       >
                         Tổng thanh toán
                       </Text>
                       <Text
-                        className="text-4xl font-extrabold"
+                        className="text-[44px] font-extrabold"
                         style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
                       >
                         {formatCurrency(computed.total)}
@@ -691,20 +696,24 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
                 {/* Action buttons — đổi/trả trên list; detail chỉ in */}
                 <View
-                  className="flex-row justify-end gap-4 px-6 py-5"
+                  className="flex-row justify-end gap-4 px-7 py-[22px]"
                   style={{ borderTopWidth: 1, borderColor: BORDER, backgroundColor: '#fff' }}
                 >
                   <Button
                     label="In 1 liên"
                     variant="outline"
                     leftIcon={Printer}
-                    className="h-14 rounded-xl"
+                    className="h-[68px] rounded-xl px-14"
+                    textClassName="text-[19px] font-bold"
+                    iconSize={24}
                     onPress={() => handlePrint(false)}
                   />
                   <Button
                     label="In 2 liên"
                     leftIcon={Printer}
-                    className="h-14 rounded-xl"
+                    className="h-[68px] rounded-xl px-14"
+                    textClassName="text-[19px] font-bold"
+                    iconSize={24}
                     onPress={() => handlePrint(true)}
                   />
                 </View>
@@ -735,21 +744,24 @@ function InfoRow({
   return (
     <Container
       onPress={onPress}
-      className="flex-row items-center justify-between py-2.5"
+      className="flex-row items-center justify-between py-3"
       style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
     >
-      <Text className="text-lg font-bold" style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}>
+      <Text
+        className="text-[21px] font-bold"
+        style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+      >
         {label}
       </Text>
       <View className="flex-row items-center gap-1.5">
         <Text
-          className={large ? 'text-2xl font-extrabold' : 'text-lg font-extrabold'}
+          className={large ? 'text-[29px] font-extrabold' : 'text-[21px] font-extrabold'}
           style={{ color: valueColor || TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
           numberOfLines={1}
         >
           {value}
         </Text>
-        {onPress && <Copy size={16} color={valueColor || TEXT_MUTED} />}
+        {onPress && <Copy size={19} color={valueColor || TEXT_MUTED} />}
       </View>
     </Container>
   )

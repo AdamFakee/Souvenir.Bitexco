@@ -27,7 +27,7 @@ export default function PosScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background px-3" edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView className="px flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>
       <HardwareBarcodeScanner onScan={handleScan} />
 
       <View className="flex-1 flex-col gap-3" style={{ zIndex: 1 }}>

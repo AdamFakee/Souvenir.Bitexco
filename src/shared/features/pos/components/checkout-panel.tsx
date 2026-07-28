@@ -12,6 +12,7 @@ import {
 } from '@/shared/features/payment'
 import * as Clipboard from 'expo-clipboard'
 
+import { PrinterService } from '@/shared/services'
 import { useConnectionStore } from '@/shared/store'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
@@ -138,6 +139,11 @@ export default function CheckoutPanel() {
       setVoucherInput('')
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['orders'] })
+
+      PrinterService.openCashBox().catch((err: any) => {
+        toast.error('Lỗi mở két: ' + (err?.message ?? 'Không xác định'))
+      })
+
       if (method === 'cong_no') {
         toast.success('Ghi nợ thành công!')
       } else {
@@ -194,16 +200,13 @@ export default function CheckoutPanel() {
       <View className="w-full rounded-2xl border border-outline-variant bg-white p-4 shadow-sm">
         <View className="flex-row items-stretch gap-3">
           {/* Col 1: khách + ghi chú + voucher */}
-          <View className="min-w-0 flex-1 gap-3">
+          <View className="w-2/5 gap-3">
             <View className="min-h-[72px] flex-row items-center justify-between rounded-2xl border border-outline-variant bg-slate-50 px-4 py-4">
               <View className="min-w-0 flex-1 flex-row items-center gap-3 pr-2">
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-primary/10">
                   <User size={22} color={COLORS.primary.default} />
                 </View>
                 <View className="min-w-0 flex-1">
-                  <Text className="mb-0.5 text-[13px] font-bold uppercase tracking-widest text-muted">
-                    Khách hàng
-                  </Text>
                   {affiliate ? (
                     <View className="gap-0.5">
                       <Text
@@ -261,16 +264,18 @@ export default function CheckoutPanel() {
               )}
             </View>
 
-            <View className="min-h-[64px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
-              <PenSquare size={22} color={COLORS.muted} />
+            <View className="min-h-[64px] flex-1 flex-row items-start gap-3 rounded-2xl border border-outline-variant bg-white px-4 py-3">
+              <PenSquare className="mt-1" size={22} color={COLORS.muted} />
               <TextInput
-                className="m-0 min-h-[52px] flex-1 py-2 text-[18px] font-bold text-surface-on"
+                className="m-0 flex-1 text-[18px] font-bold text-surface-on"
                 placeholder="Nhập ghi chú đơn hàng..."
                 placeholderTextColor="#8D8E8F"
                 value={note}
                 onChangeText={(text) => cartActor?.send({ type: 'SET_NOTE', note: text })}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
+                multiline
+                textAlignVertical="top"
               />
             </View>
 
@@ -318,38 +323,38 @@ export default function CheckoutPanel() {
           </View>
 
           {/* Col 2: tổng tiền */}
-          <View className="w-[320px] justify-between rounded-2xl border border-outline-variant/60 bg-slate-50 px-4 py-4">
+          <View className="flex-1 justify-between rounded-2xl border border-outline-variant/60 bg-slate-50 px-4 py-4">
             <View className="gap-3">
               <View className="flex-row items-center justify-between">
-                <Text className="text-[17px] font-bold text-surface-on-variant">Số lượng</Text>
-                <Text className="text-[17px] font-bold text-surface-on" numberOfLines={1}>
-                  {totalQty} món
+                <Text className="text-[21px] font-bold text-surface-on-variant">Số lượng</Text>
+                <Text className="text-[21px] font-bold text-surface-on" numberOfLines={1}>
+                  {totalQty}
                 </Text>
               </View>
               <View className="flex-row items-center justify-between">
-                <Text className="text-[17px] font-bold text-surface-on-variant">Tạm tính</Text>
-                <Text className="text-[17px] font-bold text-surface-on" numberOfLines={1}>
+                <Text className="text-[21px] font-bold text-surface-on-variant">Tạm tính</Text>
+                <Text className="text-[21px] font-bold text-surface-on" numberOfLines={1}>
                   {formatCurrency(subtotal)}
                 </Text>
               </View>
               <View className="flex-row items-center justify-between">
-                <Text className="text-[17px] font-bold text-surface-on-variant">Thuế</Text>
-                <Text className="text-[17px] font-bold text-surface-on" numberOfLines={1}>
+                <Text className="text-[21px] font-bold text-surface-on-variant">Thuế</Text>
+                <Text className="text-[21px] font-bold text-surface-on" numberOfLines={1}>
                   {formatCurrency(tax)}
                 </Text>
               </View>
               <View className="flex-row items-center justify-between">
-                <Text className="text-[17px] font-bold text-surface-on-variant">Giảm giá</Text>
-                <Text className="text-[17px] font-bold text-success" numberOfLines={1}>
+                <Text className="text-[21px] font-bold text-surface-on-variant">Giảm giá</Text>
+                <Text className="text-[21px] font-bold text-success" numberOfLines={1}>
                   -{formatCurrency(discount)}
                 </Text>
               </View>
             </View>
 
             <View className="mt-4 flex-row items-center justify-between border-t border-outline-variant pt-4">
-              <Text className="text-[18px] font-extrabold text-surface-on">Tổng cộng</Text>
+              <Text className="text-[24px] font-extrabold text-surface-on">Tổng cộng</Text>
               <Text
-                className="text-[28px] font-black text-[#FB6514]"
+                className="text-[36px] font-black text-[#FB6514]"
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
@@ -359,9 +364,9 @@ export default function CheckoutPanel() {
           </View>
 
           {/* Col 3: PTTT — nút to, dễ bấm tablet */}
-          <View className="w-[360px] justify-end gap-2">
+          <View className="w-[430px] justify-end gap-3">
             {paymentRows.map((row, rowIndex) => (
-              <View key={rowIndex} className="flex-row gap-3">
+              <View key={rowIndex} className="flex-row gap-4">
                 {row.map((method) => {
                   const isAvailable = method.isAvailable(paymentContext, !isNetworkConnected)
                   const isDisabled =
@@ -381,7 +386,7 @@ export default function CheckoutPanel() {
                       accessibilityState={{ disabled: isDisabled }}
                       accessibilityLabel={method.label}
                       onPress={() => handleStartPayment(String(method.type))}
-                      className={`min-h-[72px] flex-1 flex-row items-center justify-center gap-2.5 rounded-2xl border px-3 ${
+                      className={`min-h-[86px] flex-1 flex-row items-center justify-center gap-3 rounded-2xl border px-3 ${
                         isDebt ? 'border-error bg-error' : 'border-outline-variant bg-primary'
                       } ${isDisabled ? 'opacity-45' : 'opacity-100'}`}
                       style={
@@ -389,10 +394,10 @@ export default function CheckoutPanel() {
                       }
                     >
                       {Icon ? (
-                        <Icon size={28} color="#ffffff" width={28} height={28} fill="#ffffff" />
+                        <Icon size={34} color="#ffffff" width={34} height={34} fill="#ffffff" />
                       ) : null}
                       <Text
-                        className="text-center text-[18px] font-bold text-white"
+                        className="text-center text-[22px] font-bold text-white"
                         numberOfLines={1}
                       >
                         {method.label}

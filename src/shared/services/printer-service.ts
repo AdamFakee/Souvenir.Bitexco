@@ -153,4 +153,16 @@ export const PrinterService = {
       return await this.printBitmap(imageUri, opts)
     }
   },
+
+  /**
+   * Mở két tiền (Cashbox)
+   */
+  async openCashBox() {
+    try {
+      await PrinterImin.openCashBox()
+      return { success: true }
+    } catch (error) {
+      throw error
+    }
+  },
 }

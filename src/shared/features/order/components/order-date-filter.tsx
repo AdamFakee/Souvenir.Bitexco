@@ -23,20 +23,22 @@ export const DateRangeFilter = memo(function DateRangeFilter({
         value={dateFrom}
         onChange={onDateFromChange}
         placeholder="Từ ngày"
-        className="w-44"
+        className="w-[200px]"
         maxDate={dateTo || undefined}
-        triggerClassName="h-14 rounded-xl"
-        triggerTextClassName="text-lg font-semibold"
+        triggerClassName="h-[64px] rounded-xl"
+        triggerTextStyle={{ fontSize: 20, fontFamily: 'Manrope-Bold' }}
+        triggerIconSize={24}
       />
-      <Text className="text-lg font-bold text-muted">đến</Text>
+      <Text className="px-1 text-[20px] font-bold text-muted">đến</Text>
       <DatePicker
         value={dateTo}
         onChange={onDateToChange}
         placeholder="Đến ngày"
-        className="w-44"
+        className="w-[200px]"
         minDate={dateFrom || undefined}
-        triggerClassName="h-14 rounded-xl"
-        triggerTextClassName="text-lg font-semibold"
+        triggerClassName="h-[64px] rounded-xl"
+        triggerTextStyle={{ fontSize: 20, fontFamily: 'Manrope-Bold' }}
+        triggerIconSize={24}
       />
     </View>
   )

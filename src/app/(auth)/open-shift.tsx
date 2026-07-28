@@ -14,7 +14,7 @@ import { useOpenStaffShift } from '../../shared/features/shift'
 export default function OpenShift() {
   const router = useRouter()
   const { employee, device } = useAppContext()
-  const [amountStr, setAmountStr] = useState('')
+  const [amountStr, setAmountStr] = useState('5000000') // MẶC ĐỊNH: TIỀN VÀO CA 5 TRIỆU
 
   const { openStaffShift, isLoading } = useOpenStaffShift()
   const { confirm } = useAlertStore()
@@ -107,7 +107,7 @@ export default function OpenShift() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Logo */}
-        <LogoSkystore width={200} height={80} color="#ffffff" />
+        <LogoSkystore width={260} height={100} color="#ffffff" />
 
         {/* White card */}
         <View style={styles.card}>
@@ -115,7 +115,7 @@ export default function OpenShift() {
           <View style={styles.cardHeader}>
             <View style={styles.employeeInfo}>
               <View style={styles.avatarCircle}>
-                <User size={26} color={COLORS.secondary.default} />
+                <User size={32} color={COLORS.secondary.default} />
               </View>
               <View>
                 <Text style={styles.employeeName}>{employee?.displayName || 'Nhân viên'}</Text>
@@ -127,9 +127,9 @@ export default function OpenShift() {
               label="Đổi tài khoản"
               variant="outline"
               leftIcon={LogOut}
-              iconSize={16}
-              className="h-10 rounded-xl border-[#e0e1e2] px-4"
-              textClassName="text-[#4b5563] text-xs font-semibold"
+              iconSize={22}
+              className="h-16 rounded-[14px] border-[#e0e1e2] px-6"
+              textClassName="text-[#4b5563] text-lg font-bold"
               onPress={handleLogout}
             />
           </View>
@@ -138,7 +138,7 @@ export default function OpenShift() {
           <View style={styles.amountSection}>
             <Text style={styles.amountLabel}>TIỀN MẶT ĐẦU CA</Text>
             <View style={styles.amountBox}>
-              <Coins size={24} color={COLORS.secondary.default} />
+              <Coins size={32} color={COLORS.secondary.default} />
               <Text style={styles.amountText} numberOfLines={1} adjustsFontSizeToFit>
                 {formatVND(Number(amountStr || '0'))}
               </Text>
@@ -154,7 +154,7 @@ export default function OpenShift() {
               onPress={(digit) => handleKeyPress(digit)}
               onBackspace={() => handleKeyPress('BACK')}
               onClear={() => handleKeyPress('CLEAR')}
-              className="w-[52%]"
+              className="w-[65%]"
             />
           </View>
 
@@ -164,6 +164,8 @@ export default function OpenShift() {
             onPress={handleOpenShift}
             loading={isLoading}
             disabled={!amountStr || amountStr === '0'}
+            className="h-20 rounded-[16px]"
+            textClassName="text-2xl font-black"
           />
         </View>
       </ScrollView>
@@ -212,21 +214,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatarCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   employeeName: {
     fontFamily: 'Manrope-Bold',
-    fontSize: 16,
+    fontSize: 22,
     color: '#111827',
   },
   employeeCode: {
     fontFamily: 'Manrope-Regular',
-    fontSize: 13,
+    fontSize: 17,
     color: '#6b7280',
     marginTop: 2,
   },
@@ -235,7 +237,7 @@ const styles = StyleSheet.create({
   },
   amountLabel: {
     fontFamily: 'Manrope-Bold',
-    fontSize: 11,
+    fontSize: 16,
     letterSpacing: 1.2,
     color: '#6b7280',
     textTransform: 'uppercase',
@@ -247,21 +249,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: 20,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
   },
   amountText: {
     flex: 1,
     textAlign: 'right',
     fontFamily: 'Manrope-Bold',
-    fontSize: 28,
+    fontSize: 38,
     color: '#0f172a',
     letterSpacing: -0.5,
   },
   amountHint: {
     fontFamily: 'Manrope-Regular',
-    fontSize: 13,
+    fontSize: 18,
     color: '#d97706',
     textAlign: 'center',
   },
