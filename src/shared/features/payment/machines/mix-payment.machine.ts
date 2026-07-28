@@ -841,6 +841,13 @@ export const mixPaymentMachine = setup({
             actions: assign({
               managerAuthError: ({ event }) => {
                 const errData = (event.error as any)?.response?.data
+                const code = errData?.errorCode || errData?.error
+                if (code === 'auth.invalid_manager_credentials') {
+                  return errData?.message || 'Mã quản lý hoặc mã PIN không chính xác.'
+                }
+                if (code === 'auth.insufficient_manager_permissions') {
+                  return errData?.message || 'Tài khoản quản lý không có quyền phê duyệt.'
+                }
                 return errData?.message || 'Thông tin phê duyệt của Quản lý không hợp lệ.'
               },
             }),
@@ -887,6 +894,13 @@ export const mixPaymentMachine = setup({
             actions: assign({
               managerAuthError: ({ event }) => {
                 const errData = (event.error as any)?.response?.data
+                const code = errData?.errorCode || errData?.error
+                if (code === 'auth.invalid_manager_credentials') {
+                  return errData?.message || 'Mã quản lý hoặc mã PIN không chính xác.'
+                }
+                if (code === 'auth.insufficient_manager_permissions') {
+                  return errData?.message || 'Tài khoản quản lý không có quyền phê duyệt.'
+                }
                 return errData?.message || 'Thông tin phê duyệt của Quản lý không hợp lệ.'
               },
             }),

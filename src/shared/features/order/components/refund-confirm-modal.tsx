@@ -23,8 +23,8 @@ import * as v from 'valibot'
 import { refundOrderMachine } from '../machines/refund-order.machine'
 import { IOrder } from '../types'
 import { RefundPaymentAllocation } from '../utils'
-import { RefundReceiptTemplate } from './refund-receipt-template'
 import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-checklist-modal'
+import { RefundReceiptTemplate } from './refund-receipt-template'
 
 export interface RefundConfirmModalRef {
   open: (order: IOrder) => void
@@ -74,6 +74,7 @@ function PaymentCard({ payment }: { payment: RefundPaymentAllocation }) {
         <Text
           className="text-xl font-extrabold"
           style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+          numberOfLines={1}
         >
           {formatCurrency(payment.amount)}
         </Text>

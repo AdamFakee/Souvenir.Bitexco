@@ -73,10 +73,17 @@ const onResponseError = async (error: AxiosError): Promise<any> => {
     return Promise.reject(error)
   }
 
-  // Nếu đã retry rồi mà vẫn 401 → refresh thất bại thực sự
+  // Nếu là lỗi nghiệp vụ liên quan đến tài khoản/PIN quản lý (auth.invalid_manager_credentials),
+  // reject ngay lập tức, không thực hiện silent refresh tránh lãng phí request và gây logout
+  const errData = error.response?.data as any
+  const errCode = errData?.errorCode || errData?.error
+  if (errCode === 'auth.invalid_manager_credentials') {
+    return Promise.reject(error)
+  }
+
+  // Nếu đã retry rồi mà vẫn 401 → refresh access token thành công trước đó nhưng request gốc vẫn bị 401
+  // (ví dụ: tài khoản không có quyền trên endpoint này). Ta chỉ reject lỗi, không tự ý logout tài khoản.
   if (originalRequest._retry) {
-    getAppStore().getState().appService?.send({ type: 'TOKEN_EXPIRED' })
-    toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
     return Promise.reject(error)
   }
 
