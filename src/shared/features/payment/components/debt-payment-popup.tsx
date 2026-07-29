@@ -2,7 +2,7 @@ import DebtIcon from '@/assets/icons/Debt.svg'
 import { Button, ModalBase, Shimmer } from '@/shared/components/ui'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { IOrder } from '@/shared/features/order/types'
-import type { CartItem, AppliedVoucher } from '@/shared/features/pos'
+import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { OrderStatus } from '@/shared/lib/database'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
@@ -15,7 +15,7 @@ import type {
   PaymentPopupRef,
   PaymentResult,
 } from '../types/payment-strategy.type'
-import { calculateSubtotal, calculateTotalTax, calculateLineDiscount } from '../utils'
+import { calculateLineDiscount, calculateSubtotal, calculateTotalTax } from '../utils'
 
 function buildReceiptOrder(
   savedOrder: any,
@@ -225,7 +225,7 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             {affiliate && (
               <View className="gap-4 rounded-xl border border-outline-variant bg-surface-50 p-6">
                 <View className="flex-row items-center justify-between gap-4">
-                  <Text className="shrink-0 text-xl font-medium text-muted">Đại lý</Text>
+                  <Text className="shrink-0 text-xl font-medium text-muted">Đối tác</Text>
                   <Text
                     className="flex-1 text-right text-xl font-bold text-surface-on"
                     numberOfLines={1}

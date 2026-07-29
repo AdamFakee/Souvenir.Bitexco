@@ -130,6 +130,27 @@ export default function CheckoutPanel() {
     [total, activeSessionId, cart, discount, printRef, affiliate],
   )
 
+  const isVoucherInvalid = useMemo(() => {
+    if (!appliedVoucher) return false
+
+    // Kiểm tra giá trị đơn hàng tối thiểu
+    if (appliedVoucher.minOrderValue !== null && subtotal < appliedVoucher.minOrderValue) {
+      return true
+    }
+
+    // Kiểm tra sản phẩm được áp dụng
+    if (appliedVoucher.applicableVariantIds && appliedVoucher.applicableVariantIds.length > 0) {
+      const hasEligibleProduct = cart.some((item) =>
+        appliedVoucher.applicableVariantIds?.includes(item.product.id),
+      )
+      if (!hasEligibleProduct) {
+        return true
+      }
+    }
+
+    return false
+  }, [appliedVoucher, subtotal, cart])
+
   const posActor = usePosActor()
   const queryClient = useQueryClient()
 
@@ -170,6 +191,7 @@ export default function CheckoutPanel() {
       const response = await applyVoucherMutation.mutateAsync({
         code: voucherInput,
       })
+      console.log('[POS Voucher Verify Response]:', JSON.stringify(response, null, 2))
       cartActor?.send({ type: 'APPLY_VOUCHER', voucher: response })
       setVoucherInput(response.code)
       // toast.success(`Đã áp dụng mã giảm giá: ${response.code}`)
@@ -234,7 +256,7 @@ export default function CheckoutPanel() {
                           ellipsizeMode="tail"
                         >
                           {affiliate.agentType === 'agent'
-                            ? 'Đại lý'
+                            ? 'Đối tác'
                             : affiliate.agentType === 'collaborator'
                               ? 'CTV'
                               : 'Khách lẻ'}{' '}
@@ -365,18 +387,62 @@ export default function CheckoutPanel() {
 
           {/* Col 3: PTTT — nút to, dễ bấm tablet */}
           <View className="w-[430px] justify-end gap-3">
+            {/* Warnings Container at the top of Col 3 to prevent layout shifts */}
+            {((isVoucherInvalid && appliedVoucher && cart.length > 0) ||
+              (affiliate?.agentType === 'agent' &&
+                (!affiliate.isDebt ||
+                  (affiliate.creditLimit !== undefined &&
+                    affiliate.creditLimit !== null &&
+                    total > affiliate.creditLimit)))) && (
+              <View className="mb-2 gap-1 rounded-2xl border border-red-200/60 bg-red-50 p-4">
+                {isVoucherInvalid && appliedVoucher && cart.length > 0 && (
+                  <Text className="text-[15px] font-bold text-red-800">
+                    {appliedVoucher.minOrderValue !== null &&
+                    subtotal < appliedVoucher.minOrderValue
+                      ? `⚠ Đơn hàng chưa đạt tối thiểu ${formatCurrency(appliedVoucher.minOrderValue)} để dùng mã.`
+                      : '⚠ Giỏ hàng không chứa sản phẩm được áp dụng mã này.'}
+                  </Text>
+                )}
+                {affiliate?.agentType === 'agent' && !affiliate.isDebt && (
+                  <Text className="text-[15px] font-bold text-red-800">
+                    ⚠ Đối tác không được phép ghi nợ
+                  </Text>
+                )}
+                {affiliate?.agentType === 'agent' &&
+                  affiliate.isDebt &&
+                  affiliate.creditLimit !== undefined &&
+                  affiliate.creditLimit !== null &&
+                  total > affiliate.creditLimit && (
+                    <Text className="text-[15px] font-bold text-red-800">
+                      ⚠ Vượt hạn mức công nợ ({formatCurrency(affiliate.creditLimit)})
+                    </Text>
+                  )}
+              </View>
+            )}
+
             {paymentRows.map((row, rowIndex) => (
               <View key={rowIndex} className="flex-row gap-4">
                 {row.map((method) => {
                   const isAvailable = method.isAvailable(paymentContext, !isNetworkConnected)
+                  const isDebt = method.type === 'cong_no'
+                  const isDebtDisabled =
+                    isDebt &&
+                    (!affiliate ||
+                      affiliate.agentType !== 'agent' ||
+                      affiliate.isDebt !== true ||
+                      (affiliate.creditLimit !== undefined &&
+                        affiliate.creditLimit !== null &&
+                        total > affiliate.creditLimit))
+
                   const isDisabled =
                     cart.length === 0 ||
                     !isAvailable ||
                     method.enabled === false ||
                     (method.type === 'qr_bidv' && !isNetworkConnected) ||
-                    (method.type === 'card_bidv' && !isPosConnected)
+                    (method.type === 'card_bidv' && !isPosConnected) ||
+                    isDebtDisabled ||
+                    isVoucherInvalid
                   const Icon = method.icon
-                  const isDebt = method.type === 'cong_no'
 
                   return (
                     <Pressable

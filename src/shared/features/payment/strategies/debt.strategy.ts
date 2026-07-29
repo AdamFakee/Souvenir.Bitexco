@@ -7,7 +7,7 @@ export const DebtStrategy: PaymentStrategy = {
   label: 'Công nợ',
   icon: DebtIcon,
   displayOrder: 99,
-  // Luôn hiện với agent, disable khi isDebt = false (để nhân viên biết đại lý này không được nợ)
+  // Luôn hiện với agent, disable khi isDebt = false (để nhân viên biết Đối tác này không được nợ)
   isAvailable: (ctx) => ctx.affiliate?.agentType === 'agent',
   PopupComponent: DebtPaymentPopup,
 }

@@ -469,7 +469,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                     {!!order.affiliate && (
                       <InfoRow label="Cộng tác viên" value={order.affiliate.name} />
                     )}
-                    {!!order.partner && <InfoRow label="Đại lý" value={order.partner.nameVi} />}
+                    {!!order.partner && <InfoRow label="Đối tác" value={order.partner.nameVi} />}
 
                     <View className="mt-1 flex-row items-center justify-between py-2">
                       <Text

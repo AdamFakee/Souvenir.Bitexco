@@ -53,9 +53,9 @@ export interface PosCheckoutRequest {
   customerName: string | null
   customerTaxId: string | null
   customerAddress: string | null
-  /** ID của HDV / Đại lý (nếu có). null = khách lẻ */
+  /** ID của HDV / Đối tác (nếu có). null = khách lẻ */
   affiliateId?: string | null
-  /** ID đối tác công nợ (Đại lý) */
+  /** ID đối tác công nợ (Đối tác) */
   partnerId?: string | null
   /** Key chống trùng lặp từ client */
   clientIdempotencyKey?: string | null
@@ -165,9 +165,9 @@ export interface GetRemoteOrdersParams {
   shiftId?: string | null
   /** ID của HDV / CTV để lọc đơn hàng */
   affiliateId?: string | null
-  /** ID của Đại lý để lọc đơn hàng */
+  /** ID của Đối tác để lọc đơn hàng */
   partnerId?: string | null
-  /** Loại đối tượng: collaborator hoặc agent để lọc tất cả CTV hoặc Đại lý */
+  /** Loại đối tượng: collaborator hoặc agent để lọc tất cả CTV hoặc Đối tác */
   agentType?: string | null
   /** Lọc theo phương thức thanh toán */
   paymentMethod?: string | null
@@ -879,7 +879,7 @@ export const OrderRemoteAPI = {
   },
 
   /**
-   * Tra cứu danh sách Đối tác/Đại lý (partner).
+   * Tra cứu danh sách Đối tác/Đối tác (partner).
    */
   getPartners: async (params?: {
     search?: string

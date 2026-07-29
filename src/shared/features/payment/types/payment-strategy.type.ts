@@ -18,7 +18,7 @@ export interface PaymentContext {
   discount: number
   /** Ref để in hóa đơn tự động */
   printRef?: React.RefObject<any>
-  /** HDV / Đại lý gắn với phiên hiện tại (null = khách lẻ) */
+  /** HDV / Đối tác gắn với phiên hiện tại (null = khách lẻ) */
   affiliate: Affiliate | null
 }
 
@@ -69,7 +69,7 @@ export interface PaymentPopupProps extends BasePaymentPopupProps {
   activeSessionId: string | null
   printRef?: React.RefObject<any>
   note?: string
-  /** HDV / Đại lý gắn với phiên hiện tại (null = khách lẻ) */
+  /** HDV / Đối tác gắn với phiên hiện tại (null = khách lẻ) */
   affiliate?: Affiliate | null
 }
 

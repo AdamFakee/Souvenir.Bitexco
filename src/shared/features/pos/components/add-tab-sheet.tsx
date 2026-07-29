@@ -38,7 +38,7 @@ const AGENT_TYPE_CONFIG = [
   },
   {
     key: 'agent' as const,
-    label: 'Đại lý',
+    label: 'Đối tác',
     icon: Building2,
     agentType: 'agent' as AgentType,
     iconBg: '#FEF3C7',
@@ -98,7 +98,7 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
     step === 'type'
       ? 'Thêm phiên bán'
       : selectedAgentType === 'agent'
-        ? 'Chọn đại lý'
+        ? 'Chọn Đối tác'
         : 'Chọn cộng tác viên'
   return (
     <ModalBase
@@ -173,7 +173,7 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
                       ? 'Tạo nhanh phiên bán cho khách mua trực tiếp tại cửa hàng'
                       : config.key === 'collaborator'
                         ? 'Gắn phiên bán cho cộng tác viên để ghi nhận doanh số và chiết khấu'
-                        : 'Gắn phiên bán cho đại lý với chính sách giá và công nợ riêng'}
+                        : 'Gắn phiên bán cho Đối tác với chính sách giá và công nợ riêng'}
                   </Text>
                 </View>
               </Pressable>
@@ -185,7 +185,7 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
           <SearchInput
             placeholder={
               selectedAgentType === 'agent'
-                ? 'Tìm đại lý theo tên, mã, SĐT...'
+                ? 'Tìm Đối tác theo tên, mã, SĐT...'
                 : 'Tìm CTV theo tên, mã, SĐT...'
             }
             value={searchText}

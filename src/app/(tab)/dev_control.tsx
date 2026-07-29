@@ -8,6 +8,7 @@ import { useNoteStore } from '@/shared/features/note'
 import { ReconciliationModal, type ReconciliationModalRef } from '@/shared/features/order'
 import type { ReconciliationResult } from '@/shared/features/order/api/remote/order.remote.api'
 import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
+import { StaffRemoteAPI } from '@/shared/features/auth/api/remote/staff.remote.api'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import {
   CloseShiftReceiptTemplate,
@@ -33,7 +34,7 @@ import { PrinterService } from '@/shared/services/printer-service'
 import { toast } from '@/shared/store'
 import { useConnectionStore } from '@/shared/store/use-connection-store'
 import React, { useEffect, useRef, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
 import PrinterImin from 'react-native-printer-imin'
 
 export default function DevControlScreen() {
@@ -62,6 +63,29 @@ export default function DevControlScreen() {
   const isPosConnected = useConnectionStore((state) => state.isPosConnected)
   const isCheckingPosConnection = useConnectionStore((state) => state.isCheckingPosConnection)
   const checkPosConnection = useConnectionStore((state) => state.checkPosConnection)
+
+  // ─── Query Entities Test States ───────────────────────────────────────────
+  const [ctvIsActive, setCtvIsActive] = useState<boolean | undefined>(undefined)
+  const [ctvHasTransaction, setCtvHasTransaction] = useState<boolean | undefined>(undefined)
+  const [ctvLimit, setCtvLimit] = useState<number>(10)
+
+  const [partnerIsActive, setPartnerIsActive] = useState<boolean | undefined>(undefined)
+  const [partnerHasTransaction, setPartnerHasTransaction] = useState<boolean | undefined>(undefined)
+  const [partnerLimit, setPartnerLimit] = useState<number>(10)
+
+  const [empMode, setEmpMode] = useState<'all' | 'shift'>('all')
+  const [empShiftId, setEmpShiftId] = useState<string | undefined>(undefined)
+  const [shifts, setShifts] = useState<any[]>([])
+  const [isShiftsLoading, setIsShiftsLoading] = useState(false)
+  const [empIsPos, setEmpIsPos] = useState<boolean | undefined>(undefined)
+  const [empStatus, setEmpStatus] = useState<string | undefined>(undefined)
+  const [empHasTransaction, setEmpHasTransaction] = useState<boolean | undefined>(undefined)
+
+  // Entity Modal JSON
+  const [entityModalTitle, setEntityModalTitle] = useState('')
+  const [entityModalData, setEntityModalData] = useState<any>(null)
+  const [isEntityModalVisible, setIsEntityModalVisible] = useState(false)
+  const [isEntityLoading, setIsEntityLoading] = useState(false)
 
   const handlePrint = async (ref: React.RefObject<any>, name: string) => {
     if (isPrinting) return
@@ -238,6 +262,19 @@ export default function DevControlScreen() {
       toast.error('Lỗi: ' + error.message, 'Lỗi kết nối')
     }
   }
+
+  const renderPill = (label: string, isSelected: boolean, onPress: () => void) => (
+    <Pressable
+      onPress={onPress}
+      className={`mb-2 mr-2 rounded-full border px-3 py-1.5 ${
+        isSelected ? 'border-primary bg-primary' : 'border-neutral-300 bg-white'
+      }`}
+    >
+      <Text className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-neutral-600'}`}>
+        {label}
+      </Text>
+    </Pressable>
+  )
 
   const loadData = async () => {
     try {
@@ -814,7 +851,7 @@ export default function DevControlScreen() {
     }
 
     devReconciliationModalRef.current?.open({
-      ownerName: partnerIdTrimmed ? 'Đại lý Test' : 'CTV/HDV Test',
+      ownerName: partnerIdTrimmed ? 'Đối tác Test' : 'CTV/HDV Test',
       ownerCode: partnerIdTrimmed || affiliateIdTrimmed,
       ownerType: partnerIdTrimmed ? 'agent' : 'collaborator',
       partnerId: partnerIdTrimmed || null,
@@ -831,7 +868,7 @@ export default function DevControlScreen() {
     const dateTo = recoDateTo ? new Date(recoDateTo) : new Date()
 
     devReconciliationModalRef.current?.open({
-      ownerName: recoPartnerId.trim() ? 'Đại lý Test (Mock)' : 'CTV/HDV Test (Mock)',
+      ownerName: recoPartnerId.trim() ? 'Đối tác Test (Mock)' : 'CTV/HDV Test (Mock)',
       ownerCode: recoPartnerId.trim() ? partnerIdTrimmed : affiliateIdTrimmed,
       ownerType: recoPartnerId.trim() ? 'agent' : 'collaborator',
       partnerId: partnerIdTrimmed,
@@ -839,7 +876,7 @@ export default function DevControlScreen() {
       dateFrom,
       dateTo,
       mockData: {
-        ownerName: recoPartnerId.trim() ? 'Đại lý Test (Mock)' : 'CTV/HDV Test (Mock)',
+        ownerName: recoPartnerId.trim() ? 'Đối tác Test (Mock)' : 'CTV/HDV Test (Mock)',
         ownerCode: recoPartnerId.trim() ? partnerIdTrimmed : affiliateIdTrimmed,
         ownerType: recoPartnerId.trim() ? 'agent' : 'collaborator',
         printTime: new Date().toLocaleString('vi-VN'),
@@ -851,6 +888,125 @@ export default function DevControlScreen() {
         dateTo: dateTo.toLocaleDateString('vi-VN'),
       },
     })
+  }
+
+  const fetchShifts = async () => {
+    setIsShiftsLoading(true)
+    try {
+      const axios = AxiosService.getInstance()
+      const res = await axios.get<any>('/v1/cash-sessions', {
+        params: { limit: 20 },
+      })
+
+      let items: any[] = []
+      if (Array.isArray(res.data)) {
+        items = res.data
+      } else if (res.data && typeof res.data === 'object') {
+        const obj = res.data
+        items = obj.items || obj.data || (obj.data && obj.data.items) || obj.sessions || []
+      }
+
+      setShifts(items)
+
+      // Auto select active session from context
+      const appService = useAppStore.getState().appService
+      if (appService) {
+        const ctx = appService.getSnapshot().context
+        if (ctx.cashSessionId) {
+          setEmpShiftId(ctx.cashSessionId)
+        } else if (items.length > 0 && !empShiftId) {
+          setEmpShiftId(items[0].id)
+        }
+      } else if (items.length > 0 && !empShiftId) {
+        setEmpShiftId(items[0].id)
+      }
+    } catch (error: any) {
+      console.error('[DevControl] Lỗi lấy danh sách ca:', error)
+      toast.error('Lỗi tải danh sách ca: ' + (error.message || 'Không xác định'))
+    } finally {
+      setIsShiftsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (empMode === 'shift') {
+      fetchShifts()
+    }
+  }, [empMode])
+
+  const handleQueryCTV = async () => {
+    setIsEntityLoading(true)
+    setEntityModalTitle('Danh sách Cộng tác viên (Affiliates)')
+    setEntityModalData(null)
+    setIsEntityModalVisible(true)
+    try {
+      toast.info('Đang gọi API lấy danh sách CTV...')
+      const res = await OrderRemoteAPI.getAffiliates({
+        isActive: ctvIsActive,
+        hasTransaction: ctvHasTransaction,
+        limit: ctvLimit,
+      })
+      setEntityModalData(res)
+      toast.success('Tải danh sách CTV thành công!')
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.message || error.message || 'Lỗi không xác định'
+      setEntityModalData({ error: errMsg })
+      toast.error('Lỗi: ' + errMsg)
+    } finally {
+      setIsEntityLoading(false)
+    }
+  }
+
+  const handleQueryPartners = async () => {
+    setIsEntityLoading(true)
+    setEntityModalTitle('Danh sách Đối tác (Partners)')
+    setEntityModalData(null)
+    setIsEntityModalVisible(true)
+    try {
+      toast.info('Đang gọi API lấy danh sách Đối tác...')
+      const res = await OrderRemoteAPI.getPartners({
+        isActive: partnerIsActive,
+        hasTransaction: partnerHasTransaction,
+        limit: partnerLimit,
+      })
+      setEntityModalData(res)
+      toast.success('Tải danh sách đối tác thành công!')
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.message || error.message || 'Lỗi không xác định'
+      setEntityModalData({ error: errMsg })
+      toast.error('Lỗi: ' + errMsg)
+    } finally {
+      setIsEntityLoading(false)
+    }
+  }
+
+  const handleQueryEmployees = async () => {
+    setIsEntityLoading(true)
+    setEntityModalTitle(
+      empMode === 'shift'
+        ? `Danh sách Nhân viên trong ca (${empShiftId || 'Chưa chọn'})`
+        : 'Danh sách tất cả Nhân viên (Không ca)',
+    )
+    setEntityModalData(null)
+    setIsEntityModalVisible(true)
+    try {
+      const shiftIdParam = empMode === 'shift' ? empShiftId : undefined
+      toast.info('Đang gọi API lấy danh sách nhân viên...')
+      const res = await StaffRemoteAPI.getEmployees({
+        shiftId: shiftIdParam,
+        isPos: empIsPos,
+        status: empStatus,
+        hasTransaction: empHasTransaction,
+      })
+      setEntityModalData(res)
+      toast.success('Tải danh sách nhân viên thành công!')
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.message || error.message || 'Lỗi không xác định'
+      setEntityModalData({ error: errMsg })
+      toast.error('Lỗi: ' + errMsg)
+    } finally {
+      setIsEntityLoading(false)
+    }
   }
 
   return (
@@ -1824,7 +1980,7 @@ export default function DevControlScreen() {
           <Input
             value={recoPartnerId}
             onChangeText={setRecoPartnerId}
-            placeholder="Partner ID (Đại lý) — để trống nếu dùng Affiliate ID"
+            placeholder="Partner ID (Đối tác) — để trống nếu dùng Affiliate ID"
             className="h-[48px] bg-white text-sm"
           />
           <Input
@@ -1916,6 +2072,267 @@ export default function DevControlScreen() {
         </View>
       </Container>
 
+      {/* 7. Query Entities (CTV / Đối Tác / Nhân Viên) */}
+      <Container className="mb-6 border border-sky-600/20 bg-sky-600/5 p-4">
+        <Text className="text-title-md mb-1 font-black uppercase tracking-wider text-sky-700">
+          🔍 Truy Vấn Danh Sách Thực Thể (CTV / Đối Tác / Nhân Viên)
+        </Text>
+        <Text className="mb-4 text-body-xs text-muted">
+          Chọn các tham số lọc bằng cách click vào các pill bên dưới trước khi gọi API (không cần
+          nhập tay).
+        </Text>
+
+        <View className="gap-6">
+          {/* Section A: Hướng Dẫn Viên / Cộng Tác Viên (Affiliates) */}
+          <View className="rounded-xl border border-sky-200 bg-white p-4">
+            <Text className="text-sky-850 mb-3 text-body-md font-bold">
+              👥 1. Danh sách Cộng Tác Viên (Affiliates)
+            </Text>
+
+            {/* Trạng thái (isActive) */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Trạng thái (isActive):
+            </Text>
+            <View className="mb-3 flex-row flex-wrap">
+              {renderPill('Tất cả', ctvIsActive === undefined, () => setCtvIsActive(undefined))}
+              {renderPill('Đang hoạt động', ctvIsActive === true, () => setCtvIsActive(true))}
+              {renderPill('Ngưng hoạt động', ctvIsActive === false, () => setCtvIsActive(false))}
+            </View>
+
+            {/* Có giao dịch (hasTransaction) */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Có giao dịch (hasTransaction):
+            </Text>
+            <View className="mb-3 flex-row flex-wrap">
+              {renderPill('Tất cả', ctvHasTransaction === undefined, () =>
+                setCtvHasTransaction(undefined),
+              )}
+              {renderPill('Có giao dịch', ctvHasTransaction === true, () =>
+                setCtvHasTransaction(true),
+              )}
+              {renderPill('Không giao dịch', ctvHasTransaction === false, () =>
+                setCtvHasTransaction(false),
+              )}
+            </View>
+
+            {/* Giới hạn (limit) */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Giới hạn số lượng (limit):
+            </Text>
+            <View className="mb-4 flex-row flex-wrap">
+              {renderPill('10', ctvLimit === 10, () => setCtvLimit(10))}
+              {renderPill('25', ctvLimit === 25, () => setCtvLimit(25))}
+              {renderPill('50', ctvLimit === 50, () => setCtvLimit(50))}
+              {renderPill('100', ctvLimit === 100, () => setCtvLimit(100))}
+            </View>
+
+            <Button
+              label="Gọi API lấy danh sách CTV"
+              className="bg-sky-600"
+              loading={isEntityLoading && entityModalTitle.includes('Cộng tác viên')}
+              onPress={handleQueryCTV}
+            />
+          </View>
+
+          {/* Section B: Đối Tác / Đối tác (Partners) */}
+          <View className="rounded-xl border border-violet-200 bg-white p-4">
+            <Text className="text-violet-850 mb-3 text-body-md font-bold">
+              🏢 2. Danh sách Đối Tác (Partners)
+            </Text>
+
+            {/* Trạng thái (isActive) */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Trạng thái (isActive):
+            </Text>
+            <View className="mb-3 flex-row flex-wrap">
+              {renderPill('Tất cả', partnerIsActive === undefined, () =>
+                setPartnerIsActive(undefined),
+              )}
+              {renderPill('Đang hoạt động', partnerIsActive === true, () =>
+                setPartnerIsActive(true),
+              )}
+              {renderPill('Ngưng hoạt động', partnerIsActive === false, () =>
+                setPartnerIsActive(false),
+              )}
+            </View>
+
+            {/* Có giao dịch (hasTransaction) */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Có giao dịch (hasTransaction):
+            </Text>
+            <View className="mb-3 flex-row flex-wrap">
+              {renderPill('Tất cả', partnerHasTransaction === undefined, () =>
+                setPartnerHasTransaction(undefined),
+              )}
+              {renderPill('Có giao dịch', partnerHasTransaction === true, () =>
+                setPartnerHasTransaction(true),
+              )}
+              {renderPill('Không giao dịch', partnerHasTransaction === false, () =>
+                setPartnerHasTransaction(false),
+              )}
+            </View>
+
+            {/* Giới hạn (limit) */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Giới hạn số lượng (limit):
+            </Text>
+            <View className="mb-4 flex-row flex-wrap">
+              {renderPill('10', partnerLimit === 10, () => setPartnerLimit(10))}
+              {renderPill('25', partnerLimit === 25, () => setPartnerLimit(25))}
+              {renderPill('50', partnerLimit === 50, () => setPartnerLimit(50))}
+              {renderPill('100', partnerLimit === 100, () => setPartnerLimit(100))}
+            </View>
+
+            <Button
+              label="Gọi API lấy danh sách Đối Tác"
+              className="bg-violet-600"
+              loading={isEntityLoading && entityModalTitle.includes('Đối tác')}
+              onPress={handleQueryPartners}
+            />
+          </View>
+
+          {/* Section C: Nhân Viên (Employees) */}
+          <View className="rounded-xl border border-emerald-200 bg-white p-4">
+            <Text className="text-emerald-850 mb-3 text-body-md font-bold">
+              👤 3. Danh sách Nhân Viên (Employees)
+            </Text>
+
+            {/* Chế độ lọc ca */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Bộ lọc theo ca làm việc:
+            </Text>
+            <View className="mb-3 flex-row flex-wrap">
+              {renderPill('Tất cả (Không ca)', empMode === 'all', () => {
+                setEmpMode('all')
+                setEmpShiftId(undefined)
+              })}
+              {renderPill('Lọc theo Ca làm việc (Có ca)', empMode === 'shift', () => {
+                setEmpMode('shift')
+              })}
+            </View>
+
+            {/* Chọn ca làm việc (Chỉ khi empMode === 'shift') */}
+            {empMode === 'shift' && (
+              <View className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <View className="mb-2 flex-row items-center justify-between">
+                  <Text className="text-body-xs font-bold text-neutral-600">
+                    Chọn Ca làm việc (Chọn chứ không nhập tay):
+                  </Text>
+                  <Pressable
+                    onPress={fetchShifts}
+                    className="rounded border border-neutral-300 bg-neutral-200 px-2 py-1"
+                  >
+                    <Text className="text-[10px] font-bold text-neutral-700">Tải lại ca 🔄</Text>
+                  </Pressable>
+                </View>
+
+                {isShiftsLoading ? (
+                  <Text className="py-2 text-xs italic text-neutral-500">
+                    Đang tải danh sách ca...
+                  </Text>
+                ) : shifts.length === 0 ? (
+                  <Text className="text-danger py-2 text-xs italic">Không tìm thấy ca nào</Text>
+                ) : (
+                  <ScrollView
+                    style={{ maxHeight: 150 }}
+                    nestedScrollEnabled
+                    className="border-t border-neutral-200 pt-2"
+                  >
+                    {shifts.map((s: any) => {
+                      const isSelected = empShiftId === s.id
+                      const dateStr = s.openedAt
+                        ? new Date(s.openedAt).toLocaleTimeString('vi-VN')
+                        : 'N/A'
+                      return (
+                        <Pressable
+                          key={s.id}
+                          onPress={() => setEmpShiftId(s.id)}
+                          className={`mb-1.5 flex-row items-center justify-between rounded-lg border p-2 ${
+                            isSelected
+                              ? 'border-emerald-500 bg-emerald-50'
+                              : 'border-neutral-200 bg-white'
+                          }`}
+                        >
+                          <View className="flex-1 pr-2">
+                            <Text
+                              className={`text-xs font-bold ${isSelected ? 'text-emerald-700' : 'text-neutral-800'}`}
+                            >
+                              Mã ca: {s.code || s.id.slice(0, 8)}
+                            </Text>
+                            <Text className="text-[10px] text-neutral-500">
+                              Mở lúc: {dateStr} | NV:{' '}
+                              {s.cashierUserId ? s.cashierUserId.slice(0, 8) : 'N/A'}
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center gap-1.5">
+                            <View
+                              className={`h-2 w-2 rounded-full ${
+                                s.state === 'OPEN' ? 'bg-green-500' : 'bg-neutral-400'
+                              }`}
+                            />
+                            <Text className="text-[10px] font-bold uppercase text-neutral-500">
+                              {s.state}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      )
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+            {/* Lọc theo isPos */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Chỉ nhân viên POS (isPos):
+            </Text>
+            <View className="mb-3 flex-row flex-wrap">
+              {renderPill('Tất cả', empIsPos === undefined, () => setEmpIsPos(undefined))}
+              {renderPill('Chỉ POS (isPos = true)', empIsPos === true, () => setEmpIsPos(true))}
+              {renderPill('Không phải POS (isPos = false)', empIsPos === false, () =>
+                setEmpIsPos(false),
+              )}
+            </View>
+
+            {/* Lọc theo status */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Trạng thái hoạt động (status):
+            </Text>
+            <View className="mb-3 flex-row flex-wrap">
+              {renderPill('Tất cả', empStatus === undefined, () => setEmpStatus(undefined))}
+              {renderPill('Hoạt động (active)', empStatus === 'active', () =>
+                setEmpStatus('active'),
+              )}
+              {renderPill('Ngưng hoạt động (inactive)', empStatus === 'inactive', () =>
+                setEmpStatus('inactive'),
+              )}
+            </View>
+
+            {/* Lọc theo hasTransaction */}
+            <Text className="mb-1.5 text-body-xs font-bold text-neutral-500">
+              Có giao dịch (hasTransaction):
+            </Text>
+            <View className="mb-4 flex-row flex-wrap">
+              {renderPill('Tất cả', empHasTransaction === undefined, () =>
+                setEmpHasTransaction(undefined),
+              )}
+              {renderPill('Có giao dịch (true)', empHasTransaction === true, () =>
+                setEmpHasTransaction(true),
+              )}
+              {renderPill('Không giao dịch (false)', empHasTransaction === false, () =>
+                setEmpHasTransaction(false),
+              )}
+            </View>
+
+            <Button
+              label="Gọi API lấy danh sách Nhân Viên"
+              className="bg-emerald-600"
+              loading={isEntityLoading && entityModalTitle.includes('Nhân viên')}
+              onPress={handleQueryEmployees}
+            />
+          </View>
+        </View>
+      </Container>
+
       <ModalBase
         visible={isSyncResultVisible}
         onClose={() => setIsSyncResultVisible(false)}
@@ -1976,6 +2393,65 @@ export default function DevControlScreen() {
           </View>
         </View>
       </ModalBase>
+      <ModalBase
+        visible={isEntityModalVisible}
+        onClose={() => setIsEntityModalVisible(false)}
+        size="90%"
+      >
+        <View className="flex-1 rounded-[32px] bg-white p-5">
+          {/* Header */}
+          <View className="mb-3 flex-row items-center justify-between border-b border-neutral-200 pb-3">
+            <View className="flex-row items-center gap-2">
+              <Text className="font-bevn-bold text-lg font-bold text-neutral-800">
+                {entityModalTitle}
+              </Text>
+              {isEntityLoading && (
+                <Text className="animate-pulse text-xs font-medium italic text-primary">
+                  (Đang tải...)
+                </Text>
+              )}
+            </View>
+            <View className="flex-row items-center gap-2">
+              <Button
+                label="Sao chép JSON 📋"
+                variant="outline"
+                className="h-[32px] min-h-[32px] border-sky-500 bg-sky-50 px-3 py-1"
+                textClassName="text-xs text-sky-700 font-bold"
+                onPress={() => {
+                  if (entityModalData) {
+                    Clipboard.setString(JSON.stringify(entityModalData, null, 2))
+                    toast.success('Đã sao chép vào bộ nhớ tạm!')
+                  } else {
+                    toast.warning('Không có dữ liệu để sao chép.')
+                  }
+                }}
+              />
+              <Button
+                label="Đóng"
+                variant="outline"
+                className="h-[32px] min-h-[32px] border-neutral-300 px-3 py-1"
+                textClassName="text-xs text-neutral-600 font-bold"
+                onPress={() => setIsEntityModalVisible(false)}
+              />
+            </View>
+          </View>
+
+          {/* Code Viewer Container - Nền trắng chữ đen */}
+          <View className="flex-1 overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
+            <ScrollView className="flex-1 p-4">
+              <Text
+                className="select-all text-xs text-neutral-900"
+                style={{ fontFamily: 'monospace' }}
+              >
+                {entityModalData
+                  ? JSON.stringify(entityModalData, null, 2)
+                  : 'Đang tải hoặc không có dữ liệu...'}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </ModalBase>
+
       <ReconciliationModal ref={devReconciliationModalRef} />
     </ScrollView>
   )

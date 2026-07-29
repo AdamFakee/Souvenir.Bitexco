@@ -112,14 +112,21 @@ export const StaffRemoteAPI = {
 
   /**
    * Lấy danh sách nhân viên.
-   * - Không shiftId → GET /v1/pos/employees → toàn bộ cửa hàng
-   * - Có shiftId   → GET /v1/pos/employees?shiftId=xxx → nhân viên trong ca
+   * - Có thể truyền shiftId dạng string (backwards compatibility) hoặc object chứa bộ lọc { shiftId, status, isPos, hasTransaction }.
    */
-  getEmployees: async (shiftId?: string): Promise<any> => {
+  getEmployees: async (
+    paramsOrShiftId?:
+      | string
+      | { shiftId?: string; status?: string; isPos?: boolean; hasTransaction?: boolean },
+  ): Promise<any> => {
     try {
       const axios = AxiosService.getInstance()
-      const params: Record<string, string> = {}
-      if (shiftId) params.shiftId = shiftId
+      let params: Record<string, any> = {}
+      if (typeof paramsOrShiftId === 'string') {
+        params.shiftId = paramsOrShiftId
+      } else if (paramsOrShiftId && typeof paramsOrShiftId === 'object') {
+        params = { ...paramsOrShiftId }
+      }
       const response = await axios.get<any>('/v1/pos/employees', { params })
       return response.data
     } catch {

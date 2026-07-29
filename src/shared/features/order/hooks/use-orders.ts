@@ -11,7 +11,7 @@ export const useOrders = (params: {
   staffId?: string | null
   affiliateId?: string | null
   partnerId?: string | null
-  guideType?: 'collaborator' | 'agent' | null
+  guideType?: 'collaborator' | 'agent' | 'retail' | null
   paymentMethod?: string | null
 }) => {
   const { status, dateFrom, dateTo, staffId, affiliateId, partnerId, guideType, paymentMethod } =

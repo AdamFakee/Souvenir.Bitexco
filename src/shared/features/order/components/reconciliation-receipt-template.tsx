@@ -42,7 +42,7 @@ export const ReconciliationReceiptTemplate = ({
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
           <Text style={S.fs28}>Loại:</Text>
           <Text style={S.fs28}>
-            {data.ownerType === 'collaborator' ? 'Hướng dẫn viên' : 'Đại lý'}
+            {data.ownerType === 'collaborator' ? 'Hướng dẫn viên' : 'Đối tác'}
           </Text>
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>

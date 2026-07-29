@@ -26,12 +26,13 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-type OrderMode = 'pos' | 'collaborator' | 'agent'
+type OrderMode = 'all' | 'pos' | 'collaborator' | 'agent'
 
 const MODE_TABS = [
+  { label: 'Tất cả', value: 'all' as const },
   { label: 'Khách lẻ', value: 'pos' as const },
   { label: 'Cộng tác viên', value: 'collaborator' as const },
-  { label: 'Đại lý', value: 'agent' as const },
+  { label: 'Đối tác', value: 'agent' as const },
 ] as const
 
 // ── Mode tabs ──────────────────────────────────────────────
@@ -80,7 +81,7 @@ const TopTabs = memo(function TopTabs({
   )
 })
 
-// ── Guide owner select (CTV / Đại lý) ──────────────────────
+// ── Guide owner select (CTV / Đối tác) ──────────────────────
 const GuideOwnerBar = memo(function GuideOwnerBar({
   mode,
   affiliates,
@@ -104,7 +105,7 @@ const GuideOwnerBar = memo(function GuideOwnerBar({
       ]
     }
     return [
-      { label: 'Tất cả Đại lý', value: '' },
+      { label: 'Tất cả Đối tác', value: '' },
       ...partners.map((p) => ({ label: `${p.nameVi} (${p.code})`, value: p.id })),
     ]
   }, [mode, affiliates, partners])
@@ -115,7 +116,7 @@ const GuideOwnerBar = memo(function GuideOwnerBar({
         options={options}
         value={activeId}
         onChange={onChangeId}
-        placeholder={`Tất cả ${mode === 'collaborator' ? 'Cộng tác viên' : 'Đại lý'}`}
+        placeholder={`Tất cả ${mode === 'collaborator' ? 'Cộng tác viên' : 'Đối tác'}`}
         className="flex-1"
         triggerClassName="h-[64px] rounded-xl"
         triggerTextClassName="text-[20px] font-bold"
@@ -158,7 +159,13 @@ const OrdersResults = memo(function OrdersResults({
   const paymentMethod = useOrderFilterStore((s) => s.paymentMethod)
 
   const guideType =
-    mode === 'pos' ? null : mode === 'collaborator' ? ('collaborator' as const) : ('agent' as const)
+    mode === 'all'
+      ? null
+      : mode === 'pos'
+        ? ('retail' as const)
+        : mode === 'collaborator'
+          ? ('collaborator' as const)
+          : ('agent' as const)
 
   const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useOrders({
     status,
@@ -303,7 +310,7 @@ export default function OrdersScreen() {
   }, [queryClient])
 
   const handlePreviewReconciliation = useCallback(() => {
-    if (mode === 'pos') return
+    if (mode === 'pos' || mode === 'all') return
 
     let ownerName = ''
     let ownerCode = ''
@@ -320,7 +327,7 @@ export default function OrdersScreen() {
       }
     } else {
       if (!selectedPartnerId) {
-        toast.info('Vui lòng chọn cụ thể một Đại lý để đối soát.', 'Yêu cầu chọn Đại lý')
+        toast.info('Vui lòng chọn cụ thể một Đối tác để đối soát.', 'Yêu cầu chọn Đối tác')
         return
       }
       const activePartner = partners.find((p) => p.id === selectedPartnerId)
@@ -371,7 +378,7 @@ export default function OrdersScreen() {
         >
           <OrderFilterBar showStaffFilter />
 
-          {mode !== 'pos' ? (
+          {mode !== 'pos' && mode !== 'all' ? (
             <GuideOwnerBar
               mode={mode}
               affiliates={affiliates}

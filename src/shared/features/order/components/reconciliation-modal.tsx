@@ -18,7 +18,7 @@ export interface ReconciliationOpenParams {
   ownerName: string
   ownerCode: string
   ownerType: 'collaborator' | 'agent'
-  /** ID đối tác (Đại lý) */
+  /** ID đối tác (Đối tác) */
   partnerId?: string | null
   /** ID CTV / HDV */
   affiliateId?: string | null
@@ -158,7 +158,7 @@ export const ReconciliationModal = memo(
               <View className="gap-4 py-2">
                 <View className="flex-row items-center justify-between border-b border-surface-100 py-2">
                   <Text className="text-base font-medium text-neutral-500" numberOfLines={1}>
-                    {receiptData.ownerType === 'collaborator' ? 'Cộng tác viên' : 'Đại lý'}
+                    {receiptData.ownerType === 'collaborator' ? 'Cộng tác viên' : 'Đối tác'}
                   </Text>
                   <Text
                     className="ml-4 flex-1 text-right text-lg font-bold text-surface-on"

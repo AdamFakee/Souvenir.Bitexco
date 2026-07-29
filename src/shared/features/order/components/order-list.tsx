@@ -19,7 +19,7 @@ interface OrderListProps {
   fetchNextPage: () => void
   hasNextPage: boolean
   isFetchingNextPage: boolean
-  mode?: 'pos' | 'collaborator' | 'agent'
+  mode?: 'all' | 'pos' | 'collaborator' | 'agent'
 }
 
 const BRAND = '#1C4E68'
@@ -134,7 +134,7 @@ interface HeaderCellProps {
   currentSort: SortField | null
   currentDir: 'asc' | 'desc'
   onSort: (field: SortField) => void
-  mode?: 'pos' | 'collaborator' | 'agent'
+  mode?: 'all' | 'pos' | 'collaborator' | 'agent'
 }
 
 const HeaderCell = memo(function HeaderCell({
@@ -171,7 +171,9 @@ const HeaderCell = memo(function HeaderCell({
       ? STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || 'Trạng thái'
       : 'Trạng thái'
   } else if (field === 'collaborator' && mode === 'agent') {
-    selectedLabel = 'Đại lý'
+    selectedLabel = 'Đối tác'
+  } else if (field === 'collaborator' && mode === 'all') {
+    selectedLabel = 'CTV / Đối tác'
   }
 
   const handlePress = useCallback(() => {
@@ -291,12 +293,14 @@ const OrderRow = memo(
     onPress,
     onExchange,
     onRefund,
+    hideCollaborator,
   }: {
     display: OrderDisplay
     index: number
     onPress: () => void
     onExchange?: (order: IOrder) => void
     onRefund?: (order: IOrder) => void
+    hideCollaborator?: boolean
   }) {
     const isEven = index % 2 === 1
     const order = display._order
@@ -324,19 +328,21 @@ const OrderRow = memo(
         </View>
 
         {/* Cộng tác viên */}
-        <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
-          <Text
-            numberOfLines={1}
-            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
-          >
-            {display.collaboratorName}
-          </Text>
-          {display.collaboratorCode ? (
-            <Text style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold', fontSize: 16 }}>
-              {display.collaboratorCode}
+        {!hideCollaborator && (
+          <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
+            <Text
+              numberOfLines={1}
+              style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
+            >
+              {display.collaboratorName}
             </Text>
-          ) : null}
-        </View>
+            {display.collaboratorCode ? (
+              <Text style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold', fontSize: 16 }}>
+                {display.collaboratorCode}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {/* Ngày tạo */}
         <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
@@ -429,14 +435,21 @@ const OrderRow = memo(
 )
 
 // ── Skeleton ──
-const OrderSkeleton = ({ index }: { index: number }) => {
+const OrderSkeleton = ({
+  index,
+  hideCollaborator,
+}: {
+  index: number
+  hideCollaborator?: boolean
+}) => {
   const isEven = index % 2 === 1
+  const activeCols = COLUMNS.filter((col) => !(col.field === 'collaborator' && hideCollaborator))
   return (
     <View
       className="flex-row items-center"
       style={{ minHeight: 62, backgroundColor: isEven ? ZEBRA : '#fff', paddingVertical: 8 }}
     >
-      {COLUMNS.map((col, i) => (
+      {activeCols.map((col, i) => (
         <View key={i} className="justify-center px-4" style={{ flex: col.flex, height: 60 }}>
           <Shimmer className="h-6 w-28 rounded-md" />
           {col.field === 'collaborator' && <Shimmer className="mt-1 h-4 w-20 rounded-md" />}
@@ -451,7 +464,7 @@ interface TableHeaderProps {
   sortField: SortField | null
   sortDir: 'asc' | 'desc'
   onSort: (field: SortField) => void
-  mode?: 'pos' | 'collaborator' | 'agent'
+  mode?: 'all' | 'pos' | 'collaborator' | 'agent'
 }
 
 export const TableHeader = memo(function TableHeader({
@@ -460,9 +473,13 @@ export const TableHeader = memo(function TableHeader({
   onSort,
   mode,
 }: TableHeaderProps) {
+  const activeCols = useMemo(() => {
+    return COLUMNS.filter((col) => !(col.field === 'collaborator' && mode === 'pos'))
+  }, [mode])
+
   return (
     <View className="z-50 flex-row items-center border-b bg-white" style={{ borderColor: BORDER }}>
-      {COLUMNS.map((col) => (
+      {activeCols.map((col) => (
         <HeaderCell
           key={col.field}
           field={col.field}
@@ -554,9 +571,10 @@ export const OrderList = memo(function OrderList({
         onPress={() => onOpenDetails(item._order)}
         onExchange={onExchange}
         onRefund={onRefund}
+        hideCollaborator={mode === 'pos'}
       />
     ),
-    [onOpenDetails, onExchange, onRefund],
+    [onOpenDetails, onExchange, onRefund, mode],
   )
 
   const keyExtractor = useCallback((item: OrderDisplay) => item.id, [])
@@ -567,7 +585,7 @@ export const OrderList = memo(function OrderList({
       <View className="flex-1">
         <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} mode={mode} />
         {[...Array(6)].map((_, i) => (
-          <OrderSkeleton key={i} index={i} />
+          <OrderSkeleton key={i} index={i} hideCollaborator={mode === 'pos'} />
         ))}
       </View>
     )

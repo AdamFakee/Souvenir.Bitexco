@@ -9,7 +9,7 @@ export interface CartContext {
   discount: number
   appliedVoucher: AppliedVoucher | null
   note: string
-  /** HDV / Đại lý gắn với phiên. null = khách lẻ */
+  /** HDV / Đối tác gắn với phiên. null = khách lẻ */
   affiliate: Affiliate | null
 }
 
@@ -187,7 +187,7 @@ export const cartMachine = setup({
             sendParent({ type: 'CART_UPDATED' }),
           ],
         },
-        // Gắn / đổi HDV hoặc Đại lý cho phiên
+        // Gắn / đổi HDV hoặc Đối tác cho phiên
         SET_AFFILIATE: {
           actions: [
             assign({

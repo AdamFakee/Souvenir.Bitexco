@@ -33,7 +33,11 @@ export const calculateVoucherDiscount = (
 
     let discountAmount = 0
     if (voucher.voucherType === 'PERCENTAGE') {
-      discountAmount = applicableTotal * (voucher.discountValue / 100)
+      const pct =
+        voucher.percent !== undefined && voucher.percent !== null
+          ? voucher.percent
+          : voucher.discountValue
+      discountAmount = applicableTotal * (pct / 100)
       if (voucher.maxDiscountAmount !== null) {
         discountAmount = Math.min(discountAmount, voucher.maxDiscountAmount)
       }

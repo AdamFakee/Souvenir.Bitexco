@@ -11,6 +11,7 @@ export type VerifyVoucherResponse = {
   minOrderValue: number | null
   maxDiscountAmount: number | null
   applicableVariantIds: string[] | null
+  percent?: number | null
 }
 
 export const remoteVoucherApi = {

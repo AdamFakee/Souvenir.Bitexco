@@ -37,7 +37,7 @@ export const PortablePaymentService = {
     // Lấy config terminal động từ app store/appMachine context
     const appService = useAppStore.getState().appService
     const terminalConfig = appService?.getSnapshot().context.terminalConfig
-    console.log('terminal config', JSON.stringify(terminalConfig, null, 2))
+    // console.log('terminal config', JSON.stringify(terminalConfig, null, 2))
 
     if (
       !terminalConfig ||
@@ -50,7 +50,7 @@ export const PortablePaymentService = {
     }
 
     const { posUrl, merchantName, cashierId, license } = terminalConfig
-    console.log('terminal config', JSON.stringify(terminalConfig, null, 2))
+    // console.log('terminal config', JSON.stringify(terminalConfig, null, 2))
 
     const res = await PaymentPortable.doConnect(posUrl, merchantName, cashierId, license)
     // console.log('[PortablePOS] Direct Connection Response:', res)
