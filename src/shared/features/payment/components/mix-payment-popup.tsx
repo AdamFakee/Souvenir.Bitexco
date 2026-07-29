@@ -1,4 +1,6 @@
+import CardIcon from '@/assets/icons/Card.svg'
 import MixIcon from '@/assets/icons/Mix.svg'
+import QRIcon from '@/assets/icons/QR.svg'
 import { ViceService } from '@/screens/vice-service'
 import { Button, ControlledInput, ModalBase, Numpad, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
@@ -16,6 +18,7 @@ import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } fro
 import { useForm } from 'react-hook-form'
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
+
 import * as v from 'valibot'
 
 import type { AppliedVoucher } from '@/shared/features/pos'
@@ -204,6 +207,18 @@ export const MixPaymentPopup = memo(
       const isSuccess = machineState === 'success'
       const isCancelled = machineState === 'cancelled'
       const isWaitingManagerApproval = machineState === 'waitingManagerApproval'
+
+      const isQrDisabled = React.useMemo(() => {
+        const method = paymentMethods?.find((m) => m.code === 'qr_bidv')
+        const methodEnabled = method ? method.enabled : true
+        return !isIdle || !methodEnabled || !isNetworkConnected
+      }, [isIdle, paymentMethods, isNetworkConnected])
+
+      const isCardDisabled = React.useMemo(() => {
+        const method = paymentMethods?.find((m) => m.code === 'card_bidv')
+        const methodEnabled = method ? method.enabled : true
+        return !isIdle || !methodEnabled || !isPosConnected
+      }, [isIdle, paymentMethods, isPosConnected])
 
       const isProcessing =
         isCreatingCheckout ||
@@ -1062,11 +1077,11 @@ export const MixPaymentPopup = memo(
                       <View className="flex-1">
                         <Button
                           label={qrLabel}
-                          leftIcon={QrCode}
+                          leftIcon={QRIcon as any}
                           iconSize={32}
                           variant={selectedMethod === 'qr' ? 'primary' : 'outline'}
                           className="h-[84px] w-full border-2"
-                          disabled={!isIdle}
+                          disabled={isQrDisabled}
                           onPress={() => actorRef.send({ type: 'SELECT_METHOD', method: 'qr' })}
                         />
                       </View>
@@ -1074,11 +1089,11 @@ export const MixPaymentPopup = memo(
                       <View className="flex-1">
                         <Button
                           label={cardLabel}
-                          leftIcon={CreditCard}
+                          leftIcon={CardIcon as any}
                           iconSize={32}
                           variant={selectedMethod === 'card' ? 'primary' : 'outline'}
                           className="h-[84px] w-full border-2"
-                          disabled={!isIdle}
+                          disabled={isCardDisabled}
                           onPress={() => actorRef.send({ type: 'SELECT_METHOD', method: 'card' })}
                         />
                       </View>
