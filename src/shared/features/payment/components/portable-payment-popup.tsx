@@ -35,6 +35,7 @@ export const PortablePaymentPopup = memo(
         appliedVoucher,
         printRef,
         onSuccess,
+        note,
         affiliate,
       },
       ref,
@@ -65,6 +66,7 @@ export const PortablePaymentPopup = memo(
           sessionId: shiftId ?? 'unknown',
           appliedVoucher: appliedVoucher || null,
           printRef,
+          note: note || null,
           affiliateId: affiliate?.id ?? null,
           agentType: affiliate?.agentType ?? null,
         },
@@ -184,6 +186,7 @@ export const PortablePaymentPopup = memo(
                 sessionId: shiftId ?? 'unknown',
                 appliedVoucher: appliedVoucher || null,
                 printRef,
+                note: note || null,
                 affiliateId: affiliate?.id ?? null,
                 agentType: affiliate?.agentType ?? null,
               },
@@ -208,6 +211,7 @@ export const PortablePaymentPopup = memo(
           shiftId,
           staffId,
           total,
+          note,
         ],
       )
 

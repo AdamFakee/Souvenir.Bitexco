@@ -1,5 +1,5 @@
-import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
 import { Affiliate } from '@/shared/features/pos'
+import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
 
 export interface Partner {
   id: string

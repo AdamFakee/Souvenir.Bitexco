@@ -24,6 +24,7 @@ export const QrPaymentPopup = memo(
         activeSessionId,
         printRef,
         onSuccess,
+        note,
         affiliate,
       },
       ref,
@@ -53,6 +54,7 @@ export const QrPaymentPopup = memo(
           appliedVoucher: appliedVoucher || null,
           printRef,
           tenantConfig,
+          note: note || null,
           affiliateId: affiliate?.id ?? null,
           agentType: affiliate?.agentType ?? null,
         },
@@ -197,6 +199,7 @@ export const QrPaymentPopup = memo(
                 appliedVoucher: appliedVoucher || null,
                 printRef,
                 tenantConfig,
+                note: note || null,
                 affiliateId: affiliate?.id ?? null,
                 agentType: affiliate?.agentType ?? null,
               },
@@ -216,6 +219,7 @@ export const QrPaymentPopup = memo(
           tenantConfig,
           total,
           affiliate,
+          note,
         ],
       )
 

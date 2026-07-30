@@ -4,20 +4,30 @@ import { useIsFocused } from '@react-navigation/native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 
+export interface UseEmployeesParams {
+  shiftId?: string
+  status?: string
+  isPos?: boolean
+  hasTransaction?: boolean
+}
+
 /**
  * Hook lấy danh sách nhân viên.
- * - Không shiftId: GET /v1/pos/employees → toàn bộ nhân viên
- * - Có shiftId:    GET /v1/pos/employees?shiftId=xxx → nhân viên trong ca
+ * - Có thể nhận shiftId (string) hoặc bộ lọc params (UseEmployeesParams)
  */
-export const useEmployees = (shiftId?: string) => {
+export const useEmployees = (paramsOrShiftId?: string | UseEmployeesParams) => {
   const { employee } = useAppContext()
   const queryClient = useQueryClient()
   const isFocused = useIsFocused()
 
+  const params =
+    typeof paramsOrShiftId === 'string' ? { shiftId: paramsOrShiftId } : paramsOrShiftId
+  const paramsKey = JSON.stringify(params || {})
+
   const query = useQuery<EmployeeItem[]>({
-    queryKey: shiftId ? ['employees', 'shift', shiftId] : ['employees', 'store'],
+    queryKey: ['employees', paramsKey],
     queryFn: async () => {
-      const res = await StaffRemoteAPI.getEmployees(shiftId)
+      const res = await StaffRemoteAPI.getEmployees(params)
       return res?.data || (Array.isArray(res) ? res : [])
     },
     staleTime: 5 * 60 * 1000,
@@ -28,12 +38,12 @@ export const useEmployees = (shiftId?: string) => {
   useEffect(() => {
     if (isFocused) {
       console.log(
-        `[useEmployees] Screen focused, triggering employee list refetch. shiftId:`,
-        shiftId,
+        `[useEmployees] Screen focused, triggering employee list refetch. params:`,
+        paramsKey,
       )
       query.refetch()
     }
-  }, [isFocused, query.refetch])
+  }, [isFocused, query.refetch, paramsKey])
 
   // Chỉ invalidate khi đổi NV thật — không storm mỗi mount dashboard/orders
   const lastEmpRef = useRef<string | null>(null)

@@ -543,7 +543,27 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                       <InfoRow label="Voucher" value={order.voucherCode} valueColor={BRAND} />
                     )}
 
-                    {!!order.note && <InfoRow label="Ghi chú" value={order.note} />}
+                    {!!order.note && (
+                      <View
+                        className="flex-row items-start justify-between py-3"
+                        style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
+                      >
+                        <Text
+                          className="text-[21px] font-bold"
+                          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                        >
+                          Ghi chú
+                        </Text>
+                        <View className="max-w-[65%]">
+                          <Text
+                            className="text-left text-[21px] font-extrabold"
+                            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                          >
+                            {order.note}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
 
                     {!!(order.refund || (order.totalRefunded && order.totalRefunded > 0)) && (
                       <View

@@ -21,6 +21,7 @@ export type CreateMixCheckoutInput = {
   nonCashAmount: number
   selectedMethod: MixMethod
   cardTerminalId?: string | null
+  note?: string | null
 }
 
 export type CreateMixCheckoutOutput = {
@@ -68,7 +69,7 @@ export const createMixCheckoutActor = fromPromise(
       cashSessionId: input.sessionId,
       customerId: null,
       currency: 'VND',
-      notes: null,
+      notes: input.note ?? null,
       lines,
       payments: [
         {

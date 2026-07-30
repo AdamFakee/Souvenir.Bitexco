@@ -44,6 +44,7 @@ export interface CashPaymentContext {
   printRef?: React.RefObject<unknown>
   affiliateId?: string | null
   agentType?: AgentType | null
+  notes?: string | null
 
   amountTendered: number
   change: number
@@ -71,6 +72,7 @@ export type CashPaymentInput = {
   printRef?: React.RefObject<unknown>
   affiliateId?: string | null
   agentType?: AgentType | null
+  note?: string | null
 }
 
 // ─── Machine ──────────────────────────────────────────────────────────────────
@@ -122,7 +124,7 @@ export const cashPaymentMachine = setup({
             cashSessionId: input.sessionId || '---',
             customerId: null,
             currency: 'VND',
-            notes: null,
+            notes: input.notes ?? null,
             lines,
             payments: [
               {
@@ -171,7 +173,7 @@ export const cashPaymentMachine = setup({
             ? calculateVoucherDiscount(input.items, input.appliedVoucher)
             : 0,
           total: finalTotal,
-          note: undefined,
+          note: input.notes ?? undefined,
           payment: {
             method: 'cash',
             amount: finalTotal,
@@ -261,6 +263,7 @@ export const cashPaymentMachine = setup({
           printRef: event.input.printRef,
           affiliateId: event.input.affiliateId,
           agentType: event.input.agentType,
+          notes: event.input.note ?? null,
         }
       }
 
@@ -306,6 +309,7 @@ export const cashPaymentMachine = setup({
     sessionId: input.sessionId,
     appliedVoucher: input.appliedVoucher,
     printRef: input.printRef,
+    notes: input.note ?? null,
     amountTendered: 0,
     change: 0,
     error: null,

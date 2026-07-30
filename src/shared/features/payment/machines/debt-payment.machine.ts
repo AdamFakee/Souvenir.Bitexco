@@ -21,6 +21,7 @@ export interface DebtPaymentContext {
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<any>
   savedOrder?: any | null
+  notes?: string | null
 
   error: string | null
   /** Chặn double CONFIRM / double checkout */
@@ -42,6 +43,7 @@ export type DebtPaymentInput = {
   discount: number
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<any>
+  note?: string | null
 }
 
 // ─── Machine ────────────────────────────────────────────────────────────────────
@@ -72,7 +74,7 @@ export const debtPaymentMachine = setup({
         cashSessionId: input.shiftId || '---',
         customerId: null,
         currency: 'VND',
-        notes: null,
+        notes: input.notes ?? null,
         lines,
         payments: [
           {
@@ -113,6 +115,7 @@ export const debtPaymentMachine = setup({
     discount: input?.discount ?? 0,
     appliedVoucher: input?.appliedVoucher ?? null,
     printRef: input?.printRef,
+    notes: input?.note ?? null,
     savedOrder: null,
     error: null,
     submitted: false,
@@ -134,6 +137,7 @@ export const debtPaymentMachine = setup({
               discount: inp.discount ?? 0,
               appliedVoucher: inp.appliedVoucher ?? null,
               printRef: inp.printRef,
+              notes: inp.note ?? null,
               savedOrder: null,
               error: null,
               submitted: false,
@@ -222,6 +226,7 @@ export const debtPaymentMachine = setup({
               discount: inp.discount ?? 0,
               appliedVoucher: inp.appliedVoucher ?? null,
               printRef: inp.printRef,
+              notes: inp.note ?? null,
               savedOrder: null,
               error: null,
               submitted: false,
@@ -247,6 +252,7 @@ export const debtPaymentMachine = setup({
               discount: inp.discount ?? 0,
               appliedVoucher: inp.appliedVoucher ?? null,
               printRef: inp.printRef,
+              notes: inp.note ?? null,
               savedOrder: null,
               error: null,
               submitted: false,

@@ -3,12 +3,12 @@ import { Container, Input, ModalBase } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
 import { useAppStore } from '@/shared/features/app'
 import { AuthAPI } from '@/shared/features/auth'
+import { StaffRemoteAPI } from '@/shared/features/auth/api/remote/staff.remote.api'
 import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
 import { useNoteStore } from '@/shared/features/note'
 import { ReconciliationModal, type ReconciliationModalRef } from '@/shared/features/order'
 import type { ReconciliationResult } from '@/shared/features/order/api/remote/order.remote.api'
 import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
-import { StaffRemoteAPI } from '@/shared/features/auth/api/remote/staff.remote.api'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import {
   CloseShiftReceiptTemplate,

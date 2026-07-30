@@ -40,6 +40,7 @@ export interface PortablePaymentContext {
   printRef?: React.RefObject<any>
   affiliateId?: string | null
   agentType?: AgentType | null
+  notes?: string | null
 
   checkoutResult: PosCheckoutResult | null
   paymentId: string | null
@@ -82,6 +83,7 @@ export type PortablePaymentInput = {
   printRef?: React.RefObject<any>
   affiliateId?: string | null
   agentType?: AgentType | null
+  note?: string | null
 }
 
 const MAX_RETRIES = 3
@@ -121,7 +123,7 @@ export const portablePaymentMachine = setup({
           cashSessionId: input.sessionId,
           customerId: null,
           currency: 'VND',
-          notes: null,
+          notes: input.notes ?? null,
           lines,
           payments: [
             {
@@ -341,6 +343,7 @@ export const portablePaymentMachine = setup({
           printRef: event.input.printRef,
           affiliateId: event.input.affiliateId,
           agentType: event.input.agentType,
+          notes: event.input.note ?? null,
         }
       }
       return base
@@ -361,6 +364,7 @@ export const portablePaymentMachine = setup({
     sessionId: input.sessionId,
     appliedVoucher: input.appliedVoucher,
     printRef: input.printRef,
+    notes: input.note ?? null,
     checkoutResult: null,
     paymentId: null,
     paymentVersion: 0,

@@ -45,6 +45,7 @@ export const OrderFilterBar = memo(function OrderFilterBar({
       {showStaffFilter && (
         <StaffSelect
           value={staffId}
+          params={{ hasTransaction: true }}
           onChange={handleStaffChange}
           className="w-60"
           triggerClassName="h-[64px] rounded-xl"

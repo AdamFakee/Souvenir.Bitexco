@@ -1,12 +1,14 @@
 import { Select, SelectOption } from '@/shared/components/ui/select'
 import React, { memo, useCallback, useMemo } from 'react'
 import { View } from 'react-native'
-import { useEmployees } from '../hooks/use-employees'
+import { useEmployees, UseEmployeesParams } from '../hooks/use-employees'
 
 export interface StaffSelectProps {
   value: string | null
   onChange: (staffId: string | null) => void
   className?: string
+  /** Bộ lọc nhân viên cấu hình từ ngoài */
+  params?: UseEmployeesParams
   /** Nếu truyền shiftId, chỉ hiển thị nhân viên trong ca đó. Không truyền = toàn bộ nhân viên */
   shiftId?: string
   triggerClassName?: string
@@ -17,11 +19,17 @@ export const StaffSelect = memo(function StaffSelect({
   value,
   onChange,
   className,
+  params,
   shiftId,
   triggerClassName,
   triggerTextClassName,
 }: StaffSelectProps) {
-  const { employees, isLoading } = useEmployees(shiftId)
+  const mergedParams = useMemo(() => {
+    if (params) return params
+    return shiftId ? { shiftId } : undefined
+  }, [params, shiftId])
+
+  const { employees, isLoading } = useEmployees(mergedParams)
 
   const options = useMemo(() => {
     const opts: SelectOption<string>[] = [{ label: 'Tất cả nhân viên', value: '' }]

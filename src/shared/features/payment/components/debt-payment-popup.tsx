@@ -88,6 +88,7 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       discount,
       printRef,
       onSuccess,
+      note,
     },
     ref,
   ) {
@@ -103,6 +104,7 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         discount,
         appliedVoucher: appliedVoucher || null,
         printRef,
+        note: note || null,
       },
     })
 
@@ -133,6 +135,7 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
             discount,
             appliedVoucher: appliedVoucher || null,
             printRef,
+            note: note || null,
           },
         })
         setVisible(true)

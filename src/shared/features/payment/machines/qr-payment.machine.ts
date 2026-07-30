@@ -32,6 +32,7 @@ export interface QRPaymentContext {
   tenantConfig?: TenantConfig | null
   affiliateId?: string | null
   agentType?: AgentType | null
+  notes?: string | null
   orderId: string | null
   paymentId: string | null
   qrContent: string | null
@@ -66,6 +67,7 @@ export type QRPaymentInput = {
   tenantConfig?: TenantConfig | null
   affiliateId?: string | null
   agentType?: AgentType | null
+  note?: string | null
 }
 
 const MAX_RETRIES = 3
@@ -100,7 +102,7 @@ export const qrPaymentMachine = setup({
         cashSessionId: input.shiftId,
         customerId: null,
         currency: 'VND',
-        notes: null,
+        notes: input.notes ?? null,
         lines,
         payments: [
           {
@@ -220,6 +222,7 @@ export const qrPaymentMachine = setup({
           tenantConfig: event.input.tenantConfig,
           affiliateId: event.input.affiliateId,
           agentType: event.input.agentType,
+          notes: event.input.note ?? null,
         }
       }
       return base
@@ -266,6 +269,7 @@ export const qrPaymentMachine = setup({
     appliedVoucher: input.appliedVoucher,
     printRef: input.printRef,
     tenantConfig: input.tenantConfig,
+    notes: input.note ?? null,
     orderId: null,
     paymentId: null,
     qrContent: null,

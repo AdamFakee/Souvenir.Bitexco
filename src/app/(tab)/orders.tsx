@@ -204,7 +204,7 @@ export default function OrdersScreen() {
   const reconciliationModalRef = useRef<ReconciliationModalRef>(null)
   const refundModalRef = useRef<RefundConfirmModalRef>(null)
 
-  const [mode, setMode] = useState<OrderMode>('pos')
+  const [mode, setMode] = useState<OrderMode>('all')
   const [selectedAffiliateId, setSelectedAffiliateId] = useState<string | null>(null)
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
 

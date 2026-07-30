@@ -102,6 +102,7 @@ export const CashPaymentPopup = memo(
         appliedVoucher,
         printRef,
         onSuccess,
+        note,
         affiliate,
       },
       ref,
@@ -136,6 +137,7 @@ export const CashPaymentPopup = memo(
             printRef,
             affiliateId: affiliate?.id ?? null,
             agentType: affiliate?.agentType ?? null,
+            note: note || null,
           },
         },
       )
@@ -201,6 +203,7 @@ export const CashPaymentPopup = memo(
             printRef,
             affiliateId: affiliate?.id ?? null,
             agentType: affiliate?.agentType ?? null,
+            note: note || null,
           }
 
           // Khởi động lại machine với dữ liệu mới nhất

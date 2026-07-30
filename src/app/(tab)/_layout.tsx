@@ -19,6 +19,7 @@ import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/share
 import { CloseShiftModal, CloseShiftModalRef } from '@/shared/features/shift'
 import { database, OrderModel } from '@/shared/lib/database'
 import { useSync } from '@/shared/lib/database/sync'
+import { PrinterService } from '@/shared/services/printer-service'
 import { toast, useAlertStore } from '@/shared/store'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Q } from '@nozbe/watermelondb'
@@ -26,7 +27,6 @@ import { Href, Tabs, useRouter, useSegments } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
-import { PrinterService } from '@/shared/services/printer-service'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type MenuItem = {
@@ -165,7 +165,6 @@ const CustomSidebar = React.memo(
     const handleOpenCashbox = useCallback(async () => {
       try {
         await PrinterService.openCashBox()
-        toast.success('Đã gửi lệnh mở két tiền thành công!')
       } catch (err: any) {
         toast.error('Lỗi mở két: ' + (err?.message ?? 'Không xác định'))
       }

@@ -216,7 +216,7 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
           console.log(`[ProductRemoteAPI] Phản hồi trang ${page}:`, {
             itemsCount: data?.items?.length ?? 0,
             hasMore: data?.hasMore,
-            syncedAt: data?.syncedAt,
+            syncedAt: lastPulledAt,
           })
           if (data.syncedAt) {
             syncedAtFromServer =
