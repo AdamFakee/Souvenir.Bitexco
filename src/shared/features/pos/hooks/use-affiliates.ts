@@ -11,6 +11,7 @@ const mapPartnerToAffiliate = (partner: Partner): Affiliate => ({
   isDebt: partner.allowCredit,
   agentType: 'agent',
   creditLimit: partner.creditLimit,
+  remainingCredit: partner.remainingCredit,
   representative: partner.representative,
   representativeTitle: partner.representativeTitle,
   companyName: partner.companyName,

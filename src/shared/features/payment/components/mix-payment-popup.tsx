@@ -23,7 +23,7 @@ import * as v from 'valibot'
 
 import type { AppliedVoucher } from '@/shared/features/pos'
 import { mixPaymentMachine } from '../machines/mix-payment.machine'
-import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
+import { PaymentPopupProps, PaymentPopupRef, getPaymentErrorStatus } from '../types'
 import {
   calculateLineDiscount,
   calculateSubtotal,
@@ -322,66 +322,55 @@ export const MixPaymentPopup = memo(
         return () => clearInterval(interval)
       }, [visible, qrContent, expiresAt, createdAt])
 
-      // Debounce updating input state in machine
+      // Cập nhật giá trị vào Machine lập tức để tránh delay các con số trên màn hình chính
       useEffect(() => {
         if (!visible) return
-        const timer = setTimeout(() => {
-          const val = Number(cashInput) || 0
-          actorRef.send({ type: 'SET_CASH_AMOUNT', amount: val })
-        }, 200)
-        return () => clearTimeout(timer)
+        const val = Number(cashInput) || 0
+        actorRef.send({ type: 'SET_CASH_AMOUNT', amount: val })
       }, [cashInput, visible, actorRef])
 
-      // Update vice display during selection, QR, and Card payment steps
+      // Debounce cập nhật Vice Screen để tránh lag luồng chính khi gõ phím
       useEffect(() => {
         if (!visible) return
 
-        const isCardProcessing =
-          isProcessingCard ||
-          isConnectingCard ||
-          isSendingCardCmd ||
-          isVerifyingCard ||
-          isCapturingCardInfo ||
-          isCapturingCardManual ||
-          isAuthorizingCard ||
-          isCapturingCardPayment ||
-          isManualResolution ||
-          isPaymentFailed
+        const timer = setTimeout(() => {
+          const isCardProcessing =
+            isProcessingCard ||
+            isConnectingCard ||
+            isSendingCardCmd ||
+            isVerifyingCard ||
+            isCapturingCardInfo ||
+            isCapturingCardManual ||
+            isAuthorizingCard ||
+            isCapturingCardPayment ||
+            isManualResolution ||
+            isPaymentFailed
 
-        if (isPaymentFailed || isError) {
-          if (errorCode === PAYMENT_ERROR_CODES.TIMEOUT) {
-            ViceService.showStatus({
-              type: 'error',
-              title: 'Hết thời gian thanh toán',
-              message: 'Vui lòng chờ nhân viên thao tác',
+          if (isPaymentFailed || isError) {
+            ViceService.showStatus(getPaymentErrorStatus(errorCode))
+          } else if (isIdle || isCreatingCheckout) {
+            ViceService.showMixPayment({
+              subtotal,
+              discount,
+              tax,
+              total,
+              cashPaid: cashAmount,
+              nonCashAmount,
             })
-          } else {
-            ViceService.showStatus({
-              type: 'error',
-              title: 'Thanh toán thất bại',
-              message: 'Đã xảy ra lỗi hệ thống.',
+          } else if ((isFetchingQr || isWaitingQr) && qrContent) {
+            ViceService.showPayment({
+              qrCodeUrl: qrContent,
+              subtotal,
+              discount,
+              tax,
+              total: nonCashAmount,
             })
+          } else if (selectedMethod === 'card' && isCardProcessing && !isSuccess) {
+            ViceService.showPortablePayment({ total: nonCashAmount })
           }
-        } else if (isIdle || isCreatingCheckout) {
-          ViceService.showMixPayment({
-            subtotal,
-            discount,
-            tax,
-            total,
-            cashPaid: cashAmount,
-            nonCashAmount,
-          })
-        } else if ((isFetchingQr || isWaitingQr) && qrContent) {
-          ViceService.showPayment({
-            qrCodeUrl: qrContent,
-            subtotal,
-            discount,
-            tax,
-            total: nonCashAmount,
-          })
-        } else if (selectedMethod === 'card' && isCardProcessing && !isSuccess) {
-          ViceService.showPortablePayment({ total: nonCashAmount })
-        }
+        }, 300)
+
+        return () => clearTimeout(timer)
       }, [
         visible,
         isIdle,

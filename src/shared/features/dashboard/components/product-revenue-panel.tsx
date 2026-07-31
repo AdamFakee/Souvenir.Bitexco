@@ -20,17 +20,17 @@ const ProductRow = memo(function ProductRow({
   total: number
 }) {
   return (
-    <View className="mb-2 flex-row rounded-xl border border-[#e5e7eb]/30 bg-white px-4 py-4">
+    <View className="mb-3 flex-row rounded-xl border border-[#e5e7eb]/30 bg-white px-5 py-5">
       <View className="flex-[3] justify-center">
-        <Text className="text-[15px] font-extrabold text-[#111827]" numberOfLines={2}>
+        <Text className="text-[18px] font-extrabold text-[#111827]" numberOfLines={2}>
           {name}
         </Text>
       </View>
       <View className="flex-[1.2] items-center justify-center">
-        <Text className="text-[15px] font-bold text-[#374151]">{qty}</Text>
+        <Text className="text-[18px] font-bold text-[#374151]">{qty}</Text>
       </View>
       <View className="flex-[2] items-end justify-center">
-        <Text className="text-[15px] font-extrabold text-[#111827]">{formatCurrency(total)}</Text>
+        <Text className="text-[18px] font-extrabold text-[#111827]">{formatCurrency(total)}</Text>
       </View>
     </View>
   )
@@ -66,40 +66,40 @@ export const ProductRevenuePanel = memo(function ProductRevenuePanel({
         className="flex-[2] flex-col justify-between overflow-hidden rounded-2xl border border-[#e5e7eb]/40"
       >
         <View className="w-full flex-1 flex-col">
-          <View className="px-6 py-5">
-            <Text className="text-[18px] font-extrabold text-[#1f2937]">
+          <View className="px-8 py-6">
+            <Text className="text-[22px] font-extrabold text-[#1f2937]">
               Chi tiết doanh thu theo sản phẩm
             </Text>
           </View>
-          <View className="flex-col px-6 pb-4">
+          <View className="flex-col px-8 pb-4">
             <View
               style={{ backgroundColor: 'rgba(235, 239, 244, 1)' }}
-              className="flex-row rounded-xl px-4 py-3"
+              className="flex-row rounded-xl px-5 py-4"
             >
               <View className="flex-[3] justify-center">
-                <Text className="text-sm font-extrabold text-[#374151]">Sản phẩm</Text>
+                <Text className="text-[17px] font-extrabold text-[#374151]">Sản phẩm</Text>
               </View>
               <View className="flex-[1.2] items-center justify-center">
-                <Text className="text-sm font-extrabold text-[#374151]">Số lượng</Text>
+                <Text className="text-[17px] font-extrabold text-[#374151]">Số lượng</Text>
               </View>
               <View className="flex-[2] items-end justify-center">
-                <Text className="text-sm font-extrabold text-[#374151]">Số tiền</Text>
+                <Text className="text-[17px] font-extrabold text-[#374151]">Số tiền</Text>
               </View>
             </View>
             <View className="mt-3 gap-2">
               {[1, 2, 3, 4, 5].map((idx) => (
                 <View
                   key={idx}
-                  className="flex-row rounded-xl border border-[#e5e7eb]/30 bg-white px-4 py-4"
+                  className="flex-row rounded-xl border border-[#e5e7eb]/30 bg-white px-5 py-5"
                 >
                   <View className="flex-[3] justify-center">
-                    <Shimmer className="h-5 w-40" />
+                    <Shimmer className="h-6 w-48" />
                   </View>
                   <View className="flex-[1.2] items-center justify-center">
-                    <Shimmer className="h-5 w-8" />
+                    <Shimmer className="h-6 w-10" />
                   </View>
                   <View className="flex-[2] items-end justify-center">
-                    <Shimmer className="h-5 w-24" />
+                    <Shimmer className="w-30 h-6" />
                   </View>
                 </View>
               ))}
@@ -108,10 +108,10 @@ export const ProductRevenuePanel = memo(function ProductRevenuePanel({
         </View>
         <View
           style={{ backgroundColor: '#719BB0' }}
-          className="flex-row items-center justify-between px-6 py-5"
+          className="flex-row items-center justify-between px-8 py-6"
         >
-          <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu (đã VAT)</Text>
-          <Shimmer className="h-8 w-36 bg-white/20" />
+          <Text className="mr-4 text-[22px] font-bold text-white">Tổng doanh thu (đã VAT)</Text>
+          <Shimmer className="h-9 w-44 bg-white/20" />
         </View>
       </View>
     )
@@ -126,28 +126,28 @@ export const ProductRevenuePanel = memo(function ProductRevenuePanel({
       className="flex-[2] flex-col justify-between overflow-hidden rounded-2xl border border-[#e5e7eb]/40"
     >
       <View className="w-full flex-1 flex-col">
-        <View className="flex-row items-center justify-between px-6 py-5">
-          <Text className="text-[18px] font-extrabold text-[#1f2937]">
+        <View className="flex-row items-center justify-between px-8 py-6">
+          <Text className="text-[22px] font-extrabold text-[#1f2937]">
             Chi tiết doanh thu theo sản phẩm
           </Text>
-          <Text className="text-[15px] font-bold text-[#4b5563]">
+          <Text className="text-[18px] font-bold text-[#4b5563]">
             Số lượng: {displayTotalItems}
           </Text>
         </View>
 
-        <View className="flex-1 flex-col px-6 pb-4">
+        <View className="flex-1 flex-col px-8 pb-4">
           <View
             style={{ backgroundColor: 'rgba(235, 239, 244, 1)' }}
-            className="flex-row rounded-xl px-4 py-3"
+            className="flex-row rounded-xl px-5 py-4"
           >
             <View className="flex-[3] justify-center">
-              <Text className="text-sm font-extrabold text-[#374151]">Sản phẩm</Text>
+              <Text className="text-[17px] font-extrabold text-[#374151]">Sản phẩm</Text>
             </View>
             <View className="flex-[1.2] items-center justify-center">
-              <Text className="text-sm font-extrabold text-[#374151]">Số lượng</Text>
+              <Text className="text-[17px] font-extrabold text-[#374151]">Số lượng</Text>
             </View>
             <View className="flex-[2] items-end justify-center">
-              <Text className="text-sm font-extrabold text-[#374151]">Số tiền</Text>
+              <Text className="text-[17px] font-extrabold text-[#374151]">Số tiền</Text>
             </View>
           </View>
 
@@ -173,14 +173,14 @@ export const ProductRevenuePanel = memo(function ProductRevenuePanel({
 
       <View
         style={{ backgroundColor: '#719BB0' }}
-        className="flex-row items-center justify-between px-6 py-5"
+        className="flex-row items-center justify-between px-8 py-6"
       >
-        <Text className="mr-4 text-lg font-bold text-white">Tổng doanh thu (đã VAT)</Text>
+        <Text className="mr-4 text-[22px] font-bold text-white">Tổng doanh thu (đã VAT)</Text>
         <Text
           adjustsFontSizeToFit
           numberOfLines={1}
           className="font-black text-white"
-          style={{ fontSize: formatCurrency(displayTotalRevenue).length > 15 ? 18 : 24 }}
+          style={{ fontSize: formatCurrency(displayTotalRevenue).length > 15 ? 22 : 29 }}
         >
           {formatCurrency(displayTotalRevenue)}
         </Text>

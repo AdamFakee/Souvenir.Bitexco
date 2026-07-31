@@ -1,6 +1,7 @@
 import { EmployeePermission, useAppStore } from '@/shared/features/app'
 import { AuthAPI } from '@/shared/features/auth'
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
+import { usePosStore } from '@/shared/features/pos/store/use-pos-store'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { PrinterService } from '@/shared/services'
 import { toast } from '@/shared/store'
@@ -195,6 +196,13 @@ export const closeShiftMachine = setup({
       return base
     }),
     triggerLogout: () => {
+      // Clear POS cart store on shift close
+      try {
+        usePosStore.getState().resetPos()
+      } catch (err) {
+        console.error('Failed to reset POS on shift close:', err)
+      }
+
       const store = useAppStore.getState()
       const appService = store.appService
       if (appService) {

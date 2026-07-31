@@ -101,6 +101,16 @@ export const CreateNoteFormColumn = React.memo(
         onUpdateNote(noteData)
       } else {
         onCreateNote(noteData)
+        // Reset form and local states to default values
+        reset({ title: '', content: '' })
+        const now = new Date()
+        setTargetDate(now)
+        setTargetHour(now.getHours())
+        const roundedMin = Math.round(now.getMinutes() / 5) * 5
+        setTargetMin(roundedMin >= 60 ? 55 : roundedMin)
+        setIsReminderActive(false)
+        setIsImportant(false)
+        setStt('')
       }
     }
 

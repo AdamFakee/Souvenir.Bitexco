@@ -22,11 +22,11 @@ export default function DashboardScreen() {
   const body = useMemo(() => {
     if (!shiftId) {
       return (
-        <View className="flex-1 items-center justify-center rounded-2xl border border-dashed border-[#d1d5db] bg-[#f9fafb] p-10">
-          <Text className="text-center text-[20px] font-extrabold text-[#111827]">
+        <View className="flex-1 items-center justify-center rounded-2xl border border-dashed border-[#d1d5db] bg-[#f9fafb] p-12">
+          <Text className="text-center text-[24px] font-extrabold text-[#111827]">
             Chưa có ca làm việc
           </Text>
-          <Text className="mt-2 text-center text-[15px] font-medium text-[#6b7280]">
+          <Text className="mt-3 text-center text-[18px] font-medium text-[#6b7280]">
             Mở ca để xem báo cáo doanh thu.
           </Text>
         </View>
@@ -35,18 +35,18 @@ export default function DashboardScreen() {
 
     if (error && !overview) {
       return (
-        <View className="flex-1 items-center justify-center rounded-2xl border border-[#fecaca] bg-[#fef2f2] p-10">
-          <Text className="text-center text-[20px] font-extrabold text-[#991b1b]">
+        <View className="flex-1 items-center justify-center rounded-2xl border border-[#fecaca] bg-[#fef2f2] p-12">
+          <Text className="text-center text-[24px] font-extrabold text-[#991b1b]">
             Không tải được báo cáo
           </Text>
-          <Text className="mt-2 text-center text-[15px] font-medium text-[#b91c1c]">
+          <Text className="mt-3 text-center text-[18px] font-medium text-[#b91c1c]">
             {(error as Error)?.message || 'Vui lòng thử lại.'}
           </Text>
           <Pressable
             onPress={() => refetch()}
-            className="mt-6 rounded-xl bg-[#111827] px-8 py-3 active:opacity-80"
+            className="mt-7 rounded-xl bg-[#111827] px-10 py-4 active:opacity-80"
           >
-            <Text className="text-[16px] font-bold text-white">Thử lại</Text>
+            <Text className="text-[19px] font-bold text-white">Thử lại</Text>
           </Pressable>
         </View>
       )
@@ -63,7 +63,7 @@ export default function DashboardScreen() {
         </View>
 
         {isFetching && overview ? (
-          <Text className="mt-2 text-right text-[13px] font-bold text-[#9ca3af]">
+          <Text className="mt-3 text-right text-[16px] font-bold text-[#9ca3af]">
             Đang cập nhật…
           </Text>
         ) : null}
@@ -78,7 +78,7 @@ export default function DashboardScreen() {
           <View className="mb-6 flex-row items-end justify-between">
             <View className="flex-col gap-2">
               <Text className="text-[32px] font-extrabold tracking-tight text-[#111827]">
-                Báo cáo doanh thu ca hiện tại
+                Báo cáo doanh thu
               </Text>
               <Text className="text-[16px] font-medium text-[#6b7280]">
                 Tổng quan hoạt động và doanh thu trong ca làm việc.
@@ -89,7 +89,9 @@ export default function DashboardScreen() {
               value={staffId}
               onChange={handleStaffChange}
               shiftId={shiftId}
-              className="w-72"
+              className="w-[280px]"
+              triggerClassName="h-16"
+              triggerTextClassName="text-3xl"
             />
           </View>
 

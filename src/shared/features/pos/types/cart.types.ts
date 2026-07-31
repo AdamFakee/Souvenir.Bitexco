@@ -31,6 +31,7 @@ export type Affiliate = {
   /** Loại: collaborator (cộng tác viên) | agent (Đối tác, được nợ) */
   agentType: AgentType
   creditLimit?: number | null
+  remainingCredit?: number | null
   representative?: string | null
   representativeTitle?: string | null
   companyName?: string | null

@@ -6,7 +6,15 @@ import { IOrder } from '@/shared/features/order/types'
 import { toast } from '@/shared/store'
 import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
-import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
+import React, {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
 import type { CartItem, AppliedVoucher } from '@/shared/features/pos'
@@ -147,7 +155,10 @@ export const CashPaymentPopup = memo(
       const error = useSelector(actorRef, (s) => s.context.error)
       const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
 
-      const isProcessing = machineState === 'savingOrder' || machineState === 'printingReceipt'
+      const isProcessing =
+        machineState === 'savingOrder' ||
+        machineState === 'preparingReceipt' ||
+        machineState === 'printingReceipt'
       const isError = machineState === 'error'
       const isSuccess = machineState === 'success'
 
@@ -226,6 +237,13 @@ export const CashPaymentPopup = memo(
         },
       }))
 
+      // Cập nhật giá trị vào Machine lập tức để tránh delay nút Hoàn tất
+      useEffect(() => {
+        if (!visible) return
+        const paid = Number(cashTendered) || 0
+        actorRef.send({ type: 'SET_AMOUNT', amount: paid })
+      }, [cashTendered, visible])
+
       // Debounce cập nhật Vice Screen
       useEffect(() => {
         if (!visible) return
@@ -242,9 +260,6 @@ export const CashPaymentPopup = memo(
             customerPaid: paid,
             change: changeAmt,
           })
-
-          // Đồng bộ SET_AMOUNT vào machine để guard canConfirm phản hồi đúng
-          actorRef.send({ type: 'SET_AMOUNT', amount: paid })
         }, 300)
         return () => clearTimeout(timer)
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,13 +285,22 @@ export const CashPaymentPopup = memo(
         }
       }, [visible, isSuccess, items, discount, roundedTotal])
 
-      const handleNumpadPress = (digit: string) => {
-        if (cashTendered.length < 12) {
-          setCashTendered((prev) => prev + digit)
-        }
-      }
-      const handleNumpadBackspace = () => setCashTendered((prev) => prev.slice(0, -1))
-      const handleNumpadClear = () => setCashTendered('')
+      const handleNumpadPress = useCallback((digit: string) => {
+        setCashTendered((prev) => {
+          if (prev.length < 12) {
+            return prev + digit
+          }
+          return prev
+        })
+      }, [])
+
+      const handleNumpadBackspace = useCallback(() => {
+        setCashTendered((prev) => prev.slice(0, -1))
+      }, [])
+
+      const handleNumpadClear = useCallback(() => {
+        setCashTendered('')
+      }, [])
 
       const handleClose = () => {
         actorRef.send({ type: 'CANCEL' })
@@ -291,7 +315,34 @@ export const CashPaymentPopup = memo(
         actorRef.send({ type: 'RETRY' })
       }
 
-      const suggestions = getCashSuggestions(roundedTotal, cashTendered)
+      const suggestions = useMemo<number[]>(() => {
+        return getCashSuggestions(roundedTotal, cashTendered)
+      }, [roundedTotal, cashTendered])
+
+      const receiptOrder = useMemo<IOrder | null>(() => {
+        if (!savedOrder) return null
+        return buildReceiptOrder(
+          savedOrder,
+          items,
+          cashTendered,
+          roundedTotal,
+          subtotal,
+          discount,
+          staffId,
+          shiftId,
+          appliedVoucher,
+        )
+      }, [
+        savedOrder,
+        items,
+        cashTendered,
+        roundedTotal,
+        subtotal,
+        discount,
+        staffId,
+        shiftId,
+        appliedVoucher,
+      ])
 
       return (
         <ModalBase
@@ -368,7 +419,7 @@ export const CashPaymentPopup = memo(
                     className="w-full"
                     contentContainerStyle={{ flexGrow: 1, gap: 8 }}
                   >
-                    {suggestions.map((amount, index) => (
+                    {suggestions.map((amount: number, index: number) => (
                       <Button
                         key={`suggestion-${index}-${amount}`}
                         label={formatCurrency(amount)}
@@ -437,22 +488,9 @@ export const CashPaymentPopup = memo(
 
               {/* Hidden Printer Template — Rendered inside popup using real saved data */}
               <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-                {savedOrder && (
+                {receiptOrder && (
                   <View collapsable={false} ref={printRef}>
-                    <BitexcoReceiptTemplate
-                      order={buildReceiptOrder(
-                        savedOrder,
-                        items,
-                        cashTendered,
-                        roundedTotal,
-                        subtotal,
-                        discount,
-                        staffId,
-                        shiftId,
-                        appliedVoucher,
-                      )}
-                      staffName={staffName}
-                    />
+                    <BitexcoReceiptTemplate order={receiptOrder} staffName={staffName} />
                   </View>
                 )}
               </View>

@@ -6,7 +6,7 @@ import { Image, ImageBackground, StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useViceStore } from '../vice-store'
 
-const QRCODE_SIZE = 220
+const QRCODE_SIZE = 286
 
 function VicePaymentScreen() {
   const qrCodeUrl = useViceStore((state) => state.qrCodeUrl)
@@ -17,7 +17,7 @@ function VicePaymentScreen() {
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">
-        <View className="w-[280px] gap-2 rounded-xl bg-white px-3 py-3">
+        <View className="w-[380px] rounded-2xl border border-slate-100 bg-white p-7 shadow-2xl">
           {/* QR Code Container */}
           <View className="w-full items-center justify-center rounded-lg bg-white p-2">
             {qrCodeUrl ? (
@@ -40,12 +40,21 @@ function VicePaymentScreen() {
             )}
           </View>
 
-          <View className="h-px w-full bg-slate-200" />
+          <View className="my-5 h-px w-full bg-slate-100" />
 
           {/* Amount info */}
-          <View className="w-full flex-row items-center justify-center">
-            <Text style={styles.totalLabel}>
-              Total: <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+          <View className="w-full flex-row items-center justify-center py-1.5">
+            <Text
+              className="text-center text-[31px] font-bold leading-[50px] text-slate-900"
+              style={{ textAlignVertical: 'center', includeFontPadding: false }}
+            >
+              Total:{' '}
+              <Text
+                className="text-[42px] font-extrabold text-[#ff5c00]"
+                style={{ includeFontPadding: false }}
+              >
+                {formatCurrency(total)}
+              </Text>
             </Text>
           </View>
         </View>
@@ -61,15 +70,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(83, 123, 144, 0.75)',
   },
   totalLabel: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#0f172a',
     includeFontPadding: false,
     textAlign: 'center',
   },
   totalValue: {
-    fontSize: 34,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#ff5c00',
     includeFontPadding: false,
   },

@@ -41,9 +41,7 @@ export const ReceiptWrapper = ({ title, copyNumber = 1, children }: ReceiptWrapp
   }, [])
 
   return (
-    <View
-      style={{ backgroundColor: '#fff', paddingHorizontal: 0, paddingVertical: 10, width: 576 }}
-    >
+    <View style={{ backgroundColor: '#fff', paddingHorizontal: 0, paddingVertical: 5, width: 576 }}>
       {/* Header */}
       <View style={{ alignItems: 'center' }}>
         <Text style={{ ...S.fs32b, textAlign: 'center' }}>Skystore Bitexco Financial Tower</Text>
@@ -61,7 +59,7 @@ export const ReceiptWrapper = ({ title, copyNumber = 1, children }: ReceiptWrapp
       {/* Footer */}
       <View style={{ alignItems: 'center' }}>
         <Text style={S.fs24i}>Please verify your receipt before leaving.</Text>
-        <Text style={S.fs24i}>No returns or exchanges on promotional items.</Text>
+        <Text style={S.fs24i}>No returns or exchanges.</Text>
         <Text style={S.fs24i}>Thank you for shopping with us!</Text>
       </View>
     </View>

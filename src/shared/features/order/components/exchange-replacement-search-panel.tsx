@@ -19,7 +19,7 @@ const PAGE_SIZE = 40
 
 const toUnified = (r: PosLookupResult): UnifiedProduct => ({
   id: r.variantId,
-  name: r.productName,
+  name: r.productNameEn || r.productName,
   sku: r.sku,
   price: r.price,
   stock: r.available,

@@ -8,7 +8,7 @@ interface CheckboxProps extends Omit<PressableProps, 'style'> {
   onChange?: (checked: boolean) => void
   disabled?: boolean
   className?: string
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'lg'
 }
 
 export const Checkbox = memo(function Checkbox({
@@ -19,8 +19,13 @@ export const Checkbox = memo(function Checkbox({
   size = 'md',
   ...props
 }: CheckboxProps) {
-  const containerSizeClass = size === 'sm' ? 'h-8 w-8 rounded-lg' : 'h-12 w-12 rounded-xl'
-  const checkIconSize = size === 'sm' ? 18 : 26
+  const containerSizeClass =
+    size === 'sm'
+      ? 'h-8 w-8 rounded-lg'
+      : size === 'md'
+        ? 'h-12 w-12 rounded-xl'
+        : 'h-16 w-16 rounded-2xl'
+  const checkIconSize = size === 'sm' ? 18 : size === 'md' ? 26 : 36
 
   return (
     <Pressable

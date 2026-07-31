@@ -93,10 +93,6 @@ export const ReconciliationModal = memo(
       setIsPrinting(true)
       try {
         await PrinterService.printComponent(printRef, { doubleCopy })
-        toast.success(
-          `Đã in biên nhận đối soát (${doubleCopy ? '2 liên' : '1 liên'}) cho ${receiptData.ownerName}`,
-          'In thành công',
-        )
         setVisible(false)
       } catch (error: any) {
         toast.error(error.message || 'Không thể in biên nhận.', 'Lỗi in ấn')

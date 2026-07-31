@@ -299,7 +299,7 @@ const lookupScannedProducts = async (codes: string[]) => {
       products.push({
         variantId: remoteResult.variantId,
         productId: remoteResult.productId || remoteResult.variantId,
-        name: remoteResult.productName,
+        name: remoteResult.productNameEn || remoteResult.productName,
         sku: remoteResult.sku,
         price: remoteResult.price,
         stock: remoteResult.available,

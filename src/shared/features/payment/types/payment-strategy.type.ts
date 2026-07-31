@@ -122,3 +122,33 @@ export const PAYMENT_ERROR_CODES = {
 } as const
 
 export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[keyof typeof PAYMENT_ERROR_CODES]
+
+export const PAYMENT_ERROR_STATUSES = {
+  [PAYMENT_ERROR_CODES.TIMEOUT]: {
+    type: 'error' as const,
+    title: 'Payment Timeout',
+    message: 'Please wait for staff assistance',
+  },
+  [PAYMENT_ERROR_CODES.SYSTEM_ERROR]: {
+    type: 'error' as const,
+    title: 'Payment Failed',
+    message: 'A system error occurred.',
+  },
+  [PAYMENT_ERROR_CODES.CONNECTION_FAILED]: {
+    type: 'error' as const,
+    title: 'Payment Failed',
+    message: 'Connection failed. Please try again.',
+  },
+  [PAYMENT_ERROR_CODES.USER_CANCELLED]: {
+    type: 'error' as const,
+    title: 'Payment Cancelled',
+    message: 'Payment was cancelled.',
+  },
+} as const
+
+export const getPaymentErrorStatus = (errorCode?: string | null) => {
+  if (errorCode === PAYMENT_ERROR_CODES.TIMEOUT) {
+    return PAYMENT_ERROR_STATUSES[PAYMENT_ERROR_CODES.TIMEOUT]
+  }
+  return PAYMENT_ERROR_STATUSES[PAYMENT_ERROR_CODES.SYSTEM_ERROR]
+}

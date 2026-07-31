@@ -25,26 +25,27 @@ export const SettingsModal = forwardRef<SettingsModalRef>((_, ref) => {
     <ModalBase
       visible={visible}
       onClose={() => setVisible(false)}
-      className="w-[650px] rounded-[24px] bg-white"
+      className="w-[850px] rounded-[32px] bg-white"
     >
-      <View className="p-8">
-        <Text className="mb-6 text-4xl font-black text-surface-on">Cài đặt hệ thống</Text>
+      <View className="p-10">
+        <Text className="mb-8 text-5xl font-black text-surface-on">Cài đặt hệ thống</Text>
 
         <View className="gap-6">
           {/* Refund Checklist option */}
           <Pressable
             onPress={() => setSetting('refundRequireChecklist', !settings.refundRequireChecklist)}
-            className="flex-row items-start gap-4 rounded-xl border border-outline-variant bg-white p-5 active:bg-surface-50"
+            className="flex-row items-center gap-6 rounded-2xl border border-outline-variant bg-white p-7 active:bg-surface-50"
           >
             <Checkbox
+              size="lg"
               checked={settings.refundRequireChecklist}
               onChange={(val) => setSetting('refundRequireChecklist', val)}
             />
             <View className="flex-1">
-              <Text className="text-3xl font-bold text-surface-on">
+              <Text className="text-4xl font-bold text-surface-on">
                 Yêu cầu checklist khi Trả hàng
               </Text>
-              <Text className="mt-1 text-base font-medium text-muted">
+              <Text className="mt-2 text-xl font-medium text-muted">
                 Hiển thị hộp thoại checklist yêu cầu thu ngân xác nhận các bước nghiệp vụ trước khi
                 hoàn tất trả hàng.
               </Text>
@@ -56,17 +57,18 @@ export const SettingsModal = forwardRef<SettingsModalRef>((_, ref) => {
             onPress={() =>
               setSetting('exchangeRequireChecklist', !settings.exchangeRequireChecklist)
             }
-            className="flex-row items-start gap-4 rounded-xl border border-outline-variant bg-white p-5 active:bg-surface-50"
+            className="flex-row items-center gap-6 rounded-2xl border border-outline-variant bg-white p-7 active:bg-surface-50"
           >
             <Checkbox
+              size="lg"
               checked={settings.exchangeRequireChecklist}
               onChange={(val) => setSetting('exchangeRequireChecklist', val)}
             />
             <View className="flex-1">
-              <Text className="text-3xl font-bold text-surface-on">
+              <Text className="text-4xl font-bold text-surface-on">
                 Yêu cầu checklist khi Đổi hàng
               </Text>
-              <Text className="mt-1 text-base font-medium text-muted">
+              <Text className="mt-2 text-xl font-medium text-muted">
                 Hiển thị hộp thoại checklist yêu cầu thu ngân xác nhận các bước nghiệp vụ trước khi
                 hoàn tất đổi hàng.
               </Text>

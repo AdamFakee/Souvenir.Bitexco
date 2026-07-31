@@ -19,6 +19,7 @@ export interface Partner {
   otherEmail: string | null
   allowCredit: boolean
   creditLimit: number | null
+  remainingCredit: number | null
   isActive: boolean
   version: number
 }

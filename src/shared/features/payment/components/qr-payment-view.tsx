@@ -156,50 +156,55 @@ export const QrPaymentView = memo(function QrPaymentView({
 
             <View className="mx-auto mt-4 w-full rounded-[24px] border border-surface-200 bg-white px-6 py-5 shadow-sm">
               <View className="flex-row items-center justify-between py-2">
-                <Text className="text-lg font-semibold text-neutral-600">Tạm tính</Text>
-                <Text className="text-lg font-semibold text-neutral-700" numberOfLines={1}>
+                <Text className="text-[21px] font-semibold text-neutral-600">Tạm tính</Text>
+                <Text className="text-[21px] font-semibold text-neutral-700" numberOfLines={1}>
                   {formatCurrency(subtotal)}
                 </Text>
               </View>
               <View className="flex-row items-center justify-between py-2">
-                <Text className="text-lg font-semibold text-neutral-600">Giảm giá</Text>
-                <Text className="text-lg font-semibold text-emerald-600" numberOfLines={1}>
+                <Text className="text-[21px] font-semibold text-neutral-600">Giảm giá</Text>
+                <Text className="text-[21px] font-semibold text-emerald-600" numberOfLines={1}>
                   {formatCurrency(discount)}
                 </Text>
               </View>
               <View className="mt-2 border-t border-surface-200 pt-4">
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-xl font-bold text-neutral-900">Tổng cộng</Text>
-                  <Text className="text-[30px] font-black tracking-[-0.5px] text-primary">
+                  <Text className="text-[23px] font-bold text-neutral-900">Tổng cộng</Text>
+                  <Text className="text-[35px] font-black tracking-[-0.5px] text-primary">
                     {formatCurrency(total)}
                   </Text>
                 </View>
               </View>
             </View>
 
-            <View className="mx-auto mt-4 w-full max-w-[640px] gap-3">
-              <Button
-                label="Kiểm tra trạng thái QR với ngân hàng"
-                variant="primary"
-                disabled={!qrContent}
-                onPress={onCheckStatus}
-                className="h-14 rounded-[16px]"
-              />
-              <Button
-                label="Xác nhận khách đã chuyển, kiểm tra sau"
-                variant="primary"
-                disabled={!qrContent}
-                onPress={onForceComplete}
-                className="h-14 rounded-[16px]"
-              />
-              <Button
-                label="Hủy giao dịch"
-                variant="error"
-                disabled={!canCancel && !isError}
-                onPress={onCancel}
-                className="h-14 rounded-[16px]"
-              />
-            </View>
+            {!isSuccess && (
+              <View className="mx-auto mt-4 w-full max-w-[640px] gap-3">
+                <Button
+                  label="Kiểm tra trạng thái QR với ngân hàng"
+                  variant="primary"
+                  disabled={!qrContent}
+                  onPress={onCheckStatus}
+                  className="h-16 rounded-[18px]"
+                  textClassName="text-[18px] font-bold"
+                />
+                <Button
+                  label="Xác nhận khách đã chuyển, kiểm tra sau"
+                  variant="primary"
+                  disabled={!qrContent}
+                  onPress={onForceComplete}
+                  className="h-16 rounded-[18px]"
+                  textClassName="text-[18px] font-bold"
+                />
+                <Button
+                  label="Hủy giao dịch"
+                  variant="error"
+                  disabled={!canCancel && !isError}
+                  onPress={onCancel}
+                  className="h-16 rounded-[18px]"
+                  textClassName="text-[18px] font-bold"
+                />
+              </View>
+            )}
 
             {isError && (
               <View className="mt-4 flex-row gap-3">
@@ -208,8 +213,8 @@ export const QrPaymentView = memo(function QrPaymentView({
                   variant="primary"
                   disabled={!canRetry}
                   onPress={onRetry}
-                  className="h-14 flex-1 rounded-[16px]"
-                  textClassName="text-base font-semibold"
+                  className="h-16 flex-1 rounded-[18px]"
+                  textClassName="text-[18px] font-bold"
                 />
               </View>
             )}

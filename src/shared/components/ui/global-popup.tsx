@@ -33,14 +33,14 @@ export const GlobalPopup = () => {
             label="Hủy"
             onPress={onCancel}
             variant="outline"
-            className="h-14 flex-1 rounded-xl px-4"
+            className=" flex-1 rounded-xl px-4"
           />
         )}
         <Button
           label="Đồng ý"
           onPress={onConfirm}
           variant="primary"
-          className="h-14 flex-1 rounded-xl px-4"
+          className=" flex-1 rounded-xl px-4"
         />
       </View>
     </Popup>

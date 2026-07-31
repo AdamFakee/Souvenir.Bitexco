@@ -16,6 +16,7 @@ export type PosEvent =
   | { type: 'PRINT_RECEIPT' }
   | { type: 'CART_UPDATED' }
   | { type: 'ADD_ITEM'; product: any }
+  | { type: 'RESET_POS' }
 
 const createCartMeta = (affiliate?: Affiliate) => {
   const id = `cart-${Date.now()}`
@@ -124,6 +125,26 @@ export const posMachine = setup({
     PRINT_RECEIPT: {},
     CART_UPDATED: {
       actions: [],
+    },
+    RESET_POS: {
+      actions: [
+        enqueueActions(({ context, enqueue }) => {
+          Object.values(context.carts).forEach((actor) => {
+            enqueue.stopChild(actor)
+          })
+        }),
+        assign(({ spawn }) => {
+          const defaultCart = spawn('cartMachine', {
+            id: DEFAULT_CART_ID,
+            input: { id: DEFAULT_CART_ID, label: 'Khách lẻ', initialContext: { affiliate: null } },
+          })
+          return {
+            carts: { [DEFAULT_CART_ID]: defaultCart },
+            activeCartId: DEFAULT_CART_ID,
+            nextCartNumber: 1,
+          }
+        }),
+      ],
     },
     ADD_ITEM: {
       actions: enqueueActions(({ context, event, enqueue }) => {

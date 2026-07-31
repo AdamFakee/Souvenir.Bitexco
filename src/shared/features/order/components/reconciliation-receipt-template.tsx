@@ -99,7 +99,7 @@ export const ReconciliationReceiptTemplate = ({
           flexDirection: 'row',
           justifyContent: 'space-between',
           marginTop: 20,
-          height: 100,
+          height: 200,
         }}
       >
         <View style={{ width: '48%', alignItems: 'center' }}>

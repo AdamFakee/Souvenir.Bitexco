@@ -16,7 +16,7 @@ import {
   getPortablePaymentStatusLabel,
   portablePaymentMachine,
 } from '../machines/portable-payment.machine'
-import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
+import { PaymentPopupProps, PaymentPopupRef, getPaymentErrorStatus } from '../types'
 import { calculateLineDiscount, calculateSubtotal, calculateTotalTax } from '../utils'
 import { ManualCardDetailsFormData, manualCardDetailsSchema } from '../validation'
 
@@ -135,19 +135,7 @@ export const PortablePaymentPopup = memo(
               change: 0,
             })
           } else if (isFailure) {
-            if (errorCode === PAYMENT_ERROR_CODES.TIMEOUT) {
-              ViceService.showStatus({
-                type: 'error',
-                title: 'Hết thời gian thanh toán',
-                message: 'Vui lòng chờ nhân viên thao tác',
-              })
-            } else {
-              ViceService.showStatus({
-                type: 'error',
-                title: 'Thanh toán thất bại',
-                message: 'Đã xảy ra lỗi hệ thống.',
-              })
-            }
+            ViceService.showStatus(getPaymentErrorStatus(errorCode))
           } else {
             ViceService.showPortablePayment()
           }
@@ -490,18 +478,18 @@ export const PortablePaymentPopup = memo(
 
                     <View className="mx-auto mt-4 w-full max-w-[700px] rounded-[24px] border border-surface-200 bg-white px-6 py-5 shadow-sm">
                       <View className="flex-row items-center justify-between py-2">
-                        <Text className="text-[26px] font-semibold text-neutral-600">Tạm tính</Text>
+                        <Text className="text-[30px] font-semibold text-neutral-600">Tạm tính</Text>
                         <Text
-                          className="text-[26px] font-semibold text-neutral-700"
+                          className="text-[30px] font-semibold text-neutral-700"
                           numberOfLines={1}
                         >
                           {formatCurrency(subtotal)}
                         </Text>
                       </View>
                       <View className="flex-row items-center justify-between py-2">
-                        <Text className="text-[26px] font-semibold text-neutral-600">Giảm giá</Text>
+                        <Text className="text-[30px] font-semibold text-neutral-600">Giảm giá</Text>
                         <Text
-                          className="text-[26px] font-semibold text-emerald-600"
+                          className="text-[30px] font-semibold text-emerald-600"
                           numberOfLines={1}
                         >
                           {formatCurrency(discount)}
@@ -509,66 +497,68 @@ export const PortablePaymentPopup = memo(
                       </View>
                       <View className="mt-2 border-t border-surface-200 pt-4">
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-[30px] font-bold text-neutral-900">Tổng cộng</Text>
-                          <Text className="text-[44px] font-black tracking-[-0.5px] text-primary">
+                          <Text className="text-[35px] font-bold text-neutral-900">Tổng cộng</Text>
+                          <Text className="text-[51px] font-black tracking-[-0.5px] text-primary">
                             {formatCurrency(total)}
                           </Text>
                         </View>
                       </View>
                     </View>
 
-                    <View className="mx-auto mt-4 w-full max-w-[700px] gap-3">
-                      {(isConnectionFailed || isPaymentFailed) && (
-                        <Button
-                          label={isConnectionFailed ? 'Thử kết nối lại' : 'Quẹt lại thẻ'}
-                          variant="primary"
-                          disabled={!canRetry}
-                          onPress={handleRetry}
-                          className="h-16 rounded-[18px]"
-                          // textClassName="text-[26px] font-semibold"
-                        />
-                      )}
-                      {(isConnectionFailed || isPaymentFailed) && (
-                        <Button
-                          label="Xác nhận thủ công"
-                          variant="primary"
-                          onPress={() => setShowManualForm(true)}
-                          className="h-16 rounded-[18px]"
-                          // textClassName="text-[26px] font-semibold text-neutral-500"
-                        />
-                      )}
-                      {isManualResolution && (
-                        <>
+                    {!isSuccess && (
+                      <View className="mx-auto mt-4 w-full max-w-[700px] gap-3">
+                        {(isConnectionFailed || isPaymentFailed) && (
                           <Button
-                            label="Xác nhận tay"
+                            label={isConnectionFailed ? 'Thử kết nối lại' : 'Quẹt lại thẻ'}
                             variant="primary"
-                            onPress={handleForceComplete}
+                            disabled={!canRetry}
+                            onPress={handleRetry}
                             className="h-16 rounded-[18px]"
-                            textClassName="text-[26px] font-semibold"
+                            textClassName="text-[24px] font-bold"
                           />
+                        )}
+                        {(isConnectionFailed || isPaymentFailed) && (
                           <Button
-                            label="Thử lại ghi nhận giao dịch"
-                            variant="outline"
-                            onPress={handleRetryUpdate}
-                            className="h-16 rounded-[18px] border-surface-200 bg-white"
-                            textClassName="text-[26px] font-semibold text-neutral-500"
+                            label="Xác nhận thủ công"
+                            variant="primary"
+                            onPress={() => setShowManualForm(true)}
+                            className="h-16 rounded-[18px]"
+                            textClassName="text-[24px] font-bold"
                           />
-                        </>
-                      )}
-                      <Button
-                        label={isManualResolution ? 'Đóng sự cố' : 'Hủy giao dịch'}
-                        variant="outline"
-                        disabled={
-                          !canCancel &&
-                          !isConnectionFailed &&
-                          !isPaymentFailed &&
-                          !isManualResolution
-                        }
-                        onPress={handleCancel}
-                        className="h-16 rounded-[18px] border-error/30 bg-error/5"
-                        textClassName="text-[26px] font-semibold text-error"
-                      />
-                    </View>
+                        )}
+                        {isManualResolution && (
+                          <>
+                            <Button
+                              label="Xác nhận tay"
+                              variant="primary"
+                              onPress={handleForceComplete}
+                              className="h-16 rounded-[18px]"
+                              textClassName="text-[24px] font-bold"
+                            />
+                            <Button
+                              label="Thử lại ghi nhận giao dịch"
+                              variant="outline"
+                              onPress={handleRetryUpdate}
+                              className="h-16 rounded-[18px] border-surface-200 bg-white"
+                              textClassName="text-[24px] font-bold text-neutral-500"
+                            />
+                          </>
+                        )}
+                        <Button
+                          label={isManualResolution ? 'Đóng sự cố' : 'Hủy giao dịch'}
+                          variant="outline"
+                          disabled={
+                            !canCancel &&
+                            !isConnectionFailed &&
+                            !isPaymentFailed &&
+                            !isManualResolution
+                          }
+                          onPress={handleCancel}
+                          className="h-16 rounded-[18px] border-error/30 bg-error/5"
+                          textClassName="text-[24px] font-bold text-error"
+                        />
+                      </View>
+                    )}
                   </>
                 )}
               </View>

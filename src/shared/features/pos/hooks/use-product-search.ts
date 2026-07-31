@@ -23,7 +23,7 @@ export interface UnifiedProduct {
 }
 
 export function useProductSearch(searchText: string) {
-  const [debouncedSearch] = useDebounce(searchText, 300)
+  const [debouncedSearch] = useDebounce(searchText, 500)
   const queryClient = useQueryClient()
   const { device } = useAppContext()
   const warehouseId = device?.warehouseId
@@ -36,7 +36,7 @@ export function useProductSearch(searchText: string) {
         const isNetworkConnected = useConnectionStore.getState().isNetworkConnected
 
         // 1. Luồng Online First
-        if (false) {
+        if (isNetworkConnected) {
           try {
             const remoteResults = await ProductRemoteAPI.searchProducts({
               q: debouncedSearch,
@@ -45,7 +45,7 @@ export function useProductSearch(searchText: string) {
             })
             return remoteResults.map((r) => ({
               id: r.variantId,
-              name: r.productName,
+              name: r.productNameEn || r.productName,
               sku: r.sku,
               price: r.price,
               stock: r.available,
@@ -54,7 +54,9 @@ export function useProductSearch(searchText: string) {
               taxRate: (r as any).taxRate ?? (r as any).tax_rate ?? 0,
               barcode: r.barcode,
             }))
-          } catch {}
+          } catch (err) {
+            console.error('Online search failed, falling back to local search:', err)
+          }
         }
 
         // 2. Luồng Offline Fallback

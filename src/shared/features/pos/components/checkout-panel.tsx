@@ -38,6 +38,13 @@ export default function CheckoutPanel() {
   const note = useSelector(cartActor!, (s) => s?.context?.note || '')
   const affiliate = useSelector(cartActor!, (s) => s?.context?.affiliate ?? null)
 
+  const maxAllowedDebt = useMemo(() => {
+    if (!affiliate) return null
+    return affiliate.remainingCredit !== undefined && affiliate.remainingCredit !== null
+      ? affiliate.remainingCredit
+      : (affiliate.creditLimit ?? null)
+  }, [affiliate])
+
   // Lọc và ánh xạ động các nút thanh toán từ XState context.paymentMethods
   const activeStrategies = useMemo(() => {
     let list = []
@@ -232,7 +239,7 @@ export default function CheckoutPanel() {
                   {affiliate ? (
                     <View className="gap-0.5">
                       <Text
-                        className="text-[18px] font-black text-surface-on"
+                        className="text-[24px] font-black text-[#FB6514]"
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -251,7 +258,7 @@ export default function CheckoutPanel() {
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
                         <Text
-                          className="text-[15px] font-bold text-primary"
+                          className="text-[22px] font-bold text-primary"
                           numberOfLines={1}
                           ellipsizeMode="tail"
                         >
@@ -265,7 +272,7 @@ export default function CheckoutPanel() {
                       </Pressable>
                       {!!affiliate.phone && (
                         <Text
-                          className="text-[15px] font-bold text-surface-on-variant"
+                          className="text-[18px] font-bold text-surface-on-variant"
                           numberOfLines={1}
                         >
                           {affiliate.phone}
@@ -387,14 +394,10 @@ export default function CheckoutPanel() {
 
           {/* Col 3: PTTT — nút to, dễ bấm tablet */}
           <View className="w-[430px] justify-end gap-3">
-            {/* Warnings Container at the top of Col 3 to prevent layout shifts */}
             {((isVoucherInvalid && appliedVoucher && cart.length > 0) ||
               (affiliate?.agentType === 'agent' &&
-                (!affiliate.isDebt ||
-                  (affiliate.creditLimit !== undefined &&
-                    affiliate.creditLimit !== null &&
-                    total > affiliate.creditLimit)))) && (
-              <View className="mb-2 gap-1 rounded-2xl border border-red-200/60 bg-red-50 p-4">
+                (!affiliate.isDebt || (maxAllowedDebt !== null && total > maxAllowedDebt)))) && (
+              <View className="mb-2 gap-1 rounded-2xl border border-error/20 bg-red-100 p-4">
                 {isVoucherInvalid && appliedVoucher && cart.length > 0 && (
                   <Text className="text-[15px] font-bold text-red-800">
                     {appliedVoucher.minOrderValue !== null &&
@@ -410,11 +413,18 @@ export default function CheckoutPanel() {
                 )}
                 {affiliate?.agentType === 'agent' &&
                   affiliate.isDebt &&
-                  affiliate.creditLimit !== undefined &&
-                  affiliate.creditLimit !== null &&
-                  total > affiliate.creditLimit && (
-                    <Text className="text-[15px] font-bold text-red-800">
-                      ⚠ Vượt hạn mức công nợ ({formatCurrency(affiliate.creditLimit)})
+                  maxAllowedDebt !== null &&
+                  total > maxAllowedDebt && (
+                    <Text className="text-[15px] font-bold text-error">
+                      ⚠ Vượt hạn mức công nợ (
+                      {affiliate.remainingCredit !== undefined && affiliate.remainingCredit !== null
+                        ? formatCurrency(affiliate.remainingCredit)
+                        : '0'}{' '}
+                      /{' '}
+                      {affiliate.creditLimit !== undefined && affiliate.creditLimit !== null
+                        ? formatCurrency(affiliate.creditLimit)
+                        : '∞'}
+                      )
                     </Text>
                   )}
               </View>
@@ -430,9 +440,7 @@ export default function CheckoutPanel() {
                     (!affiliate ||
                       affiliate.agentType !== 'agent' ||
                       affiliate.isDebt !== true ||
-                      (affiliate.creditLimit !== undefined &&
-                        affiliate.creditLimit !== null &&
-                        total > affiliate.creditLimit))
+                      (maxAllowedDebt !== null && total > maxAllowedDebt))
 
                   const isDisabled =
                     cart.length === 0 ||

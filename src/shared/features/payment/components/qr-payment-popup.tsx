@@ -5,7 +5,12 @@ import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
 import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
 import { qrPaymentMachine } from '../machines/qr-payment.machine'
-import { PAYMENT_ERROR_CODES, PaymentPopupProps, PaymentPopupRef } from '../types'
+import {
+  PAYMENT_ERROR_CODES,
+  PaymentPopupProps,
+  PaymentPopupRef,
+  getPaymentErrorStatus,
+} from '../types'
 import { calculateSubtotal, calculateTotalTax, calculateLineDiscount } from '../utils'
 import { QrPaymentView } from './qr-payment-view'
 
@@ -87,19 +92,7 @@ export const QrPaymentPopup = memo(
       useEffect(() => {
         if (!visible) return
         if (isError) {
-          if (errorCode === PAYMENT_ERROR_CODES.TIMEOUT) {
-            ViceService.showStatus({
-              type: 'error',
-              title: 'Hết thời gian thanh toán',
-              message: 'Vui lòng chờ nhân viên thao tác',
-            })
-          } else {
-            ViceService.showStatus({
-              type: 'error',
-              title: 'Thanh toán thất bại',
-              message: 'Đã xảy ra lỗi hệ thống.',
-            })
-          }
+          ViceService.showStatus(getPaymentErrorStatus(errorCode))
         } else if (qrContent) {
           ViceService.showPayment({ qrCodeUrl: qrContent, subtotal, discount, tax, total })
         }

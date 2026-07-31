@@ -43,6 +43,8 @@ export interface PosLookupResult {
   barcode: string
   taxRate: number
   isActive: boolean
+  productNameEn?: string | null
+  variantNameEn?: string | null
 }
 
 /**
@@ -95,6 +97,10 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
       const response = await axios.get<PosLookupResult>('/v1/pos/lookup', {
         params: queryParams,
       })
+      console.log(
+        '[ProductRemoteAPI] lookupProduct response:',
+        JSON.stringify(response.data, null, 2),
+      )
       return response.data
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -121,6 +127,10 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
         limit: params.limit || 25,
       },
     })
+    console.log(
+      '[ProductRemoteAPI] searchProducts response:',
+      JSON.stringify(response.data, null, 2),
+    )
     return response.data
   },
 

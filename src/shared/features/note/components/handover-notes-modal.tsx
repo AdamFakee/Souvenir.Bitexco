@@ -60,7 +60,8 @@ export const HandoverNotesModal = forwardRef<HandoverNotesModalRef, {}>((props, 
   // Hàm đếm số ghi chú chưa hoàn thành để làm Badge
   const pendingCount = notes.filter((n) => !n.isCompleted).length
   const overdueCount = notes.filter(
-    (n) => !n.isCompleted && !n.isImportant && new Date(n.targetTime) < new Date(),
+    (n) =>
+      !n.isCompleted && !n.isImportant && n.isReminderActive && new Date(n.targetTime) < new Date(),
   ).length
 
   const handleCreateNote = React.useCallback(

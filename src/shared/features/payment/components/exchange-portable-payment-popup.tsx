@@ -16,7 +16,7 @@ import {
   exchangePortablePaymentMachine,
   getExchangePortablePaymentStatusLabel,
 } from '../machines/exchange-portable-payment.machine'
-import { PAYMENT_ERROR_CODES, PaymentPopupProps } from '../types'
+import { PAYMENT_ERROR_CODES, PaymentPopupProps, getPaymentErrorStatus } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
 import { ManualCardDetailsFormData, manualCardDetailsSchema } from '../validation'
 
@@ -143,19 +143,7 @@ export const ExchangePortablePaymentPopup = memo(
               change: 0,
             })
           } else if (isFailure) {
-            if (errorCode === PAYMENT_ERROR_CODES.TIMEOUT) {
-              ViceService.showStatus({
-                type: 'error',
-                title: 'Hết thời gian thanh toán',
-                message: 'Vui lòng chờ nhân viên thao tác',
-              })
-            } else {
-              ViceService.showStatus({
-                type: 'error',
-                title: 'Thanh toán thất bại',
-                message: 'Đã xảy ra lỗi hệ thống.',
-              })
-            }
+            ViceService.showStatus(getPaymentErrorStatus(errorCode))
           } else {
             ViceService.showPortablePayment()
           }

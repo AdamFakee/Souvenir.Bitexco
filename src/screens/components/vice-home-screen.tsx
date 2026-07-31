@@ -18,7 +18,7 @@ function ViceHomeScreen() {
       <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
         <View style={styles.overlay} />
         <View className="h-full w-full items-center justify-center">
-          <LogoSkystore width={250} height={250} />
+          <LogoSkystore width={325} height={325} />
         </View>
       </ImageBackground>
     )
@@ -30,33 +30,39 @@ function ViceHomeScreen() {
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">
-        <View className="w-[280px] gap-1 rounded-xl bg-white px-3 py-3">
-          <View className="flex-row items-center justify-between">
-            <Text style={styles.label}>Subtotal</Text>
-            <Text style={styles.value} numberOfLines={1}>
-              {formatCurrency(subtotal)}
-            </Text>
-          </View>
+        <View className="w-[380px] rounded-2xl border border-slate-100 bg-white p-7 shadow-2xl">
+          {(discount > 0 || tax > 0) && (
+            <>
+              <View className="flex-row items-center justify-between py-1.5">
+                <Text style={styles.label}>Subtotal</Text>
+                <Text style={styles.value} numberOfLines={1}>
+                  {formatCurrency(subtotal)}
+                </Text>
+              </View>
 
-          {discount > 0 && (
-            <View className="flex-row items-center justify-between">
-              <Text style={styles.label}>Discount</Text>
-              <Text style={styles.discountValue} numberOfLines={1}>
-                -{formatCurrency(discount)}
-              </Text>
-            </View>
+              {discount > 0 && (
+                <View className="flex-row items-center justify-between py-1.5">
+                  <Text style={styles.label}>Discount</Text>
+                  <Text style={styles.discountValue} numberOfLines={1}>
+                    -{formatCurrency(discount)}
+                  </Text>
+                </View>
+              )}
+
+              {tax > 0 && (
+                <View className="flex-row items-center justify-between py-1.5">
+                  <Text style={styles.label}>VAT</Text>
+                  <Text style={styles.value} numberOfLines={1}>
+                    {formatCurrency(tax)}
+                  </Text>
+                </View>
+              )}
+
+              <View className="my-3 h-px bg-slate-100" />
+            </>
           )}
 
-          <View className="flex-row items-center justify-between">
-            <Text style={styles.label}>VAT</Text>
-            <Text style={styles.value} numberOfLines={1}>
-              {formatCurrency(tax)}
-            </Text>
-          </View>
-
-          <View className="h-px bg-slate-200" />
-
-          <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center justify-between py-1.5">
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue} numberOfLines={1}>
               {formatCurrency(total)}
@@ -75,38 +81,49 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(83, 123, 144, 0.75)',
   },
   label: {
-    flex: 1,
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '500',
-    color: '#64748b',
+    color: '#475569',
+    lineHeight: 36,
+    textAlignVertical: 'center',
     includeFontPadding: false,
   },
   value: {
-    fontSize: 22,
-    fontWeight: '500',
-    color: '#334155',
+    flex: 1,
+    fontSize: 26,
+    fontWeight: '600',
+    color: '#0f172a',
     textAlign: 'right',
+    lineHeight: 36,
+    textAlignVertical: 'center',
     includeFontPadding: false,
   },
   discountValue: {
-    fontSize: 22,
-    fontWeight: '500',
+    flex: 1,
+    fontSize: 26,
+    fontWeight: '600',
     color: '#10b981',
     textAlign: 'right',
+    lineHeight: 36,
+    textAlignVertical: 'center',
     includeFontPadding: false,
   },
   totalLabel: {
-    flex: 1,
-    fontSize: 26,
+    fontSize: 31,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#0f172a',
+    lineHeight: 50,
+    textAlignVertical: 'center',
     includeFontPadding: false,
   },
   totalValue: {
-    fontSize: 34,
-    fontWeight: '700',
+    flex: 1,
+    fontSize: 42,
+    fontWeight: '800',
     color: '#ff5c00',
     textAlign: 'right',
+    lineHeight: 50,
+    textAlignVertical: 'center',
     includeFontPadding: false,
   },
 })

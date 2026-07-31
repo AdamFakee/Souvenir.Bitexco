@@ -1,5 +1,6 @@
 import { ActorRefFrom, createActor } from 'xstate'
 import { create } from 'zustand'
+import { storage } from '@/shared/lib/storage'
 import { posStorage } from '../lib/pos-storage'
 import { posMachine } from '../machines/pos.machine'
 
@@ -18,6 +19,7 @@ interface PosState {
   setSearchQuery: (query: string) => void
   setSelectedCategoryId: (id: string | null) => void
   clearFilters: () => void
+  resetPos: () => void
 }
 
 export const usePosStore = create<PosState>((set, get) => ({
@@ -72,4 +74,17 @@ export const usePosStore = create<PosState>((set, get) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedCategoryId: (id) => set({ selectedCategoryId: id }),
   clearFilters: () => set({ searchQuery: '', selectedCategoryId: null }),
+  resetPos: () => {
+    const service = get().posService
+    if (service) {
+      service.send({ type: 'RESET_POS' })
+      posStorage.save.flush()
+    } else {
+      try {
+        posStorage.save.cancel()
+        storage.remove('pos-machine-state')
+      } catch {}
+    }
+    set({ searchQuery: '', selectedCategoryId: null })
+  },
 }))

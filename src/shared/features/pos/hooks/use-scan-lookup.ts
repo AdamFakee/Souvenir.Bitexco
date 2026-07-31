@@ -32,7 +32,7 @@ export function useScanLookup() {
               if (remoteResult) {
                 product = {
                   id: remoteResult.variantId,
-                  name: remoteResult.productName,
+                  name: remoteResult.productNameEn || remoteResult.productName,
                   sku: remoteResult.sku,
                   price: remoteResult.price,
                   stock: remoteResult.available,

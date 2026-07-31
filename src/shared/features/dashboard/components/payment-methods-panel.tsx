@@ -21,12 +21,12 @@ function ChartSkeleton() {
   return (
     <View className="relative my-2 items-center justify-center">
       <Shimmer
-        style={{ borderRadius: 120 }}
-        className="h-[240px] w-[240px] items-center justify-center rounded-full"
+        style={{ borderRadius: 144 }}
+        className="h-[288px] w-[288px] items-center justify-center rounded-full"
       >
-        <View className="h-[170px] w-[170px] items-center justify-center rounded-full bg-white">
-          <Shimmer className="h-6 w-28" />
-          <Shimmer className="mt-2 h-4 w-16" />
+        <View className="h-[204px] w-[204px] items-center justify-center rounded-full bg-white">
+          <Shimmer className="w-34 h-7" />
+          <Shimmer className="mt-2 h-5 w-20" />
         </View>
       </Shimmer>
     </View>
@@ -90,11 +90,11 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
     return (
       <View
         style={{ backgroundColor: 'rgba(230, 239, 243, 0.44)' }}
-        className="flex-[1] flex-col items-center rounded-2xl border border-[#e5e7eb]/40 p-6"
+        className="flex-[1] flex-col items-center rounded-2xl border border-[#e5e7eb]/40 p-7"
       >
         <View className="w-full items-center">
           <View className="w-full flex-row justify-center pb-6">
-            <Text className="text-[22px] font-black text-[#111827]">Hình thức thanh toán</Text>
+            <Text className="text-[26px] font-black text-[#111827]">Hình thức thanh toán</Text>
           </View>
           <ChartSkeleton />
         </View>
@@ -102,13 +102,13 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
           {[1, 2, 3].map((idx) => (
             <View
               key={idx}
-              className="flex-row items-center justify-between rounded-xl border border-[#e5e7eb]/40 bg-white px-4 py-3"
+              className="flex-row items-center justify-between rounded-xl border border-[#e5e7eb]/40 bg-white px-5 py-4"
             >
               <View className="flex-row items-center gap-3">
-                <Shimmer className="h-3.5 w-3.5 rounded-full" />
-                <Shimmer className="h-5 w-24" />
+                <Shimmer className="h-4.5 w-4.5 rounded-full" />
+                <Shimmer className="w-30 h-6" />
               </View>
-              <Shimmer className="h-5 w-24" />
+              <Shimmer className="w-30 h-6" />
             </View>
           ))}
         </View>
@@ -119,17 +119,17 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
   if (!overview) return null
 
   const revenueText = formatCurrency(overview.totalRevenue)
-  const dynamicSize = revenueText.length > 15 ? 14 : revenueText.length > 11 ? 19 : 28
+  const dynamicSize = revenueText.length > 15 ? 17 : revenueText.length > 11 ? 23 : 34
   const Chart = PieChart
 
   return (
     <View
       style={{ backgroundColor: 'rgba(230, 239, 243, 0.44)' }}
-      className="flex-[1] flex-col items-center rounded-2xl border border-[#e5e7eb]/40 p-6"
+      className="flex-[1] flex-col items-center rounded-2xl border border-[#e5e7eb]/40 p-7"
     >
       <View className="w-full items-center">
         <View className="w-full flex-row justify-center pb-6">
-          <Text className="text-[22px] font-black text-[#111827]">Hình thức thanh toán</Text>
+          <Text className="text-[26px] font-black text-[#111827]">Hình thức thanh toán</Text>
         </View>
 
         <View className="my-2 items-center justify-center">
@@ -137,11 +137,11 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
             <Chart
               data={pieData}
               donut
-              radius={120}
-              innerRadius={85}
+              radius={144}
+              innerRadius={102}
               innerCircleColor="#ffffff"
               centerLabelComponent={() => (
-                <View className="w-[160px] items-center justify-center bg-white px-2">
+                <View className="w-[192px] items-center justify-center bg-white px-2">
                   <Text
                     adjustsFontSizeToFit
                     numberOfLines={1}
@@ -150,7 +150,7 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
                   >
                     {revenueText}
                   </Text>
-                  <Text className="mt-1.5 text-[15px] font-bold text-[#6b7280]">Tổng cộng</Text>
+                  <Text className="mt-1.5 text-[18px] font-bold text-[#6b7280]">Tổng cộng</Text>
                 </View>
               )}
             />
@@ -164,13 +164,13 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
         {mapped.map((pm, idx) => (
           <View
             key={`${pm.name}-${idx}`}
-            className="flex-row items-center justify-between rounded-xl border border-[#e5e7eb]/40 bg-white px-4 py-3"
+            className="flex-row items-center justify-between rounded-xl border border-[#e5e7eb]/40 bg-white px-5 py-4"
           >
             <View className="flex-row items-center gap-3">
-              <View style={{ backgroundColor: pm.color }} className="h-3.5 w-3.5 rounded-full" />
-              <Text className="text-[17px] font-extrabold text-[#111827]">{pm.name}</Text>
+              <View style={{ backgroundColor: pm.color }} className="h-4.5 w-4.5 rounded-full" />
+              <Text className="text-[20px] font-extrabold text-[#111827]">{pm.name}</Text>
             </View>
-            <Text className="text-[17px] font-extrabold text-[#111827]">
+            <Text className="text-[20px] font-extrabold text-[#111827]">
               {formatCurrency(pm.value)}
             </Text>
           </View>
