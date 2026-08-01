@@ -12,6 +12,7 @@ export interface ProductRaw {
   sku: string
   barcode?: string
   name: string
+  name_en?: string | null
   price: number
   tax_rate: number
   stock: number
@@ -228,6 +229,7 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
             hasMore: data?.hasMore,
             syncedAt: lastPulledAt,
           })
+          console.log('data', JSON.stringify(data, null, 2))
           if (data.syncedAt) {
             syncedAtFromServer =
               typeof data.syncedAt === 'string' ? new Date(data.syncedAt).getTime() : data.syncedAt
@@ -272,6 +274,7 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
           sku: item.sku,
           barcode: item.barcode || item.sku,
           name: item.name,
+          name_en: item.nameEn || null,
           price: item.price,
           tax_rate: item.taxRate ?? 0,
           stock: item.stock ?? 0,

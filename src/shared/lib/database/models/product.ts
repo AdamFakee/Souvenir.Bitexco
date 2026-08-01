@@ -7,6 +7,7 @@ export default class ProductModel extends Model {
   @field('sku') sku!: string
   @field('barcode') barcode?: string
   @field('name') name!: string
+  @field('name_en') nameEn?: string | null
   @field('price') price!: number
   @field('tax_rate') taxRate!: number
   @field('stock') stock!: number

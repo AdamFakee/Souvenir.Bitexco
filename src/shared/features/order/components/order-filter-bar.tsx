@@ -10,10 +10,12 @@ let lastEmployeeId: string | null = null
 
 export interface OrderFilterBarProps {
   showStaffFilter?: boolean
+  hideFilters?: boolean
 }
 
 export const OrderFilterBar = memo(function OrderFilterBar({
   showStaffFilter = true,
+  hideFilters = false,
 }: OrderFilterBarProps) {
   const staffId = useOrderFilterStore((s) => s.staffId)
   const setStaffId = useOrderFilterStore((s) => s.setStaffId)
@@ -36,21 +38,25 @@ export const OrderFilterBar = memo(function OrderFilterBar({
   return (
     <View className="mb-4 flex-row items-center gap-3">
       <OrderSearchInput />
-      <DateRangeFilter
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onDateFromChange={setDateFrom}
-        onDateToChange={setDateTo}
-      />
-      {showStaffFilter && (
-        <StaffSelect
-          value={staffId}
-          params={{ hasTransaction: true }}
-          onChange={handleStaffChange}
-          className="w-60"
-          triggerClassName="h-[64px] rounded-xl"
-          triggerTextClassName="text-[20px] font-bold text-surface-on"
-        />
+      {!hideFilters && (
+        <>
+          <DateRangeFilter
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+          />
+          {showStaffFilter && (
+            <StaffSelect
+              value={staffId}
+              params={{ hasTransaction: true }}
+              onChange={handleStaffChange}
+              className="w-60"
+              triggerClassName="h-[64px] rounded-xl"
+              triggerTextClassName="text-[20px] font-bold text-surface-on"
+            />
+          )}
+        </>
       )}
     </View>
   )

@@ -51,7 +51,7 @@ export function useScanLookup() {
             if (localProduct) {
               product = {
                 id: localProduct.id,
-                name: localProduct.name,
+                name: localProduct.nameEn || localProduct.name,
                 sku: localProduct.sku,
                 price: localProduct.price || 0,
                 stock: localProduct.stock || 0,

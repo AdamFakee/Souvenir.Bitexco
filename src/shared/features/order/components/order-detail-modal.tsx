@@ -16,7 +16,7 @@ import React, {
 } from 'react'
 import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
 import { IOrder } from '../types'
-import { getOrderDisplayStatus } from '../utils'
+import { getOrderDisplayStatus, formatReceiptCode } from '../utils'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { RefundReceiptTemplate } from './refund-receipt-template'
 
@@ -284,12 +284,9 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
   if (!visible) return null
 
-  const headerCode =
-    order?.code ||
-    order?.id?.substring(0, 8).toUpperCase() ||
-    pendingOrderRef.current?.code ||
-    pendingOrderRef.current?.id?.substring(0, 8).toUpperCase() ||
-    ''
+  const headerCode = formatReceiptCode(
+    order?.code || order?.id || pendingOrderRef.current?.code || pendingOrderRef.current?.id || '',
+  )
 
   const showBody = ready && !!order && !!displayStatus
 
@@ -331,8 +328,8 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                 </Text>
                 <Pressable
                   onPress={() => {
-                    const code = order?.code || order?.id || pendingOrderRef.current?.code || ''
-                    if (!code) return
+                    const code = headerCode
+                    if (!code || code === '---') return
                     Clipboard.setString(code)
                     toast.success('Đã sao chép mã đơn hàng')
                   }}

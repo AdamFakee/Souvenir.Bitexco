@@ -1,4 +1,5 @@
 import { Select } from '@/shared/components/ui/select'
+import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
 import {
   OrderDetailModal,
@@ -15,37 +16,32 @@ import {
   RefundConfirmModal,
   type RefundConfirmModalRef,
 } from '@/shared/features/order/components/refund-confirm-modal'
-import { useOrders } from '@/shared/features/order/hooks/use-orders'
+import { useOrders, useOfflineOrders } from '@/shared/features/order/hooks'
 import { useOrderFilterStore } from '@/shared/features/order/store/use-order-filter-store'
 import type { IOrder, Partner } from '@/shared/features/order/types'
 import type { Affiliate } from '@/shared/features/pos/types/cart.types'
 import { toast } from '@/shared/store'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-type OrderMode = 'all' | 'pos' | 'collaborator' | 'agent'
-
-const MODE_TABS = [
-  { label: 'Tất cả', value: 'all' as const },
-  { label: 'Khách lẻ', value: 'pos' as const },
-  { label: 'Cộng tác viên', value: 'collaborator' as const },
-  { label: 'Đối tác', value: 'agent' as const },
-] as const
+type OrderMode = 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
 
 // ── Mode tabs ──────────────────────────────────────────────
 const TopTabs = memo(function TopTabs({
   mode,
   onChangeMode,
+  tabs,
 }: {
   mode: OrderMode
   onChangeMode: (v: OrderMode) => void
+  tabs: readonly { label: string; value: OrderMode }[]
 }) {
   return (
     <View className="flex-row gap-2 px-4 pt-3">
-      {MODE_TABS.map((tab) => {
+      {tabs.map((tab) => {
         const active = mode === tab.value
         return (
           <Pressable
@@ -167,16 +163,24 @@ const OrdersResults = memo(function OrdersResults({
           ? ('collaborator' as const)
           : ('agent' as const)
 
-  const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useOrders({
+  const onlineQuery = useOrders({
     status,
     dateFrom,
     dateTo,
     staffId,
     affiliateId: mode === 'collaborator' ? affiliateId : null,
     partnerId: mode === 'agent' ? partnerId : null,
-    guideType,
+    guideType: mode === 'offline' ? null : guideType,
     paymentMethod,
+    enabled: mode !== 'offline',
   })
+
+  const offlineQuery = useOfflineOrders({
+    enabled: mode === 'offline',
+  })
+
+  const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    mode === 'offline' ? offlineQuery : onlineQuery
 
   return (
     <View className="flex-1 rounded-lg border border-outline">
@@ -207,6 +211,43 @@ export default function OrdersScreen() {
   const [mode, setMode] = useState<OrderMode>('all')
   const [selectedAffiliateId, setSelectedAffiliateId] = useState<string | null>(null)
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
+
+  const { data: unsyncedCount = 0, refetch: refetchUnsyncedCount } = useQuery({
+    queryKey: ['unsynced-orders-count'],
+    queryFn: () => OrderLocalAPI.getUnsyncedOrdersCount(),
+    staleTime: 5000,
+  })
+
+  // Tự động refetch lại số lượng đơn offline và danh sách đơn hàng khi user quay lại tab Orders
+  useFocusEffect(
+    useCallback(() => {
+      console.log('✏️ [OrdersScreen] Focused! Refetching count...')
+      refetchUnsyncedCount().then((res) => {
+        console.log('✏️ [OrdersScreen] Refetched count result:', res.data)
+      })
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+    }, [refetchUnsyncedCount, queryClient]),
+  )
+
+  // Fallback tab if offline orders are synced and count becomes 0
+  useEffect(() => {
+    if (mode === 'offline' && unsyncedCount === 0) {
+      setMode('all')
+    }
+  }, [mode, unsyncedCount])
+
+  const tabs = useMemo(() => {
+    const base = [
+      { label: 'Tất cả', value: 'all' as const },
+      { label: 'Khách lẻ', value: 'pos' as const },
+      { label: 'Cộng tác viên', value: 'collaborator' as const },
+      { label: 'Đối tác', value: 'agent' as const },
+    ]
+    if (unsyncedCount > 0) {
+      return [...base, { label: 'Ngoại tuyến', value: 'offline' as const }]
+    }
+    return base
+  }, [unsyncedCount])
 
   // Modal nặng (refund machine + receipt) mount sau paint / khi user cần
   const [mountModals, setMountModals] = useState(false)
@@ -310,7 +351,7 @@ export default function OrdersScreen() {
   }, [queryClient])
 
   const handlePreviewReconciliation = useCallback(() => {
-    if (mode === 'pos' || mode === 'all') return
+    if (mode === 'pos' || mode === 'all' || mode === 'offline') return
 
     let ownerName = ''
     let ownerCode = ''
@@ -345,7 +386,7 @@ export default function OrdersScreen() {
     const payload = {
       ownerName,
       ownerCode,
-      ownerType: mode,
+      ownerType: mode as 'collaborator' | 'agent',
       partnerId: mode === 'agent' ? selectedPartnerId : null,
       affiliateId: mode === 'collaborator' ? selectedAffiliateId : null,
       dateFrom,
@@ -363,7 +404,7 @@ export default function OrdersScreen() {
   return (
     <SafeAreaView className="flex-1">
       <View className="flex-1 bg-white">
-        <TopTabs mode={mode} onChangeMode={setMode} />
+        <TopTabs mode={mode} onChangeMode={setMode} tabs={tabs} />
 
         <View
           className="flex-1 rounded-b-xl rounded-tr-xl px-5 pb-5 pt-4"
@@ -376,9 +417,9 @@ export default function OrdersScreen() {
             elevation: 4,
           }}
         >
-          <OrderFilterBar showStaffFilter />
+          <OrderFilterBar showStaffFilter={mode !== 'offline'} hideFilters={mode === 'offline'} />
 
-          {mode !== 'pos' && mode !== 'all' ? (
+          {mode !== 'pos' && mode !== 'all' && mode !== 'offline' ? (
             <GuideOwnerBar
               mode={mode}
               affiliates={affiliates}

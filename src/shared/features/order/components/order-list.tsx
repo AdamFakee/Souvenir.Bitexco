@@ -8,7 +8,12 @@ import React, { memo, useCallback, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useOrderFilterStore } from '../store'
 import { IOrder } from '../types'
-import { checkCanExchange, checkCanReturn, getOrderDisplayStatus } from '../utils'
+import {
+  checkCanExchange,
+  checkCanReturn,
+  getOrderDisplayStatus,
+  formatReceiptCode,
+} from '../utils'
 
 interface OrderListProps {
   onOpenDetails: (order: IOrder) => void
@@ -19,7 +24,7 @@ interface OrderListProps {
   fetchNextPage: () => void
   hasNextPage: boolean
   isFetchingNextPage: boolean
-  mode?: 'all' | 'pos' | 'collaborator' | 'agent'
+  mode?: 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
 }
 
 const BRAND = '#1C4E68'
@@ -94,7 +99,7 @@ function buildOrderDisplay(item: IOrder): OrderDisplay {
   return {
     id: item.id,
     updatedAt: item.updatedAt,
-    code: item.code || item.id,
+    code: formatReceiptCode(item.code || item.id),
     collaboratorName,
     collaboratorCode,
     dateTime: formatDateTime(item.createdAt),
@@ -134,7 +139,7 @@ interface HeaderCellProps {
   currentSort: SortField | null
   currentDir: 'asc' | 'desc'
   onSort: (field: SortField) => void
-  mode?: 'all' | 'pos' | 'collaborator' | 'agent'
+  mode?: 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
 }
 
 const HeaderCell = memo(function HeaderCell({
@@ -464,7 +469,7 @@ interface TableHeaderProps {
   sortField: SortField | null
   sortDir: 'asc' | 'desc'
   onSort: (field: SortField) => void
-  mode?: 'all' | 'pos' | 'collaborator' | 'agent'
+  mode?: 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
 }
 
 export const TableHeader = memo(function TableHeader({

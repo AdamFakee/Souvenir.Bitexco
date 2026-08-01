@@ -24,6 +24,7 @@ import { Pressable, Text, TextInput, View } from 'react-native'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useActiveCart, usePosActor } from '../hooks'
 import { CartItem } from '../types/cart.types'
+import { VoucherDetailModal, VoucherDetailModalRef } from './voucher-detail-modal'
 
 export default function CheckoutPanel() {
   const cartActor = useActiveCart()
@@ -99,9 +100,19 @@ export default function CheckoutPanel() {
     setVoucherInput(appliedVoucher?.code || '')
   }, [appliedVoucher])
 
+  // Nếu mất mạng và đang có voucher thì tự động gỡ voucher ra khỏi giỏ
+  React.useEffect(() => {
+    if (!isNetworkConnected && appliedVoucher) {
+      cartActor?.send({ type: 'REMOVE_VOUCHER' })
+      setVoucherInput('')
+      toast.warning('Đã gỡ voucher vì thiết bị đang ngoại tuyến')
+    }
+  }, [isNetworkConnected, appliedVoucher, cartActor])
+
   const applyVoucherMutation = useApplyVoucher()
   const isVerifying = applyVoucherMutation.isPending
   const printRef = useRef(null)
+  const voucherModalRef = useRef<VoucherDetailModalRef>(null)
 
   // Refs cho từng popup — key là PaymentMethod type
   const popupRefs = useRef<Record<string, PaymentPopupRef | null>>({})
@@ -192,6 +203,10 @@ export default function CheckoutPanel() {
   }, [])
 
   const handleApplyVoucher = useCallback(async () => {
+    if (!isNetworkConnected) {
+      toast.error('Không thể áp dụng voucher khi ngoại tuyến')
+      return
+    }
     if (!voucherInput.trim()) return
 
     try {
@@ -309,7 +324,17 @@ export default function CheckoutPanel() {
             </View>
 
             <View className="min-h-[64px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
-              <Ticket size={22} color={appliedVoucher ? COLORS.primary.default : COLORS.muted} />
+              <Pressable
+                onPress={() => {
+                  if (appliedVoucher) {
+                    voucherModalRef.current?.open(appliedVoucher)
+                  }
+                }}
+                disabled={!appliedVoucher}
+                className="p-1 active:opacity-60"
+              >
+                <Ticket size={22} color={appliedVoucher ? COLORS.primary.default : COLORS.muted} />
+              </Pressable>
               <TextInput
                 className="m-0 min-h-[52px] flex-1 py-2 text-[18px] font-bold text-surface-on"
                 placeholder="Nhập mã giảm giá"
@@ -317,7 +342,7 @@ export default function CheckoutPanel() {
                 value={voucherInput}
                 onChangeText={setVoucherInput}
                 autoCapitalize="characters"
-                editable={!appliedVoucher && !isVerifying}
+                editable={isNetworkConnected && !appliedVoucher && !isVerifying}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
               />
@@ -336,11 +361,18 @@ export default function CheckoutPanel() {
                 <Pressable
                   className="min-h-[44px] min-w-[80px] items-center justify-center px-2"
                   onPress={handleApplyVoucher}
-                  disabled={!voucherInput.trim() || isVerifying}
+                  disabled={!voucherInput.trim() || isVerifying || !isNetworkConnected}
                   accessibilityRole="button"
                   accessibilityLabel="Áp dụng mã giảm giá"
                   style={({ pressed }) => [
-                    { opacity: !voucherInput.trim() || isVerifying ? 0.4 : pressed ? 0.7 : 1 },
+                    {
+                      opacity:
+                        !voucherInput.trim() || isVerifying || !isNetworkConnected
+                          ? 0.4
+                          : pressed
+                            ? 0.7
+                            : 1,
+                    },
                   ]}
                 >
                   <Text className="text-[17px] font-bold text-primary">
@@ -447,6 +479,7 @@ export default function CheckoutPanel() {
                     !isAvailable ||
                     method.enabled === false ||
                     (method.type === 'qr_bidv' && !isNetworkConnected) ||
+                    (method.type === 'cong_no' && !isNetworkConnected) ||
                     (method.type === 'card_bidv' && !isPosConnected) ||
                     isDebtDisabled ||
                     isVoucherInvalid
@@ -504,6 +537,7 @@ export default function CheckoutPanel() {
             affiliate={affiliate}
           />
         ))}
+        <VoucherDetailModal ref={voucherModalRef} />
       </View>
     </KeyboardAvoidingView>
   )

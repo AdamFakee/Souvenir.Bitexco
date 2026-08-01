@@ -1,4 +1,4 @@
-import { EmployeePermission, useAppStore } from '@/shared/features/app'
+import { useAppStore } from '@/shared/features/app'
 import { AuthAPI } from '@/shared/features/auth'
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import { usePosStore } from '@/shared/features/pos/store/use-pos-store'

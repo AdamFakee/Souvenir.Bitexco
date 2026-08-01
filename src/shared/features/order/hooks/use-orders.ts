@@ -13,9 +13,19 @@ export const useOrders = (params: {
   partnerId?: string | null
   guideType?: 'collaborator' | 'agent' | 'retail' | null
   paymentMethod?: string | null
+  enabled?: boolean
 }) => {
-  const { status, dateFrom, dateTo, staffId, affiliateId, partnerId, guideType, paymentMethod } =
-    params
+  const {
+    status,
+    dateFrom,
+    dateTo,
+    staffId,
+    affiliateId,
+    partnerId,
+    guideType,
+    paymentMethod,
+    enabled,
+  } = params
 
   // Search đã debounce ở OrderSearchInput trước khi vào store
   const searchQuery = useOrderFilterStore((s) => s.searchQuery.trim())
@@ -57,6 +67,7 @@ export const useOrders = (params: {
     staleTime: 30_000,
     networkMode: 'always',
     placeholderData: keepPreviousData,
+    enabled: enabled !== false,
   })
 
   // ponytail: không observe WatermelonDB orders → local write (bán hàng) từng storm refetch.

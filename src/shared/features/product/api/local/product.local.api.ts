@@ -25,6 +25,7 @@ export const ProductLocalAPI = {
       clauses.push(
         Q.or(
           Q.where('name', Q.like(`%${sanitized}%`)),
+          Q.where('name_en', Q.like(`%${sanitized}%`)),
           Q.where('sku', Q.like(`%${sanitized}%`)),
           Q.where('barcode', Q.like(`%${sanitized}%`)),
         ),

@@ -14,6 +14,16 @@ import {
 import { endOfDay, startOfDay } from '@/shared/utils'
 import { Q } from '@nozbe/watermelondb'
 
+export interface GetOrdersParams {
+  status?: OrderStatus | null
+  searchQuery?: string
+  dateFrom?: Date | null
+  dateTo?: Date | null
+  limit?: number
+  offset?: number
+  isSynced?: boolean
+}
+
 export interface CheckoutPaymentPayload {
   method: PaymentMethodCode
   amount: number
@@ -36,26 +46,21 @@ export interface CheckoutPayload {
   payment: CheckoutPaymentPayload
 }
 
-export interface GetOrdersParams {
-  status?: OrderStatus | null
-  searchQuery?: string
-  dateFrom?: Date | null
-  dateTo?: Date | null
-  limit?: number
-  offset?: number
-}
-
 export const OrderLocalAPI = {
   /**
    * Lấy danh sách đơn hàng từ Local Database (WatermelonDB).
    * Hỗ trợ tìm kiếm theo ID/Sản phẩm, lọc theo trạng thái và khoảng ngày.
    */
   getOrders: async (params: GetOrdersParams): Promise<OrderModel[]> => {
-    const { status, searchQuery, dateFrom, dateTo, limit = 50, offset = 0 } = params
+    const { status, searchQuery, dateFrom, dateTo, limit = 50, offset = 0, isSynced } = params
     const clauses: any[] = [Q.where('is_deleted', Q.notEq(true))]
 
     if (status) {
       clauses.push(Q.where('status', status))
+    }
+
+    if (isSynced !== undefined) {
+      clauses.push(Q.where('is_synced', isSynced))
     }
 
     if (searchQuery) {
@@ -347,8 +352,10 @@ export const OrderLocalAPI = {
         .get<OrderModel>('orders')
         .query(Q.where('is_synced', false))
         .fetch()
+      console.log('✏️ [getUnsyncedOrdersCount] count:', unsyncedOrders.length)
       return unsyncedOrders.length
-    } catch {
+    } catch (e) {
+      console.error('✏️ [getUnsyncedOrdersCount] error:', e)
       return 0
     }
   },

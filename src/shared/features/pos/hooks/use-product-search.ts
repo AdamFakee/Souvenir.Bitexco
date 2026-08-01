@@ -68,7 +68,7 @@ export function useProductSearch(searchText: string) {
 
         return localResults.map((p) => ({
           id: p.id,
-          name: p.name,
+          name: p.nameEn || p.name,
           sku: p.sku,
           price: p.price,
           stock: p.stock,

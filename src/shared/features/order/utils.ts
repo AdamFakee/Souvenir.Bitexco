@@ -225,3 +225,14 @@ export const getOrderDisplayStatus = (order: {
   // 4. Đang xử lý (PENDING) - Mọi trường hợp còn lại
   return { label: 'Đang xử lý', color: '#D97706', bgColor: '#FEF3C7' }
 }
+
+export const formatReceiptCode = (codeOrId: string | null | undefined): string => {
+  if (!codeOrId) return '---'
+  const isUuid =
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(codeOrId)
+  if (isUuid) {
+    const clean = codeOrId.replace(/-/g, '')
+    return clean.substring(0, 12).toUpperCase()
+  }
+  return codeOrId.toUpperCase()
+}
