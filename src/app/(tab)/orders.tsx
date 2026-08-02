@@ -1,3 +1,4 @@
+import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
 import { Select } from '@/shared/components/ui/select'
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
@@ -7,6 +8,7 @@ import {
 } from '@/shared/features/order/components/order-detail-modal'
 import { OrderFilterBar } from '@/shared/features/order/components/order-filter-bar'
 import { OrderList } from '@/shared/features/order/components/order-list'
+import { OrdersSkeleton } from '@/shared/features/order/components/orders-skeleton'
 import { OrderStatsFooter } from '@/shared/features/order/components/order-stats-footer'
 import {
   ReconciliationModal,
@@ -201,7 +203,7 @@ const OrdersResults = memo(function OrdersResults({
 })
 
 // ── Screen shell: mode + chrome only ───────────────────────
-export default function OrdersScreen() {
+function OrdersContent() {
   const queryClient = useQueryClient()
   const router = useRouter()
   const modalRef = useRef<OrderDetailModalRef>(null)
@@ -219,13 +221,14 @@ export default function OrdersScreen() {
   })
 
   // Tự động refetch lại số lượng đơn offline và danh sách đơn hàng khi user quay lại tab Orders
+  // Defer 300ms để không tranh JS thread với tab-transition animation
   useFocusEffect(
     useCallback(() => {
-      console.log('✏️ [OrdersScreen] Focused! Refetching count...')
-      refetchUnsyncedCount().then((res) => {
-        console.log('✏️ [OrdersScreen] Refetched count result:', res.data)
-      })
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      const t = setTimeout(() => {
+        refetchUnsyncedCount()
+        queryClient.invalidateQueries({ queryKey: ['orders'] })
+      }, 300)
+      return () => clearTimeout(t)
     }, [refetchUnsyncedCount, queryClient]),
   )
 
@@ -450,4 +453,8 @@ export default function OrdersScreen() {
       </View>
     </SafeAreaView>
   )
+}
+
+export default function OrdersScreen() {
+  return <LazyTabShell Content={OrdersContent} skeleton={<OrdersSkeleton />} />
 }

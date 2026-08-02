@@ -1,5 +1,5 @@
 import { EmptyState, LoadMore, QuantityStepper, Shimmer } from '@/shared/components/ui'
-import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
+import { useDevice } from '@/shared/features/app/hooks/use-app-context'
 import { UnifiedProduct } from '@/shared/features/pos/hooks/use-product-search'
 import {
   PosLookupResult,
@@ -51,7 +51,7 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
   onRemoveItem,
 }: ExchangeReplacementSearchPanelProps) {
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
-  const { device } = useAppContext()
+  const device = useDevice()
   const warehouseId = device?.warehouseId
 
   const skusKey = useMemo(

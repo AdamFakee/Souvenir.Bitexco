@@ -1,7 +1,7 @@
 import { HardwareBarcodeScanner } from '@/shared/components/common'
 import { Button, ControlledInput, IconButton } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
+import { useCashSessionId, useEmployee } from '@/shared/features/app/hooks/use-app-context'
 import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 import { UnifiedProduct } from '@/shared/features/pos/hooks/use-product-search'
@@ -57,7 +57,8 @@ export const ExchangeScreen = memo(function ExchangeScreen({
   const businessChecklistModalRef = useRef<BusinessChecklistModalRef>(null)
   const startedRef = useRef(false)
 
-  const { employee, cashSessionId } = useAppContext()
+  const employee = useEmployee()
+  const cashSessionId = useCashSessionId()
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
 
   const {

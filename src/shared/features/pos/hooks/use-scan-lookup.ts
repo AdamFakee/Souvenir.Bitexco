@@ -1,16 +1,12 @@
-import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
-import { toast, useConnectionStore } from '@/shared/store'
+import { toast } from '@/shared/store'
 import { useCallback, useState } from 'react'
 import { usePosActor } from './use-pos-actor'
 
 export function useScanLookup() {
   const posActor = usePosActor()
-  const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
   const [isProcessing, setIsProcessing] = useState(false)
-  const { device } = useAppContext()
-  const warehouseId = device?.warehouseId
 
   const handleScan = useCallback(
     async (codes: string[]) => {
@@ -22,28 +18,24 @@ export function useScanLookup() {
           let product = null
 
           // 1. Luồng Online First
-          if (true) {
-            try {
-              const remoteResult = await ProductRemoteAPI.lookupProduct({
-                // barcode: code,
-                sku: code,
-                // warehouseId
-              })
-              if (remoteResult) {
-                product = {
-                  id: remoteResult.variantId,
-                  name: remoteResult.productNameEn || remoteResult.productName,
-                  sku: remoteResult.sku,
-                  price: remoteResult.price,
-                  stock: remoteResult.available,
-                  barcode: remoteResult.barcode,
-                  taxRate: remoteResult.taxRate,
-                  unit: remoteResult.unitCode,
-                  unitId: remoteResult.unitId,
-                } as any
-              }
-            } catch {}
-          }
+          try {
+            const remoteResult = await ProductRemoteAPI.lookupProduct({
+              sku: code,
+            })
+            if (remoteResult) {
+              product = {
+                id: remoteResult.variantId,
+                name: remoteResult.productNameEn || remoteResult.productName,
+                sku: remoteResult.sku,
+                price: remoteResult.price,
+                stock: remoteResult.available,
+                barcode: remoteResult.barcode,
+                taxRate: remoteResult.taxRate,
+                unit: remoteResult.unitCode,
+                unitId: remoteResult.unitId,
+              } as any
+            }
+          } catch {}
 
           // 2. Luồng Offline Fallback
           if (!product) {
@@ -75,7 +67,7 @@ export function useScanLookup() {
         setIsProcessing(false)
       }
     },
-    [isNetworkConnected, posActor, warehouseId],
+    [posActor],
   )
 
   return {

@@ -8,7 +8,15 @@ import { formatCurrency } from '@/shared/utils'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle, Wifi } from 'lucide-react-native'
-import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
+import React, {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react'
 import { useForm } from 'react-hook-form'
 import { Text, View } from 'react-native'
 
@@ -69,8 +77,14 @@ export const ExchangePortablePaymentPopup = memo(
         },
       })
 
-      const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items, appliedVoucher)
+      // Cache tính toán
+      const totals = useMemo(
+        () => ({
+          subtotal: calculateSubtotal(items),
+          tax: calculateTotalTax(items, appliedVoucher),
+        }),
+        [items, appliedVoucher],
+      )
 
       const actorRef = useActorRef(exchangePortablePaymentMachine, {
         input: {
@@ -89,14 +103,28 @@ export const ExchangePortablePaymentPopup = memo(
         },
       })
 
-      const machineStateSelect = useSelector(actorRef, (s) => s.value)
-      const checkoutResult = useSelector(actorRef, (s) => s.context.checkoutResult)
-      const paymentId = useSelector(actorRef, (s) => s.context.paymentId)
-      const error = useSelector(actorRef, (s) => s.context.error)
-      const errorCode = useSelector(actorRef, (s) => s.context.errorCode)
-      const statusLabel = useSelector(actorRef, getExchangePortablePaymentStatusLabel)
-      const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
-      const canCancel = useSelector(actorRef, (s) => s.can({ type: 'CANCEL' }))
+      // Gộp selector
+      const ctx = useSelector(actorRef, (s) => ({
+        state: s.value,
+        checkoutResult: s.context.checkoutResult,
+        paymentId: s.context.paymentId,
+        error: s.context.error,
+        errorCode: s.context.errorCode,
+        statusLabel: getExchangePortablePaymentStatusLabel(s),
+        canRetry: s.can({ type: 'RETRY' }),
+        canCancel: s.can({ type: 'CANCEL' }),
+      }))
+
+      const {
+        state: machineStateSelect,
+        checkoutResult,
+        paymentId,
+        error,
+        errorCode,
+        statusLabel,
+        canRetry,
+        canCancel,
+      } = ctx
 
       const isIdle = machineStateSelect === 'idle'
       const isProcessingPayment = machineStateSelect === 'processingPayment'
@@ -124,30 +152,46 @@ export const ExchangePortablePaymentPopup = memo(
         isFinalizing ||
         isCanceling
 
-      const activeStep = (() => {
+      const activeStep = useMemo(() => {
         if (isProcessingPayment || isConnecting || isConnectionFailed) return 1
         if (isSendingCommand || isVerifyingUnknown || isPaymentFailed) return 2
         if (isFinalizing || isManualResolution || isSuccess) return 3
         return 0
-      })()
+      }, [
+        isProcessingPayment,
+        isConnecting,
+        isConnectionFailed,
+        isSendingCommand,
+        isVerifyingUnknown,
+        isPaymentFailed,
+        isFinalizing,
+        isManualResolution,
+        isSuccess,
+      ])
 
+      // Gộp effect ViceService
       useEffect(() => {
-        if (visible) {
-          if (isSuccess) {
-            ViceService.paymentSuccess({
-              subtotal,
-              discount,
-              tax,
-              total,
-              customerPaid: total,
-              change: 0,
-            })
-          } else if (isFailure) {
-            ViceService.showStatus(getPaymentErrorStatus(errorCode))
-          } else {
-            ViceService.showPortablePayment()
-          }
-        } else if (!isSuccess) {
+        if (!visible) return
+
+        if (isSuccess) {
+          ViceService.paymentSuccess({
+            subtotal: totals.subtotal,
+            discount,
+            tax: totals.tax,
+            total,
+            customerPaid: total,
+            change: 0,
+          })
+        } else if (isFailure) {
+          ViceService.showStatus(getPaymentErrorStatus(errorCode))
+        } else {
+          ViceService.showPortablePayment()
+        }
+      }, [visible, isSuccess, isFailure, errorCode, totals.subtotal, totals.tax, discount, total])
+
+      // Trả ViceScreen về Home khi đóng
+      useEffect(() => {
+        if (!visible && !isSuccess) {
           ViceService.updateCart({
             items: items.map((i) => ({
               id: i.id,
@@ -155,13 +199,13 @@ export const ExchangePortablePaymentPopup = memo(
               price: i.price,
               quantity: i.quantity,
             })),
-            subtotal,
+            subtotal: totals.subtotal,
             discount,
-            tax,
+            tax: totals.tax,
             total,
           })
         }
-      }, [visible, isSuccess, isFailure, errorCode, error, items, subtotal, discount, tax, total])
+      }, [visible, isSuccess, items, discount, total, totals.subtotal, totals.tax])
 
       useImperativeHandle(
         ref,
@@ -222,17 +266,9 @@ export const ExchangePortablePaymentPopup = memo(
         ],
       )
 
+      // Success handler
       useEffect(() => {
         if (!isSuccess || !visible) return
-
-        ViceService.paymentSuccess({
-          subtotal,
-          discount,
-          tax,
-          total,
-          customerPaid: total,
-          change: 0,
-        })
 
         const timer = setTimeout(() => {
           setVisible(false)
@@ -248,18 +284,9 @@ export const ExchangePortablePaymentPopup = memo(
         }, 1800)
 
         return () => clearTimeout(timer)
-      }, [
-        isSuccess,
-        visible,
-        subtotal,
-        discount,
-        tax,
-        total,
-        onSuccess,
-        checkoutResult?.orderId,
-        paymentId,
-      ])
+      }, [isSuccess, visible, total, onSuccess, checkoutResult?.orderId, paymentId])
 
+      // Auto close if idle
       useEffect(() => {
         if (isIdle && visible && !isLoading && checkoutResult === null) {
           const timer = setTimeout(() => {
@@ -270,7 +297,8 @@ export const ExchangePortablePaymentPopup = memo(
         }
       }, [isIdle, visible, isLoading, checkoutResult, onCancel])
 
-      const handleCancel = () => {
+      // Memo handlers
+      const handleCancel = useCallback(() => {
         toast.confirm({
           title: 'Xác nhận hủy giao dịch',
           message: 'Bạn có chắc chắn muốn hủy giao dịch thanh toán qua thẻ này không?',
@@ -282,40 +310,43 @@ export const ExchangePortablePaymentPopup = memo(
             }
           },
         })
-      }
+      }, [actorRef, checkoutResult, onCancel])
 
-      const handleRetry = () => {
+      const handleRetry = useCallback(() => {
         actorRef.send({ type: 'RETRY' })
-      }
+      }, [actorRef])
 
-      const handleRetryUpdate = () => {
+      const handleRetryUpdate = useCallback(() => {
         actorRef.send({ type: 'RETRY' })
-      }
+      }, [actorRef])
 
-      const handleForceComplete = () => {
+      const handleForceComplete = useCallback(() => {
         toast.confirm({
           title: 'Xác nhận hoàn tất',
           message: 'Bạn đã chắc chắn khách đã thanh toán thành công trên máy POS chưa?',
           onConfirm: () => actorRef.send({ type: 'FORCE_COMPLETE' }),
         })
-      }
+      }, [actorRef])
 
-      const handleManualCaptureSubmit = (data: ManualCardDetailsFormData) => {
-        toast.confirm({
-          title: 'Xác nhận thanh toán thủ công',
-          message: 'Hãy chắc chắn giao dịch đã thành công trên máy EDC trước khi xác nhận.',
-          onConfirm: () => {
-            actorRef.send({
-              type: 'MANUAL_CAPTURE',
-              terminalId: data.terminalId?.trim() || undefined,
-              merchantId: data.merchantId?.trim() || undefined,
-              referenceNumber: data.referenceNumber?.trim() || undefined,
-              approvalCode: data.approvalCode?.trim() || undefined,
-            })
-            setShowManualForm(false)
-          },
-        })
-      }
+      const handleManualCaptureSubmit = useCallback(
+        (data: ManualCardDetailsFormData) => {
+          toast.confirm({
+            title: 'Xác nhận thanh toán thủ công',
+            message: 'Hãy chắc chắn giao dịch đã thành công trên máy EDC trước khi xác nhận.',
+            onConfirm: () => {
+              actorRef.send({
+                type: 'MANUAL_CAPTURE',
+                terminalId: data.terminalId?.trim() || undefined,
+                merchantId: data.merchantId?.trim() || undefined,
+                referenceNumber: data.referenceNumber?.trim() || undefined,
+                approvalCode: data.approvalCode?.trim() || undefined,
+              })
+              setShowManualForm(false)
+            },
+          })
+        },
+        [actorRef],
+      )
 
       const renderStageBox = (label: string, index: number) => {
         const isActive = activeStep === index
@@ -507,7 +538,7 @@ export const ExchangePortablePaymentPopup = memo(
                           className="text-[26px] font-semibold text-neutral-700"
                           numberOfLines={1}
                         >
-                          {formatCurrency(subtotal)}
+                          {formatCurrency(totals.subtotal)}
                         </Text>
                       </View>
                       <View className="flex-row items-center justify-between py-2">

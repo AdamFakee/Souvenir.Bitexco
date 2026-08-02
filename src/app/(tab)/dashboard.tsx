@@ -1,7 +1,9 @@
-import { useAppContext } from '@/shared/features/app'
+import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
+import { useCashSessionId, useEmployee } from '@/shared/features/app'
 import { DashboardInfoBar } from '@/shared/features/dashboard/components/info-bar'
 import { PaymentMethodsPanel } from '@/shared/features/dashboard/components/payment-methods-panel'
 import { ProductRevenuePanel } from '@/shared/features/dashboard/components/product-revenue-panel'
+import { DashboardSkeleton } from '@/shared/features/dashboard/components/dashboard-skeleton'
 import { DashboardStatsCards } from '@/shared/features/dashboard/components/stats-cards'
 import { useDashboardOverview } from '@/shared/features/dashboard/hooks'
 import { StaffSelect } from '@/shared/features/order/components/order-staff-select'
@@ -9,8 +11,9 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-export default function DashboardScreen() {
-  const { employee, cashSessionId } = useAppContext()
+function DashboardContent() {
+  const employee = useEmployee()
+  const cashSessionId = useCashSessionId()
   // Default ngay từ employee — tránh 1 frame staffId=null → query key nhảy
   const [staffId, setStaffId] = useState<string | null>(() => employee?.id ?? null)
 
@@ -19,6 +22,9 @@ export default function DashboardScreen() {
   const shiftId = cashSessionId ?? undefined
   const { overview, isLoading, isFetching, error, refetch } = useDashboardOverview(shiftId, staffId)
 
+  const handleRetry = useCallback(() => refetch(), [refetch])
+
+  // isFetching tách ra ngoài memo để background refetch không trigger recompute 4 panel nặng
   const body = useMemo(() => {
     if (!shiftId) {
       return (
@@ -43,7 +49,7 @@ export default function DashboardScreen() {
             {(error as Error)?.message || 'Vui lòng thử lại.'}
           </Text>
           <Pressable
-            onPress={() => refetch()}
+            onPress={handleRetry}
             className="mt-7 rounded-xl bg-[#111827] px-10 py-4 active:opacity-80"
           >
             <Text className="text-[19px] font-bold text-white">Thử lại</Text>
@@ -61,15 +67,9 @@ export default function DashboardScreen() {
           <PaymentMethodsPanel overview={overview} isLoading={isLoading} />
           <ProductRevenuePanel staffId={staffId} shiftId={shiftId} />
         </View>
-
-        {isFetching && overview ? (
-          <Text className="mt-3 text-right text-[16px] font-bold text-[#9ca3af]">
-            Đang cập nhật…
-          </Text>
-        ) : null}
       </>
     )
-  }, [shiftId, error, overview, isLoading, isFetching, staffId, refetch])
+  }, [shiftId, error, overview, isLoading, staffId, handleRetry])
 
   return (
     <SafeAreaView className="flex-1 bg-[#f3f4f6]">
@@ -96,8 +96,17 @@ export default function DashboardScreen() {
           </View>
 
           {body}
+          {isFetching && overview ? (
+            <Text className="mt-3 text-right text-[16px] font-bold text-[#9ca3af]">
+              Đang cập nhật…
+            </Text>
+          ) : null}
         </View>
       </View>
     </SafeAreaView>
   )
+}
+
+export default function DashboardScreen() {
+  return <LazyTabShell Content={DashboardContent} skeleton={<DashboardSkeleton />} />
 }

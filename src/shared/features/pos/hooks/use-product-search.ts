@@ -1,4 +1,4 @@
-import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
+import { useDevice } from '@/shared/features/app/hooks/use-app-context'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
 import { database } from '@/shared/lib/database'
@@ -25,7 +25,7 @@ export interface UnifiedProduct {
 export function useProductSearch(searchText: string) {
   const [debouncedSearch] = useDebounce(searchText, 500)
   const queryClient = useQueryClient()
-  const { device } = useAppContext()
+  const device = useDevice()
   const warehouseId = device?.warehouseId
 
   const query = useInfiniteQuery({

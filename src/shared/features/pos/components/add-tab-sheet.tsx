@@ -2,7 +2,7 @@ import { IconButton, ModalBase, SearchInput, Shimmer } from '@/shared/components
 import { COLORS } from '@/shared/constants'
 import { FlashList } from '@shopify/flash-list'
 import { ArrowLeft, Building2, Hash, Phone, Search, Store, Users, X } from 'lucide-react-native'
-import React, { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
+import React, { forwardRef, memo, useCallback, useImperativeHandle, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useDebounce } from 'use-debounce'
 import { useAffiliates } from '../hooks/use-affiliates'
@@ -45,6 +45,112 @@ const AGENT_TYPE_CONFIG = [
     iconColor: '#B45309',
   },
 ]
+
+const AffiliateItemRow = memo(function AffiliateItemRow({
+  item,
+  onSelect,
+}: {
+  item: Affiliate
+  onSelect: (affiliate: Affiliate) => void
+}) {
+  const isInactive = !item.isActive
+  const isAgent = item.agentType === 'agent'
+  const phone = item.phone?.trim()
+
+  const accentColor = isAgent ? '#B45309' : COLORS.primary.default
+  const avatarBg = isAgent ? '#FEF3C7' : `${COLORS.primary.default}18`
+  const AvatarIcon = isAgent ? Building2 : Users
+
+  const handlePress = useCallback(() => {
+    onSelect(item)
+  }, [onSelect, item])
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isInactive }}
+      accessibilityLabel={phone ? `${item.name}, ${phone}` : item.name}
+      disabled={isInactive}
+      onPress={handlePress}
+      className="mb-3 overflow-hidden rounded-2xl border border-outline-variant bg-white"
+      style={({ pressed }) => ({
+        opacity: isInactive ? 0.5 : 1,
+        backgroundColor: pressed ? COLORS.primary.fixed : '#fff',
+        borderColor: pressed ? accentColor + '60' : undefined,
+      })}
+    >
+      <View className="flex-row items-center gap-5 px-6 py-5">
+        {/* Avatar icon */}
+        <View
+          className="h-[72px] w-[72px] items-center justify-center rounded-2xl"
+          style={{ backgroundColor: avatarBg }}
+        >
+          <AvatarIcon size={34} color={accentColor} strokeWidth={2} />
+        </View>
+
+        {/* Info */}
+        <View className="min-w-0 flex-1">
+          {/* Tên */}
+          <Text
+            className={`mb-2 text-2xl font-extrabold ${
+              isInactive ? 'text-surface-on-variant line-through' : 'text-surface-on'
+            }`}
+            numberOfLines={1}
+          >
+            {item.name}
+          </Text>
+
+          {/* Pills: Mã + SĐT */}
+          <View className="flex-row flex-wrap items-center gap-2.5">
+            <View className="flex-row items-center gap-1.5 rounded-lg bg-surface-100 py-1.5 pr-3">
+              <Hash size={14} color={COLORS.surface.onVariant} strokeWidth={2.5} />
+              <Text className="text-sm font-bold text-surface-on-variant">{item.code}</Text>
+            </View>
+            {!!phone && (
+              <View
+                className="flex-row items-center gap-1.5 rounded-lg px-3 py-1.5"
+                style={{ backgroundColor: accentColor + '15' }}
+              >
+                <Phone size={14} color={accentColor} strokeWidth={2.5} />
+                <Text style={{ color: accentColor, fontSize: 14, fontWeight: '700' }}>{phone}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Trailing: status hoặc chevron */}
+        {isInactive && (
+          <View className="rounded-full bg-error/10 px-4 py-2">
+            <Text className="text-sm font-extrabold uppercase text-error">Dừng hoạt động</Text>
+          </View>
+        )}
+      </View>
+    </Pressable>
+  )
+})
+
+const AffiliatesEmptyState = memo(function AffiliatesEmptyState({
+  searchText,
+}: {
+  searchText: string
+}) {
+  const isSearching = !!searchText.trim()
+  return (
+    <View className="items-center px-6 py-16">
+      <View className="mb-5 h-20 w-20 items-center justify-center rounded-full bg-surface-100">
+        <Search size={36} color={COLORS.muted} />
+      </View>
+      <Text className="text-center text-2xl font-bold text-surface-on">
+        {isSearching ? 'Không tìm thấy' : 'Bắt đầu tìm kiếm'}
+      </Text>
+      <Text className="mt-2.5 text-center text-lg leading-6 text-surface-on-variant">
+        {isSearching
+          ? `Không có kết quả cho "${searchText.trim()}"`
+          : 'Nhập tên, mã hoặc SĐT để chọn người gắn phiên'}
+      </Text>
+    </View>
+  )
+})
 
 export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function AddTabSheet(
   { onSelect },
@@ -94,12 +200,20 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
     [onSelect],
   )
 
+  const renderAffiliateItem = useCallback(
+    ({ item }: { item: Affiliate }) => (
+      <AffiliateItemRow item={item} onSelect={handleSelectAffiliate} />
+    ),
+    [handleSelectAffiliate],
+  )
+
   const title =
     step === 'type'
       ? 'Thêm phiên bán'
       : selectedAgentType === 'agent'
         ? 'Chọn Đối tác'
         : 'Chọn cộng tác viên'
+
   return (
     <ModalBase
       visible={visible}
@@ -216,100 +330,8 @@ export const AddTabSheet = forwardRef<AddTabSheetRef, AddTabSheetProps>(function
               data={affiliates ?? []}
               keyExtractor={(item) => item.id}
               keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => {
-                const isInactive = !item.isActive
-                const isAgent = item.agentType === 'agent'
-                const phone = item.phone?.trim()
-
-                const accentColor = isAgent ? '#B45309' : COLORS.primary.default
-                const avatarBg = isAgent ? '#FEF3C7' : `${COLORS.primary.default}18`
-
-                const AvatarIcon = isAgent ? Building2 : Users
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: isInactive }}
-                    accessibilityLabel={phone ? `${item.name}, ${phone}` : item.name}
-                    disabled={isInactive}
-                    onPress={() => handleSelectAffiliate(item)}
-                    className="mb-3 overflow-hidden rounded-2xl border border-outline-variant bg-white"
-                    style={({ pressed }) => ({
-                      opacity: isInactive ? 0.5 : 1,
-                      backgroundColor: pressed ? COLORS.primary.fixed : '#fff',
-                      borderColor: pressed ? accentColor + '60' : undefined,
-                    })}
-                  >
-                    <View className="flex-row items-center gap-5 px-6 py-5">
-                      {/* Avatar icon */}
-                      <View
-                        className="h-[72px] w-[72px] items-center justify-center rounded-2xl"
-                        style={{ backgroundColor: avatarBg }}
-                      >
-                        <AvatarIcon size={34} color={accentColor} strokeWidth={2} />
-                      </View>
-
-                      {/* Info */}
-                      <View className="min-w-0 flex-1">
-                        {/* Tên */}
-                        <Text
-                          className={`mb-2 text-2xl font-extrabold ${
-                            isInactive ? 'text-surface-on-variant line-through' : 'text-surface-on'
-                          }`}
-                          numberOfLines={1}
-                        >
-                          {item.name}
-                        </Text>
-
-                        {/* Pills: Mã + SĐT */}
-                        <View className="flex-row flex-wrap items-center gap-2.5">
-                          <View className="flex-row items-center gap-1.5 rounded-lg bg-surface-100 py-1.5 pr-3">
-                            <Hash size={14} color={COLORS.surface.onVariant} strokeWidth={2.5} />
-                            <Text className="text-sm font-bold text-surface-on-variant">
-                              {item.code}
-                            </Text>
-                          </View>
-                          {!!phone && (
-                            <View
-                              className="flex-row items-center gap-1.5 rounded-lg px-3 py-1.5"
-                              style={{ backgroundColor: accentColor + '15' }}
-                            >
-                              <Phone size={14} color={accentColor} strokeWidth={2.5} />
-                              <Text style={{ color: accentColor, fontSize: 14, fontWeight: '700' }}>
-                                {phone}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-
-                      {/* Trailing: status hoặc chevron */}
-                      {isInactive && (
-                        <View className="rounded-full bg-error/10 px-4 py-2">
-                          <Text className="text-sm font-extrabold uppercase text-error">
-                            Dừng hoạt động
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </Pressable>
-                )
-              }}
-              ListEmptyComponent={
-                <View className="items-center px-6 py-16">
-                  <View className="mb-5 h-20 w-20 items-center justify-center rounded-full bg-surface-100">
-                    <Search size={36} color={COLORS.muted} />
-                  </View>
-                  <Text className="text-center text-2xl font-bold text-surface-on">
-                    {searchText.trim() ? 'Không tìm thấy' : 'Bắt đầu tìm kiếm'}
-                  </Text>
-                  <Text className="mt-2.5 text-center text-lg leading-6 text-surface-on-variant">
-                    {searchText.trim()
-                      ? `Không có kết quả cho "${searchText.trim()}"`
-                      : 'Nhập tên, mã hoặc SĐT để chọn người gắn phiên'}
-                  </Text>
-                </View>
-              }
+              renderItem={renderAffiliateItem}
+              ListEmptyComponent={<AffiliatesEmptyState searchText={searchText} />}
             />
           )}
         </View>

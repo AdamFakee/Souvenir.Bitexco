@@ -13,6 +13,7 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { ScrollView, Text, View } from 'react-native'
@@ -93,6 +94,19 @@ function buildReceiptOrder(
   }
 }
 
+// ─── Static machine (không recreate mỗi render) ───────────────────────────────
+
+const cashMachine = cashPaymentMachine.provide({
+  actions: {
+    notifyError: ({ context }) => {
+      toast.error(context.error || 'Thanh toán tiền mặt thất bại. Vui lòng thử lại!')
+    },
+    notifyCancel: () => {
+      toast.info('Giao dịch đã bị hủy')
+    },
+  },
+})
+
 /**
  * Popup thanh toán tiền mặt — driven by `cashPaymentMachine`.
  */
@@ -119,41 +133,44 @@ export const CashPaymentPopup = memo(
       const [cashTendered, setCashTendered] = useState('')
 
       const roundedTotal = roundCashAmount(total)
-      const subtotal = calculateSubtotal(items)
 
-      // Khởi tạo actor với toàn bộ context
-      const actorRef = useActorRef(
-        cashPaymentMachine.provide({
-          actions: {
-            notifyError: ({ context }) => {
-              toast.error(context.error || 'Thanh toán tiền mặt thất bại. Vui lòng thử lại!')
-            },
-            notifyCancel: () => {
-              toast.info('Giao dịch đã bị hủy')
-            },
-          },
+      // Cache tính toán
+      const totals = useMemo(
+        () => ({
+          subtotal: calculateSubtotal(items),
+          tax: calculateTotalTax(items, appliedVoucher),
         }),
-        {
-          input: {
-            total: roundedTotal,
-            discount,
-            items,
-            staffId,
-            shiftId,
-            sessionId: shiftId || 'unknown', // shiftId = cashSessionId UUID từ server
-            appliedVoucher: appliedVoucher || null,
-            printRef,
-            affiliateId: affiliate?.id ?? null,
-            agentType: affiliate?.agentType ?? null,
-            note: note || null,
-          },
-        },
+        [items, appliedVoucher],
       )
 
-      // Selector cho các trạng thái cần reactive
-      const machineState = useSelector(actorRef, (s) => s.value)
-      const error = useSelector(actorRef, (s) => s.context.error)
-      const retryCount = useSelector(actorRef, (s) => s.context.retryCount)
+      // Khởi tạo actor với machine tĩnh
+      const actorRef = useActorRef(cashMachine, {
+        input: {
+          total: roundedTotal,
+          discount,
+          items,
+          staffId,
+          shiftId,
+          sessionId: shiftId || 'unknown',
+          appliedVoucher: appliedVoucher || null,
+          printRef,
+          affiliateId: affiliate?.id ?? null,
+          agentType: affiliate?.agentType ?? null,
+          note: note || null,
+        },
+      })
+
+      // Gộp selector
+      const ctx = useSelector(actorRef, (s) => ({
+        state: s.value,
+        error: s.context.error,
+        retryCount: s.context.retryCount,
+        savedOrder: s.context.savedOrder,
+        amountTendered: s.context.amountTendered,
+        machineTotal: s.context.total,
+      }))
+
+      const { state: machineState, error, retryCount, savedOrder } = ctx
 
       const isProcessing =
         machineState === 'savingOrder' ||
@@ -163,113 +180,53 @@ export const CashPaymentPopup = memo(
       const isSuccess = machineState === 'success'
 
       // Kiểm tra guard
-      const savedOrder = useSelector(actorRef, (s) => s.context.savedOrder)
-      const canConfirm = useSelector(actorRef, (s) => {
-        const { amountTendered, total } = s.context
-        return amountTendered >= roundCashAmount(total) && amountTendered > 0
-      })
+      const canConfirm =
+        ctx.amountTendered >= roundCashAmount(ctx.machineTotal) && ctx.amountTendered > 0
       const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
 
-      // Khi machine đến success → gọi onSuccess và đóng popup
-      useEffect(() => {
-        if (!isSuccess || !visible) return
-
-        const paid = Number(cashTendered)
-        const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
-        const tax = calculateTotalTax(items, appliedVoucher)
-
-        ViceService.paymentSuccess({
-          subtotal,
-          discount,
-          tax,
-          total: roundedTotal,
-          customerPaid: paid,
-          change: changeAmt,
-        })
-
-        setVisible(false)
-        onSuccess({
-          success: true,
-          method: 'cash',
-          paidAmount: paid,
-          change: changeAmt,
-          isOnline: savedOrder?.source === 'online',
-        })
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [isSuccess, visible])
-
-      useImperativeHandle(ref, () => ({
-        open: () => {
-          setCashTendered('')
-          setVisible(true)
-
-          const freshInput = {
-            total: roundedTotal,
-            discount,
-            items,
-            staffId,
-            shiftId,
-            sessionId: shiftId || 'unknown',
-            appliedVoucher: appliedVoucher || null,
-            printRef,
-            affiliateId: affiliate?.id ?? null,
-            agentType: affiliate?.agentType ?? null,
-            note: note || null,
-          }
-
-          // Khởi động lại machine với dữ liệu mới nhất
-          actorRef.send({ type: 'START', input: freshInput })
-
-          const subtotal = calculateSubtotal(items)
-          const tax = calculateTotalTax(items, appliedVoucher)
-          ViceService.showCashPayment({
-            subtotal,
-            discount,
-            tax,
-            total: roundedTotal,
-            customerPaid: 0,
-            change: 0,
-          })
-        },
-        close: () => {
-          setVisible(false)
-          actorRef.send({ type: 'CANCEL' })
-        },
-      }))
-
-      // Cập nhật giá trị vào Machine lập tức để tránh delay nút Hoàn tất
+      // Gộp effect ViceService
       useEffect(() => {
         if (!visible) return
-        const paid = Number(cashTendered) || 0
-        actorRef.send({ type: 'SET_AMOUNT', amount: paid })
-      }, [cashTendered, visible])
 
-      // Debounce cập nhật Vice Screen
-      useEffect(() => {
-        if (!visible) return
-        const timer = setTimeout(() => {
-          const paid = Number(cashTendered) || 0
+        if (isSuccess) {
+          const paid = Number(cashTendered)
           const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
-          const subtotal = calculateSubtotal(items)
-          const tax = calculateTotalTax(items, appliedVoucher)
-          ViceService.showCashPayment({
-            subtotal,
+
+          ViceService.paymentSuccess({
+            subtotal: totals.subtotal,
             discount,
-            tax,
+            tax: totals.tax,
             total: roundedTotal,
             customerPaid: paid,
             change: changeAmt,
           })
-        }, 300)
-        return () => clearTimeout(timer)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [cashTendered, roundedTotal, visible])
 
-      // Trả màn hình phụ về Home khi đóng popup tiền mặt (hủy giao dịch)
+          setVisible(false)
+          onSuccess({
+            success: true,
+            method: 'cash',
+            paidAmount: paid,
+            change: changeAmt,
+            isOnline: savedOrder?.source === 'online',
+          })
+        } else {
+          const paid = Number(cashTendered) || 0
+          const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
+          ViceService.showCashPayment({
+            subtotal: totals.subtotal,
+            discount,
+            tax: totals.tax,
+            total: roundedTotal,
+            customerPaid: paid,
+            change: changeAmt,
+          })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [visible, isSuccess, cashTendered, roundedTotal, discount, totals.subtotal, totals.tax])
+
+      // Trả màn hình phụ về Home khi đóng popup
       useEffect(() => {
         if (!visible && !isSuccess) {
-          const subtotal = calculateSubtotal(items)
-          const tax = calculateTotalTax(items, appliedVoucher)
           ViceService.updateCart({
             items: items.map((i) => ({
               id: i.id,
@@ -277,13 +234,74 @@ export const CashPaymentPopup = memo(
               price: i.price,
               quantity: i.quantity,
             })),
-            subtotal,
+            subtotal: totals.subtotal,
             discount,
-            tax,
+            tax: totals.tax,
             total: roundedTotal,
           })
         }
-      }, [visible, isSuccess, items, discount, roundedTotal])
+      }, [visible, isSuccess, items, discount, roundedTotal, totals.subtotal, totals.tax])
+
+      useImperativeHandle(
+        ref,
+        () => ({
+          open: () => {
+            setCashTendered('')
+            setVisible(true)
+
+            const freshInput = {
+              total: roundedTotal,
+              discount,
+              items,
+              staffId,
+              shiftId,
+              sessionId: shiftId || 'unknown',
+              appliedVoucher: appliedVoucher || null,
+              printRef,
+              affiliateId: affiliate?.id ?? null,
+              agentType: affiliate?.agentType ?? null,
+              note: note || null,
+            }
+
+            actorRef.send({ type: 'START', input: freshInput })
+
+            ViceService.showCashPayment({
+              subtotal: totals.subtotal,
+              discount,
+              tax: totals.tax,
+              total: roundedTotal,
+              customerPaid: 0,
+              change: 0,
+            })
+          },
+          close: () => {
+            setVisible(false)
+            actorRef.send({ type: 'CANCEL' })
+          },
+        }),
+        // Chỉ giữ các ref-stable dependencies
+        [
+          roundedTotal,
+          discount,
+          items,
+          staffId,
+          shiftId,
+          appliedVoucher,
+          printRef,
+          affiliate,
+          note,
+          actorRef,
+          totals.subtotal,
+          totals.tax,
+        ],
+      )
+
+      // Cập nhật giá trị vào Machine
+      useEffect(() => {
+        if (!visible) return
+        const paid = Number(cashTendered) || 0
+        actorRef.send({ type: 'SET_AMOUNT', amount: paid })
+      }, [cashTendered, visible, actorRef])
 
       const handleNumpadPress = useCallback((digit: string) => {
         setCashTendered((prev) => {
@@ -302,18 +320,18 @@ export const CashPaymentPopup = memo(
         setCashTendered('')
       }, [])
 
-      const handleClose = () => {
+      const handleClose = useCallback(() => {
         actorRef.send({ type: 'CANCEL' })
         setVisible(false)
-      }
+      }, [actorRef])
 
-      const handleConfirm = () => {
+      const handleConfirm = useCallback(() => {
         actorRef.send({ type: 'CONFIRM' })
-      }
+      }, [actorRef])
 
-      const handleRetry = () => {
+      const handleRetry = useCallback(() => {
         actorRef.send({ type: 'RETRY' })
-      }
+      }, [actorRef])
 
       const suggestions = useMemo<number[]>(() => {
         return getCashSuggestions(roundedTotal, cashTendered)
@@ -326,7 +344,7 @@ export const CashPaymentPopup = memo(
           items,
           cashTendered,
           roundedTotal,
-          subtotal,
+          totals.subtotal,
           discount,
           staffId,
           shiftId,
@@ -337,7 +355,7 @@ export const CashPaymentPopup = memo(
         items,
         cashTendered,
         roundedTotal,
-        subtotal,
+        totals.subtotal,
         discount,
         staffId,
         shiftId,

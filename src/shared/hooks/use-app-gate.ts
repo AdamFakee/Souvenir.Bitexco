@@ -56,5 +56,5 @@ export const useAppGate = () => {
         if (!inTabGroup && !inExchange) router.replace(ROUTES.POS.path())
         break
     }
-  }, [stateValue, segment0, segment1, rootNavigationState?.key, appService, router])
+  }, [stateValue, segment0, segment1, appService, router])
 }

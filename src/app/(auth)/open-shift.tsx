@@ -1,7 +1,7 @@
 import { Button, Numpad } from '@/shared/components/ui'
 import { LogoSkystore } from '@/shared/components/ui/icons'
 import { COLORS, ROUTES } from '@/shared/constants'
-import { useAppContext, useAppStore } from '@/shared/features/app'
+import { useAppStore, useDevice, useEmployee } from '@/shared/features/app'
 import { AuthAPI, BG_MAIN } from '@/shared/features/auth'
 import { toast, useAlertStore } from '@/shared/store'
 import { formatVND } from '@/shared/utils'
@@ -13,7 +13,8 @@ import { useOpenStaffShift } from '../../shared/features/shift'
 
 export default function OpenShift() {
   const router = useRouter()
-  const { employee, device } = useAppContext()
+  const employee = useEmployee()
+  const device = useDevice()
   const [amountStr, setAmountStr] = useState('5000000') // MẶC ĐỊNH: TIỀN VÀO CA 5 TRIỆU
 
   const { openStaffShift, isLoading } = useOpenStaffShift()

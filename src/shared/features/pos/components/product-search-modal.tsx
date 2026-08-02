@@ -5,7 +5,7 @@ import { useProducts } from '@/shared/features/product'
 import { ProductModel } from '@/shared/lib/database/models'
 import { FlashList } from '@shopify/flash-list'
 import { ShoppingBasket, X } from 'lucide-react-native'
-import React, { useImperativeHandle, useState } from 'react'
+import React, { useCallback, useImperativeHandle, useState } from 'react'
 import { Dimensions, Text, TouchableOpacity, View } from 'react-native'
 import { useActiveCart } from '../hooks'
 import { usePosStore } from '../store/use-pos-store'
@@ -21,6 +21,8 @@ interface ProductSearchModalProps {
   ref?: React.Ref<ProductSearchModalRef>
 }
 
+const ItemSeparator = () => <View style={{ width: 16, height: 16 }} />
+
 export function ProductSearchModal({ ref }: ProductSearchModalProps) {
   const [visible, setVisible] = useState(false)
 
@@ -33,10 +35,13 @@ export function ProductSearchModal({ ref }: ProductSearchModalProps) {
   const selectedCategoryId = usePosStore((state) => state.selectedCategoryId)
   const searchQuery = usePosStore((state) => state.searchQuery)
 
-  const addToCart = (product: ProductModel) => {
-    cartActor?.send({ type: 'ADD_ITEM', product })
-    setVisible(false)
-  }
+  const addToCart = useCallback(
+    (product: ProductModel) => {
+      cartActor?.send({ type: 'ADD_ITEM', product })
+      setVisible(false)
+    },
+    [cartActor],
+  )
 
   const { categories } = useCategories()
 
@@ -48,6 +53,17 @@ export function ProductSearchModal({ ref }: ProductSearchModalProps) {
   const categoryName = selectedCategoryId
     ? categories.find((c) => c.id === selectedCategoryId)?.name
     : 'Tất cả sản phẩm'
+
+  const renderProductCard = useCallback(
+    ({ item }: { item: ProductModel }) => <ProductCard item={item} addToCart={addToCart} />,
+    [addToCart],
+  )
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage()
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
     <ModalBase
@@ -96,17 +112,13 @@ export function ProductSearchModal({ ref }: ProductSearchModalProps) {
               data={products}
               keyExtractor={(item) => item.id}
               numColumns={6}
-              ItemSeparatorComponent={() => <View style={{ width: 16, height: 16 }} />}
+              ItemSeparatorComponent={ItemSeparator}
               showsHorizontalScrollIndicator={false}
               showsVerticalScrollIndicator={false}
-              onEndReached={() => {
-                if (hasNextPage && !isFetchingNextPage) {
-                  fetchNextPage()
-                }
-              }}
+              onEndReached={handleEndReached}
               onEndReachedThreshold={0.3}
               ListFooterComponent={<LoadMore isLoading={isFetchingNextPage} />}
-              renderItem={({ item }) => <ProductCard item={item} addToCart={addToCart} />}
+              renderItem={renderProductCard}
             />
           )}
         </View>

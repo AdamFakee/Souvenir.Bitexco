@@ -1,6 +1,7 @@
 import { HardwareBarcodeScanner } from '@/shared/components/common/hardware-barcode-scanner'
+import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
 import { COLORS } from '@/shared/constants'
-import { useAppContext } from '@/shared/features/app'
+import { useCashSessionId } from '@/shared/features/app'
 import CheckoutPanel from '@/shared/features/pos/components/checkout-panel'
 import OrderListSession from '@/shared/features/pos/components/order-list-session'
 import { useScanLookup } from '@/shared/features/pos/hooks/use-scan-lookup'
@@ -9,8 +10,10 @@ import React from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-export default function PosScreen() {
-  const { cashSessionId } = useAppContext()
+import { PosSkeleton } from '@/shared/features/pos/components/pos-skeleton'
+
+function PosContent() {
+  const cashSessionId = useCashSessionId()
   const isShiftOpen = cashSessionId !== null
   const { handleScan } = useScanLookup()
 
@@ -27,7 +30,7 @@ export default function PosScreen() {
   }
 
   return (
-    <SafeAreaView className="px flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>
       <HardwareBarcodeScanner onScan={handleScan} />
 
       <View className="flex-1 flex-col gap-3" style={{ zIndex: 1 }}>
@@ -48,4 +51,8 @@ export default function PosScreen() {
       </View>
     </SafeAreaView>
   )
+}
+
+export default function PosScreen() {
+  return <LazyTabShell Content={PosContent} skeleton={<PosSkeleton />} />
 }

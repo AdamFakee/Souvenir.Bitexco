@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 import { IOrder } from '../types'
 
-import { useAppContext } from '@/shared/features/app'
+import { useDevice, useEmployee } from '@/shared/features/app'
 import { DashedLine, ReceiptWrapper, S } from './receipt-wrapper'
 
 interface BitexcoReceiptTemplateProps {
@@ -30,7 +30,8 @@ export const BitexcoReceiptTemplate = ({
   staffName,
   copyNumber = 1,
 }: BitexcoReceiptTemplateProps) => {
-  const { employee, device } = useAppContext()
+  const employee = useEmployee()
+  const device = useDevice()
   const [resolvedStaffName, setResolvedStaffName] = useState(staffName)
 
   useEffect(() => {

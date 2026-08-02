@@ -1,4 +1,4 @@
-import { useAppContext } from '@/shared/features/app'
+import { useEmployee } from '@/shared/features/app'
 import React, { memo, useCallback, useEffect } from 'react'
 import { View } from 'react-native'
 import { useOrderFilterStore } from '../store'
@@ -23,7 +23,7 @@ export const OrderFilterBar = memo(function OrderFilterBar({
   const setDateFrom = useOrderFilterStore((s) => s.setDateFrom)
   const dateTo = useOrderFilterStore((s) => s.dateTo)
   const setDateTo = useOrderFilterStore((s) => s.setDateTo)
-  const { employee } = useAppContext()
+  const employee = useEmployee()
 
   // Mặc định chọn nhân viên hiện tại một lần duy nhất hoặc khi đổi tài khoản
   useEffect(() => {

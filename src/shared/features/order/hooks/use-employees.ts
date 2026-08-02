@@ -1,4 +1,4 @@
-import { useAppContext } from '@/shared/features/app'
+import { useEmployee } from '@/shared/features/app'
 import { EmployeeItem, StaffRemoteAPI } from '@/shared/features/auth/api/remote'
 import { useIsFocused } from '@react-navigation/native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -12,11 +12,11 @@ export interface UseEmployeesParams {
 }
 
 /**
- * Hook lấy danh sách nhân viên.
- * - Có thể nhận shiftId (string) hoặc bộ lọc params (UseEmployeesParams)
+ * Hook lay danh sach nhan vien.
+ * - Co the nhan shiftId (string) hoac bo loc params (UseEmployeesParams)
  */
 export const useEmployees = (paramsOrShiftId?: string | UseEmployeesParams) => {
-  const { employee } = useAppContext()
+  const employee = useEmployee()
   const queryClient = useQueryClient()
   const isFocused = useIsFocused()
 
@@ -34,7 +34,7 @@ export const useEmployees = (paramsOrShiftId?: string | UseEmployeesParams) => {
     networkMode: 'always',
   })
 
-  // Gọi lại API khi chuyển sang tab chứa component này
+  // Goi lai API khi chuyen sang tab chua component nay
   useEffect(() => {
     if (isFocused) {
       console.log(
@@ -45,7 +45,7 @@ export const useEmployees = (paramsOrShiftId?: string | UseEmployeesParams) => {
     }
   }, [isFocused, query.refetch, paramsKey])
 
-  // Chỉ invalidate khi đổi NV thật — không storm mỗi mount dashboard/orders
+  // Chi invalidate khi doi NV that - khong storm moi mount dashboard/orders
   const lastEmpRef = useRef<string | null>(null)
   useEffect(() => {
     if (!employee?.id) return

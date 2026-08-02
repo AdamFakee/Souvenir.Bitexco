@@ -11,8 +11,8 @@ import { IOrder } from '../types'
 import {
   checkCanExchange,
   checkCanReturn,
-  getOrderDisplayStatus,
   formatReceiptCode,
+  getOrderDisplayStatus,
 } from '../utils'
 
 interface OrderListProps {
@@ -295,14 +295,14 @@ const OrderRow = memo(
   function OrderRow({
     display,
     index,
-    onPress,
+    onOpenDetails,
     onExchange,
     onRefund,
     hideCollaborator,
   }: {
     display: OrderDisplay
     index: number
-    onPress: () => void
+    onOpenDetails: (order: IOrder) => void
     onExchange?: (order: IOrder) => void
     onRefund?: (order: IOrder) => void
     hideCollaborator?: boolean
@@ -312,9 +312,11 @@ const OrderRow = memo(
     const canExchange = checkCanExchange(order)
     const canReturn = checkCanReturn(order)
 
+    const handlePress = useCallback(() => onOpenDetails(order), [onOpenDetails, order])
+
     return (
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
         className="flex-row items-center active:opacity-70"
         style={{
           minHeight: 62,
@@ -436,7 +438,11 @@ const OrderRow = memo(
   (prev, next) =>
     prev.display.id === next.display.id &&
     prev.display.updatedAt === next.display.updatedAt &&
-    prev.index === next.index,
+    prev.index === next.index &&
+    prev.onOpenDetails === next.onOpenDetails &&
+    prev.onExchange === next.onExchange &&
+    prev.onRefund === next.onRefund &&
+    prev.hideCollaborator === next.hideCollaborator,
 )
 
 // ── Skeleton ──
@@ -568,18 +574,20 @@ export const OrderList = memo(function OrderList({
     return list
   }, [orders, sortField, sortDir])
 
+  const hideCollaborator = mode === 'pos'
+
   const renderItem = useCallback(
     ({ item, index }: { item: OrderDisplay; index: number }) => (
       <OrderRow
         display={item}
         index={index}
-        onPress={() => onOpenDetails(item._order)}
+        onOpenDetails={onOpenDetails}
         onExchange={onExchange}
         onRefund={onRefund}
-        hideCollaborator={mode === 'pos'}
+        hideCollaborator={hideCollaborator}
       />
     ),
-    [onOpenDetails, onExchange, onRefund, mode],
+    [onOpenDetails, onExchange, onRefund, hideCollaborator],
   )
 
   const keyExtractor = useCallback((item: OrderDisplay) => item.id, [])

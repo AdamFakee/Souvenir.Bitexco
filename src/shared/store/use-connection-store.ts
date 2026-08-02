@@ -28,16 +28,19 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       const connected = statusCode === 0
 
       const prevConnected = get().isPosConnected
-      set({ isPosConnected: connected, isCheckingPosConnection: false })
+      // Chỉ update state khi giá trị thay đổi — tránh re-render vô ích
+      if (prevConnected !== connected) {
+        set({ isPosConnected: connected, isCheckingPosConnection: false })
+      } else {
+        set({ isCheckingPosConnection: false })
+      }
 
       if (prevConnected !== connected) {
         if (prevConnected === null) {
-          // Lần kiểm tra đầu tiên khi khởi chạy ứng dụng
           if (!connected) {
             // toast.error('Không tìm thấy máy POS thanh toán. Vui lòng kiểm tra lại!', 'Lỗi thiết bị')
           }
         } else {
-          // Các lần thay đổi trạng thái tiếp theo
           if (!connected) {
             // toast.error('Mất kết nối máy POS thanh toán!', 'Lỗi kết nối')
           } else {
@@ -82,15 +85,12 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
             toast.error('Mất kết nối mạng internet!', 'Lỗi kết nối')
           } else {
             toast.success('Đã khôi phục kết nối mạng internet!', 'Kết nối thành công')
-            // Khi mạng phục hồi → notify machine để revalidate token/session với server
-            // (trường hợp app khởi động khi offline → restoreOffline → giờ online)
             const appService =
               require('@/shared/features/app/store/use-app-store').useAppStore.getState().appService
             appService?.send({ type: 'NETWORK_RESTORED' })
           }
         }
 
-        // Tự động đồng bộ các đơn hàng offline ngầm khi thiết bị có kết nối mạng
         if (isConnected) {
           try {
             toast.success('Đã khôi phục!', 'Kết nối thành công')
@@ -104,12 +104,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     // 2. Chạy check kết nối POS ban đầu
     get().checkPosConnection()
 
-    // 3. Thiết lập vòng lặp kiểm tra kết nối POS định kỳ mỗi 15 giây
+    // 3. Thiết lập vòng lặp kiểm tra kết nối POS định kỳ mỗi 60 giây
     const intervalId = setInterval(() => {
       get().checkPosConnection()
-    }, 15000)
+    }, 60000)
 
-    // Trả về hàm hủy đăng ký các listener và dọn dẹp timer
     return () => {
       unsubscribeNet()
       clearInterval(intervalId)

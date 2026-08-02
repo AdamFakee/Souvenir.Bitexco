@@ -5,12 +5,10 @@ import {
   type PaymentMethodCode,
 } from '@/shared/features/payment/types/payment.constants'
 import { formatCurrency } from '@/shared/utils'
-import React, { memo, useEffect, useMemo, useState } from 'react'
+import { PieChart } from 'react-native-gifted-charts'
+import React, { memo, useMemo } from 'react'
 import { Text, View } from 'react-native'
 import type { DashboardOverviewResponse } from '../types'
-
-// Chart lib nặng — import động sau first paint
-let PieChart: React.ComponentType<any> | null = null
 
 interface PaymentMethodsPanelProps {
   overview: DashboardOverviewResponse | null
@@ -33,34 +31,33 @@ function ChartSkeleton() {
   )
 }
 
+// Tách thành component riêng → stable ref, PieChart không nhận prop mới mỗi render
+const CenterLabel = memo(function CenterLabel({
+  revenueText,
+  dynamicSize,
+}: {
+  revenueText: string
+  dynamicSize: number
+}) {
+  return (
+    <View className="w-[192px] items-center justify-center bg-white px-2">
+      <Text
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        style={{ fontSize: dynamicSize, color: '#111827' }}
+        className="text-center font-black"
+      >
+        {revenueText}
+      </Text>
+      <Text className="mt-1.5 text-[18px] font-bold text-[#6b7280]">Tổng cộng</Text>
+    </View>
+  )
+})
+
 export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
   overview,
   isLoading,
 }: PaymentMethodsPanelProps) {
-  const [chartReady, setChartReady] = useState(!!PieChart)
-
-  useEffect(() => {
-    if (PieChart) {
-      setChartReady(true)
-      return
-    }
-    let cancelled = false
-    // Defer module eval — không block first paint tab báo cáo
-    const id = requestAnimationFrame(() => {
-      import('react-native-gifted-charts')
-        .then((mod) => {
-          if (cancelled) return
-          PieChart = mod.PieChart
-          setChartReady(true)
-        })
-        .catch(() => {})
-    })
-    return () => {
-      cancelled = true
-      cancelAnimationFrame(id)
-    }
-  }, [])
-
   const mapped = useMemo(() => {
     if (!overview?.paymentMethods) return []
     const defaultColors = ['#6366f1', '#f97316', '#0ea5e9', '#ec4899', '#8b5cf6']
@@ -120,7 +117,6 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
 
   const revenueText = formatCurrency(overview.totalRevenue)
   const dynamicSize = revenueText.length > 15 ? 17 : revenueText.length > 11 ? 23 : 34
-  const Chart = PieChart
 
   return (
     <View
@@ -133,30 +129,16 @@ export const PaymentMethodsPanel = memo(function PaymentMethodsPanel({
         </View>
 
         <View className="my-2 items-center justify-center">
-          {chartReady && Chart ? (
-            <Chart
-              data={pieData}
-              donut
-              radius={144}
-              innerRadius={102}
-              innerCircleColor="#ffffff"
-              centerLabelComponent={() => (
-                <View className="w-[192px] items-center justify-center bg-white px-2">
-                  <Text
-                    adjustsFontSizeToFit
-                    numberOfLines={1}
-                    style={{ fontSize: dynamicSize, color: '#111827' }}
-                    className="text-center font-black"
-                  >
-                    {revenueText}
-                  </Text>
-                  <Text className="mt-1.5 text-[18px] font-bold text-[#6b7280]">Tổng cộng</Text>
-                </View>
-              )}
-            />
-          ) : (
-            <ChartSkeleton />
-          )}
+          <PieChart
+            data={pieData}
+            donut
+            radius={144}
+            innerRadius={102}
+            innerCircleColor="#ffffff"
+            centerLabelComponent={() => (
+              <CenterLabel revenueText={revenueText} dynamicSize={dynamicSize} />
+            )}
+          />
         </View>
       </View>
 

@@ -1,11 +1,63 @@
 import { EmptyState, LoadMore, SearchInput, Shimmer } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
 import { SearchX } from 'lucide-react-native'
-import React, { useCallback, useState } from 'react'
+import React, { memo, useCallback, useState } from 'react'
 import { Keyboard, Pressable, Text, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { usePosActor, useProductSearch } from '../hooks'
 import { UnifiedProduct } from '../hooks/use-product-search'
+
+// ─── Memoized item — tránh tạo inline arrow mỗi render FlatList ───
+const ProductItem = memo(function ProductItem({
+  item: p,
+  onSelect,
+}: {
+  item: UnifiedProduct
+  onSelect: (product: UnifiedProduct) => void
+}) {
+  const priceAfterTax = Math.round(p.price)
+  const taxRate = p.taxRate ?? 0
+  const handlePress = useCallback(() => onSelect(p), [onSelect, p])
+  return (
+    <Pressable
+      onPress={handlePress}
+      className="flex-row items-center border-b border-surface-200 px-6 py-5 active:bg-surface-100"
+    >
+      {/* Tên sản phẩm */}
+      <View style={{ flex: 3 }}>
+        <Text className="text-[24px] font-bold text-surface-on" numberOfLines={2}>
+          {p.name}
+        </Text>
+      </View>
+
+      {/* SKU */}
+      <View style={{ flex: 1.5 }} className="px-2">
+        <Text className="text-[22px] font-medium text-black" numberOfLines={1}>
+          {p.sku}
+        </Text>
+      </View>
+
+      {/* Tồn kho */}
+      <View style={{ flex: 1 }} className="px-2">
+        <Text className="text-center text-[22px] font-medium text-black" numberOfLines={1}>
+          {p.stock}
+        </Text>
+      </View>
+
+      {/* Giá */}
+      <View style={{ flex: 1.5 }} className="items-end">
+        <Text className="text-right text-[26px] font-bold text-primary" numberOfLines={1}>
+          {formatCurrency(priceAfterTax)}
+        </Text>
+        {taxRate > 0 && (
+          <Text className="mt-0.5 text-right text-[17px] font-medium text-neutral-500">
+            VAT: {taxRate}%
+          </Text>
+        )}
+      </View>
+    </Pressable>
+  )
+})
 
 export function ProductSearch() {
   const posActor = usePosActor()
@@ -31,50 +83,7 @@ export function ProductSearch() {
   }, [])
 
   const renderProductItem = useCallback(
-    ({ item: p }: { item: UnifiedProduct }) => {
-      const priceAfterTax = Math.round(p.price)
-      const taxRate = p.taxRate ?? 0
-      return (
-        <Pressable
-          key={p.id}
-          onPress={() => handleSelectItem(p)}
-          className="flex-row items-center border-b border-surface-200 px-6 py-5 active:bg-surface-100"
-        >
-          {/* Tên sản phẩm */}
-          <View style={{ flex: 3 }}>
-            <Text className="text-[24px] font-bold text-surface-on" numberOfLines={2}>
-              {p.name}
-            </Text>
-          </View>
-
-          {/* SKU */}
-          <View style={{ flex: 1.5 }} className="px-2">
-            <Text className="text-[22px] font-medium text-black" numberOfLines={1}>
-              {p.sku}
-            </Text>
-          </View>
-
-          {/* Tồn kho */}
-          <View style={{ flex: 1 }} className="px-2">
-            <Text className="text-center text-[22px] font-medium text-black" numberOfLines={1}>
-              {p.stock}
-            </Text>
-          </View>
-
-          {/* Giá */}
-          <View style={{ flex: 1.5 }} className="items-end">
-            <Text className="text-right text-[26px] font-bold text-primary" numberOfLines={1}>
-              {formatCurrency(priceAfterTax)}
-            </Text>
-            {taxRate > 0 && (
-              <Text className="mt-0.5 text-right text-[17px] font-medium text-neutral-500">
-                VAT: {taxRate}%
-              </Text>
-            )}
-          </View>
-        </Pressable>
-      )
-    },
+    ({ item }: { item: UnifiedProduct }) => <ProductItem item={item} onSelect={handleSelectItem} />,
     [handleSelectItem],
   )
 

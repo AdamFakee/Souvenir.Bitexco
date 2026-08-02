@@ -7,7 +7,15 @@ import { OrderStatus } from '@/shared/lib/database'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
-import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Text, View } from 'react-native'
 import { debtPaymentMachine } from '../machines/debt-payment.machine'
 import type {
@@ -94,12 +102,14 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
   ) {
     const [visible, setVisible] = useState(false)
 
-    const maxAllowedDebt = React.useMemo(() => {
+    const maxAllowedDebt = useMemo(() => {
       if (!affiliate) return null
       return affiliate.remainingCredit !== undefined && affiliate.remainingCredit !== null
         ? affiliate.remainingCredit
         : (affiliate.creditLimit ?? null)
     }, [affiliate])
+
+    const subtotal = useMemo(() => calculateSubtotal(items), [items])
 
     const actorRef = useActorRef(debtPaymentMachine, {
       input: {
@@ -115,11 +125,14 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       },
     })
 
-    const machineState = useSelector(actorRef, (s) => s.value)
-    const error = useSelector(actorRef, (s) => s.context.error)
-    const savedOrder = useSelector(actorRef, (s) => s.context.savedOrder)
+    // Gộp selector
+    const ctx = useSelector(actorRef, (s) => ({
+      state: s.value,
+      error: s.context.error,
+      savedOrder: s.context.savedOrder,
+    }))
 
-    const subtotal = React.useMemo(() => calculateSubtotal(items), [items])
+    const { state: machineState, error, savedOrder } = ctx
 
     const isCheckingOut =
       machineState === 'checkingOut' ||
@@ -130,7 +143,6 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
     useImperativeHandle(ref, () => ({
       open: () => {
-        // Reset machine với input mới mỗi lần mở — không giữ state cũ
         actorRef.send({
           type: 'START',
           input: {
@@ -150,8 +162,7 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
       close: () => setVisible(false),
     }))
 
-    const handleConfirm = () => {
-      // Đang checkout / đã xong → chặn bấm lần 2
+    const handleConfirm = useCallback(() => {
       if (isCheckingOut || isDone) return
       if (affiliate?.agentType === 'agent' && maxAllowedDebt !== null) {
         if (total > maxAllowedDebt) {
@@ -163,12 +174,12 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         }
       }
       actorRef.send({ type: 'CONFIRM' })
-    }
+    }, [isCheckingOut, isDone, affiliate, maxAllowedDebt, total, actorRef])
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
       if (isCheckingOut) return
       setVisible(false)
-    }
+    }, [isCheckingOut])
 
     const doneHandled = useRef(false)
 
@@ -192,7 +203,6 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
     useEffect(() => {
       if (isError && error) {
-        // Thay vì toast.error thông thường, dùng toast.infoPopup nếu là lỗi vượt hạn mức từ server
         if (
           error.startsWith('order.credit_limit_exceeded') ||
           error.includes('hạn mức') ||

@@ -4,7 +4,7 @@ import QRIcon from '@/assets/icons/QR.svg'
 import { ViceService } from '@/screens/vice-service'
 import { Button, ControlledInput, ModalBase, Numpad, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppContext } from '@/shared/features/app/hooks/use-app-context'
+import { usePaymentMethods, useTenantConfig } from '@/shared/features/app/hooks/use-app-context'
 import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
 import { IOrder } from '@/shared/features/order/types'
 import { OrderStatus } from '@/shared/lib/database'
@@ -14,7 +14,15 @@ import { valibotResolver } from '@hookform/resolvers/valibot'
 import NetInfo from '@react-native-community/netinfo'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, CheckCircle, Clock3, CreditCard, QrCode } from 'lucide-react-native'
-import React, { forwardRef, memo, useEffect, useImperativeHandle, useState } from 'react'
+import React, {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react'
 import { useForm } from 'react-hook-form'
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
@@ -129,28 +137,35 @@ export const MixPaymentPopup = memo(
       const [showManualForm, setShowManualForm] = useState(false)
       const [timeLeftSecs, setTimeLeftSecs] = useState<number | null>(null)
 
-      const timeLeft = React.useMemo(() => {
+      const timeLeft = useMemo(() => {
         if (timeLeftSecs === null) return '--:--'
         const mins = Math.floor(timeLeftSecs / 60)
         const secs = timeLeftSecs % 60
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
       }, [timeLeftSecs])
-      const { tenantConfig, paymentMethods } = useAppContext()
+      const tenantConfig = useTenantConfig()
+      const paymentMethods = usePaymentMethods()
       const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
       const isPosConnected = useConnectionStore((s) => s.isPosConnected)
 
-      const qrLabel = React.useMemo(() => {
+      const qrLabel = useMemo(() => {
         const method = paymentMethods?.find((m) => m.code === 'qr_bidv')
         return method?.enabled ? method.name : 'QRCode'
       }, [paymentMethods])
 
-      const cardLabel = React.useMemo(() => {
+      const cardLabel = useMemo(() => {
         const method = paymentMethods?.find((m) => m.code === 'card_bidv')
         return method?.enabled ? method.name : 'Thẻ (POS)'
       }, [paymentMethods])
 
-      const subtotal = calculateSubtotal(items)
-      const tax = calculateTotalTax(items, appliedVoucher)
+      // Cache tính toán
+      const totals = useMemo(
+        () => ({
+          subtotal: calculateSubtotal(items),
+          tax: calculateTotalTax(items, appliedVoucher),
+        }),
+        [items, appliedVoucher],
+      )
 
       const actorRef = useActorRef(mixPaymentMachine, {
         input: {
@@ -168,23 +183,43 @@ export const MixPaymentPopup = memo(
         },
       })
 
-      const machineState = useSelector(actorRef, (s) => s.value)
-      const context = useSelector(actorRef, (s) => s.context)
+      // Gộp selector
+      const ctx = useSelector(actorRef, (s) => ({
+        state: s.value,
+        cashAmount: s.context.cashAmount,
+        nonCashAmount: s.context.nonCashAmount,
+        selectedMethod: s.context.selectedMethod,
+        error: s.context.error,
+        errorCode: s.context.errorCode,
+        retryCount: s.context.retryCount,
+        checkoutResult: s.context.checkoutResult,
+        qrContent: s.context.qrContent,
+        expiresAt: s.context.expiresAt,
+        createdAt: s.context.createdAt,
+        managerAuthError: s.context.managerAuthError,
+        managerAuth: s.context.managerAuth,
+        canConfirm: s.can({ type: 'CONFIRM' }),
+        canRetry: s.can({ type: 'RETRY' }),
+        canCancel: s.can({ type: 'CANCEL' }),
+      }))
 
       const {
+        state: machineState,
         cashAmount,
         nonCashAmount,
         selectedMethod,
         error,
         errorCode,
         retryCount,
-        rawCommandResult,
         checkoutResult,
         qrContent,
         expiresAt,
         createdAt,
         managerAuthError,
-      } = context
+        canConfirm,
+        canRetry,
+        canCancel,
+      } = ctx
 
       const isIdle = machineState === 'idle'
       const isCreatingCheckout = machineState === 'creatingCheckout'
@@ -208,13 +243,13 @@ export const MixPaymentPopup = memo(
       const isCancelled = machineState === 'cancelled'
       const isWaitingManagerApproval = machineState === 'waitingManagerApproval'
 
-      const isQrDisabled = React.useMemo(() => {
+      const isQrDisabled = useMemo(() => {
         const method = paymentMethods?.find((m) => m.code === 'qr_bidv')
         const methodEnabled = method ? method.enabled : true
         return !isIdle || !methodEnabled || !isNetworkConnected
       }, [isIdle, paymentMethods, isNetworkConnected])
 
-      const isCardDisabled = React.useMemo(() => {
+      const isCardDisabled = useMemo(() => {
         const method = paymentMethods?.find((m) => m.code === 'card_bidv')
         const methodEnabled = method ? method.enabled : true
         return !isIdle || !methodEnabled || !isPosConnected
@@ -236,12 +271,7 @@ export const MixPaymentPopup = memo(
         isPrinting
 
       // Quick cash suggestions smaller than the total amount
-      const suggestions = getMixPaymentSuggestions(total)
-
-      // Sync state actions
-      const canConfirm = useSelector(actorRef, (s) => s.can({ type: 'CONFIRM' }))
-      const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
-      const canCancel = useSelector(actorRef, (s) => s.can({ type: 'CANCEL' }))
+      const suggestions = useMemo(() => getMixPaymentSuggestions(total), [total])
 
       // Form for manual card details capture
       const { control, handleSubmit, reset } = useForm<ManualCardDetailsFormData>({
@@ -281,21 +311,141 @@ export const MixPaymentPopup = memo(
         }
       }, [managerAuthError, setManagerError])
 
-      const onManagerSubmit = (data: ManagerApprovalFormData) => {
-        actorRef.send({
-          type: 'SUBMIT_MANAGER_PIN',
-          managerAuth: {
-            employeeCode: data.employeeCode,
-            pin: data.pin,
-          },
-        })
-      }
+      const onManagerSubmit = useCallback(
+        (data: ManagerApprovalFormData) => {
+          actorRef.send({
+            type: 'SUBMIT_MANAGER_PIN',
+            managerAuth: {
+              employeeCode: data.employeeCode,
+              pin: data.pin,
+            },
+          })
+        },
+        [actorRef],
+      )
 
-      const onManagerCancel = () => {
+      const onManagerCancel = useCallback(() => {
         resetManagerForm()
         actorRef.send({ type: 'CANCEL' })
-      }
+      }, [actorRef, resetManagerForm])
 
+      // Gộp effect ViceService
+      useEffect(() => {
+        if (!visible) return
+
+        const isCardProcessing =
+          isProcessingCard ||
+          isConnectingCard ||
+          isSendingCardCmd ||
+          isVerifyingCard ||
+          isCapturingCardInfo ||
+          isCapturingCardManual ||
+          isAuthorizingCard ||
+          isCapturingCardPayment ||
+          isManualResolution ||
+          isPaymentFailed
+
+        if (isSuccess) {
+          ViceService.paymentSuccess({
+            subtotal: totals.subtotal,
+            discount,
+            tax: totals.tax,
+            total,
+            customerPaid: total,
+            change: 0,
+          })
+          const snap = actorRef.getSnapshot()
+          const resolvedOrderId = snap.context.orderId || snap.context.sessionId
+          const resolvedBillCode = snap.context.orderCode || resolvedOrderId
+          const isOnline = snap.context.paymentResult?.isOnline ?? true
+
+          const timer = setTimeout(() => {
+            setVisible(false)
+            onSuccess({
+              success: true,
+              method: 'mix',
+              paidAmount: total,
+              change: 0,
+              referenceCode: resolvedBillCode,
+              isOnline,
+              orderId: resolvedOrderId,
+            })
+          }, 1500)
+          return () => clearTimeout(timer)
+        }
+
+        if (isPaymentFailed || isError) {
+          ViceService.showStatus(getPaymentErrorStatus(errorCode))
+        } else if (isIdle || isCreatingCheckout) {
+          ViceService.showMixPayment({
+            subtotal: totals.subtotal,
+            discount,
+            tax: totals.tax,
+            total,
+            cashPaid: cashAmount,
+            nonCashAmount,
+          })
+        } else if ((isFetchingQr || isWaitingQr) && qrContent) {
+          ViceService.showPayment({
+            qrCodeUrl: qrContent,
+            subtotal: totals.subtotal,
+            discount,
+            tax: totals.tax,
+            total: nonCashAmount,
+          })
+        } else if (selectedMethod === 'card' && isCardProcessing && !isSuccess) {
+          ViceService.showPortablePayment({ total: nonCashAmount })
+        }
+      }, [
+        visible,
+        isSuccess,
+        isIdle,
+        isCreatingCheckout,
+        isFetchingQr,
+        isWaitingQr,
+        isError,
+        isPaymentFailed,
+        isProcessingCard,
+        isConnectingCard,
+        isSendingCardCmd,
+        isVerifyingCard,
+        isCapturingCardInfo,
+        isCapturingCardManual,
+        isAuthorizingCard,
+        isCapturingCardPayment,
+        isManualResolution,
+        qrContent,
+        selectedMethod,
+        errorCode,
+        totals.subtotal,
+        totals.tax,
+        discount,
+        total,
+        cashAmount,
+        nonCashAmount,
+        actorRef,
+        onSuccess,
+      ])
+
+      // Trả ViceScreen về Home khi đóng
+      useEffect(() => {
+        if (!visible && !isSuccess) {
+          ViceService.updateCart({
+            items: items.map((i) => ({
+              id: i.id,
+              name: i.product.name,
+              price: i.price,
+              quantity: i.quantity,
+            })),
+            subtotal: totals.subtotal,
+            discount,
+            tax: totals.tax,
+            total,
+          })
+        }
+      }, [visible, isSuccess, items, discount, total, totals.subtotal, totals.tax])
+
+      // Timer đếm ngược QR
       useEffect(() => {
         if (!visible || !qrContent || !expiresAt || !createdAt) {
           setTimeLeftSecs(null)
@@ -322,147 +472,20 @@ export const MixPaymentPopup = memo(
         return () => clearInterval(interval)
       }, [visible, qrContent, expiresAt, createdAt])
 
-      // Cập nhật giá trị vào Machine lập tức để tránh delay các con số trên màn hình chính
+      // Xử lý cancel
+      useEffect(() => {
+        if (isCancelled) {
+          const timer = setTimeout(() => setVisible(false), 800)
+          return () => clearTimeout(timer)
+        }
+      }, [isCancelled])
+
+      // Cập nhật giá trị vào Machine
       useEffect(() => {
         if (!visible) return
         const val = Number(cashInput) || 0
         actorRef.send({ type: 'SET_CASH_AMOUNT', amount: val })
       }, [cashInput, visible, actorRef])
-
-      // Debounce cập nhật Vice Screen để tránh lag luồng chính khi gõ phím
-      useEffect(() => {
-        if (!visible) return
-
-        const timer = setTimeout(() => {
-          const isCardProcessing =
-            isProcessingCard ||
-            isConnectingCard ||
-            isSendingCardCmd ||
-            isVerifyingCard ||
-            isCapturingCardInfo ||
-            isCapturingCardManual ||
-            isAuthorizingCard ||
-            isCapturingCardPayment ||
-            isManualResolution ||
-            isPaymentFailed
-
-          if (isPaymentFailed || isError) {
-            ViceService.showStatus(getPaymentErrorStatus(errorCode))
-          } else if (isIdle || isCreatingCheckout) {
-            ViceService.showMixPayment({
-              subtotal,
-              discount,
-              tax,
-              total,
-              cashPaid: cashAmount,
-              nonCashAmount,
-            })
-          } else if ((isFetchingQr || isWaitingQr) && qrContent) {
-            ViceService.showPayment({
-              qrCodeUrl: qrContent,
-              subtotal,
-              discount,
-              tax,
-              total: nonCashAmount,
-            })
-          } else if (selectedMethod === 'card' && isCardProcessing && !isSuccess) {
-            ViceService.showPortablePayment({ total: nonCashAmount })
-          }
-        }, 300)
-
-        return () => clearTimeout(timer)
-      }, [
-        visible,
-        isIdle,
-        isCreatingCheckout,
-        isFetchingQr,
-        isWaitingQr,
-        qrContent,
-        selectedMethod,
-        isSuccess,
-        isProcessingCard,
-        isConnectingCard,
-        isSendingCardCmd,
-        isVerifyingCard,
-        isCapturingCardInfo,
-        isCapturingCardManual,
-        isAuthorizingCard,
-        isCapturingCardPayment,
-        isManualResolution,
-        isPaymentFailed,
-        isError,
-        errorCode,
-        error,
-        subtotal,
-        discount,
-        tax,
-        total,
-        cashAmount,
-        nonCashAmount,
-      ])
-
-      // Clean up auxiliary screen on cancel
-      useEffect(() => {
-        if (!visible && !isSuccess) {
-          ViceService.updateCart({
-            items: items.map((i) => ({
-              id: i.id,
-              name: i.product.name,
-              price: i.price,
-              quantity: i.quantity,
-            })),
-            subtotal,
-            discount,
-            tax,
-            total,
-          })
-        }
-      }, [visible, isSuccess, items, subtotal, discount, tax, total])
-
-      // Handle Payment Success
-      useEffect(() => {
-        if (!isSuccess || !visible) return
-
-        ViceService.paymentSuccess({
-          subtotal,
-          discount,
-          tax,
-          total,
-          customerPaid: total,
-          change: 0,
-        })
-
-        const snap = actorRef.getSnapshot()
-        const resolvedOrderId = snap.context.orderId || snap.context.sessionId
-        const resolvedBillCode = snap.context.orderCode || resolvedOrderId
-        const isOnline = snap.context.paymentResult?.isOnline ?? true
-
-        const timer = setTimeout(() => {
-          setVisible(false)
-          onSuccess({
-            success: true,
-            method: 'mix',
-            paidAmount: total,
-            change: 0,
-            referenceCode: resolvedBillCode,
-            isOnline,
-            orderId: resolvedOrderId,
-          })
-        }, 1500)
-
-        return () => clearTimeout(timer)
-      }, [isSuccess, visible, total, subtotal, discount, tax, onSuccess, actorRef])
-
-      useEffect(() => {
-        if (isCancelled) {
-          const hasCreatedCheckout = !!checkoutResult
-          if (!hasCreatedCheckout || cashAmount <= 0) {
-            // toast.info('Đã hủy giao dịch!', 'Thông báo')
-          }
-          const timer = setTimeout(() => setVisible(false), 800)
-          return () => clearTimeout(timer)
-        }
-      }, [isCancelled, cashAmount, checkoutResult])
 
       useImperativeHandle(
         ref,
@@ -513,29 +536,31 @@ export const MixPaymentPopup = memo(
         ],
       )
 
-      const handleNumpadPress = (digit: string) => {
-        if (cashInput.length < 12) {
-          setCashInput((prev) => prev + digit)
-        }
-      }
+      // Memo handlers
+      const handleNumpadPress = useCallback((digit: string) => {
+        setCashInput((prev) => (prev.length < 12 ? prev + digit : prev))
+      }, [])
 
-      const handleNumpadBackspace = () => setCashInput((prev) => prev.slice(0, -1))
-      const handleNumpadClear = () => setCashInput('')
+      const handleNumpadBackspace = useCallback(() => {
+        setCashInput((prev) => prev.slice(0, -1))
+      }, [])
 
-      const handleClose = () => {
+      const handleNumpadClear = useCallback(() => setCashInput(''), [])
+
+      const handleClose = useCallback(() => {
         const snap = actorRef.getSnapshot()
         const hasCreatedCheckout = !!snap.context.checkoutResult
-        const cashAmount = snap.context.cashAmount
+        const cashAmt = snap.context.cashAmount
 
-        if (hasCreatedCheckout && cashAmount > 0) {
+        if (hasCreatedCheckout && cashAmt > 0) {
           toast.confirm({
             title: 'Hoàn tiền mặt & Hủy đơn hàng',
-            message: `Đã thu ${formatCurrency(cashAmount)} tiền mặt. Vui lòng hoàn lại tiền mặt cho khách trước, sau đó xác nhận hủy đơn hàng.`,
+            message: `Đã thu ${formatCurrency(cashAmt)} tiền mặt. Vui lòng hoàn lại tiền mặt cho khách trước, sau đó xác nhận hủy đơn hàng.`,
             onConfirm: () => {
               actorRef.send({ type: 'CANCEL' })
               toast.infoPopup({
                 title: 'Hủy đơn hàng thành công',
-                message: `Đã hủy đơn hàng thành công. Vui lòng trả lại ${formatCurrency(cashAmount)} tiền mặt cho khách.`,
+                message: `Đã hủy đơn hàng thành công. Vui lòng trả lại ${formatCurrency(cashAmt)} tiền mặt cho khách.`,
               })
             },
           })
@@ -543,51 +568,52 @@ export const MixPaymentPopup = memo(
           toast.confirm({
             title: 'Xác nhận hủy giao dịch',
             message: 'Bạn có chắc chắn muốn hủy giao dịch thanh toán hỗn hợp này không?',
-            onConfirm: () => {
-              actorRef.send({ type: 'CANCEL' })
-            },
+            onConfirm: () => actorRef.send({ type: 'CANCEL' }),
           })
         }
-      }
+      }, [actorRef])
 
-      const handleConfirm = () => {
+      const handleConfirm = useCallback(() => {
         actorRef.send({ type: 'CONFIRM' })
-      }
+      }, [actorRef])
 
-      const handleRetry = () => {
+      const handleRetry = useCallback(() => {
         actorRef.send({ type: 'RETRY' })
-      }
+      }, [actorRef])
 
-      const handleForceComplete = () => {
+      const handleForceComplete = useCallback(() => {
         toast.confirm({
           title: 'Xác nhận thanh toán thủ công',
           message:
             'Bạn có chắc chắn muốn xác nhận khách đã thanh toán thành công phần tiền không dùng tiền mặt và ghi nhận đơn hàng này không?',
           onConfirm: () => actorRef.send({ type: 'FORCE_COMPLETE' }),
         })
-      }
+      }, [actorRef])
 
-      const handleManualCaptureSubmit = (data: ManualCardDetailsFormData) => {
-        toast.confirm({
-          title: 'Xác nhận thanh toán thủ công',
-          message: 'Hãy chắc chắn giao dịch đã thành công trên máy EDC trước khi xác nhận.',
-          onConfirm: () => {
-            actorRef.send({
-              type: 'MANUAL_CAPTURE',
-              terminalId: data.terminalId || undefined,
-              merchantId: data.merchantId || undefined,
-              referenceNumber: data.referenceNumber || undefined,
-              approvalCode: data.approvalCode || undefined,
-            })
-            setShowManualForm(false)
-          },
-        })
-      }
+      const handleManualCaptureSubmit = useCallback(
+        (data: ManualCardDetailsFormData) => {
+          toast.confirm({
+            title: 'Xác nhận thanh toán thủ công',
+            message: 'Hãy chắc chắn giao dịch đã thành công trên máy EDC trước khi xác nhận.',
+            onConfirm: () => {
+              actorRef.send({
+                type: 'MANUAL_CAPTURE',
+                terminalId: data.terminalId || undefined,
+                merchantId: data.merchantId || undefined,
+                referenceNumber: data.referenceNumber || undefined,
+                approvalCode: data.approvalCode || undefined,
+              })
+              setShowManualForm(false)
+            },
+          })
+        },
+        [actorRef],
+      )
 
       const isQrUrl = qrContent ? qrContent.startsWith('http') : false
 
       const STAGES = ['Khởi tạo', 'Kết nối', 'Quẹt thẻ', 'Hoàn tất']
-      const activeStep = (() => {
+      const activeStep = useMemo(() => {
         if (isProcessingCard || isConnectingCard || isConnectionFailed) return 1
         if (isSendingCardCmd || isVerifyingCard || isPaymentFailed) return 2
         if (
@@ -601,45 +627,61 @@ export const MixPaymentPopup = memo(
           return 3
         }
         return 0
-      })()
+      }, [
+        isProcessingCard,
+        isConnectingCard,
+        isConnectionFailed,
+        isSendingCardCmd,
+        isVerifyingCard,
+        isPaymentFailed,
+        isCapturingCardInfo,
+        isCapturingCardManual,
+        isAuthorizingCard,
+        isCapturingCardPayment,
+        isManualResolution,
+        isSuccess,
+      ])
 
-      const renderStageBox = (label: string, index: number) => {
-        const isDone = index < activeStep
-        const isActive = index === activeStep
-        const isFailed = (isConnectionFailed && index === 1) || (isPaymentFailed && index === 2)
+      const renderStageBox = useCallback(
+        (label: string, index: number) => {
+          const isDone = index < activeStep
+          const isActive = index === activeStep
+          const isFailed = (isConnectionFailed && index === 1) || (isPaymentFailed && index === 2)
 
-        return (
-          <View
-            key={label}
-            className={`flex-1 rounded-[12px] border p-2 ${
-              isFailed
-                ? 'border-error/30 bg-error/10'
-                : isActive
-                  ? 'border-primary bg-primary/10'
-                  : isDone
-                    ? 'border-success/30 bg-success/10'
-                    : 'border-surface-200 bg-surface-100'
-            }`}
-          >
-            <Text
-              className={`text-center text-xs font-bold uppercase tracking-[0.05em] ${
+          return (
+            <View
+              key={label}
+              className={`flex-1 rounded-[12px] border p-2 ${
                 isFailed
-                  ? 'text-error'
+                  ? 'border-error/30 bg-error/10'
                   : isActive
-                    ? 'text-primary'
+                    ? 'border-primary bg-primary/10'
                     : isDone
-                      ? 'text-success'
-                      : 'text-neutral-500'
+                      ? 'border-success/30 bg-success/10'
+                      : 'border-surface-200 bg-surface-100'
               }`}
-              numberOfLines={1}
             >
-              {label}
-            </Text>
-          </View>
-        )
-      }
+              <Text
+                className={`text-center text-xs font-bold uppercase tracking-[0.05em] ${
+                  isFailed
+                    ? 'text-error'
+                    : isActive
+                      ? 'text-primary'
+                      : isDone
+                        ? 'text-success'
+                        : 'text-neutral-500'
+                }`}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+            </View>
+          )
+        },
+        [activeStep, isConnectionFailed, isPaymentFailed],
+      )
 
-      const renderRightPanel = () => {
+      const renderRightPanel = useCallback(() => {
         if (isSuccess) {
           return (
             <View className="flex-1 items-center justify-center px-4 py-8">
@@ -963,7 +1005,52 @@ export const MixPaymentPopup = memo(
             </View>
           </>
         )
-      }
+      }, [
+        isSuccess,
+        showManualForm,
+        isIdle,
+        isError,
+        isProcessing,
+        isPaymentFailed,
+        isConnectionFailed,
+        isManualResolution,
+        isCreatingCheckout,
+        isFetchingQr,
+        isProcessingCard,
+        isConnectingCard,
+        isSendingCardCmd,
+        isVerifyingCard,
+        isCapturingCardInfo,
+        isCapturingCardManual,
+        isAuthorizingCard,
+        isCapturingCardPayment,
+        selectedMethod,
+        qrContent,
+        error,
+        errorCode,
+        retryCount,
+        canRetry,
+        canCancel,
+        canConfirm,
+        nonCashAmount,
+        cashAmount,
+        timeLeft,
+        isQrUrl,
+        timeLeft,
+        control,
+        handleSubmit,
+        handleManualCaptureSubmit,
+        handleNumpadPress,
+        handleNumpadBackspace,
+        handleNumpadClear,
+        handleClose,
+        handleConfirm,
+        handleRetry,
+        handleForceComplete,
+        STAGES,
+        renderStageBox,
+        activeStep,
+      ])
 
       const receiptOrder = checkoutResult
         ? buildReceiptOrder(
@@ -973,7 +1060,7 @@ export const MixPaymentPopup = memo(
             nonCashAmount,
             selectedMethod,
             total,
-            subtotal,
+            totals.subtotal,
             discount,
             staffId,
             shiftId,
@@ -1107,7 +1194,7 @@ export const MixPaymentPopup = memo(
 
               {/* Manager Approval Overlay */}
               {(isWaitingManagerApproval ||
-                (machineState === 'cancelling' && context.managerAuth !== null)) && (
+                (machineState === 'cancelling' && ctx.managerAuth !== null)) && (
                 <View style={styles.managerOverlay}>
                   <View style={styles.managerCard}>
                     <View style={styles.managerCardHeader}>

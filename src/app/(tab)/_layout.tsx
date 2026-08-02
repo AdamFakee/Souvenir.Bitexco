@@ -13,7 +13,7 @@ import {
   WorkingIcon,
 } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppContext, useAppStore } from '@/shared/features/app'
+import { useAppStore, useCashSessionId, useEmployee } from '@/shared/features/app'
 import { AuthAPI } from '@/shared/features/auth'
 import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/shared/features/note'
 import { CloseShiftModal, CloseShiftModalRef } from '@/shared/features/shift'
@@ -23,7 +23,7 @@ import { PrinterService } from '@/shared/services/printer-service'
 import { toast, useAlertStore } from '@/shared/store'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Q } from '@nozbe/watermelondb'
-import { Href, Tabs, useRouter, useSegments } from 'expo-router'
+import { Href, Tabs, usePathname, useRouter } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
@@ -104,21 +104,29 @@ const SyncSidebarButton = React.memo(() => {
 })
 SyncSidebarButton.displayName = 'SyncSidebarButton'
 
-const CustomSidebar = React.memo(
+// ── Wrapper nhỏ: chỉ subscribe pathname, re-render rẻ ──
+function SidebarWithRoute(props: { onOpenCloseShift: () => void; onOpenSettings: () => void }) {
+  const pathname = usePathname()
+  // pathname dạng "/(tab)/pos" → lấy segment cuối
+  const routeTab = pathname.split('/').pop() || 'pos'
+  return <CustomSidebarInner routeTab={routeTab} {...props} />
+}
+
+const CustomSidebarInner = React.memo(
   ({
+    routeTab,
     onOpenCloseShift,
     onOpenSettings,
   }: {
+    routeTab: string
     onOpenCloseShift: () => void
     onOpenSettings: () => void
   }) => {
     const insets = useSafeAreaInsets()
-    const { employee } = useAppContext()
+    const employee = useEmployee()
     const router = useRouter()
-    const { confirm } = useAlertStore()
+    const confirm = useAlertStore((s) => s.confirm)
 
-    const segments = useSegments()
-    const routeTab = (segments[1] as string | undefined) || 'pos'
     // Highlight ngay khi bấm; segments chỉ clear pending khi route đã khớp
     const [pendingTab, setPendingTab] = useState<string | null>(null)
     const activeTab = pendingTab ?? routeTab
@@ -286,10 +294,12 @@ const CustomSidebar = React.memo(
   },
 )
 
-CustomSidebar.displayName = 'CustomSidebar'
+CustomSidebarInner.displayName = 'CustomSidebarInner'
+
+SidebarWithRoute.displayName = 'SidebarWithRoute'
 
 export default function TabLayout() {
-  const { cashSessionId } = useAppContext()
+  const cashSessionId = useCashSessionId()
 
   const closeShiftModalRef = useRef<CloseShiftModalRef>(null)
   const settingsModalRef = useRef<SettingsModalRef>(null)
@@ -304,7 +314,10 @@ export default function TabLayout() {
 
   return (
     <View className="flex-1 flex-row">
-      <CustomSidebar onOpenCloseShift={handleOpenCloseShift} onOpenSettings={handleOpenSettings} />
+      <SidebarWithRoute
+        onOpenCloseShift={handleOpenCloseShift}
+        onOpenSettings={handleOpenSettings}
+      />
 
       <View className="flex-1">
         <Tabs

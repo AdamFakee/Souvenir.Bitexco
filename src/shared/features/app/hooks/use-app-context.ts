@@ -15,7 +15,8 @@ const DEFAULT_CONTEXT: AppContext = {
 
 /**
  * Đọc toàn bộ context của appMachine.
- * Thay thế cho useAuthStore và useGlobalConfigStore.
+ * ⚠️ Gây re-render khi BẤT KỲ field nào thay đổi.
+ * Dùng selectors cụ thể bên dưới để tránh re-render dư thừa.
  *
  * @example
  * const { device, employee, paymentMethods } = useAppContext()
@@ -23,6 +24,48 @@ const DEFAULT_CONTEXT: AppContext = {
 export const useAppContext = (): AppContext => {
   const appService = useAppStore((s) => s.appService)
   return useSelector(appService ?? undefined, (s) => s?.context) ?? DEFAULT_CONTEXT
+}
+
+/** Chỉ subscribe vào device */
+export const useDevice = (): AppContext['device'] => {
+  const appService = useAppStore((s) => s.appService)
+  return useSelector(appService ?? undefined, (s) => s?.context?.device ?? null)
+}
+
+/** Chỉ subscribe vào employee */
+export const useEmployee = (): AppContext['employee'] => {
+  const appService = useAppStore((s) => s.appService)
+  return useSelector(appService ?? undefined, (s) => s?.context?.employee ?? null)
+}
+
+/** Chỉ subscribe vào cashSessionId */
+export const useCashSessionId = (): AppContext['cashSessionId'] => {
+  const appService = useAppStore((s) => s.appService)
+  return useSelector(appService ?? undefined, (s) => s?.context?.cashSessionId ?? null)
+}
+
+/** Chỉ subscribe vào paymentMethods */
+export const usePaymentMethods = (): AppContext['paymentMethods'] => {
+  const appService = useAppStore((s) => s.appService)
+  return useSelector(appService ?? undefined, (s) => s?.context?.paymentMethods ?? null)
+}
+
+/** Chỉ subscribe vào tenantConfig */
+export const useTenantConfig = (): AppContext['tenantConfig'] => {
+  const appService = useAppStore((s) => s.appService)
+  return useSelector(appService ?? undefined, (s) => s?.context?.tenantConfig ?? null)
+}
+
+/** Chỉ subscribe vào terminalConfig */
+export const useTerminalConfig = (): AppContext['terminalConfig'] => {
+  const appService = useAppStore((s) => s.appService)
+  return useSelector(appService ?? undefined, (s) => s?.context?.terminalConfig ?? null)
+}
+
+/** Chỉ subscribe vào accessToken */
+export const useAccessToken = (): AppContext['accessToken'] => {
+  const appService = useAppStore((s) => s.appService)
+  return useSelector(appService ?? undefined, (s) => s?.context?.accessToken ?? null)
 }
 
 /**
