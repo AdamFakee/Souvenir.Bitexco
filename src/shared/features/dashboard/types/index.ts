@@ -18,9 +18,10 @@ export interface DashboardOverviewResponse {
   shiftTime: string
   shiftStart: string
   totalRevenue: number
+  totalOrders: number
   completedOrders: number
+  refundedOrders: number
   totalProductsSold: number
-  cancelledOrders: number
   paymentMethods: PaymentMethodItem[]
 }
 

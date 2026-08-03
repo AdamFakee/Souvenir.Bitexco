@@ -2,6 +2,7 @@ import { PortablePaymentService } from '@/shared/features/payment/utils/portable
 import { toast } from '@/shared/store/use-alert-store'
 import NetInfo from '@react-native-community/netinfo'
 import { create } from 'zustand'
+import { seconds } from '../utils'
 
 interface ConnectionState {
   isNetworkConnected: boolean
@@ -107,7 +108,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     // 3. Thiết lập vòng lặp kiểm tra kết nối POS định kỳ mỗi 60 giây
     const intervalId = setInterval(() => {
       get().checkPosConnection()
-    }, 60000)
+    }, seconds(15))
 
     return () => {
       unsubscribeNet()

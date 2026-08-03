@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate, formatDateTime } from '@/shared/utils'
+import { formatCurrency, formatDate } from '@/shared/utils'
 import React from 'react'
 import { Text, View } from 'react-native'
 import { DashedLine, ReceiptWrapper, S } from './receipt-wrapper'
@@ -10,6 +10,7 @@ export interface StaffShiftSummary {
   cashAmount: number
   qrAmount: number
   cardAmount: number
+  debtAmount: number
   totalRevenue: number
 }
 
@@ -24,6 +25,7 @@ export interface CloseShiftReceiptData {
   grandCash: number
   grandQr: number
   grandCard: number
+  grandDebt: number
   grandTotal: number
 }
 
@@ -89,8 +91,8 @@ export const CloseShiftReceiptTemplate = ({
               paddingVertical: 2,
             }}
           >
-            <Text style={S.fs30b}>{staff.staffName}</Text>
-            <Text style={S.fs28}>{staff.staffCode}</Text>
+            <Text style={S.fs30b}>Staff:</Text>
+            <Text style={S.fs28}>{staff.staffName}</Text>
           </View>
 
           <View style={{ paddingHorizontal: 4, marginTop: 2 }}>
@@ -114,6 +116,12 @@ export const CloseShiftReceiptTemplate = ({
               <Text style={S.fs28n}> Card:</Text>
               <Text style={S.fs28n} numberOfLines={1}>
                 {fmt(staff.cardAmount)}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={S.fs28n}> Debt:</Text>
+              <Text style={S.fs28n} numberOfLines={1}>
+                {fmt(staff.debtAmount)}
               </Text>
             </View>
             <DashedLine />
@@ -153,6 +161,12 @@ export const CloseShiftReceiptTemplate = ({
           <Text style={S.fs28n}>Total Card:</Text>
           <Text style={S.fs28n} numberOfLines={1}>
             {fmt(data.grandCard)}
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={S.fs28n}>Total Debt:</Text>
+          <Text style={S.fs28n} numberOfLines={1}>
+            {fmt(data.grandDebt)}
           </Text>
         </View>
         <DashedLine />

@@ -23,6 +23,7 @@ import {
 } from '@/shared/features/payment/utils/portable-payment.service'
 import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
+import { ShiftRemoteAPI } from '@/shared/features/shift/api/remote/shift.remote.api'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { database } from '@/shared/lib/database'
 import CategoryModel from '@/shared/lib/database/models/category'
@@ -49,6 +50,8 @@ export default function DevControlScreen() {
   const refundPrintRef = useRef<View>(null)
   const closeShiftPrintRef = useRef<View>(null)
   const reconciliationPrintRef = useRef<View>(null)
+  const apiZReportPrintRef = useRef<View>(null)
+  const [apiZReportData, setApiZReportData] = useState<any>(null)
 
   // ─── Reconciliation Test ───────────────────────────────────────────────────
   const [recoPartnerId, setRecoPartnerId] = useState('')
@@ -535,6 +538,55 @@ export default function DevControlScreen() {
           'Test Exchange API',
         )
       }
+    }
+  }
+
+  const handleTestZReportAPI = async () => {
+    try {
+      const appService = useAppStore.getState().appService
+      const shiftId = appService?.getSnapshot().context.cashSessionId
+      if (!shiftId) {
+        toast.warning('Không tìm thấy ca làm việc hiện tại (shiftId). Hãy mở ca trước!')
+        return
+      }
+
+      toast.info(`Đang gọi GET /v1/cash-sessions/${shiftId}/z-report để lấy Z-Report...`)
+      const zReportData = await ShiftRemoteAPI.getZReport(shiftId)
+
+      console.log('=============== [DevControl] Z-REPORT API RESPONSE ===============')
+      console.log(JSON.stringify(zReportData, null, 2))
+
+      setApiZReportData(zReportData)
+      setEntityModalTitle('Báo cáo Z-Report ca hiện tại')
+      setEntityModalData(zReportData)
+      setIsEntityModalVisible(true)
+
+      toast.success('Lấy Z-Report thành công! Xem log ở console / modal.')
+    } catch (error: any) {
+      console.error('Z-Report API Error:', error)
+      const errData = error.response?.data
+      toast.error('Lỗi lấy Z-Report: ' + (errData?.detail || errData?.message || error.message))
+    }
+  }
+
+  const handlePrintApiZReport = async () => {
+    if (!apiZReportData) {
+      toast.warning('Vui lòng bấm lấy dữ liệu Z-Report từ API trước!')
+      return
+    }
+    if (isPrinting) return
+    setIsPrinting(true)
+    try {
+      await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 120)))
+      if (!apiZReportPrintRef.current) {
+        throw new Error('Chưa render template in!')
+      }
+      await PrinterService.printComponent(apiZReportPrintRef)
+      toast.success('Đã gửi lệnh in Z-Report (API) thành công!')
+    } catch (err: any) {
+      toast.error('Lỗi in: ' + (err?.message ?? 'Không xác định'))
+    } finally {
+      setIsPrinting(false)
     }
   }
 
@@ -1424,6 +1476,17 @@ export default function DevControlScreen() {
             onPress={handleTestExchangeAPI}
           />
           <Button
+            label="Test API: Z-Report (/v1/cash-sessions/{id}/z-report)"
+            className="bg-sky-600"
+            onPress={handleTestZReportAPI}
+          />
+          <Button
+            label="In Bill Z-Report từ API"
+            className="bg-teal-600"
+            disabled={!apiZReportData}
+            onPress={handlePrintApiZReport}
+          />
+          <Button
             label="Test API: Đồng bộ sản phẩm (fetchChanges)"
             className="bg-orange-600"
             loading={isFetchingChanges}
@@ -1800,6 +1863,7 @@ export default function DevControlScreen() {
                     cashAmount: 5200000,
                     qrAmount: 1800000,
                     cardAmount: 3500000,
+                    debtAmount: 0,
                     totalRevenue: 10500000,
                   },
                   {
@@ -1809,12 +1873,14 @@ export default function DevControlScreen() {
                     cashAmount: 4100000,
                     qrAmount: 2200000,
                     cardAmount: 2800000,
+                    debtAmount: 0,
                     totalRevenue: 9100000,
                   },
                 ],
                 grandCash: 9300000,
                 grandQr: 4000000,
                 grandCard: 6300000,
+                grandDebt: 0,
                 grandTotal: 19600000,
               } satisfies CloseShiftReceiptData
             }
@@ -2452,7 +2518,53 @@ export default function DevControlScreen() {
         </View>
       </ModalBase>
 
+      {apiZReportData && (
+        <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+          <View collapsable={false} ref={apiZReportPrintRef}>
+            <CloseShiftReceiptTemplate data={mapZReportToReceiptData(apiZReportData)} />
+          </View>
+        </View>
+      )}
+
       <ReconciliationModal ref={devReconciliationModalRef} />
     </ScrollView>
   )
+}
+
+const mapZReportToReceiptData = (zReport: any): CloseShiftReceiptData => {
+  const session = zReport?.session || {}
+  const paymentBreakdown = zReport?.paymentBreakdown || []
+
+  const grandCash = paymentBreakdown.find((p: any) => p.method === 'cash')?.amount || 0
+  const grandQr = paymentBreakdown.find((p: any) => p.method === 'qr_bidv')?.amount || 0
+  const grandCard = paymentBreakdown.find((p: any) => p.method === 'card_bidv')?.amount || 0
+  const grandDebt =
+    paymentBreakdown.find((p: any) => p.method === 'cong_no' || p.method === 'debt')?.amount || 0
+  const grandTotal = grandCash + grandQr + grandCard + grandDebt
+
+  const staffSummaries = (zReport?.staffs || []).map((s: any) => ({
+    staffName: s.staffName || '',
+    staffCode: s.staffCode || '',
+    orderCount: s.orderCount || 0,
+    cashAmount: s.cashAmount || 0,
+    qrAmount: s.qrAmount || 0,
+    cardAmount: s.cardAmount || 0,
+    debtAmount: s.debtAmount || 0,
+    totalRevenue: s.totalRevenue || 0,
+  }))
+
+  return {
+    shiftCode: session.code || '',
+    shiftTime: '---',
+    openedAt: session.openedAt || new Date().toISOString(),
+    closedAt: session.closedAt || new Date().toISOString(),
+    posDeviceName: zReport?.posDeviceName || 'Máy POS',
+    totalOrders: zReport?.orderCount || 0,
+    staffSummaries,
+    grandCash,
+    grandQr,
+    grandCard,
+    grandDebt,
+    grandTotal,
+  }
 }

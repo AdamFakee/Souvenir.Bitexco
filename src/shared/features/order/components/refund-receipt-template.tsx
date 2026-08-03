@@ -58,24 +58,26 @@ export function RefundReceiptTemplate({ receipt, copyNumber = 1 }: RefundReceipt
       <DashedLine />
 
       {/* Items */}
-      {receipt.lines.map((line: RefundReceiptLine) => (
-        <View key={line.productId} style={{ marginBottom: 4 }}>
-          <Text style={S.fs28}>{line.name}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ flex: 2.5 }}>
-              <Text style={S.fs28}>{formatCurrency(line.unitPrice)}</Text>
-            </View>
-            <View style={{ flex: 1.5, alignItems: 'center' }}>
-              <Text style={S.fs28}>{line.returnedQty}</Text>
-            </View>
-            <View style={{ flex: 2 }}>
-              <Text style={{ ...S.fs28, textAlign: 'right' }}>
-                {line.isReturned ? `-${formatCurrency(line.lineRefundAmount)}` : 'N/A'}
-              </Text>
+      {receipt.lines
+        .filter((line: RefundReceiptLine) => line.returnedQty > 0)
+        .map((line: RefundReceiptLine) => (
+          <View key={line.productId} style={{ marginBottom: 4 }}>
+            <Text style={S.fs28}>{line.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 2.5 }}>
+                <Text style={S.fs28}>{formatCurrency(line.unitPrice)}</Text>
+              </View>
+              <View style={{ flex: 1.5, alignItems: 'center' }}>
+                <Text style={S.fs28}>{line.returnedQty}</Text>
+              </View>
+              <View style={{ flex: 2 }}>
+                <Text style={{ ...S.fs28, textAlign: 'right' }}>
+                  {line.isReturned ? `-${formatCurrency(line.lineRefundAmount)}` : 'N/A'}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      ))}
+        ))}
 
       <DashedLine />
 

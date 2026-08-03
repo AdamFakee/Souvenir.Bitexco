@@ -28,6 +28,8 @@ export interface ItemSnapshot {
   returnedQty?: number
   /** Số lượng còn lại */
   remainingQty?: number
+  /** Đánh dấu sản phẩm được đổi */
+  isExchange?: boolean
 }
 
 /**
@@ -49,5 +51,6 @@ export const sanitizeItemsSnapshot = (rawItems: any): ItemSnapshot[] => {
     note: item.note ? String(item.note) : undefined,
     returnedQty: item.returnedQty !== undefined ? Number(item.returnedQty || 0) : undefined,
     remainingQty: item.remainingQty !== undefined ? Number(item.remainingQty || 0) : undefined,
+    isExchange: item.isExchange !== undefined ? Boolean(item.isExchange) : undefined,
   }))
 }

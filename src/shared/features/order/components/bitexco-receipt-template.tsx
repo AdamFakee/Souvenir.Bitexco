@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 import { IOrder } from '../types'
 
-import { useDevice, useEmployee } from '@/shared/features/app'
+import { useEmployee } from '@/shared/features/app'
 import { DashedLine, ReceiptWrapper, S } from './receipt-wrapper'
 
 interface BitexcoReceiptTemplateProps {
@@ -31,7 +31,6 @@ export const BitexcoReceiptTemplate = ({
   copyNumber = 1,
 }: BitexcoReceiptTemplateProps) => {
   const employee = useEmployee()
-  const device = useDevice()
   const [resolvedStaffName, setResolvedStaffName] = useState(staffName)
 
   useEffect(() => {
@@ -52,19 +51,21 @@ export const BitexcoReceiptTemplate = ({
     code,
     createdAt,
     total,
-    subtotal,
     discount = 0,
     totalTax,
     itemsSnapshot: items = [],
     paymentsSnapshot: payments = [],
   } = order
 
-  const deviceName = device?.name ?? null
-
   const formatCurrency = (amount: any) => {
     if (typeof amount !== 'number') return '0'
     return amount.toLocaleString('vi-VN')
   }
+
+  const activeItems = (items || []).filter((item: ItemSnapshot) => {
+    const qty = item.remainingQty !== undefined ? item.remainingQty : item.quantity
+    return qty > 0
+  })
 
   const totalPaid = (payments || []).reduce((acc, p: PaymentSnapshot) => {
     if (p.method === 'cash' && p.cashTendered !== undefined && p.cashTendered > 0) {
@@ -79,16 +80,18 @@ export const BitexcoReceiptTemplate = ({
       }
       return acc
     }, 0) || Math.max(0, totalPaid - total)
-  const totalQty = items.reduce((sum: number, i: ItemSnapshot) => sum + (i.quantity || 0), 0)
+  const totalQty = activeItems.reduce((sum: number, i: ItemSnapshot) => {
+    const qty = i.remainingQty !== undefined ? i.remainingQty : i.quantity || 0
+    return sum + qty
+  }, 0)
 
-  const discountPercentStr = (() => {
-    if (!discount || !subtotal) return ''
-    const pct = (discount / subtotal) * 100
-    return pct % 1 === 0 ? `${pct}%` : `${pct.toFixed(1)}%`
-  })()
+  const isExchange = items.some((item: ItemSnapshot) => item.isExchange)
 
   return (
-    <ReceiptWrapper title="SALES RECEIPT" copyNumber={copyNumber}>
+    <ReceiptWrapper
+      title={isExchange ? 'EXCHANGE RECEIPT' : 'SALES RECEIPT'}
+      copyNumber={copyNumber}
+    >
       {/* Meta info — Chỉ hiển thị Date và Receipt */}
       <View style={{ marginTop: 4 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -118,8 +121,9 @@ export const BitexcoReceiptTemplate = ({
 
       <DashedLine />
 
-      {items.map((item: ItemSnapshot, index: number) => {
-        const finalLineAmount = item.price * item.quantity - (item.discountAmount || 0)
+      {activeItems.map((item: ItemSnapshot, index: number) => {
+        const qty = item.remainingQty !== undefined ? item.remainingQty : item.quantity
+        const finalLineAmount = item.price * qty - (item.discountAmount || 0)
         const taxPercent = item.taxRate
           ? item.taxRate <= 1 && item.taxRate > 0
             ? Math.round(item.taxRate * 100)
@@ -136,7 +140,7 @@ export const BitexcoReceiptTemplate = ({
                 </Text>
               </View>
               <View style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={S.fs28}>{item.quantity}</Text>
+                <Text style={S.fs28}>{qty}</Text>
               </View>
               <View style={{ flex: 2 }}>
                 <Text style={{ ...S.fs28, textAlign: 'right' }}>

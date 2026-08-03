@@ -1,6 +1,6 @@
+import type { PortablePaymentCommandResult } from '@/shared/features/payment/types/portable-payment.type'
 import type { CartItem } from '@/shared/features/pos/types/cart.types'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
-import type { PortablePaymentCommandResult } from '@/shared/features/payment/types/portable-payment.type'
 import { generateGuid } from '../remote/order.remote.api'
 
 import type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'

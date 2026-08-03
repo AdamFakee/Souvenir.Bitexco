@@ -390,7 +390,9 @@ const mapZReportToReceiptData = (zReport: any): CloseShiftReceiptData => {
   const grandCash = paymentBreakdown.find((p: any) => p.method === 'cash')?.amount || 0
   const grandQr = paymentBreakdown.find((p: any) => p.method === 'qr_bidv')?.amount || 0
   const grandCard = paymentBreakdown.find((p: any) => p.method === 'card_bidv')?.amount || 0
-  const grandTotal = grandCash + grandQr + grandCard
+  const grandDebt =
+    paymentBreakdown.find((p: any) => p.method === 'cong_no' || p.method === 'debt')?.amount || 0
+  const grandTotal = grandCash + grandQr + grandCard + grandDebt
 
   const staffSummaries = (zReport?.staffs || []).map((s: any) => ({
     staffName: s.staffName || '',
@@ -399,6 +401,7 @@ const mapZReportToReceiptData = (zReport: any): CloseShiftReceiptData => {
     cashAmount: s.cashAmount || 0,
     qrAmount: s.qrAmount || 0,
     cardAmount: s.cardAmount || 0,
+    debtAmount: s.debtAmount || 0,
     totalRevenue: s.totalRevenue || 0,
   }))
 
@@ -413,6 +416,7 @@ const mapZReportToReceiptData = (zReport: any): CloseShiftReceiptData => {
     grandCash,
     grandQr,
     grandCard,
+    grandDebt,
     grandTotal,
   }
 }

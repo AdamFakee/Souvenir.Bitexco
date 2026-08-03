@@ -16,7 +16,7 @@ import React, {
 } from 'react'
 import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
 import { IOrder } from '../types'
-import { getOrderDisplayStatus, formatReceiptCode } from '../utils'
+import { formatReceiptCode, getOrderDisplayStatus } from '../utils'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
 import { RefundReceiptTemplate } from './refund-receipt-template'
 
@@ -78,10 +78,11 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
     setPrintReady(false)
   }, [])
 
-  const items = order?.itemsSnapshot || []
-  const payments = order?.paymentsSnapshot || []
-  const refundLines = order?.refund?.lines || []
+  const items = useMemo(() => order?.itemsSnapshot || [], [order?.itemsSnapshot])
+  const payments = useMemo(() => order?.paymentsSnapshot || [], [order?.paymentsSnapshot])
+  const refundLines = useMemo(() => order?.refund?.lines || [], [order?.refund?.lines])
   const hasRefunds = !!order?.refund || items.some((it) => (it.returnedQty || 0) > 0)
+  const isExchangeOrReturnOrder = hasRefunds || items.some((it) => it.isExchange)
 
   const getReturnedQty = useCallback(
     (item: any): number => {
@@ -93,8 +94,11 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
     [refundLines],
   )
 
-  const isRT = !!order?.refund || !!order?.code?.startsWith('RT')
-  const isReturnOrder = isRT
+  const isReturnOrder =
+    !!order?.refund ||
+    (order?.refunds && order.refunds.length > 0) ||
+    order?.status === 'REFUNDED' ||
+    !!order?.code?.startsWith('RT')
 
   const computed = useMemo(() => {
     if (!order) {
@@ -121,49 +125,74 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
   const resolvedRefund = useMemo(() => {
     if (!order) return undefined
     if (order.refund) return order.refund
-    if (!isRT) return undefined
-    return {
-      orderId: order.originalOrderId || order.id,
-      orderCode: order.originalOrderCode || order.code || '',
-      returnId: order.id,
-      returnCode: order.code || '',
-      reason: order.refundReason || '',
-      refundedAt: order.createdAt
-        ? typeof order.createdAt === 'string'
-          ? order.createdAt
-          : (order.createdAt as Date).toISOString()
-        : new Date().toISOString(),
-      refundAmount: order.total,
-      lines: items.map((it) => ({
-        productId: it.productId,
-        sku: it.sku,
-        name: it.name,
-        orderedQty: (it.remainingQty || 0) + it.quantity,
-        returnedQty: it.quantity,
-        remainingQty: it.remainingQty || 0,
-        unitPrice: it.price,
-        lineRefundAmount: it.subtotal,
-        isReturned: true,
-      })),
+    if (order.refunds && order.refunds.length > 0) {
+      const r = order.refunds[0]
+      return {
+        orderId: r.orderId,
+        orderCode: r.orderCode,
+        returnId: r.returnId,
+        returnCode: r.returnCode,
+        reason: r.reason || '',
+        refundedAt: r.refundedAt,
+        refundAmount: r.refundAmount,
+        lines: r.lines.map((l: any) => ({
+          productId: l.productId,
+          sku: l.sku,
+          name: l.name,
+          orderedQty: l.orderedQty,
+          returnedQty: l.returnedQty,
+          remainingQty: l.remainingQty,
+          unitPrice: l.unitPrice,
+          lineRefundAmount: l.lineRefundAmount,
+          isReturned: l.isReturned ?? true,
+        })),
+      }
     }
-  }, [order, isRT, items])
+    if (order.status === 'REFUNDED') {
+      return {
+        orderId: order.id,
+        orderCode: order.code || '',
+        returnId: order.id,
+        returnCode: order.code || '',
+        reason: order.refundReason || '',
+        refundedAt: order.createdAt
+          ? typeof order.createdAt === 'string'
+            ? order.createdAt
+            : (order.createdAt as Date).toISOString()
+          : new Date().toISOString(),
+        refundAmount: order.totalRefunded || order.total,
+        lines: items.map((it) => ({
+          productId: it.productId,
+          sku: it.sku,
+          name: it.name,
+          orderedQty: (it.remainingQty || 0) + it.quantity,
+          returnedQty: it.quantity,
+          remainingQty: it.remainingQty || 0,
+          unitPrice: it.price,
+          lineRefundAmount: it.subtotal,
+          isReturned: true,
+        })),
+      }
+    }
+    return undefined
+  }, [order, items])
 
   const totalOriginalQty = useMemo(() => {
     if (!order) return 0
-    if (isRT) {
+    if (isReturnOrder) {
       return items.reduce((sum, it) => {
-        const refundLine = resolvedRefund?.lines?.find((l) => l.productId === it.productId)
+        const refundLine = resolvedRefund?.lines?.find((l: any) => l.productId === it.productId)
         return sum + (refundLine?.orderedQty ?? (it.remainingQty || 0) + (it.quantity || 0))
       }, 0)
     }
     return items.reduce((sum, it) => sum + (it.quantity || 0), 0)
-  }, [order, isRT, items, resolvedRefund])
+  }, [order, isReturnOrder, items, resolvedRefund])
 
   const totalReturnedQty = useMemo(() => {
     if (!order) return 0
-    if (isRT) return items.reduce((sum, it) => sum + (it.quantity || 0), 0)
+    if (isReturnOrder) return items.reduce((sum, it) => sum + (it.quantity || 0), 0)
     return items.reduce((sum, it) => sum + getReturnedQty(it), 0)
-  }, [order, isRT, items, getReturnedQty])
+  }, [order, isReturnOrder, items, getReturnedQty])
 
   const handlePrint = useCallback(async (doubleCopy = false) => {
     try {
@@ -180,11 +209,11 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
   const renderItem = useCallback(
     ({ item, index }: { item: any; index: number }) => {
       const returnedQty = getReturnedQty(item)
-      const refundLine = resolvedRefund?.lines?.find((l) => l.productId === item.productId)
-      const originalQty = isRT
+      const refundLine = resolvedRefund?.lines?.find((l: any) => l.productId === item.productId)
+      const originalQty = isReturnOrder
         ? (refundLine?.orderedQty ?? (item.remainingQty || 0) + (item.quantity || 0))
         : item.quantity || 0
-      const remainingQty = isRT
+      const remainingQty = isReturnOrder
         ? (item.remainingQty ?? refundLine?.remainingQty ?? 0)
         : (item.remainingQty ?? originalQty - returnedQty)
       const isEven = index % 2 === 0
@@ -206,14 +235,31 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
             >
               {item.name}
             </Text>
-            <Text
-              className="mt-0.5 text-[19px] font-bold"
-              style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Medium' }}
-            >
-              {item.sku}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <Text
+                className="text-[19px]"
+                style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Medium' }}
+              >
+                {item.sku}
+              </Text>
+              {item.isExchange && (
+                <View
+                  style={{
+                    backgroundColor: '#DEF7EC',
+                    paddingHorizontal: 8,
+                    paddingVertical: 1,
+                    borderRadius: 4,
+                    marginLeft: 8,
+                  }}
+                >
+                  <Text style={{ color: '#03543F', fontSize: 13, fontFamily: 'Manrope-Bold' }}>
+                    Đổi mới
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
-          {hasRefunds ? (
+          {isExchangeOrReturnOrder ? (
             <>
               <View className="w-[96px] items-center">
                 <Text
@@ -226,17 +272,23 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
               <View className="w-[96px] items-center">
                 <Text
                   className="text-[24px] font-extrabold"
-                  style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+                  style={{
+                    color: returnedQty > 0 ? '#DC2626' : '#9CA3AF',
+                    fontFamily: 'Manrope-Bold',
+                  }}
                 >
-                  {returnedQty}
+                  {returnedQty > 0 ? returnedQty : '-'}
                 </Text>
               </View>
               <View className="w-[96px] items-center">
                 <Text
                   className="text-[24px] font-extrabold"
-                  style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
+                  style={{
+                    color: remainingQty > 0 ? BRAND : '#9CA3AF',
+                    fontFamily: 'Manrope-Bold',
+                  }}
                 >
-                  {remainingQty ?? 0}
+                  {remainingQty}
                 </Text>
               </View>
             </>
@@ -279,7 +331,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
         </View>
       )
     },
-    [getReturnedQty, resolvedRefund, isRT, hasRefunds],
+    [getReturnedQty, resolvedRefund, isReturnOrder, isExchangeOrReturnOrder],
   )
 
   if (!visible) return null
@@ -296,7 +348,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
       {printReady && order ? (
         <View style={{ position: 'absolute', left: -2000, top: 0 }}>
           <View collapsable={false} ref={printRef}>
-            {resolvedRefund ? (
+            {order.status === 'REFUNDED' && resolvedRefund ? (
               <RefundReceiptTemplate receipt={resolvedRefund} />
             ) : (
               <BitexcoReceiptTemplate order={order} />
@@ -369,7 +421,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                   >
                     Sản phẩm
                   </Text>
-                  {hasRefunds ? (
+                  {isExchangeOrReturnOrder ? (
                     <>
                       <Text
                         className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
@@ -611,7 +663,7 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                         <InfoRow
                           label="Số món còn lại"
                           value={`${
-                            isRT
+                            isReturnOrder
                               ? items.reduce((sum, it) => sum + (it.remainingQty || 0), 0)
                               : items.reduce(
                                   (sum, it) =>

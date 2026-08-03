@@ -1,6 +1,6 @@
 import { Shimmer } from '@/shared/components/ui/shimmer'
 import { formatCurrency } from '@/shared/utils'
-import { Coffee, ShoppingBag, TrendingUp, X } from 'lucide-react-native'
+import { CheckSquare, RotateCcw, ShoppingBag, TrendingUp } from 'lucide-react-native'
 import React, { memo } from 'react'
 import { Text, View } from 'react-native'
 import { GiftBoxIcon, MoneyBagIcon } from '../icons'
@@ -54,8 +54,8 @@ export const DashboardStatsCards = memo(function DashboardStatsCards({
         style={{ backgroundColor: 'rgba(230, 239, 243, 0.44)' }}
         className="relative flex-1 flex-col gap-2 overflow-hidden rounded-2xl border border-[#e5e7eb]/40 p-6"
       >
-        <Text className="text-[17px] font-extrabold text-[#4b5563]">Số đơn hàng</Text>
-        <Text className="text-[34px] font-black text-[#007D55]">{overview.completedOrders}</Text>
+        <Text className="text-[17px] font-extrabold text-[#4b5563]">Đơn phát sinh</Text>
+        <Text className="text-[34px] font-black text-[#007D55]">{overview.totalOrders}</Text>
         <GiftBoxIcon tagColor="#007D55" badgeColor="#3b82f6" IconComponent={ShoppingBag} />
       </View>
 
@@ -63,18 +63,18 @@ export const DashboardStatsCards = memo(function DashboardStatsCards({
         style={{ backgroundColor: 'rgba(230, 239, 243, 0.44)' }}
         className="relative flex-1 flex-col gap-2 overflow-hidden rounded-2xl border border-[#e5e7eb]/40 p-6"
       >
-        <Text className="text-[17px] font-extrabold text-[#4b5563]">Số sản phẩm đã bán</Text>
-        <Text className="text-[34px] font-black text-[#007D55]">{overview.totalProductsSold}</Text>
-        <GiftBoxIcon tagColor="#007D55" badgeColor="#0ea5e9" IconComponent={Coffee} />
+        <Text className="text-[17px] font-extrabold text-[#4b5563]">Đơn hoàn thành</Text>
+        <Text className="text-[34px] font-black text-[#007D55]">{overview.completedOrders}</Text>
+        <GiftBoxIcon tagColor="#007D55" badgeColor="#0ea5e9" IconComponent={CheckSquare} />
       </View>
 
       <View
         style={{ backgroundColor: 'rgba(254, 242, 242, 0.6)' }}
         className="relative flex-1 flex-col gap-2 overflow-hidden rounded-2xl border border-[#ef4444]/10 p-6"
       >
-        <Text className="text-[17px] font-extrabold text-[#4b5563]">Số đơn đã hủy</Text>
-        <Text className="text-[34px] font-black text-[#ef4444]">{overview.cancelledOrders}</Text>
-        <GiftBoxIcon tagColor="#ef4444" badgeColor="#ef4444" IconComponent={X} />
+        <Text className="text-[17px] font-extrabold text-[#4b5563]">Đơn đã hủy</Text>
+        <Text className="text-[34px] font-black text-[#ef4444]">{overview.refundedOrders}</Text>
+        <GiftBoxIcon tagColor="#ef4444" badgeColor="#ef4444" IconComponent={RotateCcw} />
       </View>
     </View>
   )
