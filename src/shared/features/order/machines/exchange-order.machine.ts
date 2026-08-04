@@ -434,12 +434,7 @@ export const exchangeOrderMachine = setup({
           managerAuth: input.managerAuth,
         }
 
-        try {
-          const res = await OrderRemoteAPI.exchangeOrder(payload)
-          return res
-        } catch (err: any) {
-          throw err
-        }
+        return await OrderRemoteAPI.exchangeOrder(payload)
       },
     ),
   },

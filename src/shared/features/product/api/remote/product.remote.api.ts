@@ -128,10 +128,6 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
         limit: params.limit || 25,
       },
     })
-    console.log(
-      '[ProductRemoteAPI] searchProducts response:',
-      JSON.stringify(response.data, null, 2),
-    )
     return response.data
   },
 

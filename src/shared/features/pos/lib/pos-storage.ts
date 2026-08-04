@@ -8,8 +8,9 @@ const POS_STORAGE_KEY = 'pos-machine-state'
  * This prevents disk write storms and ensures reliability.
  */
 export const posStorage = {
-  save: debounce((data: any) => {
+  save: debounce((dataOrFn: any) => {
     try {
+      const data = typeof dataOrFn === 'function' ? dataOrFn() : dataOrFn
       storage.set(POS_STORAGE_KEY, JSON.stringify(data))
     } catch {}
   }, 500),

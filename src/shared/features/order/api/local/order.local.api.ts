@@ -150,7 +150,10 @@ export const OrderLocalAPI = {
 
     // 1. Prepare Order
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
+      const now = Date.now()
       o._raw.id = generateGuid()
+      ;(o._raw as any).created_at = now
+      ;(o._raw as any).updated_at = now
       o.shiftId = payload.shiftId
       o.staffId = payload.staffId
       o.status = OrderStatus.COMPLETED
@@ -202,7 +205,10 @@ export const OrderLocalAPI = {
     const totalTax = itemsSnapshot.reduce((sum, item) => sum + item.taxAmount, 0)
 
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
+      const now = Date.now()
       o._raw.id = generateGuid()
+      ;(o._raw as any).created_at = now
+      ;(o._raw as any).updated_at = now
       o.shiftId = payload.shiftId
       o.staffId = payload.staffId
       o.status = OrderStatus.PENDING
@@ -250,7 +256,10 @@ export const OrderLocalAPI = {
     const totalTax = itemsSnapshot.reduce((sum, item) => sum + item.taxAmount, 0)
 
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
+      const now = Date.now()
       o._raw.id = generateGuid()
+      ;(o._raw as any).created_at = now
+      ;(o._raw as any).updated_at = now
       o.shiftId = payload.shiftId
       o.staffId = payload.staffId
       o.status = OrderStatus.PENDING
@@ -348,12 +357,10 @@ export const OrderLocalAPI = {
    */
   getUnsyncedOrdersCount: async (): Promise<number> => {
     try {
-      const unsyncedOrders = await database
+      return await database
         .get<OrderModel>('orders')
         .query(Q.where('is_synced', false))
-        .fetch()
-      console.log('✏️ [getUnsyncedOrdersCount] count:', unsyncedOrders.length)
-      return unsyncedOrders.length
+        .fetchCount()
     } catch (e) {
       console.error('✏️ [getUnsyncedOrdersCount] error:', e)
       return 0
@@ -368,9 +375,9 @@ export const OrderLocalAPI = {
   },
 
   /**
-   * Đánh dấu các đơn hàng đã đồng bộ thành công
+   * Xóa vĩnh viễn các đơn hàng đã đồng bộ thành công khỏi Local Database (Delete on Sync).
    */
-  markOrdersAsSynced: async (orderIds: string[]): Promise<void> => {
+  deleteSyncedOrders: async (orderIds: string[]): Promise<void> => {
     if (!orderIds.length) return
 
     await database.write(async () => {
@@ -379,13 +386,15 @@ export const OrderLocalAPI = {
         .query(Q.where('id', Q.oneOf(orderIds)))
         .fetch()
 
-      const updates = orders.map((order) =>
-        order.prepareUpdate((o) => {
-          o.isSynced = true
-        }),
-      )
-
-      await database.batch(...updates)
+      const deletions = orders.map((order) => order.prepareDestroyPermanently())
+      await database.batch(...deletions)
     })
+  },
+
+  /**
+   * Đánh dấu / hoàn tất đồng bộ đơn hàng (Xóa khỏi Local SQLite)
+   */
+  markOrdersAsSynced: async (orderIds: string[]): Promise<void> => {
+    return OrderLocalAPI.deleteSyncedOrders(orderIds)
   },
 }

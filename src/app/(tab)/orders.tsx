@@ -18,29 +18,57 @@ import {
   RefundConfirmModal,
   type RefundConfirmModalRef,
 } from '@/shared/features/order/components/refund-confirm-modal'
-import { useOfflineOrders, useOrders } from '@/shared/features/order/hooks'
+import { useOfflineOrders, useOrders, useUnsyncedOrdersCount } from '@/shared/features/order/hooks'
 import { useOrderFilterStore } from '@/shared/features/order/store/use-order-filter-store'
 import type { IOrder, Partner } from '@/shared/features/order/types'
 import type { Affiliate } from '@/shared/features/pos/types/cart.types'
 import { toast } from '@/shared/store'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useFocusEffect, useRouter } from 'expo-router'
+import { router } from 'expo-router'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 type OrderMode = 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
 
-// ── Mode tabs ──────────────────────────────────────────────
-const TopTabs = memo(function TopTabs({
+// ── Mode tabs bar with realtime unsynced-count ────────
+const ModeTabs = memo(function ModeTabs({
   mode,
   onChangeMode,
-  tabs,
 }: {
   mode: OrderMode
   onChangeMode: (v: OrderMode) => void
-  tabs: readonly { label: string; value: OrderMode }[]
 }) {
+  const unsyncedCount = useUnsyncedOrdersCount()
+
+  // Fallback tab if offline orders are synced and count becomes 0
+  useEffect(() => {
+    if (mode === 'offline' && unsyncedCount === 0) {
+      onChangeMode('all')
+    }
+  }, [mode, unsyncedCount, onChangeMode])
+
+  const tabs = useMemo(() => {
+    const base = [
+      { label: 'Tất cả', value: 'all' as const },
+      { label: 'Khách lẻ', value: 'pos' as const },
+      { label: 'Cộng tác viên', value: 'collaborator' as const },
+      { label: 'Đối tác', value: 'agent' as const },
+    ]
+    if (unsyncedCount > 0) {
+      return [...base, { label: 'Ngoại tuyến', value: 'offline' as const }]
+    }
+    return base
+  }, [unsyncedCount])
+
+  const handlePress = useCallback(
+    (tabValue: OrderMode) => {
+      if (tabValue === mode) return
+      onChangeMode(tabValue)
+    },
+    [mode, onChangeMode],
+  )
+
   return (
     <View className="flex-row gap-2 px-4 pt-3">
       {tabs.map((tab) => {
@@ -48,7 +76,7 @@ const TopTabs = memo(function TopTabs({
         return (
           <Pressable
             key={tab.value}
-            onPress={() => onChangeMode(tab.value)}
+            onPress={() => handlePress(tab.value)}
             className={`items-center justify-center rounded-t-2xl px-10 py-5 ${
               active ? 'elevation-8 bg-surface-variant' : 'elevation-0 bg-neutral-50'
             }`}
@@ -68,7 +96,6 @@ const TopTabs = memo(function TopTabs({
                 active ? 'text-primary' : 'text-neutral-900'
               }`}
               numberOfLines={1}
-              adjustsFontSizeToFit
             >
               {tab.label}
             </Text>
@@ -79,34 +106,68 @@ const TopTabs = memo(function TopTabs({
   )
 })
 
-// ── Guide owner select (CTV / Đối tác) ──────────────────────
+// ── Guide owner select (CTV / Đối tác) with isolated queries ──
 const GuideOwnerBar = memo(function GuideOwnerBar({
   mode,
-  affiliates,
-  partners,
   activeId,
   onChangeId,
   onPreviewReconciliation,
 }: {
   mode: 'collaborator' | 'agent'
-  affiliates: Affiliate[]
-  partners: Partner[]
   activeId: string | null
   onChangeId: (id: string | null) => void
-  onPreviewReconciliation: () => void
+  onPreviewReconciliation: (ownerName: string, ownerCode: string) => void
 }) {
+  const { data: affiliates = [] } = useQuery({
+    queryKey: ['pos-affiliates-list', { isActive: true, hasTransaction: true }],
+    queryFn: async () =>
+      (await OrderRemoteAPI.getAffiliates({ isActive: true, hasTransaction: true })).items,
+    enabled: mode === 'collaborator',
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: partners = [] } = useQuery({
+    queryKey: ['pos-partners-list', { isActive: true, hasTransaction: true }],
+    queryFn: async () =>
+      (await OrderRemoteAPI.getPartners({ isActive: true, hasTransaction: true })).items,
+    enabled: mode === 'agent',
+    staleTime: 5 * 60 * 1000,
+  })
+
   const options = useMemo(() => {
     if (mode === 'collaborator') {
       return [
         { label: 'Tất cả Cộng tác viên', value: '' },
-        ...affiliates.map((a) => ({ label: `${a.name} (${a.code})`, value: a.id })),
+        ...affiliates.map((a: Affiliate) => ({ label: `${a.name} (${a.code})`, value: a.id })),
       ]
     }
     return [
       { label: 'Tất cả Đối tác', value: '' },
-      ...partners.map((p) => ({ label: `${p.nameVi} (${p.code})`, value: p.id })),
+      ...partners.map((p: Partner) => ({ label: `${p.nameVi} (${p.code})`, value: p.id })),
     ]
   }, [mode, affiliates, partners])
+
+  const handleReconcilePress = useCallback(() => {
+    if (mode === 'collaborator') {
+      if (!activeId) {
+        toast.info('Vui lòng chọn cụ thể một Cộng tác viên để đối soát.', 'Yêu cầu chọn CTV')
+        return
+      }
+      const activeAff = affiliates.find((a: Affiliate) => a.id === activeId)
+      if (activeAff) {
+        onPreviewReconciliation(activeAff.name, activeAff.code)
+      }
+    } else {
+      if (!activeId) {
+        toast.info('Vui lòng chọn cụ thể một Đối tác để đối soát.', 'Yêu cầu chọn Đối tác')
+        return
+      }
+      const activePartner = partners.find((p: Partner) => p.id === activeId)
+      if (activePartner) {
+        onPreviewReconciliation(activePartner.nameVi, activePartner.code)
+      }
+    }
+  }, [mode, activeId, affiliates, partners, onPreviewReconciliation])
 
   return (
     <View className="mb-4 flex-row items-center gap-3">
@@ -121,7 +182,7 @@ const GuideOwnerBar = memo(function GuideOwnerBar({
       />
       {mode === 'collaborator' && (
         <Pressable
-          onPress={onPreviewReconciliation}
+          onPress={handleReconcilePress}
           disabled={!activeId}
           className={`h-[64px] items-center justify-center rounded-xl px-8 ${
             activeId ? 'bg-primary' : 'bg-outline'
@@ -134,8 +195,8 @@ const GuideOwnerBar = memo(function GuideOwnerBar({
   )
 })
 
-// ── List + stats: owns useOrders so search/filter refetch không kéo shell ──
-const OrdersResults = memo(function OrdersResults({
+// ── Online Orders Results ──────────────────────────────────
+const OnlineOrdersResults = memo(function OnlineOrdersResults({
   mode,
   affiliateId,
   partnerId,
@@ -165,24 +226,27 @@ const OrdersResults = memo(function OrdersResults({
           ? ('collaborator' as const)
           : ('agent' as const)
 
-  const onlineQuery = useOrders({
-    status,
-    dateFrom,
-    dateTo,
-    staffId,
-    affiliateId: mode === 'collaborator' ? affiliateId : null,
-    partnerId: mode === 'agent' ? partnerId : null,
-    guideType: mode === 'offline' ? null : guideType,
-    paymentMethod,
-    enabled: mode !== 'offline',
-  })
+  const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
+    useOrders({
+      status,
+      dateFrom,
+      dateTo,
+      staffId,
+      affiliateId: mode === 'collaborator' ? affiliateId : null,
+      partnerId: mode === 'agent' ? partnerId : null,
+      guideType,
+      paymentMethod,
+    })
 
-  const offlineQuery = useOfflineOrders({
-    enabled: mode === 'offline',
-  })
-
-  const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    mode === 'offline' ? offlineQuery : onlineQuery
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await refetch()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [refetch])
 
   return (
     <View className="flex-1 rounded-lg border border-outline">
@@ -196,6 +260,51 @@ const OrdersResults = memo(function OrdersResults({
         fetchNextPage={fetchNextPage}
         hasNextPage={!!hasNextPage}
         isFetchingNextPage={isFetchingNextPage}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+      />
+      <OrderStatsFooter stats={stats} />
+    </View>
+  )
+})
+
+// ── Offline Orders Results ─────────────────────────────────
+const OfflineOrdersResults = memo(function OfflineOrdersResults({
+  onOpenDetails,
+  onExchange,
+  onRefund,
+}: {
+  onOpenDetails: (order: IOrder) => void
+  onExchange: (order: IOrder) => void
+  onRefund: (order: IOrder) => void
+}) {
+  const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
+    useOfflineOrders()
+
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await refetch()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [refetch])
+
+  return (
+    <View className="flex-1 rounded-lg border border-outline">
+      <OrderList
+        mode="offline"
+        onOpenDetails={onOpenDetails}
+        onExchange={onExchange}
+        onRefund={onRefund}
+        orders={orders}
+        isLoading={isLoading}
+        fetchNextPage={fetchNextPage}
+        hasNextPage={!!hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
       />
       <OrderStatsFooter stats={stats} />
     </View>
@@ -205,7 +314,6 @@ const OrdersResults = memo(function OrdersResults({
 // ── Screen shell: mode + chrome only ───────────────────────
 function OrdersContent() {
   const queryClient = useQueryClient()
-  const router = useRouter()
   const modalRef = useRef<OrderDetailModalRef>(null)
   const reconciliationModalRef = useRef<ReconciliationModalRef>(null)
   const refundModalRef = useRef<RefundConfirmModalRef>(null)
@@ -214,58 +322,12 @@ function OrdersContent() {
   const [selectedAffiliateId, setSelectedAffiliateId] = useState<string | null>(null)
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
 
-  const { data: unsyncedCount = 0, refetch: refetchUnsyncedCount } = useQuery({
-    queryKey: ['unsynced-orders-count'],
-    queryFn: () => OrderLocalAPI.getUnsyncedOrdersCount(),
-    staleTime: 5000,
-  })
-
-  // Tự động refetch lại số lượng đơn offline và danh sách đơn hàng khi user quay lại tab Orders
-  // Defer 300ms để không tranh JS thread với tab-transition animation
-  useFocusEffect(
-    useCallback(() => {
-      const t = setTimeout(() => {
-        refetchUnsyncedCount()
-        queryClient.invalidateQueries({ queryKey: ['orders'] })
-      }, 300)
-      return () => clearTimeout(t)
-    }, [refetchUnsyncedCount, queryClient]),
-  )
-
-  // Fallback tab if offline orders are synced and count becomes 0
-  useEffect(() => {
-    if (mode === 'offline' && unsyncedCount === 0) {
-      setMode('all')
-    }
-  }, [mode, unsyncedCount])
-
-  const tabs = useMemo(() => {
-    const base = [
-      { label: 'Tất cả', value: 'all' as const },
-      { label: 'Khách lẻ', value: 'pos' as const },
-      { label: 'Cộng tác viên', value: 'collaborator' as const },
-      { label: 'Đối tác', value: 'agent' as const },
-    ]
-    if (unsyncedCount > 0) {
-      return [...base, { label: 'Ngoại tuyến', value: 'offline' as const }]
-    }
-    return base
-  }, [unsyncedCount])
-
-  // Modal nặng (refund machine + receipt) mount sau paint / khi user cần
+  // Lazy mount modals on first user interaction
   const [mountModals, setMountModals] = useState(false)
   const mountModalsRef = useRef(false)
   const pendingDetail = useRef<IOrder | null>(null)
   const pendingRefund = useRef<IOrder | null>(null)
   const pendingRecon = useRef<Parameters<ReconciliationModalRef['open']>[0] | null>(null)
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      mountModalsRef.current = true
-      setMountModals(true)
-    }, 0)
-    return () => clearTimeout(t)
-  }, [])
 
   useEffect(() => {
     if (!mountModals) return
@@ -282,25 +344,6 @@ function OrdersContent() {
       pendingRecon.current = null
     }
   }, [mountModals])
-
-  const dateFrom = useOrderFilterStore((s) => s.dateFrom)
-  const dateTo = useOrderFilterStore((s) => s.dateTo)
-
-  const { data: affiliates = [] } = useQuery({
-    queryKey: ['pos-affiliates-list', { isActive: true, hasTransaction: true }],
-    queryFn: async () =>
-      (await OrderRemoteAPI.getAffiliates({ isActive: true, hasTransaction: true })).items,
-    enabled: mode === 'collaborator',
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const { data: partners = [] } = useQuery({
-    queryKey: ['pos-partners-list', { isActive: true, hasTransaction: true }],
-    queryFn: async () =>
-      (await OrderRemoteAPI.getPartners({ isActive: true, hasTransaction: true })).items,
-    enabled: mode === 'agent',
-    staleTime: 5 * 60 * 1000,
-  })
 
   const activeId =
     mode === 'collaborator' ? selectedAffiliateId : mode === 'agent' ? selectedPartnerId : null
@@ -319,7 +362,6 @@ function OrdersContent() {
   )
 
   const handleOpenDetails = useCallback((order: IOrder) => {
-    console.log('detail:: ', JSON.stringify(order, null, 2))
     if (!mountModalsRef.current) {
       pendingDetail.current = order
       mountModalsRef.current = true
@@ -334,7 +376,7 @@ function OrdersContent() {
       queryClient.setQueryData(['exchange-order', order.id], order)
       router.push({ pathname: '/exchange', params: { orderId: order.id } })
     },
-    [queryClient, router],
+    [queryClient],
   )
 
   const handleRefund = useCallback((order: IOrder) => {
@@ -353,61 +395,46 @@ function OrdersContent() {
     queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
   }, [queryClient])
 
-  const handlePreviewReconciliation = useCallback(() => {
-    if (mode === 'pos' || mode === 'all' || mode === 'offline') return
+  const handlePreviewReconciliation = useCallback(
+    (ownerName: string, ownerCode: string) => {
+      if (mode === 'pos' || mode === 'all' || mode === 'offline') return
 
-    let ownerName = ''
-    let ownerCode = ''
-
-    if (mode === 'collaborator') {
-      if (!selectedAffiliateId) {
-        toast.info('Vui lòng chọn cụ thể một Cộng tác viên để đối soát.', 'Yêu cầu chọn CTV')
+      const { dateFrom, dateTo } = useOrderFilterStore.getState()
+      if (!dateFrom || !dateTo) {
+        toast.info('Vui lòng chọn khoảng thời gian để đối soát.', 'Thiếu khoảng ngày')
         return
       }
-      const activeAff = affiliates.find((a) => a.id === selectedAffiliateId)
-      if (activeAff) {
-        ownerName = activeAff.name
-        ownerCode = activeAff.code
+
+      const payload = {
+        ownerName,
+        ownerCode,
+        ownerType: mode as 'collaborator' | 'agent',
+        partnerId: mode === 'agent' ? selectedPartnerId : null,
+        affiliateId: mode === 'collaborator' ? selectedAffiliateId : null,
+        dateFrom,
+        dateTo,
       }
-    } else {
-      if (!selectedPartnerId) {
-        toast.info('Vui lòng chọn cụ thể một Đối tác để đối soát.', 'Yêu cầu chọn Đối tác')
+      if (!mountModalsRef.current) {
+        pendingRecon.current = payload
+        mountModalsRef.current = true
+        setMountModals(true)
         return
       }
-      const activePartner = partners.find((p) => p.id === selectedPartnerId)
-      if (activePartner) {
-        ownerName = activePartner.nameVi
-        ownerCode = activePartner.code
-      }
-    }
+      reconciliationModalRef.current?.open(payload)
+    },
+    [mode, selectedAffiliateId, selectedPartnerId],
+  )
 
-    if (!dateFrom || !dateTo) {
-      toast.info('Vui lòng chọn khoảng thời gian để đối soát.', 'Thiếu khoảng ngày')
-      return
-    }
-
-    const payload = {
-      ownerName,
-      ownerCode,
-      ownerType: mode as 'collaborator' | 'agent',
-      partnerId: mode === 'agent' ? selectedPartnerId : null,
-      affiliateId: mode === 'collaborator' ? selectedAffiliateId : null,
-      dateFrom,
-      dateTo,
-    }
-    if (!mountModalsRef.current) {
-      pendingRecon.current = payload
-      mountModalsRef.current = true
-      setMountModals(true)
-      return
-    }
-    reconciliationModalRef.current?.open(payload)
-  }, [mode, selectedAffiliateId, selectedPartnerId, affiliates, partners, dateFrom, dateTo])
+  const handleTabChange = useCallback((newMode: OrderMode) => {
+    setMode((prev) => (prev === newMode ? prev : newMode))
+    setSelectedAffiliateId(null)
+    setSelectedPartnerId(null)
+  }, [])
 
   return (
     <SafeAreaView className="flex-1">
       <View className="flex-1 bg-white">
-        <TopTabs mode={mode} onChangeMode={setMode} tabs={tabs} />
+        <ModeTabs mode={mode} onChangeMode={handleTabChange} />
 
         <View
           className="flex-1 rounded-b-xl rounded-tr-xl px-5 pb-5 pt-4"
@@ -422,25 +449,31 @@ function OrdersContent() {
         >
           <OrderFilterBar showStaffFilter={mode !== 'offline'} hideFilters={mode === 'offline'} />
 
-          {mode !== 'pos' && mode !== 'all' && mode !== 'offline' ? (
+          {mode === 'collaborator' || mode === 'agent' ? (
             <GuideOwnerBar
               mode={mode}
-              affiliates={affiliates}
-              partners={partners}
               activeId={activeId}
               onChangeId={setActiveId}
               onPreviewReconciliation={handlePreviewReconciliation}
             />
           ) : null}
 
-          <OrdersResults
-            mode={mode}
-            affiliateId={selectedAffiliateId}
-            partnerId={selectedPartnerId}
-            onOpenDetails={handleOpenDetails}
-            onExchange={handleExchange}
-            onRefund={handleRefund}
-          />
+          {mode === 'offline' ? (
+            <OfflineOrdersResults
+              onOpenDetails={handleOpenDetails}
+              onExchange={handleExchange}
+              onRefund={handleRefund}
+            />
+          ) : (
+            <OnlineOrdersResults
+              mode={mode}
+              affiliateId={selectedAffiliateId}
+              partnerId={selectedPartnerId}
+              onOpenDetails={handleOpenDetails}
+              onExchange={handleExchange}
+              onRefund={handleRefund}
+            />
+          )}
         </View>
 
         {mountModals ? (

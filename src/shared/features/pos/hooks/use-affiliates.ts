@@ -33,7 +33,7 @@ export const useAffiliates = (params?: { q?: string; agentType?: AgentType; limi
       const res = await OrderRemoteAPI.getAffiliates({ q: q || undefined, limit: params?.limit })
       return res.items
     },
-    staleTime: 0, // 5 phút cache
+    staleTime: 2 * 60_000,
     enabled: true,
   })
 }

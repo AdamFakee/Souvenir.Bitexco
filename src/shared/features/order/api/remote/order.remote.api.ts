@@ -268,11 +268,16 @@ export interface ExchangeReceiptData {
 
 /** Hóa đơn đơn mới (hàng đổi vào) — in bill như checkout */
 export interface ExchangeSaleReceiptLine {
+  lineId?: string
   variantId?: string
   productId?: string
   sku?: string
-  name: string
+  name?: string
+  productName?: string
+  barcode?: string | null
   qty: number
+  returnedQty?: number
+  remainingQty?: number
   unitPrice: number
   discountAmount?: number
   taxRate?: number
@@ -283,19 +288,41 @@ export interface ExchangeSaleReceiptLine {
 export interface ExchangeSaleReceipt {
   orderId: string
   orderCode: string
+  state?: string
+  createdAt?: string
+  completedAt?: string
   issuedAt?: string
   reason?: string
   originalOrderId?: string
   originalOrderCode?: string
+  customerId?: string | null
+  cashierUserId?: string
+  cashSessionId?: string
+  warehouseId?: string
   subTotal: number
   discountTotal?: number
   voucherDiscount?: number
   taxTotal: number
   grandTotal: number
   paidTotal?: number
+  roundingTotal?: number
+  currency?: string
   change?: number
   lines: ExchangeSaleReceiptLine[]
-  payments?: { method?: string; amount?: number }[]
+  payments?: {
+    paymentId?: string
+    method?: string
+    amount?: number
+    state?: string
+    provider?: string | null
+    createdAt?: string
+  }[]
+  invoice?: {
+    id?: string
+    invoiceNo?: string | null
+    state?: string
+    issuedAt?: string | null
+  }
 }
 
 export interface ExchangeOrderResult {
@@ -744,23 +771,12 @@ export const OrderRemoteAPI = {
           : {}),
       }
 
-      console.log(
-        `[OrderRemoteAPI] exchangeOrder request (orderId: ${orderId}) payload:`,
-        JSON.stringify(payload, null, 2),
-      )
-
       const response = await AxiosService.getInstance().post<ExchangeOrderResult>(
         `/v1/pos/orders/${orderId}/exchange`,
         payload,
       )
-
-      console.log(
-        `[OrderRemoteAPI] exchangeOrder response:`,
-        JSON.stringify(response.data, null, 2),
-      )
       return response.data
     } catch (error) {
-      console.error(`[OrderRemoteAPI] exchangeOrder error:`, error)
       const typedError = error as {
         response?: { status?: number; data?: { error?: string; traceId?: string } }
         message?: string
@@ -811,18 +827,11 @@ export const OrderRemoteAPI = {
    * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
    */
   checkout: async (payload: PosCheckoutRequest): Promise<PosCheckoutResult> => {
-    console.log('[OrderRemoteAPI] checkout request payload:', JSON.stringify(payload, null, 2))
-    try {
-      const res = await AxiosService.getInstance().post<PosCheckoutResult>(
-        '/v1/pos/checkout',
-        payload,
-      )
-      console.log('[OrderRemoteAPI] checkout response:', JSON.stringify(res.data, null, 2))
-      return res.data
-    } catch (error) {
-      console.error('[OrderRemoteAPI] checkout error:', error)
-      throw error
-    }
+    const res = await AxiosService.getInstance().post<PosCheckoutResult>(
+      '/v1/pos/checkout',
+      payload,
+    )
+    return res.data
   },
 
   /**

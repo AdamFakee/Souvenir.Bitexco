@@ -37,10 +37,6 @@ export const useEmployees = (paramsOrShiftId?: string | UseEmployeesParams) => {
   // Goi lai API khi chuyen sang tab chua component nay
   useEffect(() => {
     if (isFocused) {
-      console.log(
-        `[useEmployees] Screen focused, triggering employee list refetch. params:`,
-        paramsKey,
-      )
       query.refetch()
     }
   }, [isFocused, query.refetch, paramsKey])

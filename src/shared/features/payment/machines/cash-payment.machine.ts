@@ -206,7 +206,11 @@ export const cashPaymentMachine = setup({
     ),
   },
   guards: {
-    canConfirm: ({ context }) => context.amountTendered >= roundCashAmount(context.total),
+    canConfirm: ({ context }) =>
+      context.total > 0 &&
+      context.total % 1000 === 0 &&
+      context.amountTendered >= roundCashAmount(context.total) &&
+      context.amountTendered % 1000 === 0,
     canRetry: ({ context }) => context.retryCount < MAX_RETRIES,
   },
   actions: {

@@ -1,97 +1,144 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
-import { OrderLocalAPI } from '../api/local/order.local.api'
+import { database, OrderModel } from '@/shared/lib/database'
+import { Q } from '@nozbe/watermelondb'
+import { useEffect, useMemo, useState } from 'react'
 import { useOrderFilterStore } from '../store'
 import type { IOrder } from '../types'
-import { OrderModel } from '@/shared/lib/database'
 
-const LIMIT = 20
+const mapLocalOrderToIOrder = (o: OrderModel): IOrder => {
+  const createdTime =
+    (o._raw as any).created_at || (o.createdAt ? new Date(o.createdAt).getTime() : Date.now())
+  const updatedTime =
+    (o._raw as any).updated_at || (o.updatedAt ? new Date(o.updatedAt).getTime() : Date.now())
 
-const mapLocalOrderToIOrder = (o: OrderModel): IOrder => ({
-  id: o.id,
-  code: null,
-  shiftId: o.shiftId,
-  staffId: o.staffId,
-  status: o.status as any,
-  subtotal: o.subtotal,
-  discount: o.discount,
-  voucherCode: o.voucherCode,
-  voucherDiscount: o.voucherDiscount,
-  total: o.total,
-  totalTax: o.totalTax,
-  note: o.note,
-  refundReason: o.refundReason,
-  originalOrderId: o.originalOrderId,
-  customerTaxInfo: o.customerTaxInfo,
-  itemsSnapshot: o.itemsSnapshot,
-  paymentsSnapshot: o.paymentsSnapshot,
-  isDeleted: o.isDeleted,
-  canReturn: false,
-  canExchange: false,
-  createdAt: o.createdAt,
-  updatedAt: o.updatedAt,
-})
+  return {
+    id: o.id,
+    code: null,
+    shiftId: o.shiftId,
+    staffId: o.staffId,
+    status: (o.status as any) || 'COMPLETED',
+    subtotal: o.subtotal || 0,
+    discount: o.discount || 0,
+    voucherCode: o.voucherCode,
+    voucherDiscount: o.voucherDiscount || 0,
+    total: o.total || 0,
+    totalTax: o.totalTax || 0,
+    note: o.note,
+    refundReason: o.refundReason,
+    originalOrderId: o.originalOrderId,
+    customerTaxInfo: o.customerTaxInfo,
+    itemsSnapshot: o.itemsSnapshot || [],
+    paymentsSnapshot: o.paymentsSnapshot || [],
+    isDeleted: o.isDeleted || false,
+    canReturn: false,
+    canExchange: false,
+    createdAt: new Date(createdTime),
+    updatedAt: new Date(updatedTime),
+  }
+}
 
-export const useOfflineOrders = (params?: { enabled?: boolean }) => {
+const NOOP_ASYNC = async () => {}
+
+/**
+ * Hook theo dõi số lượng đơn offline chưa đồng bộ theo thời gian thực (Reactive từ SQLite)
+ */
+export const useUnsyncedOrdersCount = () => {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    const subscription = database
+      .get<OrderModel>('orders')
+      .query(Q.where('is_deleted', Q.notEq(true)), Q.where('is_synced', false))
+      .observeCount()
+      .subscribe({
+        next: (cnt) => setCount(cnt),
+        error: (err) => console.error('[useUnsyncedOrdersCount] error:', err),
+      })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  return count
+}
+
+/**
+ * Hook theo dõi danh sách và thống kê đơn hàng Offline theo thời gian thực (Tối ưu hiệu năng cao)
+ */
+export const useOfflineOrders = () => {
   const searchQuery = useOrderFilterStore((s) => s.searchQuery.trim())
-  const enabled = params?.enabled !== false
+  const [rawOrders, setRawOrders] = useState<OrderModel[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const query = useInfiniteQuery({
-    queryKey: ['orders', 'offline', searchQuery],
-    queryFn: async ({ pageParam = 0 }) => {
-      const results = await OrderLocalAPI.getOrders({
-        searchQuery,
-        limit: LIMIT,
-        offset: (pageParam as number) * LIMIT,
-        isSynced: false,
+  useEffect(() => {
+    const clauses: any[] = [Q.where('is_deleted', Q.notEq(true)), Q.where('is_synced', false)]
+
+    if (searchQuery) {
+      const sanitized = Q.sanitizeLikeString(searchQuery)
+      clauses.push(
+        Q.or(
+          Q.where('id', Q.like(`%${sanitized}%`)),
+          Q.where('items_snapshot', Q.like(`%${sanitized}%`)),
+        ),
+      )
+    }
+
+    // Đẩy việc sắp xếp xuống thẳng Native SQLite Engine (Index-based B-Tree)
+    clauses.push(Q.sortBy('created_at', Q.desc))
+
+    const subscription = database
+      .get<OrderModel>('orders')
+      .query(...clauses)
+      .observe()
+      .subscribe({
+        next: (list) => {
+          setRawOrders(list)
+          setIsLoading(false)
+        },
+        error: (err) => {
+          console.error('[useOfflineOrders] observe error:', err)
+          setIsLoading(false)
+        },
       })
-      return results.map(mapLocalOrderToIOrder)
-    },
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) => {
-      return lastPage.length === LIMIT ? allPages.length : undefined
-    },
-    staleTime: 5000,
-    enabled,
-  })
 
-  const orders = useMemo(() => query.data?.pages.flat() || [], [query.data])
+    return () => subscription.unsubscribe()
+  }, [searchQuery])
 
-  const statsQuery = useQuery({
-    queryKey: ['orders', 'offline', 'stats', searchQuery],
-    queryFn: async () => {
-      const allUnsynced = await OrderLocalAPI.getOrders({
-        searchQuery,
-        limit: 999999,
-        offset: 0,
-        isSynced: false,
-      })
-      let totalItems = 0
-      let totalRevenue = 0
-      for (const o of allUnsynced) {
-        totalItems += o.itemsSnapshot?.reduce((s, it) => s + (it.quantity || 0), 0) ?? 0
-        totalRevenue += o.total || 0
+  // Single-pass O(N): Map dữ liệu hiển thị và tính toán Thống kê trong 1 vòng lặp duy nhất
+  const { orders, stats } = useMemo(() => {
+    const len = rawOrders.length
+    const list: IOrder[] = new Array(len)
+    let totalItems = 0
+    let totalRevenue = 0
+
+    for (let i = 0; i < len; i++) {
+      const o = rawOrders[i]
+      const items = o.itemsSnapshot || []
+      let orderQty = 0
+
+      for (let j = 0; j < items.length; j++) {
+        orderQty += items[j].quantity || 0
       }
-      return {
-        count: allUnsynced.length,
+
+      totalItems += orderQty
+      totalRevenue += o.total || 0
+      list[i] = mapLocalOrderToIOrder(o)
+    }
+
+    return {
+      orders: list,
+      stats: {
+        count: len,
         totalItems,
         totalRevenue,
-      }
-    },
-    staleTime: 5000,
-    enabled,
-  })
+      },
+    }
+  }, [rawOrders])
 
   return {
     orders,
-    stats: statsQuery.data || { count: 0, totalItems: 0, totalRevenue: 0 },
-    fetchNextPage: query.fetchNextPage,
-    hasNextPage: query.hasNextPage,
-    isFetchingNextPage: query.isFetchingNextPage,
-    isLoading: query.isLoading || statsQuery.isLoading,
-    refetch: () => {
-      query.refetch()
-      statsQuery.refetch()
-    },
+    stats,
+    fetchNextPage: NOOP_ASYNC,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    isLoading,
+    refetch: NOOP_ASYNC,
   }
 }

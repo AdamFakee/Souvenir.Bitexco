@@ -1,4 +1,4 @@
-import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { OrderRemoteAPI } from '../api'
 import { useOrderFilterStore } from '../store'
@@ -29,8 +29,8 @@ export const useOrders = (params: {
 
   // Search đã debounce ở OrderSearchInput trước khi vào store
   const searchQuery = useOrderFilterStore((s) => s.searchQuery.trim())
-  const dateFromKey = dateFrom?.toISOString() || null
-  const dateToKey = dateTo?.toISOString() || null
+  const dateFromKey = dateFrom ? dateFrom.toISOString().slice(0, 10) : null
+  const dateToKey = dateTo ? dateTo.toISOString().slice(0, 10) : null
 
   const query = useInfiniteQuery({
     queryKey: [
@@ -64,9 +64,8 @@ export const useOrders = (params: {
       const meta = lastPage.meta as any
       return meta?.hasNextPage ? Number(meta.page || 1) + 1 : undefined
     },
-    staleTime: 30_000,
+    staleTime: 60_000,
     networkMode: 'always',
-    placeholderData: keepPreviousData,
     enabled: enabled !== false,
   })
 
@@ -80,26 +79,12 @@ export const useOrders = (params: {
 
   const stats = useMemo(() => {
     const meta = query.data?.pages[0]?.meta as any
-    if (meta?.total != null && meta?.totalItems != null && meta?.totalRevenue != null) {
-      return {
-        count: meta.total,
-        totalItems: meta.totalItems,
-        totalRevenue: meta.totalRevenue,
-      }
-    }
-    // Fallback chỉ khi API chưa trả aggregate
-    let totalItems = 0
-    let totalRevenue = 0
-    for (const o of orders) {
-      totalItems += o.itemsSnapshot?.reduce((s, it) => s + (it.quantity || 0), 0) ?? 0
-      totalRevenue += o.total || 0
-    }
     return {
-      count: meta?.total ?? orders.length,
-      totalItems: meta?.totalItems || totalItems,
-      totalRevenue: meta?.totalRevenue || totalRevenue,
+      count: meta?.total ?? 0,
+      totalItems: meta?.totalItems ?? 0,
+      totalRevenue: meta?.totalRevenue ?? 0,
     }
-  }, [query.data, orders])
+  }, [query.data])
 
   return {
     orders,

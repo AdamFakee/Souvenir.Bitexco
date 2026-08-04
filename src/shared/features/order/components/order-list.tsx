@@ -1,7 +1,7 @@
-import { EmptyState, LoadMore, Shimmer } from '@/shared/components/ui'
+import { EmptyState, IconButton, LoadMore, Shimmer } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { getPaymentMethodStyle, PaymentMethodCode } from '@/shared/features/payment'
-import { formatCurrency } from '@/shared/utils'
+import { cn, formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { PackageOpen, Repeat2, Undo2 } from 'lucide-react-native'
 import React, { memo, useCallback, useMemo, useState } from 'react'
@@ -25,6 +25,8 @@ interface OrderListProps {
   hasNextPage: boolean
   isFetchingNextPage: boolean
   mode?: 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
+  onRefresh?: () => void
+  refreshing?: boolean
 }
 
 const BRAND = '#1C4E68'
@@ -52,68 +54,6 @@ function formatDateTime(date: Date | string) {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear().toString().slice(2))} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-interface OrderDisplay {
-  id: string
-  updatedAt: Date | string | undefined
-  code: string
-  collaboratorName: string
-  collaboratorCode: string
-  dateTime: string
-  ptttLabel: string
-  ptttColor: string
-  ptttBg: string
-  totalFormatted: string
-  statusLabel: string
-  statusColor: string
-  statusBg: string
-  _order: IOrder
-}
-
-function buildOrderDisplay(item: IOrder): OrderDisplay {
-  const payments = item.paymentsSnapshot || []
-  let pttt: { label: string; color: string; bg: string }
-  if (payments.length === 0) {
-    pttt = { label: '—', color: COLORS.muted, bg: COLORS.surface[100] }
-  } else if (payments.length >= 2) {
-    const s = getPaymentMethodStyle('mix')
-    pttt = { label: s.label, color: s.color, bg: s.bg }
-  } else {
-    const s = getPaymentMethodStyle(payments[0].method)
-    pttt = { label: s.label, color: s.color, bg: s.bg }
-  }
-
-  const displayTotal = item.refund ? item.refund.refundAmount : item.total
-  const displayStatus = getOrderDisplayStatus(item)
-
-  let collaboratorName = '—'
-  let collaboratorCode = ''
-
-  if (item.agentType === 'agent' && item.partner) {
-    collaboratorName = item.partner.nameVi || '—'
-    collaboratorCode = item.partner.code ? `#${item.partner.code}` : ''
-  } else if (item.affiliate) {
-    collaboratorName = item.affiliate.name || '—'
-    collaboratorCode = item.affiliate.code ? `#${item.affiliate.code}` : ''
-  }
-
-  return {
-    id: item.id,
-    updatedAt: item.updatedAt,
-    code: formatReceiptCode(item.code || item.id),
-    collaboratorName,
-    collaboratorCode,
-    dateTime: formatDateTime(item.createdAt),
-    ptttLabel: pttt.label,
-    ptttColor: pttt.color,
-    ptttBg: pttt.bg,
-    totalFormatted: formatCurrency(displayTotal),
-    statusLabel: displayStatus.label,
-    statusColor: displayStatus.color,
-    statusBg: displayStatus.bgColor,
-    _order: item,
-  }
-}
-
 // ── Payment method filter constants ──
 const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethodCode | '' }[] = [
   { label: 'Tất cả', value: '' },
@@ -127,7 +67,7 @@ const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethodCode | '' }[]
 const STATUS_OPTIONS: { label: string; value: string | null }[] = [
   { label: 'Tất cả', value: null },
   { label: 'Hoàn thành', value: 'COMPLETED' },
-  { label: 'Hoàn hàng', value: 'REFUNDED,RETURNED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED' },
+  { label: 'Hủy hàng', value: 'REFUNDED,RETURNED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED' },
 ]
 
 // ── Sortable Header Cell (Thanh toán / Trạng thái header mở popover filter) ──
@@ -293,14 +233,14 @@ const HeaderCell = memo(function HeaderCell({
 // ── Zebra Row (click vào row mở modal; icon hành động stopPropagation) ──
 const OrderRow = memo(
   function OrderRow({
-    display,
+    order,
     index,
     onOpenDetails,
     onExchange,
     onRefund,
     hideCollaborator,
   }: {
-    display: OrderDisplay
+    order: IOrder
     index: number
     onOpenDetails: (order: IOrder) => void
     onExchange?: (order: IOrder) => void
@@ -308,9 +248,42 @@ const OrderRow = memo(
     hideCollaborator?: boolean
   }) {
     const isEven = index % 2 === 1
-    const order = display._order
-    const canExchange = checkCanExchange(order)
-    const canReturn = checkCanReturn(order)
+    const payments = order.paymentsSnapshot || []
+    let ptttLabel = '—'
+    let ptttColor: string = COLORS.muted
+    let ptttBg: string = COLORS.surface[100]
+
+    if (payments.length >= 2) {
+      const s = getPaymentMethodStyle('mix')
+      ptttLabel = s.label
+      ptttColor = s.color
+      ptttBg = s.bg
+    } else if (payments.length === 1) {
+      const s = getPaymentMethodStyle(payments[0].method)
+      ptttLabel = s.label
+      ptttColor = s.color
+      ptttBg = s.bg
+    }
+
+    const displayTotal = order.refund ? order.refund.refundAmount : order.total
+    const displayStatus = getOrderDisplayStatus(order)
+
+    let collaboratorName = '—'
+    let collaboratorCode = ''
+
+    if (order.agentType === 'agent' && order.partner) {
+      collaboratorName = order.partner.nameVi || '—'
+      collaboratorCode = order.partner.code ? `#${order.partner.code}` : ''
+    } else if (order.affiliate) {
+      collaboratorName = order.affiliate.name || '—'
+      collaboratorCode = order.affiliate.code ? `#${order.affiliate.code}` : ''
+    }
+
+    const canExchange = order.canExchange ?? checkCanExchange(order)
+    const canReturn = order.canReturn ?? checkCanReturn(order)
+    const code = formatReceiptCode(order.code || order.id)
+    const dateTime = formatDateTime(order.createdAt)
+    const totalFormatted = formatCurrency(displayTotal)
 
     const handlePress = useCallback(() => onOpenDetails(order), [onOpenDetails, order])
 
@@ -330,7 +303,7 @@ const OrderRow = memo(
             numberOfLines={1}
             style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
           >
-            {display.code}
+            {code}
           </Text>
         </View>
 
@@ -341,11 +314,11 @@ const OrderRow = memo(
               numberOfLines={1}
               style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
             >
-              {display.collaboratorName}
+              {collaboratorName}
             </Text>
-            {display.collaboratorCode ? (
+            {collaboratorCode ? (
               <Text style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold', fontSize: 16 }}>
-                {display.collaboratorCode}
+                {collaboratorCode}
               </Text>
             ) : null}
           </View>
@@ -354,21 +327,18 @@ const OrderRow = memo(
         {/* Ngày tạo */}
         <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
           <Text style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}>
-            {display.dateTime}
+            {dateTime}
           </Text>
         </View>
 
         {/* Thanh toán */}
         <View className="justify-center px-4" style={{ flex: 0.7, height: 60 }}>
-          <View
-            className="self-start rounded-md px-3 py-1"
-            style={{ backgroundColor: display.ptttBg }}
-          >
+          <View className="self-start rounded-md px-3 py-1" style={{ backgroundColor: ptttBg }}>
             <Text
               className="uppercase tracking-tight"
-              style={{ color: display.ptttColor, fontFamily: 'Manrope-Bold', fontSize: 18 }}
+              style={{ color: ptttColor, fontFamily: 'Manrope-Bold', fontSize: 18 }}
             >
-              {display.ptttLabel}
+              {ptttLabel}
             </Text>
           </View>
         </View>
@@ -376,7 +346,7 @@ const OrderRow = memo(
         {/* Giá trị */}
         <View className="justify-center px-4" style={{ flex: 0.8, height: 60 }}>
           <Text style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}>
-            {display.totalFormatted}
+            {totalFormatted}
           </Text>
         </View>
 
@@ -384,10 +354,10 @@ const OrderRow = memo(
         <View className="justify-center px-4" style={{ flex: 0.8, height: 60 }}>
           <View
             className="self-start rounded-full px-3 py-1"
-            style={{ backgroundColor: display.statusBg }}
+            style={{ backgroundColor: displayStatus.bgColor }}
           >
-            <Text style={{ color: display.statusColor, fontFamily: 'Manrope-Bold', fontSize: 18 }}>
-              {display.statusLabel}
+            <Text style={{ color: displayStatus.color, fontFamily: 'Manrope-Bold', fontSize: 18 }}>
+              {displayStatus.label}
             </Text>
           </View>
         </View>
@@ -397,52 +367,52 @@ const OrderRow = memo(
           className="flex-row items-center justify-center gap-1.5 px-2"
           style={{ flex: 0.7, height: 60 }}
         >
-          <Pressable
-            accessibilityRole="button"
+          <IconButton
+            icon={Repeat2}
+            variant="md"
+            size={28}
+            color={canExchange ? BRAND : TEXT_TERTIARY}
             accessibilityLabel="Đổi hàng"
             disabled={!canExchange || !onExchange}
-            hitSlop={8}
             onPress={(e) => {
               e?.stopPropagation?.()
               if (canExchange) onExchange?.(order)
             }}
-            className="h-11 w-11 items-center justify-center rounded-lg"
+            className={cn('h-11 w-11 rounded-lg', canExchange ? 'bg-primary/10' : 'none')}
             style={{
-              backgroundColor: canExchange ? 'rgba(28,78,104,0.1)' : 'transparent',
               opacity: canExchange && onExchange ? 1 : 0.35,
             }}
-          >
-            <Repeat2 size={22} color={canExchange ? BRAND : TEXT_TERTIARY} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
+          />
+          <IconButton
+            icon={Undo2}
+            variant="md"
+            size={28}
+            color={canReturn ? '#DC2626' : TEXT_TERTIARY}
             accessibilityLabel="Trả hàng"
             disabled={!canReturn || !onRefund}
-            hitSlop={8}
             onPress={(e) => {
               e?.stopPropagation?.()
               if (canReturn) onRefund?.(order)
             }}
-            className="h-11 w-11 items-center justify-center rounded-lg"
+            className={cn('h-11 w-11 rounded-lg', canReturn ? 'bg-error/10' : 'none')}
             style={{
-              backgroundColor: canReturn ? 'rgba(220,38,38,0.08)' : 'transparent',
               opacity: canReturn && onRefund ? 1 : 0.35,
             }}
-          >
-            <Undo2 size={22} color={canReturn ? '#DC2626' : TEXT_TERTIARY} />
-          </Pressable>
+          />
         </View>
       </Pressable>
     )
   },
   (prev, next) =>
-    prev.display.id === next.display.id &&
-    prev.display.updatedAt === next.display.updatedAt &&
+    prev.order.id === next.order.id &&
+    +new Date(prev.order.updatedAt) === +new Date(next.order.updatedAt) &&
+    prev.order.status === next.order.status &&
+    prev.order.state === next.order.state &&
     prev.index === next.index &&
+    prev.hideCollaborator === next.hideCollaborator &&
     prev.onOpenDetails === next.onOpenDetails &&
     prev.onExchange === next.onExchange &&
-    prev.onRefund === next.onRefund &&
-    prev.hideCollaborator === next.hideCollaborator,
+    prev.onRefund === next.onRefund,
 )
 
 // ── Skeleton ──
@@ -518,6 +488,8 @@ export const OrderList = memo(function OrderList({
   hasNextPage,
   isFetchingNextPage,
   mode = 'pos',
+  onRefresh,
+  refreshing,
 }: OrderListProps) {
   const resetFilters = useOrderFilterStore((s) => s.resetFilters)
   const [sortField, setSortField] = useState<SortField | null>(null)
@@ -537,49 +509,45 @@ export const OrderList = memo(function OrderList({
     [sortField],
   )
 
-  const displays = useMemo(() => {
-    const list = orders.map(buildOrderDisplay)
-    if (sortField) {
-      list.sort((a, b) => {
-        let va: string, vb: string
-        switch (sortField) {
-          case 'code':
-            va = a.code
-            vb = b.code
-            break
-          case 'collaborator':
-            va = a.collaboratorName
-            vb = b.collaboratorName
-            break
-          case 'createdAt':
-            va = a.dateTime
-            vb = b.dateTime
-            break
-          case 'paymentMethod':
-            va = a.ptttLabel
-            vb = b.ptttLabel
-            break
-          case 'total':
-            va = a.totalFormatted
-            vb = b.totalFormatted
-            break
-          case 'status':
-            va = a.statusLabel
-            vb = b.statusLabel
-            break
-        }
-        return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-      })
-    }
+  const sortedOrders = useMemo(() => {
+    if (!sortField) return orders
+    const list = [...orders]
+    list.sort((a, b) => {
+      let va: any = ''
+      let vb: any = ''
+      switch (sortField) {
+        case 'code':
+          va = a.code || a.id
+          vb = b.code || b.id
+          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+        case 'collaborator':
+          va = a.partner?.nameVi || a.affiliate?.name || ''
+          vb = b.partner?.nameVi || b.affiliate?.name || ''
+          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+        case 'createdAt':
+          va = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          vb = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          return sortDir === 'asc' ? va - vb : vb - va
+        case 'paymentMethod':
+          va = a.paymentsSnapshot?.[0]?.method || ''
+          vb = b.paymentsSnapshot?.[0]?.method || ''
+          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+        case 'status':
+          va = a.status || ''
+          vb = b.status || ''
+          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+      }
+      return 0
+    })
     return list
   }, [orders, sortField, sortDir])
 
   const hideCollaborator = mode === 'pos'
 
   const renderItem = useCallback(
-    ({ item, index }: { item: OrderDisplay; index: number }) => (
+    ({ item, index }: { item: IOrder; index: number }) => (
       <OrderRow
-        display={item}
+        order={item}
         index={index}
         onOpenDetails={onOpenDetails}
         onExchange={onExchange}
@@ -590,9 +558,9 @@ export const OrderList = memo(function OrderList({
     [onOpenDetails, onExchange, onRefund, hideCollaborator],
   )
 
-  const keyExtractor = useCallback((item: OrderDisplay) => item.id, [])
+  const keyExtractor = useCallback((item: IOrder) => item.id, [])
 
-  // Chỉ blank skeleton khi thật sự chưa có rows (keepPreviousData giữ list khi đổi tab)
+  // Chỉ blank skeleton khi thật sự chưa có rows
   if (isLoading && orders.length === 0) {
     return (
       <View className="flex-1">
@@ -609,11 +577,14 @@ export const OrderList = memo(function OrderList({
       {/* Header pinned outside FlashList so popover isn't clipped */}
       <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} mode={mode} />
       <FlashList
-        data={displays}
+        data={sortedOrders}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
+        extraData={hideCollaborator}
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 8 }}
+        onRefresh={onRefresh}
+        refreshing={refreshing}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) {
             fetchNextPage()

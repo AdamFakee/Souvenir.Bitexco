@@ -9,6 +9,7 @@ import {
   OrderRemoteAPI,
   localIdToGuid,
 } from '@/shared/features/order/api/remote/order.remote.api'
+import { queryClient } from '@/shared/lib/react-query'
 
 /**
  * SyncService - Quản lý đồng bộ dữ liệu Offline/Online.
@@ -51,6 +52,7 @@ export const SyncService = {
   /**
    * Đồng bộ các đơn hàng được tạo lúc Offline lên Server.
    * Dùng cơ chế Outbox Pattern và Bulk Sync API.
+   * Sau khi sync thành công, đơn hàng sẽ được xóa vĩnh viễn khỏi Local DB (Delete on Sync).
    */
   drainOutbox: async () => {
     try {
@@ -83,6 +85,9 @@ export const SyncService = {
         created_at: o.createdAt.getTime(),
         updated_at: o.updatedAt.getTime(),
       }))
+
+      let hasSyncedAny = false
+
       // 3. Chia nhỏ (Chunking) thành từng cụm nhỏ (10 đơn/lần) để tránh quá tải payload
       const CHUNK_SIZE = 10
       for (let i = 0; i < rawOrders.length; i += CHUNK_SIZE) {
@@ -91,12 +96,19 @@ export const SyncService = {
         try {
           await OrderRemoteAPI.syncOfflineOrders(chunk)
 
-          // 4. Đánh dấu các đơn trong chunk này đã đồng bộ thành công
+          // 4. Xóa các đơn trong chunk này khỏi local SQLite vì đã sync thành công
           const chunkIds = chunk.map((o) => o.id)
           await OrderLocalAPI.markOrdersAsSynced(chunkIds)
+          hasSyncedAny = true
         } catch {
           break
         }
+      }
+
+      if (hasSyncedAny) {
+        queryClient.invalidateQueries({ queryKey: ['orders'] })
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
       }
     } catch (error) {
       throw error

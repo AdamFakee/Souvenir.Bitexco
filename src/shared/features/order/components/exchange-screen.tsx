@@ -31,7 +31,6 @@ import { BusinessChecklistModal, BusinessChecklistModalRef } from './business-ch
 import { ExchangeReplacementSearchPanel } from './exchange-replacement-search-panel'
 import { ExchangeReturnItemsPanel } from './exchange-return-items-panel'
 import { ExchangeSummaryFooter } from './exchange-summary-footer'
-import { RefundReceiptTemplate } from './refund-receipt-template'
 
 const managerSchema = v.object({
   employeeCode: v.pipe(v.string(), v.minLength(1, 'Mã quản lý là bắt buộc')),
@@ -51,7 +50,6 @@ export const ExchangeScreen = memo(function ExchangeScreen({
 }: ExchangeScreenProps) {
   const router = useRouter()
   const [state, send] = useMachine(exchangeOrderMachine)
-  const refundPrintRef = useRef(null)
   const salePrintRef = useRef(null)
   const printedReceiptKeyRef = useRef<string | null>(null)
   const businessChecklistModalRef = useRef<BusinessChecklistModalRef>(null)
@@ -109,6 +107,12 @@ export const ExchangeScreen = memo(function ExchangeScreen({
       setManagerError('pin', { type: 'manual', message: managerAuthError })
     }
   }, [managerAuthError, setManagerError])
+
+  useEffect(() => {
+    if (result) {
+      console.log('>>> EXCHANGE API RESPONSE RESULT:', JSON.stringify(result, null, 2))
+    }
+  }, [result])
 
   const returnedValue = useMemo(
     () => calculateExchangeReturnedValue(activeOrder, returnedLines),
@@ -179,42 +183,6 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     return (item.subtotal / item.quantity) * qty
   }, [])
 
-  const refundReceipt = useMemo((): RefundReceiptData | null => {
-    if (!result) return null
-    if (result.return?.receipt) {
-      return result.return.receipt
-    }
-    if (!activeOrder) return null
-    const lines = returnedLines
-      .filter((line) => line.qty > 0)
-      .map((line) => {
-        const item = activeOrder.itemsSnapshot?.find((o) => o.productId === line.productId)
-        const unitPrice = item && item.quantity > 0 ? item.subtotal / item.quantity : 0
-        return {
-          productId: line.productId,
-          sku: item?.sku,
-          name: item?.name || line.productId,
-          orderedQty: item?.quantity ?? line.qty,
-          returnedQty: line.qty,
-          remainingQty: Math.max(0, (item?.quantity ?? line.qty) - line.qty),
-          unitPrice,
-          lineRefundAmount: unitPrice * line.qty,
-          isReturned: true,
-        }
-      })
-    if (lines.length === 0) return null
-    return {
-      orderId: result.originalOrderId || activeOrder.id,
-      orderCode: result.originalOrderCode || activeOrder.code || undefined,
-      returnId: result.return?.returnId,
-      returnCode: result.return?.returnCode,
-      reason: reason || 'Đổi hàng',
-      refundedAt: new Date().toISOString(),
-      refundAmount: result.refundValue ?? returnedValue,
-      lines,
-    }
-  }, [activeOrder, reason, result, returnedLines, returnedValue])
-
   const saleOrder = useMemo((): IOrder | null => {
     if (!result) return null
 
@@ -222,27 +190,40 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     if (result.receipt) {
       const receipt = result.receipt
       const itemsSnapshot = (receipt.lines || []).map((line) => ({
-        productId: line.productId || line.variantId || '',
+        productId: line.productId || line.variantId || line.lineId || '',
         sku: line.sku || '',
-        name: line.name || '',
+        name: line.productName || line.name || '',
         price: line.unitPrice || 0,
         quantity: line.qty || 0,
-        subtotal: (line.unitPrice || 0) * (line.qty || 0),
+        subtotal: line.lineTotal ?? (line.unitPrice || 0) * (line.qty || 0),
         taxRate: line.taxRate ?? 0,
         taxAmount: line.taxAmount ?? 0,
         discountAmount: line.discountAmount ?? 0,
+        isExchange: true,
       }))
 
-      const paymentsSnapshot = (receipt.payments || []).map((p) => ({
-        method: (p.method?.toLowerCase() || 'cash') as PaymentMethodCode,
-        amount: p.amount || 0,
-      }))
+      const originalPayments = activeOrder?.paymentsSnapshot
+      const paymentsSnapshot =
+        originalPayments && originalPayments.length > 0
+          ? originalPayments.map((p) => ({
+              ...p,
+              amount: originalPayments.length === 1 ? receipt.grandTotal || p.amount : p.amount,
+            }))
+          : (receipt.payments || []).map((p) => ({
+              method: (p.method?.toLowerCase() || 'cash') as PaymentMethodCode,
+              amount: p.amount || 0,
+            }))
+
+      const orderDate =
+        receipt.completedAt || receipt.createdAt || receipt.issuedAt
+          ? new Date(receipt.completedAt || receipt.createdAt || receipt.issuedAt!)
+          : new Date()
 
       return {
-        id: receipt.orderId,
-        code: receipt.orderCode,
-        shiftId: cashSessionId || '',
-        staffId: employee?.id || '',
+        id: result.originalOrderId || receipt.orderId,
+        code: result.originalOrderCode || receipt.orderCode,
+        shiftId: receipt.cashSessionId || cashSessionId || '',
+        staffId: receipt.cashierUserId || employee?.id || '',
         status: 'COMPLETED',
         subtotal: receipt.subTotal || 0,
         discount: receipt.discountTotal ?? 0,
@@ -250,10 +231,12 @@ export const ExchangeScreen = memo(function ExchangeScreen({
         total: receipt.grandTotal || 0,
         totalTax: receipt.taxTotal || 0,
         customerTaxInfo: null,
+        originalOrderId: result.originalOrderId,
+        originalOrderCode: result.originalOrderCode,
         isDeleted: false,
         canReturn: true,
-        createdAt: receipt.issuedAt ? new Date(receipt.issuedAt) : new Date(),
-        updatedAt: receipt.issuedAt ? new Date(receipt.issuedAt) : new Date(),
+        createdAt: orderDate,
+        updatedAt: orderDate,
         itemsSnapshot,
         paymentsSnapshot,
       }
@@ -275,12 +258,26 @@ export const ExchangeScreen = memo(function ExchangeScreen({
           taxRate: line.taxRate ?? 0,
           taxAmount,
           discountAmount: 0,
+          isExchange: true,
         }
       })
 
+    const originalPayments = activeOrder?.paymentsSnapshot
+    const paymentsSnapshot =
+      originalPayments && originalPayments.length > 0
+        ? originalPayments.map((p) => ({
+            ...p,
+            amount:
+              originalPayments.length === 1 ? (newOrder.grandTotal ?? replacementValue) : p.amount,
+          }))
+        : (newOrder.payments || []).map((p) => ({
+            method: (p.method?.toLowerCase() || 'cash') as PaymentMethodCode,
+            amount: p.amount || 0,
+          }))
+
     return {
-      id: newOrder.orderId,
-      code: newOrder.orderCode,
+      id: result.originalOrderId || newOrder.orderId,
+      code: result.originalOrderCode || newOrder.orderCode,
       shiftId: cashSessionId || '',
       staffId: employee?.id || '',
       status: 'COMPLETED',
@@ -290,14 +287,17 @@ export const ExchangeScreen = memo(function ExchangeScreen({
       total: newOrder.grandTotal ?? replacementValue,
       totalTax: newOrder.taxTotal ?? replacementVat,
       customerTaxInfo: null,
+      originalOrderId: result.originalOrderId,
+      originalOrderCode: result.originalOrderCode,
       isDeleted: false,
       canReturn: true,
       createdAt: new Date(),
       updatedAt: new Date(),
       itemsSnapshot,
-      paymentsSnapshot: [],
+      paymentsSnapshot,
     }
   }, [
+    activeOrder?.paymentsSnapshot,
     cashSessionId,
     employee?.id,
     replacementLines,
@@ -326,16 +326,12 @@ export const ExchangeScreen = memo(function ExchangeScreen({
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 120)))
       if (cancelled) return
       try {
-        if (refundReceipt && refundPrintRef.current) {
-          await PrinterService.printComponent(refundPrintRef, { doubleCopy: true })
-        }
-        if (cancelled) return
         if (saleOrder && salePrintRef.current) {
           await PrinterService.printComponent(salePrintRef, { doubleCopy: true })
         }
         printedReceiptKeyRef.current = receiptKey
       } catch (error: any) {
-        toast.error(error.message || 'Lỗi khi in phiếu đổi hàng')
+        toast.error(error.message || 'Lỗi khi in hóa đơn đổi hàng')
       } finally {
         if (cancelled) return
         if (onDone) onDone()
@@ -348,7 +344,7 @@ export const ExchangeScreen = memo(function ExchangeScreen({
     return () => {
       cancelled = true
     }
-  }, [isCompleted, refundReceipt, saleOrder, result, onDone, router, send])
+  }, [isCompleted, saleOrder, result, onDone, router, send])
 
   const handleConfirmEqual = useCallback(() => {
     if (!canSubmit || isProcessing) return
@@ -401,13 +397,6 @@ export const ExchangeScreen = memo(function ExchangeScreen({
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>
-      {refundReceipt && (
-        <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-          <View collapsable={false} ref={refundPrintRef}>
-            <RefundReceiptTemplate receipt={refundReceipt} />
-          </View>
-        </View>
-      )}
       {saleOrder && (
         <View style={{ position: 'absolute', left: -2000, top: 0 }}>
           <View collapsable={false} ref={salePrintRef}>

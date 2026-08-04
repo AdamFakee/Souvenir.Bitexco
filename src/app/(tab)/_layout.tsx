@@ -16,8 +16,8 @@ import { COLORS } from '@/shared/constants'
 import { useAppStore, useCashSessionId, useEmployee } from '@/shared/features/app'
 import { AuthAPI } from '@/shared/features/auth'
 import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/shared/features/note'
+import { useUnsyncedOrdersCount } from '@/shared/features/order/hooks'
 import { CloseShiftModal, CloseShiftModalRef } from '@/shared/features/shift'
-import { database, OrderModel } from '@/shared/lib/database'
 import { useSync } from '@/shared/lib/database/sync'
 import { PrinterService } from '@/shared/services/printer-service'
 import { toast, useAlertStore } from '@/shared/store'
@@ -71,21 +71,7 @@ NoteSidebarButton.displayName = 'NoteSidebarButton'
 
 const SyncSidebarButton = React.memo(() => {
   const { syncNow, isSyncing } = useSync()
-  const [unsyncedOrdersCount, setUnsyncedOrdersCount] = useState(0)
-
-  useEffect(() => {
-    const subscription = database
-      .get<OrderModel>('orders')
-      .query(Q.where('is_synced', false))
-      .observeCount()
-      .subscribe({
-        next: (count) => {
-          setUnsyncedOrdersCount(count)
-        },
-        error: (_err) => {},
-      })
-    return () => subscription.unsubscribe()
-  }, [])
+  const unsyncedOrdersCount = useUnsyncedOrdersCount()
 
   return (
     <IconButtonWithBadge

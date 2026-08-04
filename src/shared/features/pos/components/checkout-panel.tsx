@@ -26,14 +26,19 @@ import { PenSquare, Ticket, User, XCircle } from 'lucide-react-native'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Keyboard, Pressable, Text, TextInput, View } from 'react-native'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
+import { ActorRefFrom } from 'xstate'
 import { useActiveCart } from '../hooks'
+import { cartMachine } from '../machines/cart.machine'
 import { CartItem } from '../types/cart.types'
 import { VoucherDetailModal, VoucherDetailModalRef } from './voucher-detail-modal'
 
 // ─── Mỗi sub-component tự subscribe selector riêng ───
 
-const CustomerInfoCard = memo(function CustomerInfoCard() {
-  const cartActor = useActiveCart()
+const CustomerInfoCard = memo(function CustomerInfoCard({
+  cartActor,
+}: {
+  cartActor?: ActorRefFrom<typeof cartMachine>
+}) {
   const affiliate = useSelector(cartActor!, (s) => s?.context?.affiliate ?? null)
 
   const handleCopyCode = useCallback(async () => {
@@ -100,21 +105,48 @@ const CustomerInfoCard = memo(function CustomerInfoCard() {
 })
 
 const NoteInput = memo(function NoteInput({
+  cartActor,
   onFocus,
   onBlur,
 }: {
+  cartActor?: ActorRefFrom<typeof cartMachine>
   onFocus?: () => void
   onBlur?: () => void
 }) {
-  const cartActor = useActiveCart()
   const note = useSelector(cartActor!, (s) => s?.context?.note || '')
+  const [localNote, setLocalNote] = useState(note)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastCartActorRef = useRef(cartActor)
+
+  // Sync local note & hủy timer dở dang khi chuyển phiên tab
+  useEffect(() => {
+    if (lastCartActorRef.current !== cartActor) {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
+      lastCartActorRef.current = cartActor
+    }
+    setLocalNote(note)
+  }, [cartActor, note])
 
   const handleChangeNote = useCallback(
     (text: string) => {
-      cartActor?.send({ type: 'SET_NOTE', note: text })
+      setLocalNote(text)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => {
+        cartActor?.send({ type: 'SET_NOTE', note: text })
+      }, 150)
     },
     [cartActor],
   )
+
+  // Cleanup debounce khi unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   return (
     <View className="min-h-[64px] flex-1 flex-row items-start gap-3 rounded-2xl border border-outline-variant bg-white px-4 py-3">
@@ -123,7 +155,7 @@ const NoteInput = memo(function NoteInput({
         className="m-0 flex-1 text-[18px] font-bold text-surface-on"
         placeholder="Nhập ghi chú đơn hàng..."
         placeholderTextColor="#8D8E8F"
-        value={note}
+        value={localNote}
         onChangeText={handleChangeNote}
         onFocus={onFocus}
         onBlur={onBlur}
@@ -135,13 +167,14 @@ const NoteInput = memo(function NoteInput({
 })
 
 const VoucherRow = memo(function VoucherRow({
+  cartActor,
   onFocus,
   onBlur,
 }: {
+  cartActor?: ActorRefFrom<typeof cartMachine>
   onFocus?: () => void
   onBlur?: () => void
 }) {
-  const cartActor = useActiveCart()
   const appliedVoucher = useSelector(cartActor!, (s) => s?.context?.appliedVoucher || null)
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
   const applyVoucherMutation = useApplyVoucher()
@@ -149,10 +182,10 @@ const VoucherRow = memo(function VoucherRow({
   const voucherModalRef = useRef<VoucherDetailModalRef>(null)
   const [voucherInput, setVoucherInput] = useState('')
 
-  // Sync input với appliedVoucher
+  // Sync input khi đổi phiên tab (cartActor) hoặc thay đổi appliedVoucher
   useEffect(() => {
     setVoucherInput(appliedVoucher?.code || '')
-  }, [appliedVoucher])
+  }, [cartActor, appliedVoucher])
 
   const handleOpenVoucherModal = useCallback(() => {
     if (appliedVoucher) {
@@ -234,8 +267,11 @@ const VoucherRow = memo(function VoucherRow({
   )
 })
 
-const OrderSummary = memo(function OrderSummary() {
-  const cartActor = useActiveCart()
+const OrderSummary = memo(function OrderSummary({
+  cartActor,
+}: {
+  cartActor?: ActorRefFrom<typeof cartMachine>
+}) {
   const items = useSelector(cartActor!, (s) => s?.context?.items || {})
   const appliedVoucher = useSelector(cartActor!, (s) => s?.context?.appliedVoucher || null)
   const cart = useMemo(() => Object.values(items) as CartItem[], [items])
@@ -326,18 +362,29 @@ const PaymentMethodButton = memo(function PaymentMethodButton({
   )
 })
 
-const PaymentButtons = memo(function PaymentButtons() {
-  const cartActor = useActiveCart()
+const PaymentButtons = memo(function PaymentButtons({
+  cartActor,
+}: {
+  cartActor?: ActorRefFrom<typeof cartMachine>
+}) {
   const paymentMethods = usePaymentMethods()
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
   const isPosConnected = useConnectionStore((s) => s.isPosConnected)
-  const items = useSelector(cartActor!, (s) => s?.context?.items || {})
-  const appliedVoucher = useSelector(cartActor!, (s) => s?.context?.appliedVoucher || null)
-  const activeSessionId = useSelector(cartActor!, (s) => s?.context?.id || null)
-  const affiliate = useSelector(cartActor!, (s) => s?.context?.affiliate ?? null)
-  const note = useSelector(cartActor!, (s) => s?.context?.note || '')
+  const { items, appliedVoucher, activeSessionId, affiliate } = useSelector(
+    cartActor!,
+    (s) => ({
+      items: s?.context?.items || {},
+      appliedVoucher: s?.context?.appliedVoucher || null,
+      activeSessionId: s?.context?.id || null,
+      affiliate: s?.context?.affiliate ?? null,
+    }),
+    (prev, next) =>
+      prev.items === next.items &&
+      prev.appliedVoucher === next.appliedVoucher &&
+      prev.activeSessionId === next.activeSessionId &&
+      prev.affiliate === next.affiliate,
+  )
   const printRef = useRef(null)
-  const [mountedPaymentTypes, setMountedPaymentTypes] = useState<Set<string>>(new Set())
   const popupRefs = useRef<Record<string, PaymentPopupRef | null>>({})
   const queryClient = useQueryClient()
   const employee = useEmployee()
@@ -415,7 +462,7 @@ const PaymentButtons = memo(function PaymentButtons() {
     (method?: string) => {
       cartActorRef.current?.send({ type: 'CLEAR_CART' })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.refetchQueries({ queryKey: ['orders'], type: 'active' })
       PrinterService.openCashBox().catch((err: any) =>
         toast.error('Lỗi mở két: ' + (err?.message ?? 'Không xác định')),
       )
@@ -425,17 +472,12 @@ const PaymentButtons = memo(function PaymentButtons() {
   )
 
   const handleStartPayment = useCallback((methodType: string) => {
-    setMountedPaymentTypes((prev) => {
-      if (prev.has(methodType)) return prev
-      const next = new Set(prev)
-      next.add(methodType)
-      return next
-    })
-    requestAnimationFrame(() => {
-      const popupRef = popupRefs.current[methodType]
-      if (popupRef) popupRef.open()
-      else toast.error('Phương thức thanh toán này chưa được hỗ trợ')
-    })
+    const popupRef = popupRefs.current[methodType]
+    if (popupRef) {
+      popupRef.open()
+    } else {
+      toast.error('Phương thức thanh toán này chưa được hỗ trợ')
+    }
   }, [])
 
   const paymentRows = useMemo(() => {
@@ -517,28 +559,26 @@ const PaymentButtons = memo(function PaymentButtons() {
         </View>
       ))}
 
-      {activeStrategies.map((method) =>
-        mountedPaymentTypes.has(String(method.type)) ? (
-          <method.PopupComponent
-            key={method.type}
-            ref={(r: PaymentPopupRef | null) => {
-              popupRefs.current[String(method.type)] = r
-            }}
-            total={total}
-            discount={discount}
-            appliedVoucher={appliedVoucher}
-            items={cart}
-            staffId={employee?.id ?? ''}
-            shiftId={cashSessionId ?? ''}
-            activeSessionId={activeSessionId}
-            printRef={printRef}
-            staffName={employee?.displayName}
-            onSuccess={(result: any) => handleCheckoutSuccess(result?.method)}
-            note={note}
-            affiliate={affiliate}
-          />
-        ) : null,
-      )}
+      {activeStrategies.map((method) => (
+        <method.PopupComponent
+          key={method.type}
+          ref={(r: PaymentPopupRef | null) => {
+            popupRefs.current[String(method.type)] = r
+          }}
+          total={total}
+          discount={discount}
+          appliedVoucher={appliedVoucher}
+          items={cart}
+          staffId={employee?.id ?? ''}
+          shiftId={cashSessionId ?? ''}
+          activeSessionId={activeSessionId}
+          printRef={printRef}
+          staffName={employee?.displayName}
+          onSuccess={(result: any) => handleCheckoutSuccess(result?.method)}
+          note={cartActor?.getSnapshot()?.context?.note || ''}
+          affiliate={affiliate}
+        />
+      ))}
     </View>
   )
 })
@@ -546,6 +586,7 @@ const PaymentButtons = memo(function PaymentButtons() {
 // ─── Main CheckoutPanel — chỉ layout, không data ───
 
 const CheckoutPanel = memo(function CheckoutPanel() {
+  const cartActor = useActiveCart()
   const [isInputFocused, setIsInputFocused] = useState(false)
 
   const handleFocus = useCallback(() => setIsInputFocused(true), [])
@@ -569,12 +610,12 @@ const CheckoutPanel = memo(function CheckoutPanel() {
       <View className="w-full rounded-2xl border border-outline-variant bg-white p-4 shadow-sm">
         <View className="flex-row items-stretch gap-3">
           <View className="w-2/5 gap-3">
-            <CustomerInfoCard />
-            <NoteInput onFocus={handleFocus} onBlur={handleBlur} />
-            <VoucherRow onFocus={handleFocus} onBlur={handleBlur} />
+            <CustomerInfoCard cartActor={cartActor} />
+            <NoteInput cartActor={cartActor} onFocus={handleFocus} onBlur={handleBlur} />
+            <VoucherRow cartActor={cartActor} onFocus={handleFocus} onBlur={handleBlur} />
           </View>
-          <OrderSummary />
-          <PaymentButtons />
+          <OrderSummary cartActor={cartActor} />
+          <PaymentButtons cartActor={cartActor} />
         </View>
       </View>
     </KeyboardAvoidingView>

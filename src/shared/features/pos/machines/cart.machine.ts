@@ -106,7 +106,7 @@ export const cartMachine = setup({
 
               return { items: updatedItems }
             }),
-            sendParent({ type: 'CART_UPDATED' }),
+            sendParent(({ context }) => ({ type: 'CART_UPDATED', cartId: context.id })),
           ],
         },
         // Xóa hoàn toàn một sản phẩm khỏi giỏ hàng
@@ -116,7 +116,7 @@ export const cartMachine = setup({
               const { [event.productId]: _, ...remainingItems } = context.items
               return { items: remainingItems }
             }),
-            sendParent({ type: 'CART_UPDATED' }),
+            sendParent(({ context }) => ({ type: 'CART_UPDATED', cartId: context.id })),
           ],
         },
         // Cập nhật số lượng của một sản phẩm hiện có
@@ -148,7 +148,7 @@ export const cartMachine = setup({
                 },
               }
             }),
-            sendParent({ type: 'CART_UPDATED' }),
+            sendParent(({ context }) => ({ type: 'CART_UPDATED', cartId: context.id })),
           ],
         },
         // Áp dụng giảm giá trực tiếp (số tiền hoặc %) cho toàn bộ đơn hàng
@@ -157,7 +157,7 @@ export const cartMachine = setup({
             assign({
               discount: ({ event }) => event.discount,
             }),
-            sendParent({ type: 'CART_UPDATED' }),
+            sendParent(({ context }) => ({ type: 'CART_UPDATED', cartId: context.id })),
           ],
         },
         // Áp dụng mã giảm giá (voucher) vào đơn hàng
@@ -166,7 +166,7 @@ export const cartMachine = setup({
             assign({
               appliedVoucher: ({ event }) => event.voucher,
             }),
-            sendParent({ type: 'CART_UPDATED' }),
+            sendParent(({ context }) => ({ type: 'CART_UPDATED', cartId: context.id })),
           ],
         },
         // Gỡ bỏ voucher hiện tại khỏi giỏ hàng
@@ -175,16 +175,17 @@ export const cartMachine = setup({
             assign({
               appliedVoucher: null,
             }),
-            sendParent({ type: 'CART_UPDATED' }),
+            sendParent(({ context }) => ({ type: 'CART_UPDATED', cartId: context.id })),
           ],
         },
         // Thêm hoặc chỉnh sửa ghi chú cho đơn hàng
+        // ponytail: không sendParent để tránh trigger persistence + re-render mỗi keystroke.
+        // Note được persist cùng cart khi có thay đổi thực sự (add/remove item, checkout...).
         SET_NOTE: {
           actions: [
             assign({
               note: ({ event }) => event.note,
             }),
-            sendParent({ type: 'CART_UPDATED' }),
           ],
         },
         // Gắn / đổi HDV hoặc Đối tác cho phiên
@@ -194,7 +195,11 @@ export const cartMachine = setup({
               affiliate: ({ event }) => event.affiliate,
               label: ({ event }) => event.affiliate?.name ?? '',
             }),
-            sendParent({ type: 'CART_UPDATED' }),
+            sendParent(({ context }) => ({
+              type: 'CART_UPDATED',
+              cartId: context.id,
+              meta: { affiliateName: context.affiliate?.name ?? null },
+            })),
           ],
         },
         // Xóa sạch giỏ hàng sau khi thanh toán thành công, xóa voucher và note, giữ nguyên affiliate
@@ -206,7 +211,7 @@ export const cartMachine = setup({
               note: '',
               discount: 0,
             }),
-            sendParent({ type: 'CART_UPDATED' }),
+            sendParent(({ context }) => ({ type: 'CART_UPDATED', cartId: context.id })),
           ],
         },
       },

@@ -13,13 +13,8 @@ import React, {
   useState,
 } from 'react'
 import { qrPaymentMachine } from '../machines/qr-payment.machine'
-import {
-  PAYMENT_ERROR_CODES,
-  PaymentPopupProps,
-  PaymentPopupRef,
-  getPaymentErrorStatus,
-} from '../types'
-import { calculateSubtotal, calculateTotalTax, calculateLineDiscount } from '../utils'
+import { PaymentPopupProps, PaymentPopupRef, getPaymentErrorStatus } from '../types'
+import { calculateLineDiscount, calculateSubtotal, calculateTotalTax } from '../utils'
 import { QrPaymentView } from './qr-payment-view'
 
 /** POS QR container — binds `qrPaymentMachine` (checkout → QR) */

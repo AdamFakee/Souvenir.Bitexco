@@ -13,8 +13,8 @@ import React, {
   useState,
 } from 'react'
 import { exchangeQrPaymentMachine } from '../machines/exchange-qr-payment.machine'
-import { PAYMENT_ERROR_CODES, PaymentPopupProps, getPaymentErrorStatus } from '../types'
-import { calculateSubtotal, calculateTotalTax, calculateLineDiscount } from '../utils'
+import { PaymentPopupProps, getPaymentErrorStatus } from '../types'
+import { calculateLineDiscount, calculateSubtotal, calculateTotalTax } from '../utils'
 import { QrPaymentView } from './qr-payment-view'
 
 export type ExchangeQrOpenInput = {

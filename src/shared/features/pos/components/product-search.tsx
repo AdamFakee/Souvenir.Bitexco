@@ -4,10 +4,11 @@ import { SearchX } from 'lucide-react-native'
 import React, { memo, useCallback, useState } from 'react'
 import { Keyboard, Pressable, Text, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
+import { useDebounce } from 'use-debounce'
 import { usePosActor, useProductSearch } from '../hooks'
 import { UnifiedProduct } from '../hooks/use-product-search'
 
-// ─── Memoized item — tránh tạo inline arrow mỗi render FlatList ───
+// ─── Memoized Item ───
 const ProductItem = memo(function ProductItem({
   item: p,
   onSelect,
@@ -23,28 +24,21 @@ const ProductItem = memo(function ProductItem({
       onPress={handlePress}
       className="flex-row items-center border-b border-surface-200 px-6 py-5 active:bg-surface-100"
     >
-      {/* Tên sản phẩm */}
       <View style={{ flex: 3 }}>
         <Text className="text-[24px] font-bold text-surface-on" numberOfLines={2}>
           {p.name}
         </Text>
       </View>
-
-      {/* SKU */}
       <View style={{ flex: 1.5 }} className="px-2">
         <Text className="text-[22px] font-medium text-black" numberOfLines={1}>
           {p.sku}
         </Text>
       </View>
-
-      {/* Tồn kho */}
       <View style={{ flex: 1 }} className="px-2">
         <Text className="text-center text-[22px] font-medium text-black" numberOfLines={1}>
           {p.stock}
         </Text>
       </View>
-
-      {/* Giá */}
       <View style={{ flex: 1.5 }} className="items-end">
         <Text className="text-right text-[26px] font-bold text-primary" numberOfLines={1}>
           {formatCurrency(priceAfterTax)}
@@ -59,17 +53,17 @@ const ProductItem = memo(function ProductItem({
   )
 })
 
-export function ProductSearch() {
+export const ProductSearch = memo(function ProductSearch() {
   const posActor = usePosActor()
-  const [searchText, setSearchText] = useState('')
-  const { products, isLoading, isFetchingNextPage, loadMore } = useProductSearch(searchText)
+  const [localText, setLocalText] = useState('')
+  const [debouncedText] = useDebounce(localText, 400)
+  const { products, isLoading, isFetchingNextPage, loadMore } = useProductSearch(debouncedText)
 
   const handleSelectItem = useCallback(
     (product: UnifiedProduct) => {
-      setSearchText('')
+      setLocalText('')
       Keyboard.dismiss()
 
-      // Defer sending ADD_ITEM to prevent blocking the keyboard slide-down and dropdown unmount transitions
       setTimeout(() => {
         posActor?.send({ type: 'ADD_ITEM', product: product as any })
       }, 50)
@@ -78,7 +72,7 @@ export function ProductSearch() {
   )
 
   const handleClear = useCallback(() => {
-    setSearchText('')
+    setLocalText('')
     Keyboard.dismiss()
   }, [])
 
@@ -90,8 +84,8 @@ export function ProductSearch() {
   return (
     <View className="relative z-20 flex-1">
       <SearchInput
-        value={searchText}
-        onChangeText={setSearchText}
+        value={localText}
+        onChangeText={setLocalText}
         placeholder="Tìm tên sản phẩm hoặc SKU..."
         placeholderTextColor="#94a3b8"
         onClear={handleClear}
@@ -99,8 +93,7 @@ export function ProductSearch() {
         autoCapitalize="none"
       />
 
-      {/* Search Autocomplete / Loading */}
-      {searchText.trim().length > 0 && (
+      {localText.trim().length > 0 && (
         <>
           {/* Backdrop to close when clicking outside */}
           <Pressable
@@ -112,7 +105,7 @@ export function ProductSearch() {
               bottom: -1500,
             }}
             onPress={() => {
-              setSearchText('')
+              setLocalText('')
               Keyboard.dismiss()
             }}
           />
@@ -123,14 +116,12 @@ export function ProductSearch() {
           >
             {isLoading ? (
               <View>
-                {/* Skeleton Header */}
                 <View className="flex-row items-center border-b border-surface-200 bg-surface-100 px-6 py-4">
                   <Shimmer className="h-6 w-24 rounded-lg" style={{ flex: 3 }} />
                   <Shimmer className="h-6 w-16 rounded-lg px-2" style={{ flex: 1.5 }} />
                   <Shimmer className="h-6 w-16 self-center rounded-lg px-2" style={{ flex: 1 }} />
                   <Shimmer className="h-6 w-20 rounded-lg text-right" style={{ flex: 1.5 }} />
                 </View>
-                {/* Skeleton Rows */}
                 {[1, 2, 3].map((i) => (
                   <View
                     key={i}
@@ -155,13 +146,12 @@ export function ProductSearch() {
             ) : products.length === 0 ? (
               <EmptyState
                 title="Không tìm thấy sản phẩm"
-                description={`Không tìm thấy kết quả cho "${searchText}"`}
+                description={`Không tìm thấy kết quả cho "${debouncedText}"`}
                 icon={SearchX}
                 className="py-10"
               />
             ) : (
               <View className="flex-1">
-                {/* Table Header */}
                 <View className="flex-row items-center border-b border-surface bg-primary/25 px-6 py-4">
                   <Text className="text-[22px] font-bold text-neutral-600" style={{ flex: 3 }}>
                     Tên sản phẩm
@@ -204,4 +194,4 @@ export function ProductSearch() {
       )}
     </View>
   )
-}
+})

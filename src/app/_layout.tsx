@@ -29,9 +29,15 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { configureReanimatedLogger } from 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { enableScreens } from 'react-native-screens'
 import './global.css'
 
 SplashScreen.preventAutoHideAsync()
+
+// Dùng native platform views thay vì React views — giảm memory, tăng tốc transition
+enableScreens(true)
+// Freeze inactive screens ở native level — tab ẩn dừng layout/draw hoàn toàn
+// enableFreeze(true)
 
 setupReactQueryMobile()
 

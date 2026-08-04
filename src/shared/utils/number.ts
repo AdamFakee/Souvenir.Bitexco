@@ -29,6 +29,10 @@ export const formatVND = (amount: number): string => {
   return `${amount.toLocaleString('vi-VN')} vnđ`
 }
 
+// ponytail: lift formatter to module scope — creating Intl.NumberFormat per call
+// was expensive on Hermes, especially inside FlatList/FlashList renderItem
+const vndFormatter = new Intl.NumberFormat('vi-VN')
+
 /**
  * Định dạng tiền tệ VND bằng Intl (ví dụ: 100.000 ₫)
  */
@@ -36,7 +40,7 @@ export const formatCurrency = (
   amount: number,
   options: { showSymbol?: boolean; suffix?: string } = { showSymbol: true },
 ): string => {
-  const formatted = new Intl.NumberFormat('vi-VN').format(amount)
+  const formatted = vndFormatter.format(amount)
   if (options.showSymbol === false) return formatted
   return `${formatted} ${options.suffix || '₫'}`
 }

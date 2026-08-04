@@ -2,12 +2,15 @@ import React, { ComponentType, ReactNode, useEffect, useState } from 'react'
 import { InteractionManager, Text, View } from 'react-native'
 import { Shimmer } from './shimmer'
 
+// Module-level cache: persists across unmount/remount.
+// freezeOnBlur keeps tab mounted once visited; cache handles edge case where it doesn't.
+const _readyCache = new WeakSet<ComponentType>()
+
 // ============================================================
 // Shell + Deferred Render pattern cho tab nặng
 //
-//   InteractionManager.runAfterInteractions đợi cho đến khi toàn bộ
-//   native animation/gesture (bao gồm tab transition) hoàn tất
-//   mới render content → tránh jank khi chuyển tab
+//   InteractionManager.runAfterInteractions đợi JS thread rảnh + transition
+//   animation hoàn tất (~1 frame) → skeleton kịp paint rồi mới mount Content.
 // ============================================================
 
 interface LazyTabShellProps {
@@ -27,12 +30,17 @@ export function LazyTabShell({
   skeleton,
   backgroundColor = '#f8fafc',
 }: LazyTabShellProps) {
-  const [ready, setReady] = useState(false)
+  // _readyCache persist qua unmount/remount: nếu Content đã từng ready → render ngay, bỏ qua skeleton
+  const [ready, setReady] = useState(() => _readyCache.has(Content))
 
   useEffect(() => {
-    const handle = InteractionManager.runAfterInteractions(() => setReady(true))
+    if (_readyCache.has(Content)) return
+    const handle = InteractionManager.runAfterInteractions(() => {
+      _readyCache.add(Content)
+      setReady(true)
+    })
     return () => handle.cancel()
-  }, [])
+  }, [Content])
 
   return (
     <View style={{ flex: 1, backgroundColor }}>

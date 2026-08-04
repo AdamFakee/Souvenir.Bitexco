@@ -4,22 +4,24 @@ import { useProducts } from '@/shared/features/product'
 import { ProductModel } from '@/shared/lib/database/models'
 import { FlashList } from '@shopify/flash-list'
 import { ShoppingBasket } from 'lucide-react-native'
-import React from 'react'
+import React, { useCallback } from 'react'
 import { Text, View } from 'react-native'
-import { useActiveCart, usePosActor } from '../hooks'
+import { usePosActor } from '../hooks'
 import { usePosStore } from '../store/use-pos-store'
 import CategoryRow from './category-row'
 import ProductCard from './product-card'
 
 export default function ContentSession() {
   const posActor = usePosActor()
-  const cartActor = useActiveCart()
   const selectedCategoryId = usePosStore((state) => state.selectedCategoryId)
-
-  const addToCart = (product: ProductModel) => {
-    posActor?.send({ type: 'ADD_ITEM', product })
-  }
   const searchQuery = usePosStore((state) => state.searchQuery)
+
+  const addToCart = useCallback(
+    (product: ProductModel) => {
+      posActor?.send({ type: 'ADD_ITEM', product })
+    },
+    [posActor],
+  )
 
   const { categories } = useCategories()
 

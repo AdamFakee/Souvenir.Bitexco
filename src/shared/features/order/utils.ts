@@ -201,14 +201,14 @@ export const getOrderDisplayStatus = (order: {
   returnStatus?: string | null
   code?: string | null
 }): { label: string; color: string; bgColor: string } => {
-  // 1. Đã hủy (FAILED)
+  // 1. Hủy đơn (FAILED / CANCELLED)
   if (order.state === 'CANCELLED' || order.status === 'FAILED' || order.status === 'CANCELLED') {
-    return { label: 'Đã hủy', color: '#DC2626', bgColor: '#FEE2E2' }
+    return { label: 'Hủy đơn', color: '#64748B', bgColor: '#F1F5F9' }
   }
 
   // 2. Hoàn trả hàng (REFUNDED)
   if (order.status === 'REFUNDED' || order.status === 'RETURNED' || order.code?.startsWith('RT')) {
-    return { label: 'Hoàn hàng', color: '#2563EB', bgColor: '#DBEAFE' }
+    return { label: 'Hủy hàng', color: '#DC2626', bgColor: '#FEE2E2' }
   }
 
   // 3. Hoàn thành (COMPLETED)

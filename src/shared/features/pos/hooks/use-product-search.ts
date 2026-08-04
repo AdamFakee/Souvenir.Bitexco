@@ -1,12 +1,9 @@
 import { useDevice } from '@/shared/features/app/hooks/use-app-context'
 import { ProductLocalAPI } from '@/shared/features/product'
 import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
-import { database } from '@/shared/lib/database'
-import { ProductModel } from '@/shared/lib/database/models'
 import { toast, useConnectionStore } from '@/shared/store'
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
-import { useDebounce } from 'use-debounce'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { useCallback, useMemo, useRef } from 'react'
 
 const LIMIT = 15
 
@@ -23,23 +20,21 @@ export interface UnifiedProduct {
 }
 
 export function useProductSearch(searchText: string) {
-  const [debouncedSearch] = useDebounce(searchText, 500)
-  const queryClient = useQueryClient()
   const device = useDevice()
   const warehouseId = device?.warehouseId
 
   const query = useInfiniteQuery({
-    queryKey: ['products', 'search', debouncedSearch, warehouseId],
+    queryKey: ['products', 'search', searchText, warehouseId],
     queryFn: async ({ pageParam = 0 }): Promise<UnifiedProduct[]> => {
       try {
-        if (!debouncedSearch.trim()) return []
+        if (!searchText.trim()) return []
         const isNetworkConnected = useConnectionStore.getState().isNetworkConnected
 
         // 1. Luồng Online First
         if (isNetworkConnected) {
           try {
             const remoteResults = await ProductRemoteAPI.searchProducts({
-              q: debouncedSearch,
+              q: searchText,
               warehouseId,
               limit: LIMIT,
             })
@@ -61,7 +56,7 @@ export function useProductSearch(searchText: string) {
 
         // 2. Luồng Offline Fallback
         const localResults = await ProductLocalAPI.getProducts({
-          searchQuery: debouncedSearch,
+          searchQuery: searchText,
           page: pageParam as number,
           limit: LIMIT,
         })
@@ -86,30 +81,41 @@ export function useProductSearch(searchText: string) {
       return lastPage.length === LIMIT ? allPages.length : undefined
     },
     initialPageParam: 0,
-    enabled: debouncedSearch.trim().length > 0,
-    staleTime: 0,
-    gcTime: 0, // Garbage collect instantly to prevent React Query from serving stale cached search results
+    enabled: searchText.trim().length > 0,
+    staleTime: 30_000,
+    gcTime: 2 * 60_000,
     networkMode: 'always',
   })
 
-  // Reactive: Lắng nghe mọi thay đổi trong SQLite bảng products để cập nhật UI ngay lập tức
-  useEffect(() => {
-    const subscription = database.get<ProductModel>('products').changes.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ['products'] })
-    })
-    return () => subscription.unsubscribe()
-  }, [queryClient])
+  // ponytail: stabilize fetchNextPage via ref so SearchResultList memo isn't broken
+  // every render. useInfiniteQuery returns a new fetchNextPage ref each render.
+  const fetchNextPageRef = useRef(query.fetchNextPage)
+  fetchNextPageRef.current = query.fetchNextPage
+
+  const loadMore = useCallback(() => {
+    fetchNextPageRef.current()
+  }, [])
 
   const products = useMemo(() => {
     return query.data?.pages.flat() || []
   }, [query.data?.pages])
 
-  return {
-    products,
-    isLoading: query.isLoading,
-    isFetchingNextPage: query.isFetchingNextPage,
-    hasMore: !!query.hasNextPage,
-    loadMore: () => query.fetchNextPage(),
-    refetch: query.refetch,
-  }
+  return useMemo(
+    () => ({
+      products,
+      isLoading: query.isLoading,
+      isFetchingNextPage: query.isFetchingNextPage,
+      hasMore: !!query.hasNextPage,
+      loadMore,
+      refetch: query.refetch,
+    }),
+    [
+      products,
+      query.isLoading,
+      query.isFetchingNextPage,
+      query.hasNextPage,
+      loadMore,
+      query.refetch,
+    ],
+  )
 }

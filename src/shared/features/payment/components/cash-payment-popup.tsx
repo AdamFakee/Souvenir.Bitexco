@@ -13,19 +13,18 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
-import type { CartItem, AppliedVoucher } from '@/shared/features/pos'
+import type { AppliedVoucher, CartItem } from '@/shared/features/pos'
 import { OrderStatus } from '@/shared/lib/database'
 import { cashPaymentMachine, SavedOrder } from '../machines/cash-payment.machine'
 import { PaymentPopupProps, PaymentPopupRef } from '../types'
 import {
+  calculateLineDiscount,
   calculateSubtotal,
   calculateTotalTax,
-  calculateLineDiscount,
   getCashSuggestions,
   roundCashAmount,
 } from '../utils'
@@ -160,17 +159,31 @@ export const CashPaymentPopup = memo(
         },
       })
 
-      // Gộp selector
-      const ctx = useSelector(actorRef, (s) => ({
-        state: s.value,
-        error: s.context.error,
-        retryCount: s.context.retryCount,
-        savedOrder: s.context.savedOrder,
-        amountTendered: s.context.amountTendered,
-        machineTotal: s.context.total,
-      }))
+      // Gộp selector với equality check tránh re-render liên tục
+      const ctx = useSelector(
+        actorRef,
+        (s) => ({
+          state: s.value,
+          error: s.context.error,
+          retryCount: s.context.retryCount,
+          savedOrder: s.context.savedOrder,
+          amountTendered: s.context.amountTendered,
+          machineTotal: s.context.total,
+          canConfirm: s.can({ type: 'CONFIRM' }),
+          canRetry: s.can({ type: 'RETRY' }),
+        }),
+        (prev, next) =>
+          prev.state === next.state &&
+          prev.error === next.error &&
+          prev.retryCount === next.retryCount &&
+          prev.savedOrder === next.savedOrder &&
+          prev.amountTendered === next.amountTendered &&
+          prev.machineTotal === next.machineTotal &&
+          prev.canConfirm === next.canConfirm &&
+          prev.canRetry === next.canRetry,
+      )
 
-      const { state: machineState, error, retryCount, savedOrder } = ctx
+      const { state: machineState, error, retryCount, savedOrder, canConfirm, canRetry } = ctx
 
       const isProcessing =
         machineState === 'savingOrder' ||
@@ -178,11 +191,6 @@ export const CashPaymentPopup = memo(
         machineState === 'printingReceipt'
       const isError = machineState === 'error'
       const isSuccess = machineState === 'success'
-
-      // Kiểm tra guard
-      const canConfirm =
-        ctx.amountTendered >= roundCashAmount(ctx.machineTotal) && ctx.amountTendered > 0
-      const canRetry = useSelector(actorRef, (s) => s.can({ type: 'RETRY' }))
 
       // Gộp effect ViceService
       useEffect(() => {
@@ -224,24 +232,6 @@ export const CashPaymentPopup = memo(
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [visible, isSuccess, cashTendered, roundedTotal, discount, totals.subtotal, totals.tax])
 
-      // Trả màn hình phụ về Home khi đóng popup
-      useEffect(() => {
-        if (!visible && !isSuccess) {
-          ViceService.updateCart({
-            items: items.map((i) => ({
-              id: i.id,
-              name: i.product.name,
-              price: i.price,
-              quantity: i.quantity,
-            })),
-            subtotal: totals.subtotal,
-            discount,
-            tax: totals.tax,
-            total: roundedTotal,
-          })
-        }
-      }, [visible, isSuccess, items, discount, roundedTotal, totals.subtotal, totals.tax])
-
       useImperativeHandle(
         ref,
         () => ({
@@ -264,15 +254,6 @@ export const CashPaymentPopup = memo(
             }
 
             actorRef.send({ type: 'START', input: freshInput })
-
-            ViceService.showCashPayment({
-              subtotal: totals.subtotal,
-              discount,
-              tax: totals.tax,
-              total: roundedTotal,
-              customerPaid: 0,
-              change: 0,
-            })
           },
           close: () => {
             setVisible(false)

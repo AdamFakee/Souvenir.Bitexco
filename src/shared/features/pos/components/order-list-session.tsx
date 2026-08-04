@@ -5,9 +5,11 @@ import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { useSelector } from '@xstate/react'
 import { Plus, ShoppingBasket, Trash2, X } from 'lucide-react-native'
-import React, { memo, useCallback, useMemo, useRef } from 'react'
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
+import { ActorRefFrom } from 'xstate'
 import { useActiveCart, usePosActor } from '../hooks'
+import { cartMachine } from '../machines/cart.machine'
 import { CartItem } from '../types/cart.types'
 import { AddTabSheet, AddTabSheetRef } from './add-tab-sheet'
 import { ProductSearch } from './product-search'
@@ -138,61 +140,57 @@ const CartEmptyState = memo(function CartEmptyState() {
   )
 })
 
-export default function OrderListSession() {
+// ─── Session Tabs Bar: độc lập, không re-render khi thêm món ───
+const SessionTabBar = memo(function SessionTabBar({ onOpenAddTab }: { onOpenAddTab: () => void }) {
   const posActor = usePosActor()
-  const cartActor = useActiveCart()
-  const addTabSheetRef = useRef<AddTabSheetRef>(null)
+  const [pendingTabId, setPendingTabId] = useState<string | null>(null)
 
-  // Chỉ subscribe activeCartId + carts của active — không subscribe toàn bộ carts record
-  const activeCartId = useSelector(posActor!, (s) => s.context.activeCartId)
-  const items = useSelector(cartActor!, (s) => s?.context?.items || {})
-  const cart = useMemo(() => Object.values(items || {}) as CartItem[], [items])
+  const cartTabs = useSelector(
+    posActor!,
+    (s) => {
+      const tabMetas = s.context.tabMetas || {}
+      const activeId = s.context.activeCartId
+      const entries = Object.entries(tabMetas)
 
-  // Subscribe riêng cho tab pills — chỉ lấy entries cần render
-  const cartTabs = useSelector(posActor!, (s) => {
-    const entries = Object.entries(s.context.carts)
-    const activeId = s.context.activeCartId
-    const sorted = entries.sort(([, a], [, b]) => {
-      const sa = a.getSnapshot()
-      const sb = b.getSnapshot()
-      const aRetail = sa && !sa.context.affiliate
-      const bRetail = sb && !sb.context.affiliate
-      if (aRetail && !bRetail) return -1
-      if (!aRetail && bRetail) return 1
-      return 0
-    })
-    const tabs: CartTab[] = []
-    const retailIds = sorted
-      .filter(([, a]) => {
-        const s = a.getSnapshot()
-        return s && !s.context.affiliate
+      const retailEntries = entries.filter(([, meta]) => !meta.affiliateName)
+      const hasMultipleRetail = retailEntries.length > 1
+
+      return entries.map(([id, meta]) => {
+        let label = meta.affiliateName || meta.label || 'Khách lẻ'
+        if (!meta.affiliateName && hasMultipleRetail) {
+          const retailIndex = retailEntries.findIndex(([rid]) => rid === id)
+          label = `Khách lẻ ${retailIndex + 1}`
+        }
+        return {
+          id,
+          label,
+          isActive: id === activeId,
+        }
       })
-      .map(([rid]) => rid)
-    for (const [id, actor] of sorted) {
-      const snapshot = actor.getSnapshot()
-      if (!snapshot) continue
-      const aff = snapshot.context.affiliate
-      const label = aff
-        ? aff.name
-        : (() => {
-            const pos = retailIds.indexOf(id)
-            return pos >= 0 ? `Khách lẻ ${pos + 1}` : 'Khách lẻ'
-          })()
-      tabs.push({ id, label, isActive: id === activeId })
-    }
-    return tabs
-  })
-
-  const handleAddTab = useCallback(
-    (affiliate: any) => {
-      posActor?.send({ type: 'ADD_TAB', affiliate: affiliate ?? undefined })
     },
-    [posActor],
+    (prev, next) =>
+      prev.length === next.length &&
+      prev.every(
+        (t, i) =>
+          t.id === next[i].id && t.label === next[i].label && t.isActive === next[i].isActive,
+      ),
   )
+
+  useEffect(() => {
+    if (pendingTabId) {
+      const activeTab = cartTabs.find((t) => t.isActive)
+      if (activeTab?.id === pendingTabId) {
+        setPendingTabId(null)
+      }
+    }
+  }, [cartTabs, pendingTabId])
 
   const handleSwitchTab = useCallback(
     (id: string) => {
-      posActor?.send({ type: 'SWITCH_TAB', id })
+      setPendingTabId(id)
+      React.startTransition(() => {
+        posActor?.send({ type: 'SWITCH_TAB', id })
+      })
     },
     [posActor],
   )
@@ -208,13 +206,90 @@ export default function OrderListSession() {
     [posActor],
   )
 
+  return (
+    <View className="flex-row items-center border-b border-surface-100 bg-white px-5 py-4">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="flex-1"
+        contentContainerStyle={{ gap: 10 }}
+      >
+        {cartTabs.map(({ id, label, isActive }) => {
+          const effectiveActive = pendingTabId !== null ? pendingTabId === id : isActive
+          return (
+            <CartTabPill
+              key={id}
+              id={id}
+              label={label}
+              isActive={effectiveActive}
+              onSwitch={handleSwitchTab}
+              onRemove={handleRemoveTab}
+            />
+          )
+        })}
+      </ScrollView>
+
+      <Button
+        label="Thêm phiên"
+        leftIcon={Plus}
+        iconSize={26}
+        variant="outline"
+        className="ml-3 h-[58px] rounded-full border-outline bg-surface-50 px-6 py-0"
+        textClassName="text-[22px] font-bold text-neutral-600"
+        onPress={onOpenAddTab}
+      />
+    </View>
+  )
+})
+
+// ─── Session Search Bar: chứa ô tìm kiếm và nút xóa giỏ hàng ───
+const SessionSearchBar = memo(function SessionSearchBar({
+  cartActor,
+}: {
+  cartActor?: ActorRefFrom<typeof cartMachine>
+}) {
+  const posActor = usePosActor()
+
+  const hasItems = useSelector(cartActor!, (s) => Object.keys(s?.context?.items || {}).length > 0)
+
   const handleClearCart = useCallback(() => {
+    const activeCartId = posActor?.getSnapshot()?.context?.activeCartId
+    if (!activeCartId) return
     toast.confirm({
       title: 'Xóa giỏ hàng',
       message: 'Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?',
-      onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id: activeCartId! }),
+      onConfirm: () => posActor?.send({ type: 'REMOVE_TAB', id: activeCartId }),
     })
-  }, [posActor, activeCartId])
+  }, [posActor])
+
+  return (
+    <View
+      className="flex-row items-center justify-between border-b border-surface-100 bg-white px-6 py-4"
+      style={{ zIndex: 50 }}
+    >
+      <ProductSearch />
+
+      {hasItems && (
+        <IconButton
+          icon={Trash2}
+          className="ml-4 h-12 w-12 rounded-xl bg-error/10"
+          size={22}
+          color={COLORS.error.default}
+          onPress={handleClearCart}
+        />
+      )}
+    </View>
+  )
+})
+
+// ─── Cart Items Table: chỉ re-render khi items trong giỏ thay đổi ───
+const CartTable = memo(function CartTable({
+  cartActor,
+}: {
+  cartActor?: ActorRefFrom<typeof cartMachine>
+}) {
+  const items = useSelector(cartActor!, (s) => s?.context?.items || {})
+  const cart = useMemo(() => Object.values(items || {}) as CartItem[], [items])
 
   const handleUpdateQuantity = useCallback(
     (productId: string, quantity: number) =>
@@ -240,87 +315,62 @@ export default function OrderListSession() {
   )
 
   return (
+    <View className="flex-1 bg-white">
+      {/* Table Header */}
+      <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-6 py-4">
+        <Text className="w-[140px] text-start text-[22px] font-black uppercase tracking-widest text-primary">
+          STT
+        </Text>
+        <Text className="flex-1 text-[22px] font-black uppercase tracking-widest text-primary">
+          Sản phẩm
+        </Text>
+        <Text className="w-[180px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
+          Đơn giá
+        </Text>
+        <Text className="w-[100px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
+          Thuế
+        </Text>
+        <Text className="w-[220px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
+          Số lượng
+        </Text>
+        <Text className="w-[220px] pr-4 text-right text-[22px] font-black uppercase tracking-widest text-primary">
+          Thành tiền
+        </Text>
+        <View className="w-16" />
+      </View>
+
+      <FlashList
+        data={cart}
+        keyExtractor={(item) => item.product.id}
+        renderItem={renderItem}
+        ListEmptyComponent={<CartEmptyState />}
+      />
+    </View>
+  )
+})
+
+// ─── Main OrderListSession Shell ───────────────────────────
+export default function OrderListSession() {
+  const posActor = usePosActor()
+  const cartActor = useActiveCart()
+  const addTabSheetRef = useRef<AddTabSheetRef>(null)
+
+  const handleOpenAddTab = useCallback(() => {
+    addTabSheetRef.current?.open()
+  }, [])
+
+  const handleAddTab = useCallback(
+    (affiliate: any) => {
+      posActor?.send({ type: 'ADD_TAB', affiliate: affiliate ?? undefined })
+    },
+    [posActor],
+  )
+
+  return (
     <View className="flex-1 flex-col bg-white">
-      {/* Session Tabs — Pill Style */}
-      <View className="flex-row items-center border-b border-surface-100 bg-white px-5 py-4">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="flex-1"
-          contentContainerStyle={{ gap: 10 }}
-        >
-          {cartTabs.map(({ id, label, isActive }) => (
-            <CartTabPill
-              key={id}
-              id={id}
-              label={label}
-              isActive={isActive}
-              onSwitch={handleSwitchTab}
-              onRemove={handleRemoveTab}
-            />
-          ))}
-        </ScrollView>
-
-        <Button
-          label="Thêm phiên"
-          leftIcon={Plus}
-          iconSize={26}
-          variant="outline"
-          className="ml-3 h-[58px] rounded-full border-outline bg-surface-50 px-6 py-0"
-          textClassName="text-[22px] font-bold text-neutral-600"
-          onPress={() => addTabSheetRef.current?.open()}
-        />
-      </View>
-
-      {/* Search Bar */}
-      <View className="flex-row items-center justify-between border-b border-surface-100 bg-white px-6 py-4">
-        <ProductSearch />
-
-        {cart.length > 0 && (
-          <IconButton
-            icon={Trash2}
-            className="ml-4 h-12 w-12 rounded-xl bg-error/10"
-            size={22}
-            color={COLORS.error.default}
-            onPress={handleClearCart}
-          />
-        )}
-      </View>
-
-      {/* Cart Table */}
-      <View className="flex-1 bg-white">
-        {/* Table Header */}
-        <View className="flex-row items-center border-b border-surface-200 bg-surface-50 px-6 py-4">
-          <Text className="w-[140px] text-start text-[22px] font-black uppercase tracking-widest text-primary">
-            STT
-          </Text>
-          <Text className="flex-1 text-[22px] font-black uppercase tracking-widest text-primary">
-            Sản phẩm
-          </Text>
-          <Text className="w-[180px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
-            Đơn giá
-          </Text>
-          <Text className="w-[100px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
-            Thuế
-          </Text>
-          <Text className="w-[220px] text-center text-[22px] font-black uppercase tracking-widest text-primary">
-            Số lượng
-          </Text>
-          <Text className="w-[220px] pr-4 text-right text-[22px] font-black uppercase tracking-widest text-primary">
-            Thành tiền
-          </Text>
-          <View className="w-16" />
-        </View>
-
-        <FlashList
-          data={cart}
-          keyExtractor={(item) => item.product.id}
-          renderItem={renderItem}
-          ListEmptyComponent={<CartEmptyState />}
-        />
-      </View>
-
-      {/* AddTab Sheet */}
+      <SessionTabBar onOpenAddTab={handleOpenAddTab} />
+      <SessionSearchBar cartActor={cartActor} />
+      <CartTable cartActor={cartActor} />
       <AddTabSheet ref={addTabSheetRef} onSelect={handleAddTab} />
     </View>
   )

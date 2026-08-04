@@ -7,6 +7,9 @@ export interface PosContext {
   carts: Record<string, ActorRefFrom<typeof cartMachine>>
   activeCartId: string | null
   nextCartNumber: number
+  /** Lightweight tab metadata để UI subscribe mà không cần getSnapshot() mỗi cart actor.
+   *  Cập nhật qua CART_UPDATED event metadata và các action ADD_TAB / REMOVE_TAB / SET_AFFILIATE. */
+  tabMetas: Record<string, { label: string; affiliateName: string | null }>
 }
 
 export type PosEvent =
@@ -14,7 +17,7 @@ export type PosEvent =
   | { type: 'REMOVE_TAB'; id: string }
   | { type: 'SWITCH_TAB'; id: string }
   | { type: 'PRINT_RECEIPT' }
-  | { type: 'CART_UPDATED' }
+  | { type: 'CART_UPDATED'; cartId: string; meta?: Record<string, unknown> }
   | { type: 'ADD_ITEM'; product: any }
   | { type: 'RESET_POS' }
 
@@ -70,10 +73,20 @@ export const posMachine = setup({
       }
     }
 
+    const tabMetas: PosContext['tabMetas'] = {}
+    for (const [id] of Object.entries(carts)) {
+      const snapshot = carts[id].getSnapshot()
+      tabMetas[id] = {
+        label: snapshot?.context.label ?? 'Khách lẻ',
+        affiliateName: snapshot?.context.affiliate?.name ?? null,
+      }
+    }
+
     return {
       carts,
       activeCartId,
       nextCartNumber,
+      tabMetas,
     }
   },
   on: {
@@ -89,6 +102,10 @@ export const posMachine = setup({
         return {
           carts: { ...context.carts, [id]: newCart },
           activeCartId: id,
+          tabMetas: {
+            ...context.tabMetas,
+            [id]: { label, affiliateName: affiliate?.name ?? null },
+          },
         }
       }),
     },
@@ -102,6 +119,7 @@ export const posMachine = setup({
         }),
         assign(({ context, event }) => {
           const { [event.id]: _, ...remaining } = context.carts
+          const { [event.id]: __, ...remainingMetas } = context.tabMetas ?? {}
           const remainingIds = Object.keys(remaining)
 
           let nextActiveId = context.activeCartId
@@ -113,6 +131,7 @@ export const posMachine = setup({
           return {
             carts: remaining,
             activeCartId: nextActiveId,
+            tabMetas: remainingMetas,
           }
         }),
       ],
@@ -124,7 +143,23 @@ export const posMachine = setup({
     },
     PRINT_RECEIPT: {},
     CART_UPDATED: {
-      actions: [],
+      actions: assign(({ context, event }) => {
+        const meta = event.meta
+        if (!meta) return {}
+        const { cartId } = event
+        const current = context.tabMetas?.[cartId]
+        if (!current) return {}
+        const updated: Record<string, unknown> = {}
+        if ('affiliateName' in meta) {
+          updated.affiliateName = (meta.affiliateName as string) ?? null
+        }
+        return {
+          tabMetas: {
+            ...context.tabMetas,
+            [cartId]: { ...current, ...updated },
+          },
+        }
+      }),
     },
     RESET_POS: {
       actions: [
@@ -142,6 +177,7 @@ export const posMachine = setup({
             carts: { [DEFAULT_CART_ID]: defaultCart },
             activeCartId: DEFAULT_CART_ID,
             nextCartNumber: 1,
+            tabMetas: { [DEFAULT_CART_ID]: { label: 'Khách lẻ', affiliateName: null } },
           }
         }),
       ],

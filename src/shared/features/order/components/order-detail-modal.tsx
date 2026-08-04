@@ -45,7 +45,6 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
 
   useImperativeHandle(ref, () => ({
     open: (o: IOrder) => {
-      console.log('[OrderDetailModal] open - order details:', JSON.stringify(o, null, 2))
       pendingOrderRef.current = o
       setOrder(null)
       setReady(false)

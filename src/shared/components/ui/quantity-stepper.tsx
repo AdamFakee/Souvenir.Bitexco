@@ -63,7 +63,7 @@ export const QuantityStepper = memo(function QuantityStepper({
         : 'h-11 w-11 items-center justify-center rounded-full'
     return `${base} ${isEnabled ? 'bg-surface-100 active:bg-surface-200' : 'bg-surface-50'}`
   }
-  const inputClassName = 'w-8 text-center text-xl font-black text-surface-on'
+  const inputClassName = 'w-10 text-center text-xl font-black text-surface-on'
   const iconSize = size === 'sm' ? 20 : 22
   const canDecrease = !disabled && value > min
   const canIncrease = !disabled && (max === undefined || value < max)

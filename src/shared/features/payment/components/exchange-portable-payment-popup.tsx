@@ -24,7 +24,7 @@ import {
   exchangePortablePaymentMachine,
   getExchangePortablePaymentStatusLabel,
 } from '../machines/exchange-portable-payment.machine'
-import { PAYMENT_ERROR_CODES, PaymentPopupProps, getPaymentErrorStatus } from '../types'
+import { PaymentPopupProps, getPaymentErrorStatus } from '../types'
 import { calculateSubtotal, calculateTotalTax } from '../utils'
 import { ManualCardDetailsFormData, manualCardDetailsSchema } from '../validation'
 

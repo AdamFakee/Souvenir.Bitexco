@@ -45,18 +45,22 @@ export const usePosStore = create<PosState>((set, get) => ({
     }).start()
 
     // 3. Đăng ký theo dõi thay đổi để tự động lưu dữ liệu (Persistence)
+    // ponytail: defer getSnapshot() + mapping to debounced save fn to avoid
+    // blocking JS thread on every cart update
     service.subscribe((state) => {
       try {
-        const cartsToSave = Object.entries(state.context.carts).map(([id, actor]) => {
-          const snapshot = actor.getSnapshot()
-          const { appliedVoucher, ...restContext } = snapshot.context
-          return {
-            id,
-            label: snapshot.context.label,
-            context: restContext,
-          }
+        const cartsRef = state.context.carts
+        posStorage.save(() => {
+          return Object.entries(cartsRef).map(([id, actor]) => {
+            const snapshot = actor.getSnapshot()
+            const { appliedVoucher, ...restContext } = snapshot.context
+            return {
+              id,
+              label: snapshot.context.label,
+              context: restContext,
+            }
+          })
         })
-        posStorage.save(cartsToSave)
       } catch {}
     })
 

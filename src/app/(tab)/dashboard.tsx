@@ -1,14 +1,15 @@
+import { COLORS } from '@/shared/constants'
 import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
 import { useCashSessionId, useEmployee } from '@/shared/features/app'
+import { DashboardSkeleton } from '@/shared/features/dashboard/components/dashboard-skeleton'
 import { DashboardInfoBar } from '@/shared/features/dashboard/components/info-bar'
 import { PaymentMethodsPanel } from '@/shared/features/dashboard/components/payment-methods-panel'
 import { ProductRevenuePanel } from '@/shared/features/dashboard/components/product-revenue-panel'
-import { DashboardSkeleton } from '@/shared/features/dashboard/components/dashboard-skeleton'
 import { DashboardStatsCards } from '@/shared/features/dashboard/components/stats-cards'
 import { useDashboardOverview } from '@/shared/features/dashboard/hooks'
 import { StaffSelect } from '@/shared/features/order/components/order-staff-select'
 import React, { useCallback, useMemo, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 function DashboardContent() {
@@ -21,6 +22,16 @@ function DashboardContent() {
 
   const shiftId = cashSessionId ?? undefined
   const { overview, isLoading, isFetching, error, refetch } = useDashboardOverview(shiftId, staffId)
+
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await refetch()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [refetch])
 
   const handleRetry = useCallback(() => refetch(), [refetch])
 
@@ -73,36 +84,50 @@ function DashboardContent() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#f3f4f6]">
-      <View className="flex-1 p-6">
-        <View className="w-full flex-1 flex-col rounded-3xl border border-[#e2e8f0] bg-white p-8">
-          <View className="mb-6 flex-row items-end justify-between">
-            <View className="flex-col gap-2">
-              <Text className="text-[32px] font-extrabold tracking-tight text-[#111827]">
-                Báo cáo doanh thu
-              </Text>
-              <Text className="text-[16px] font-medium text-[#6b7280]">
-                Tổng quan hoạt động và doanh thu trong ca làm việc.
-              </Text>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[COLORS.primary.default]}
+            tintColor={COLORS.primary.default}
+          />
+        }
+      >
+        <View className="flex-1 p-6">
+          <View className="w-full flex-1 flex-col rounded-3xl border border-[#e2e8f0] bg-white p-8">
+            <View className="mb-6 flex-row items-end justify-between">
+              <View className="flex-col gap-2">
+                <Text className="text-[32px] font-extrabold tracking-tight text-[#111827]">
+                  Báo cáo doanh thu
+                </Text>
+                <Text className="text-[16px] font-medium text-[#6b7280]">
+                  Tổng quan hoạt động và doanh thu trong ca làm việc.
+                </Text>
+              </View>
+
+              <StaffSelect
+                value={staffId}
+                onChange={handleStaffChange}
+                shiftId={shiftId}
+                className="w-[280px]"
+                triggerClassName="h-16"
+                triggerTextClassName="text-3xl"
+              />
             </View>
 
-            <StaffSelect
-              value={staffId}
-              onChange={handleStaffChange}
-              shiftId={shiftId}
-              className="w-[280px]"
-              triggerClassName="h-16"
-              triggerTextClassName="text-3xl"
-            />
+            {body}
+            {isFetching && overview && !refreshing ? (
+              <Text className="mt-3 text-right text-[16px] font-bold text-[#9ca3af]">
+                Đang cập nhật…
+              </Text>
+            ) : null}
           </View>
-
-          {body}
-          {isFetching && overview ? (
-            <Text className="mt-3 text-right text-[16px] font-bold text-[#9ca3af]">
-              Đang cập nhật…
-            </Text>
-          ) : null}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   )
 }

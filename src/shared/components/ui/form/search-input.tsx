@@ -16,7 +16,9 @@ interface SearchInputProps extends Omit<TextInputProps, 'style'> {
   size?: 'sm' | 'md' | 'lg'
 }
 
-export const SearchInput = ({
+// ponytail: memo so it doesn't re-create on every keystroke when parent re-renders.
+// The TextInput itself handles its own value; we only re-render when props truly change.
+export const SearchInput = React.memo(function SearchInput({
   value,
   onChangeText,
   placeholder = 'Tìm kiếm...',
@@ -27,7 +29,7 @@ export const SearchInput = ({
   onClear,
   size = 'md',
   ...props
-}: SearchInputProps) => {
+}: SearchInputProps) {
   const isLarge = size === 'lg'
   const isSmall = size === 'sm'
   const defaultIconSize = iconSize || (isLarge ? 32 : isSmall ? 20 : 24)
@@ -81,6 +83,4 @@ export const SearchInput = ({
       )}
     </View>
   )
-}
-
-SearchInput.displayName = 'SearchInput'
+})
