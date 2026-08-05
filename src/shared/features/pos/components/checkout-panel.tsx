@@ -24,8 +24,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { PenSquare, Ticket, User, XCircle } from 'lucide-react-native'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Keyboard, Pressable, Text, TextInput, View } from 'react-native'
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { ActorRefFrom } from 'xstate'
 import { useActiveCart } from '../hooks'
 import { cartMachine } from '../machines/cart.machine'
@@ -106,12 +105,8 @@ const CustomerInfoCard = memo(function CustomerInfoCard({
 
 const NoteInput = memo(function NoteInput({
   cartActor,
-  onFocus,
-  onBlur,
 }: {
   cartActor?: ActorRefFrom<typeof cartMachine>
-  onFocus?: () => void
-  onBlur?: () => void
 }) {
   const note = useSelector(cartActor!, (s) => s?.context?.note || '')
   const [localNote, setLocalNote] = useState(note)
@@ -157,8 +152,6 @@ const NoteInput = memo(function NoteInput({
         placeholderTextColor="#8D8E8F"
         value={localNote}
         onChangeText={handleChangeNote}
-        onFocus={onFocus}
-        onBlur={onBlur}
         multiline
         textAlignVertical="top"
       />
@@ -168,12 +161,8 @@ const NoteInput = memo(function NoteInput({
 
 const VoucherRow = memo(function VoucherRow({
   cartActor,
-  onFocus,
-  onBlur,
 }: {
   cartActor?: ActorRefFrom<typeof cartMachine>
-  onFocus?: () => void
-  onBlur?: () => void
 }) {
   const appliedVoucher = useSelector(cartActor!, (s) => s?.context?.appliedVoucher || null)
   const isNetworkConnected = useConnectionStore((s) => s.isNetworkConnected)
@@ -227,8 +216,6 @@ const VoucherRow = memo(function VoucherRow({
         placeholderTextColor="#8D8E8F"
         value={voucherInput}
         onChangeText={setVoucherInput}
-        onFocus={onFocus}
-        onBlur={onBlur}
         autoCapitalize="characters"
         editable={isNetworkConnected && !appliedVoucher && !isVerifying}
       />
@@ -587,38 +574,21 @@ const PaymentButtons = memo(function PaymentButtons({
 
 const CheckoutPanel = memo(function CheckoutPanel() {
   const cartActor = useActiveCart()
-  const [isInputFocused, setIsInputFocused] = useState(false)
-
-  const handleFocus = useCallback(() => setIsInputFocused(true), [])
-  const handleBlur = useCallback(() => setIsInputFocused(false), [])
-
-  useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidHide', () => {
-      setIsInputFocused(false)
-    })
-    return () => sub.remove()
-  }, [])
 
   return (
-    <KeyboardAvoidingView
-      behavior="padding"
-      keyboardVerticalOffset={24}
-      enabled={isInputFocused}
-      className="w-full"
-      style={{ zIndex: 10 }}
-    >
+    <View className="w-full" style={{ zIndex: 10 }}>
       <View className="w-full rounded-2xl border border-outline-variant bg-white p-4 shadow-sm">
         <View className="flex-row items-stretch gap-3">
           <View className="w-2/5 gap-3">
             <CustomerInfoCard cartActor={cartActor} />
-            <NoteInput cartActor={cartActor} onFocus={handleFocus} onBlur={handleBlur} />
-            <VoucherRow cartActor={cartActor} onFocus={handleFocus} onBlur={handleBlur} />
+            <NoteInput cartActor={cartActor} />
+            <VoucherRow cartActor={cartActor} />
           </View>
           <OrderSummary cartActor={cartActor} />
           <PaymentButtons cartActor={cartActor} />
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   )
 })
 

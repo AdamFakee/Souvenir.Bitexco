@@ -22,7 +22,6 @@ import { useSync } from '@/shared/lib/database/sync'
 import { PrinterService } from '@/shared/services/printer-service'
 import { toast, useAlertStore } from '@/shared/store'
 import { MaterialIcons } from '@expo/vector-icons'
-import { Q } from '@nozbe/watermelondb'
 import { Href, Tabs, usePathname, useRouter } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -148,9 +147,15 @@ const CustomSidebarInner = React.memo(
       (name: string) => {
         if (name === activeTab && !pendingTab) return
         setPendingTab(name)
+        const t0 = performance.now()
         // Paint highlight trước; navigate frame sau để tránh block cùng commit mount màn nặng
         requestAnimationFrame(() => {
           router.navigate(`/(tab)/${name}` as Href)
+          requestAnimationFrame(() => {
+            console.log(
+              `[PERF][main_tab] ${name} painted: ${(performance.now() - t0).toFixed(0)}ms`,
+            )
+          })
         })
       },
       [activeTab, pendingTab, router],
@@ -312,7 +317,7 @@ export default function TabLayout() {
             headerShown: false,
             // Lần 1: mount khi vào. Lần sau: native show + freeze inactive → không re-render tab ẩn
             lazy: true,
-            freezeOnBlur: true,
+            freezeOnBlur: false,
             sceneStyle: { backgroundColor: COLORS.surface[50] },
           }}
         >

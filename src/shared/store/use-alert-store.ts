@@ -23,6 +23,10 @@ interface AlertState {
   // Toasts State
   toasts: Toast[]
 
+  // Easy Loading State
+  isLoading: boolean
+  loadingMessage?: string
+
   /**
    * Hiển thị thông báo (Toast) - Tự động biến mất
    */
@@ -48,6 +52,10 @@ interface AlertState {
    * Đóng hộp thoại
    */
   hide: () => void
+  /** EasyLoading: hiển thị spinner toàn màn hình */
+  showLoading: (message?: string) => void
+  /** EasyLoading: ẩn spinner */
+  hideLoading: () => void
 }
 
 export const useAlertStore = create<AlertState>((set, get) => ({
@@ -60,6 +68,8 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   onConfirm: undefined,
   onCancel: undefined,
   toasts: [],
+  isLoading: false,
+  loadingMessage: undefined,
 
   show: ({ type = 'info', title, message, duration = 4000 }) => {
     const id = Math.random().toString(36).substring(2, 9)
@@ -115,6 +125,9 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     }),
 
   hide: () => set({ visible: false }),
+
+  showLoading: (message?: string) => set({ isLoading: true, loadingMessage: message }),
+  hideLoading: () => set({ isLoading: false, loadingMessage: undefined }),
 }))
 
 /**
@@ -138,4 +151,6 @@ export const toast = {
   }) => useAlertStore.getState().confirm(params),
   infoPopup: (params: { title: string; message: string; onConfirm?: () => void }) =>
     useAlertStore.getState().infoPopup(params),
+  showLoading: (message?: string) => useAlertStore.getState().showLoading(message),
+  hideLoading: () => useAlertStore.getState().hideLoading(),
 }

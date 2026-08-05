@@ -36,13 +36,7 @@ export const ModalBase = memo(function ModalBase({
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={handleDismiss}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleDismiss}>
       <View className="flex-1 items-center justify-center bg-black/50 px-0">
         <Pressable className="absolute inset-0" onPress={handleDismiss} />
         <View className={cn(SIZE_CLASSES[size], className)}>{children}</View>

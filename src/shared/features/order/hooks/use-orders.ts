@@ -1,4 +1,5 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { minutes } from '@/shared/utils'
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { OrderRemoteAPI } from '../api'
 import { useOrderFilterStore } from '../store'
@@ -64,7 +65,8 @@ export const useOrders = (params: {
       const meta = lastPage.meta as any
       return meta?.hasNextPage ? Number(meta.page || 1) + 1 : undefined
     },
-    staleTime: 60_000,
+    staleTime: minutes(10), // 10 phút
+    placeholderData: keepPreviousData, // giữ data cũ khi đổi filter/status → không flash skeleton
     networkMode: 'always',
     enabled: enabled !== false,
   })

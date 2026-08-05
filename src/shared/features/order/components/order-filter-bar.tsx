@@ -36,7 +36,7 @@ export const OrderFilterBar = memo(function OrderFilterBar({
   const handleStaffChange = useCallback((id: string | null) => setStaffId(id), [setStaffId])
 
   return (
-    <View className="mb-4 flex-row items-center gap-3">
+    <View className="mb-4 flex-row items-center gap-3" style={{ zIndex: 100, elevation: 100 }}>
       <OrderSearchInput />
       {!hideFilters && (
         <>

@@ -7,5 +7,5 @@ interface ShimmerProps extends ViewProps {
 }
 
 export function Shimmer({ className, style, ...props }: ShimmerProps) {
-  return <View className={cn('animate-pulse bg-surface-300', className)} style={style} {...props} />
+  return <View className={cn('bg-surface-300', className)} style={style} {...props} />
 }

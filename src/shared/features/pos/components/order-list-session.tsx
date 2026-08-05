@@ -29,6 +29,7 @@ const CartItemRow = memo(
     onUpdateQuantity: (productId: string, quantity: number) => void
     onRemove: (productId: string) => void
   }) {
+    console.log(`[PERF] 🧩 CartItemRow render: ${item.product.id}`)
     const itemTotal = Math.round(item.price * item.quantity)
 
     const handleQuantityChange = useCallback(
@@ -39,7 +40,7 @@ const CartItemRow = memo(
     const handleRemove = useCallback(() => onRemove(item.product.id), [onRemove, item.product.id])
 
     return (
-      <View className="flex-row items-center border-b border-surface-100 bg-white px-6 py-5">
+      <View className="h-[90px] flex-row items-center border-b border-surface-100 bg-white px-6">
         <View className="w-[140px] text-center">
           <Text className=" pl-4 text-[20px] font-black text-surface-on-variant">{index + 1}</Text>
         </View>
@@ -54,7 +55,6 @@ const CartItemRow = memo(
         <Text
           className="w-[180px] text-center text-[22px] font-bold text-surface-on"
           numberOfLines={1}
-          adjustsFontSizeToFit
         >
           {formatCurrency(item.price)}
         </Text>
@@ -76,7 +76,6 @@ const CartItemRow = memo(
         <Text
           className="w-[220px] pr-4 text-right text-[24px] font-black text-primary"
           numberOfLines={1}
-          adjustsFontSizeToFit
         >
           {formatCurrency(itemTotal)}
         </Text>
@@ -114,7 +113,7 @@ const CartTabPill = memo(function CartTabPill({
   return (
     <Pressable
       onPress={handleSwitch}
-      className="flex-row items-center rounded-full px-6 py-3"
+      className="h-[48px] flex-row items-center rounded-full px-6"
       style={{ backgroundColor: isActive ? COLORS.primary.default : COLORS.background.default }}
     >
       <Text
@@ -143,8 +142,6 @@ const CartEmptyState = memo(function CartEmptyState() {
 // ─── Session Tabs Bar: độc lập, không re-render khi thêm món ───
 const SessionTabBar = memo(function SessionTabBar({ onOpenAddTab }: { onOpenAddTab: () => void }) {
   const posActor = usePosActor()
-  const [pendingTabId, setPendingTabId] = useState<string | null>(null)
-
   const cartTabs = useSelector(
     posActor!,
     (s) => {
@@ -176,21 +173,10 @@ const SessionTabBar = memo(function SessionTabBar({ onOpenAddTab }: { onOpenAddT
       ),
   )
 
-  useEffect(() => {
-    if (pendingTabId) {
-      const activeTab = cartTabs.find((t) => t.isActive)
-      if (activeTab?.id === pendingTabId) {
-        setPendingTabId(null)
-      }
-    }
-  }, [cartTabs, pendingTabId])
-
   const handleSwitchTab = useCallback(
     (id: string) => {
-      setPendingTabId(id)
-      React.startTransition(() => {
-        posActor?.send({ type: 'SWITCH_TAB', id })
-      })
+      perfTracker.switchStart = Date.now()
+      posActor?.send({ type: 'SWITCH_TAB', id })
     },
     [posActor],
   )
@@ -215,13 +201,12 @@ const SessionTabBar = memo(function SessionTabBar({ onOpenAddTab }: { onOpenAddT
         contentContainerStyle={{ gap: 10 }}
       >
         {cartTabs.map(({ id, label, isActive }) => {
-          const effectiveActive = pendingTabId !== null ? pendingTabId === id : isActive
           return (
             <CartTabPill
               key={id}
               id={id}
               label={label}
-              isActive={effectiveActive}
+              isActive={isActive}
               onSwitch={handleSwitchTab}
               onRemove={handleRemoveTab}
             />
@@ -282,6 +267,8 @@ const SessionSearchBar = memo(function SessionSearchBar({
   )
 })
 
+export const perfTracker = { switchStart: 0 }
+
 // ─── Cart Items Table: chỉ re-render khi items trong giỏ thay đổi ───
 const CartTable = memo(function CartTable({
   cartActor,
@@ -291,15 +278,20 @@ const CartTable = memo(function CartTable({
   const items = useSelector(cartActor!, (s) => s?.context?.items || {})
   const cart = useMemo(() => Object.values(items || {}) as CartItem[], [items])
 
+  const cartActorRef = useRef(cartActor)
+  useEffect(() => {
+    cartActorRef.current = cartActor
+  }, [cartActor])
+
   const handleUpdateQuantity = useCallback(
     (productId: string, quantity: number) =>
-      cartActor?.send({ type: 'UPDATE_QUANTITY', productId, quantity }),
-    [cartActor],
+      cartActorRef.current?.send({ type: 'UPDATE_QUANTITY', productId, quantity }),
+    [],
   )
 
   const handleRemoveItem = useCallback(
-    (productId: string) => cartActor?.send({ type: 'REMOVE_ITEM', productId }),
-    [cartActor],
+    (productId: string) => cartActorRef.current?.send({ type: 'REMOVE_ITEM', productId }),
+    [],
   )
 
   const renderItem = useCallback(
@@ -313,6 +305,27 @@ const CartTable = memo(function CartTable({
     ),
     [handleUpdateQuantity, handleRemoveItem],
   )
+
+  // -- PERFORMANCE LOGGING --
+  const renderStartRef = useRef<number>(Date.now())
+  renderStartRef.current = Date.now() // Track every render start time
+
+  useEffect(() => {
+    const now = Date.now()
+    const renderDuration = now - renderStartRef.current
+
+    if (perfTracker.switchStart > 0) {
+      const totalDuration = now - perfTracker.switchStart
+      console.log(`[PERF] 🏁 Tab switched & orders painted total time: ${totalDuration}ms`)
+      perfTracker.switchStart = 0 // Reset
+    }
+
+    if (renderDuration > 10) {
+      console.log(
+        `[PERF] 🎨 CartTable render -> commit took: ${renderDuration}ms (Cart items: ${cart.length})`,
+      )
+    }
+  })
 
   return (
     <View className="flex-1 bg-white">
@@ -339,12 +352,14 @@ const CartTable = memo(function CartTable({
         <View className="w-16" />
       </View>
 
-      <FlashList
-        data={cart}
-        keyExtractor={(item) => item.product.id}
-        renderItem={renderItem}
-        ListEmptyComponent={<CartEmptyState />}
-      />
+      <View className="flex-1">
+        <FlashList
+          data={cart}
+          keyExtractor={(item) => item.product.id}
+          renderItem={renderItem}
+          ListEmptyComponent={<CartEmptyState />}
+        />
+      </View>
     </View>
   )
 })

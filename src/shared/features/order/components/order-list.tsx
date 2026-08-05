@@ -1,10 +1,10 @@
-import { EmptyState, IconButton, LoadMore, Shimmer } from '@/shared/components/ui'
+import { EmptyState, IconButton, LoadMore } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { getPaymentMethodStyle, PaymentMethodCode } from '@/shared/features/payment'
 import { cn, formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { PackageOpen, Repeat2, Undo2 } from 'lucide-react-native'
-import React, { memo, useCallback, useMemo, useState } from 'react'
+import React, { memo, useCallback, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useOrderFilterStore } from '../store'
 import { IOrder } from '../types'
@@ -71,98 +71,62 @@ const STATUS_OPTIONS: { label: string; value: string | null }[] = [
 ]
 
 // ── Sortable Header Cell (Thanh toán / Trạng thái header mở popover filter) ──
-interface HeaderCellProps {
-  field: SortField | 'actions'
-  label: string
-  flex: number
-  sortable?: boolean
-  currentSort: SortField | null
-  currentDir: 'asc' | 'desc'
-  onSort: (field: SortField) => void
-  mode?: 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
-}
+// ── Header cells: tách nhỏ để chỉ cell nào cần thì subscribe store ──
 
-const HeaderCell = memo(function HeaderCell({
-  field,
+const PlainHeaderCell = memo(function PlainHeaderCell({
   label,
   flex,
-  sortable = true,
-  currentSort,
-  currentDir,
-  onSort,
   mode,
-}: HeaderCellProps) {
-  const active = sortable && currentSort === field
-
-  // Payment method popover filter
-  const isPaymentCol = field === 'paymentMethod'
-  const paymentMethod = useOrderFilterStore((s) => s.paymentMethod)
-  const setPaymentMethod = useOrderFilterStore((s) => s.setPaymentMethod)
-  const [showPaymentPopover, setShowPaymentPopover] = useState(false)
-
-  // Status popover filter
-  const isStatusCol = field === 'status'
-  const statusFilter = useOrderFilterStore((s) => s.status)
-  const setStatusFilter = useOrderFilterStore((s) => s.setStatus)
-  const [showStatusPopover, setShowStatusPopover] = useState(false)
-
-  let selectedLabel = label
-  if (isPaymentCol) {
-    selectedLabel = paymentMethod
-      ? PAYMENT_METHOD_OPTIONS.find((o) => o.value === paymentMethod)?.label || 'PTTT'
-      : 'PTTT'
-  } else if (isStatusCol) {
-    selectedLabel = statusFilter
-      ? STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || 'Trạng thái'
-      : 'Trạng thái'
-  } else if (field === 'collaborator' && mode === 'agent') {
-    selectedLabel = 'Đối tác'
-  } else if (field === 'collaborator' && mode === 'all') {
-    selectedLabel = 'CTV / Đối tác'
+  field,
+}: {
+  label: string
+  flex: number
+  mode?: 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
+  field: SortField | 'actions'
+}) {
+  let displayLabel = label
+  if (field === 'collaborator') {
+    if (mode === 'agent') displayLabel = 'Đối tác'
+    else displayLabel = 'CTV / Đối tác'
   }
 
-  const handlePress = useCallback(() => {
-    if (isPaymentCol) {
-      setShowPaymentPopover((v) => !v)
-    } else if (isStatusCol) {
-      setShowStatusPopover((v) => !v)
-    } else {
-      if (!sortable || field === 'actions') return
-      onSort(field as SortField)
-    }
-  }, [isPaymentCol, isStatusCol, field, onSort, sortable])
+  return (
+    <View style={{ flex }}>
+      <View
+        className={`flex-row items-center gap-1.5 ${field === 'actions' ? 'justify-center px-2' : 'px-4'}`}
+        style={{ height: 64 }}
+      >
+        <Text numberOfLines={1} style={{ color: BRAND, fontFamily: 'Manrope-Bold', fontSize: 22 }}>
+          {displayLabel}
+        </Text>
+      </View>
+    </View>
+  )
+})
+
+const PaymentHeaderCell = memo(function PaymentHeaderCell({ flex }: { flex: number }) {
+  const paymentMethod = useOrderFilterStore((s) => s.paymentMethod)
+  const setPaymentMethod = useOrderFilterStore((s) => s.setPaymentMethod)
+  const [showPopover, setShowPopover] = useState(false)
+
+  const selectedLabel = paymentMethod
+    ? PAYMENT_METHOD_OPTIONS.find((o) => o.value === paymentMethod)?.label || 'PTTT'
+    : 'PTTT'
 
   return (
     <View style={{ flex }}>
       <Pressable
-        onPress={handlePress}
-        disabled={!isPaymentCol && !isStatusCol && (!sortable || field === 'actions')}
-        className={`flex-row items-center gap-1.5 ${field === 'actions' ? 'justify-center px-2' : 'px-4'}`}
+        onPress={() => setShowPopover((v) => !v)}
+        className="flex-row items-center gap-1.5 px-4"
         style={{ height: 64 }}
       >
-        <Text
-          numberOfLines={1}
-          style={{
-            color: BRAND,
-            fontFamily: 'Manrope-Bold',
-            fontSize: 22,
-          }}
-        >
+        <Text numberOfLines={1} style={{ color: BRAND, fontFamily: 'Manrope-Bold', fontSize: 22 }}>
           {selectedLabel}
         </Text>
-        {active && !isPaymentCol && !isStatusCol && (
-          <Text style={{ color: BRAND, fontSize: 15 }}>{currentDir === 'asc' ? '▲' : '▼'}</Text>
-        )}
-        {isPaymentCol && (
-          <Text style={{ color: BRAND, fontSize: 13 }}>{showPaymentPopover ? '▲' : '▼'}</Text>
-        )}
-        {isStatusCol && (
-          <Text style={{ color: BRAND, fontSize: 13 }}>{showStatusPopover ? '▲' : '▼'}</Text>
-        )}
+        <Text style={{ color: BRAND, fontSize: 13 }}>{showPopover ? '▲' : '▼'}</Text>
       </Pressable>
 
-      {/* Popover PTTT */}
-      {isPaymentCol && showPaymentPopover ? (
+      {showPopover ? (
         <View
           className="absolute left-4 z-10 rounded-xl border bg-white py-1 shadow-lg"
           style={{ borderColor: BORDER, minWidth: 220, top: 64 }}
@@ -174,7 +138,7 @@ const HeaderCell = memo(function HeaderCell({
                 key={opt.value}
                 onPress={() => {
                   setPaymentMethod((opt.value as PaymentMethodCode) || null)
-                  setShowPaymentPopover(false)
+                  setShowPopover(false)
                 }}
                 className="px-5 py-4 active:bg-gray-100"
                 style={{ backgroundColor: active ? 'rgba(28,78,104,0.08)' : 'transparent' }}
@@ -193,9 +157,33 @@ const HeaderCell = memo(function HeaderCell({
           })}
         </View>
       ) : null}
+    </View>
+  )
+})
 
-      {/* Popover Trạng thái */}
-      {isStatusCol && showStatusPopover ? (
+const StatusHeaderCell = memo(function StatusHeaderCell({ flex }: { flex: number }) {
+  const statusFilter = useOrderFilterStore((s) => s.status)
+  const setStatusFilter = useOrderFilterStore((s) => s.setStatus)
+  const [showPopover, setShowPopover] = useState(false)
+
+  const selectedLabel = statusFilter
+    ? STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || 'Trạng thái'
+    : 'Trạng thái'
+
+  return (
+    <View style={{ flex }}>
+      <Pressable
+        onPress={() => setShowPopover((v) => !v)}
+        className="flex-row items-center gap-1.5 px-4"
+        style={{ height: 64 }}
+      >
+        <Text numberOfLines={1} style={{ color: BRAND, fontFamily: 'Manrope-Bold', fontSize: 22 }}>
+          {selectedLabel}
+        </Text>
+        <Text style={{ color: BRAND, fontSize: 13 }}>{showPopover ? '▲' : '▼'}</Text>
+      </Pressable>
+
+      {showPopover ? (
         <View
           className="absolute left-4 z-10 rounded-xl border bg-white py-1 shadow-lg"
           style={{ borderColor: BORDER, minWidth: 220, top: 64 }}
@@ -207,7 +195,7 @@ const HeaderCell = memo(function HeaderCell({
                 key={opt.label}
                 onPress={() => {
                   setStatusFilter(opt.value)
-                  setShowStatusPopover(false)
+                  setShowPopover(false)
                 }}
                 className="px-5 py-4 active:bg-gray-100"
                 style={{ backgroundColor: active ? 'rgba(28,78,104,0.08)' : 'transparent' }}
@@ -238,14 +226,12 @@ const OrderRow = memo(
     onOpenDetails,
     onExchange,
     onRefund,
-    hideCollaborator,
   }: {
     order: IOrder
     index: number
     onOpenDetails: (order: IOrder) => void
     onExchange?: (order: IOrder) => void
     onRefund?: (order: IOrder) => void
-    hideCollaborator?: boolean
   }) {
     const isEven = index % 2 === 1
     const payments = order.paymentsSnapshot || []
@@ -308,21 +294,19 @@ const OrderRow = memo(
         </View>
 
         {/* Cộng tác viên */}
-        {!hideCollaborator && (
-          <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
-            <Text
-              numberOfLines={1}
-              style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
-            >
-              {collaboratorName}
+        <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
+          <Text
+            numberOfLines={1}
+            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
+          >
+            {collaboratorName}
+          </Text>
+          {collaboratorCode ? (
+            <Text style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold', fontSize: 16 }}>
+              {collaboratorCode}
             </Text>
-            {collaboratorCode ? (
-              <Text style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold', fontSize: 16 }}>
-                {collaboratorCode}
-              </Text>
-            ) : null}
-          </View>
-        )}
+          ) : null}
+        </View>
 
         {/* Ngày tạo */}
         <View className="flex-1 justify-center px-4" style={{ height: 60 }}>
@@ -405,26 +389,14 @@ const OrderRow = memo(
   },
   (prev, next) =>
     prev.order.id === next.order.id &&
-    +new Date(prev.order.updatedAt) === +new Date(next.order.updatedAt) &&
-    prev.order.status === next.order.status &&
-    prev.order.state === next.order.state &&
-    prev.index === next.index &&
-    prev.hideCollaborator === next.hideCollaborator &&
-    prev.onOpenDetails === next.onOpenDetails &&
-    prev.onExchange === next.onExchange &&
-    prev.onRefund === next.onRefund,
+    prev.order.updatedAt === next.order.updatedAt &&
+    prev.index === next.index,
 )
 
 // ── Skeleton ──
-const OrderSkeleton = ({
-  index,
-  hideCollaborator,
-}: {
-  index: number
-  hideCollaborator?: boolean
-}) => {
+export const OrderSkeleton = ({ index }: { index: number }) => {
   const isEven = index % 2 === 1
-  const activeCols = COLUMNS.filter((col) => !(col.field === 'collaborator' && hideCollaborator))
+  const activeCols = COLUMNS
   return (
     <View
       className="flex-row items-center"
@@ -432,8 +404,10 @@ const OrderSkeleton = ({
     >
       {activeCols.map((col, i) => (
         <View key={i} className="justify-center px-4" style={{ flex: col.flex, height: 60 }}>
-          <Shimmer className="h-6 w-28 rounded-md" />
-          {col.field === 'collaborator' && <Shimmer className="mt-1 h-4 w-20 rounded-md" />}
+          <View className="h-6 w-28 rounded-md bg-neutral-200" />
+          {col.field === 'collaborator' && (
+            <View className="mt-1 h-4 w-20 rounded-md bg-neutral-200 opacity-60" />
+          )}
         </View>
       ))}
     </View>
@@ -442,37 +416,31 @@ const OrderSkeleton = ({
 
 // ── Export TableHeader separately so popover isn't clipped by FlashList ──
 interface TableHeaderProps {
-  sortField: SortField | null
-  sortDir: 'asc' | 'desc'
-  onSort: (field: SortField) => void
   mode?: 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
 }
 
-export const TableHeader = memo(function TableHeader({
-  sortField,
-  sortDir,
-  onSort,
-  mode,
-}: TableHeaderProps) {
-  const activeCols = useMemo(() => {
-    return COLUMNS.filter((col) => !(col.field === 'collaborator' && mode === 'pos'))
-  }, [mode])
+export const TableHeader = memo(function TableHeader({ mode }: TableHeaderProps) {
+  const activeCols = COLUMNS
 
   return (
     <View className="z-50 flex-row items-center border-b bg-white" style={{ borderColor: BORDER }}>
-      {activeCols.map((col) => (
-        <HeaderCell
-          key={col.field}
-          field={col.field}
-          label={col.label}
-          flex={col.flex}
-          sortable={col.sortable !== false && col.field !== 'actions'}
-          currentSort={sortField}
-          currentDir={sortDir}
-          onSort={onSort}
-          mode={mode}
-        />
-      ))}
+      {activeCols.map((col) => {
+        if (col.field === 'paymentMethod') {
+          return <PaymentHeaderCell key={col.field} flex={col.flex} />
+        }
+        if (col.field === 'status') {
+          return <StatusHeaderCell key={col.field} flex={col.flex} />
+        }
+        return (
+          <PlainHeaderCell
+            key={col.field}
+            field={col.field}
+            label={col.label}
+            flex={col.flex}
+            mode={mode}
+          />
+        )
+      })}
     </View>
   )
 })
@@ -492,95 +460,32 @@ export const OrderList = memo(function OrderList({
   refreshing,
 }: OrderListProps) {
   const resetFilters = useOrderFilterStore((s) => s.resetFilters)
-  const [sortField, setSortField] = useState<SortField | null>(null)
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-
-  const handleSort = useCallback(
-    (field: SortField) => {
-      // Không sort cột giá trị
-      if (field === 'total') return
-      if (sortField === field) {
-        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-      } else {
-        setSortField(field)
-        setSortDir('asc')
-      }
-    },
-    [sortField],
-  )
-
-  const sortedOrders = useMemo(() => {
-    if (!sortField) return orders
-    const list = [...orders]
-    list.sort((a, b) => {
-      let va: any = ''
-      let vb: any = ''
-      switch (sortField) {
-        case 'code':
-          va = a.code || a.id
-          vb = b.code || b.id
-          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-        case 'collaborator':
-          va = a.partner?.nameVi || a.affiliate?.name || ''
-          vb = b.partner?.nameVi || b.affiliate?.name || ''
-          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-        case 'createdAt':
-          va = a.createdAt ? new Date(a.createdAt).getTime() : 0
-          vb = b.createdAt ? new Date(b.createdAt).getTime() : 0
-          return sortDir === 'asc' ? va - vb : vb - va
-        case 'paymentMethod':
-          va = a.paymentsSnapshot?.[0]?.method || ''
-          vb = b.paymentsSnapshot?.[0]?.method || ''
-          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-        case 'status':
-          va = a.status || ''
-          vb = b.status || ''
-          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-      }
-      return 0
-    })
-    return list
-  }, [orders, sortField, sortDir])
-
-  const hideCollaborator = mode === 'pos'
 
   const renderItem = useCallback(
-    ({ item, index }: { item: IOrder; index: number }) => (
-      <OrderRow
-        order={item}
-        index={index}
-        onOpenDetails={onOpenDetails}
-        onExchange={onExchange}
-        onRefund={onRefund}
-        hideCollaborator={hideCollaborator}
-      />
-    ),
-    [onOpenDetails, onExchange, onRefund, hideCollaborator],
+    ({ item, index }: { item: IOrder; index: number }) => {
+      return (
+        <OrderRow
+          order={item}
+          index={index}
+          onOpenDetails={onOpenDetails}
+          onExchange={onExchange}
+          onRefund={onRefund}
+        />
+      )
+    },
+    [onOpenDetails, onExchange, onRefund],
   )
 
   const keyExtractor = useCallback((item: IOrder) => item.id, [])
 
-  // Chỉ blank skeleton khi thật sự chưa có rows
-  if (isLoading && orders.length === 0) {
-    return (
-      <View className="flex-1">
-        <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} mode={mode} />
-        {[...Array(6)].map((_, i) => (
-          <OrderSkeleton key={i} index={i} hideCollaborator={mode === 'pos'} />
-        ))}
-      </View>
-    )
-  }
-
   return (
     <View className="flex-1">
       {/* Header pinned outside FlashList so popover isn't clipped */}
-      <TableHeader sortField={sortField} sortDir={sortDir} onSort={handleSort} mode={mode} />
+      <TableHeader mode={mode} />
       <FlashList
-        data={sortedOrders}
+        data={orders}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        extraData={hideCollaborator}
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 8 }}
         onRefresh={onRefresh}
@@ -593,13 +498,21 @@ export const OrderList = memo(function OrderList({
         onEndReachedThreshold={0.5}
         ListFooterComponent={<LoadMore isLoading={isFetchingNextPage} />}
         ListEmptyComponent={
-          <EmptyState
-            title="Danh sách trống"
-            description="Chúng tôi không tìm thấy đơn hàng nào khớp với bộ lọc hiện tại của bạn."
-            icon={PackageOpen}
-            actionLabel="Xóa bộ lọc"
-            onAction={resetFilters}
-          />
+          isLoading ? (
+            <View>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <OrderSkeleton key={i} index={i} />
+              ))}
+            </View>
+          ) : (
+            <EmptyState
+              title="Danh sách trống"
+              description="Chúng tôi không tìm thấy đơn hàng nào khớp với bộ lọc hiện tại của bạn."
+              icon={PackageOpen}
+              actionLabel="Xóa bộ lọc"
+              onAction={resetFilters}
+            />
+          )
         }
       />
     </View>

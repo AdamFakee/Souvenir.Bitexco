@@ -18,7 +18,9 @@ function DashboardContent() {
   // Default ngay từ employee — tránh 1 frame staffId=null → query key nhảy
   const [staffId, setStaffId] = useState<string | null>(() => employee?.id ?? null)
 
-  const handleStaffChange = useCallback((id: string | null) => setStaffId(id), [])
+  const handleStaffChange = useCallback((id: string | null) => {
+    requestAnimationFrame(() => setStaffId(id))
+  }, [])
 
   const shiftId = cashSessionId ?? undefined
   const { overview, isLoading, isFetching, error, refetch } = useDashboardOverview(shiftId, staffId)

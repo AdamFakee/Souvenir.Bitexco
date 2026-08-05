@@ -35,11 +35,18 @@ export function LazyTabShell({
 
   useEffect(() => {
     if (_readyCache.has(Content)) return
-    const handle = InteractionManager.runAfterInteractions(() => {
-      _readyCache.add(Content)
-      setReady(true)
-    })
-    return () => handle.cancel()
+
+    // Tab của expo-router chuyển ngay lập tức (không có animation),
+    // nên InteractionManager tưởng là rảnh và chạy callback ngay trong cùng frame.
+    // Điều này làm Skeleton và Content bị mount chung 1 lượt, gây lag cục bộ.
+    // Dùng setTimeout(..., 50) ép JS Thread nhường quyền cho UI Thread sơn (paint) Skeleton trước!
+    const timer = setTimeout(() => {
+      InteractionManager.runAfterInteractions(() => {
+        _readyCache.add(Content)
+        setReady(true)
+      })
+    }, 50)
+    return () => clearTimeout(timer)
   }, [Content])
 
   return (

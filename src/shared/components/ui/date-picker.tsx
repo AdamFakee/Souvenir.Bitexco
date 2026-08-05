@@ -1,9 +1,9 @@
 import { COLORS } from '@/shared/constants'
 import { formatDate } from '@/shared/utils'
 import { Calendar } from 'lucide-react-native'
-import React, { useRef } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { CalendarPopover, CalendarPopoverRef, AnchorPosition } from './calendar-popover'
+import { CalendarPopover } from './calendar-popover'
 
 interface DatePickerProps {
   value: Date | null
@@ -30,34 +30,31 @@ export function DatePicker({
   triggerTextStyle,
   triggerIconSize,
 }: DatePickerProps) {
-  const calendarRef = useRef<CalendarPopoverRef>(null)
-  const viewRef = useRef<View>(null)
-  const layoutRef = useRef<AnchorPosition | null>(null)
+  const [show, setShow] = useState(false)
+  const [viewDate, setViewDate] = useState(() => {
+    const d = value || new Date()
+    return new Date(d.getFullYear(), d.getMonth(), 1)
+  })
 
-  const handleOpen = () => {
-    if (layoutRef.current) {
-      calendarRef.current?.open(layoutRef.current)
-    } else {
-      viewRef.current?.measureInWindow(
-        (winX: number, winY: number, winWidth: number, winHeight: number) => {
-          calendarRef.current?.open({ x: winX, y: winY + 20, width: winWidth, height: winHeight })
-        },
-      )
-    }
-  }
+  const handleToggle = useCallback(() => setShow((v) => !v), [])
 
-  const handleLayout = () => {
-    viewRef.current?.measureInWindow(
-      (winX: number, winY: number, winWidth: number, winHeight: number) => {
-        layoutRef.current = { x: winX, y: winY + 20, width: winWidth, height: winHeight }
-      },
-    )
-  }
+  const handleSelect = useCallback(
+    (date: Date) => {
+      onChange(date)
+      setShow(false)
+    },
+    [onChange],
+  )
+
+  const handleChangeMonth = useCallback(
+    (offset: number) => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + offset, 1)),
+    [],
+  )
 
   return (
-    <View ref={viewRef} className={className} onLayout={handleLayout}>
+    <View className={className} style={{ zIndex: show ? 50 : 1, elevation: show ? 50 : 0 }}>
       <Pressable
-        onPress={handleOpen}
+        onPress={handleToggle}
         className={`h-11 flex-row items-center rounded-xl border border-outline-variant bg-white px-4 ${triggerClassName ?? ''}`}
       >
         <Calendar size={triggerIconSize ?? 20} color={COLORS.outline.default} />
@@ -71,9 +68,12 @@ export function DatePicker({
       </Pressable>
 
       <CalendarPopover
-        ref={calendarRef}
-        onSelect={onChange}
+        visible={show}
+        onClose={() => setShow(false)}
+        onSelect={handleSelect}
         selectedDate={value}
+        viewDate={viewDate}
+        onChangeMonth={handleChangeMonth}
         minDate={minDate}
         maxDate={maxDate}
       />

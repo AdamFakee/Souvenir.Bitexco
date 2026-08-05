@@ -1,6 +1,6 @@
 import { useViceScreen } from '@/screens/use-vice-screen'
 import { ErrorFallback } from '@/shared/components/common'
-import { GlobalPopup, GlobalToast } from '@/shared/components/ui'
+import { GlobalEasyLoading, GlobalPopup, GlobalToast } from '@/shared/components/ui'
 import { HandoverReminderOverlay } from '@/shared/features/note'
 import { useAppGate, useAppInit } from '@/shared/hooks'
 import {
@@ -100,6 +100,7 @@ export default function RootLayout() {
               </ErrorBoundary>
               <GlobalPopup />
               <GlobalToast />
+              <GlobalEasyLoading />
               <HandoverReminderOverlay />
             </QueryClientProvider>
           </AppDatabaseProvider>

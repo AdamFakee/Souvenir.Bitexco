@@ -1,7 +1,7 @@
 import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
 import { Select } from '@/shared/components/ui/select'
-import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
 import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
+import { ModeTabs } from '@/shared/features/order/components/mode-tabs'
 import {
   OrderDetailModal,
   type OrderDetailModalRef,
@@ -18,93 +18,18 @@ import {
   RefundConfirmModal,
   type RefundConfirmModalRef,
 } from '@/shared/features/order/components/refund-confirm-modal'
-import { useOfflineOrders, useOrders, useUnsyncedOrdersCount } from '@/shared/features/order/hooks'
+import { useOfflineOrders, useOrders } from '@/shared/features/order/hooks'
 import { useOrderFilterStore } from '@/shared/features/order/store/use-order-filter-store'
 import type { IOrder, Partner } from '@/shared/features/order/types'
 import type { Affiliate } from '@/shared/features/pos/types/cart.types'
-import { toast } from '@/shared/store'
+import { toast, useAlertStore } from '@/shared/store'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { InteractionManager, Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-type OrderMode = 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
-
-// ── Mode tabs bar with realtime unsynced-count ────────
-const ModeTabs = memo(function ModeTabs({
-  mode,
-  onChangeMode,
-}: {
-  mode: OrderMode
-  onChangeMode: (v: OrderMode) => void
-}) {
-  const unsyncedCount = useUnsyncedOrdersCount()
-
-  // Fallback tab if offline orders are synced and count becomes 0
-  useEffect(() => {
-    if (mode === 'offline' && unsyncedCount === 0) {
-      onChangeMode('all')
-    }
-  }, [mode, unsyncedCount, onChangeMode])
-
-  const tabs = useMemo(() => {
-    const base = [
-      { label: 'Tất cả', value: 'all' as const },
-      { label: 'Khách lẻ', value: 'pos' as const },
-      { label: 'Cộng tác viên', value: 'collaborator' as const },
-      { label: 'Đối tác', value: 'agent' as const },
-    ]
-    if (unsyncedCount > 0) {
-      return [...base, { label: 'Ngoại tuyến', value: 'offline' as const }]
-    }
-    return base
-  }, [unsyncedCount])
-
-  const handlePress = useCallback(
-    (tabValue: OrderMode) => {
-      if (tabValue === mode) return
-      onChangeMode(tabValue)
-    },
-    [mode, onChangeMode],
-  )
-
-  return (
-    <View className="flex-row gap-2 px-4 pt-3">
-      {tabs.map((tab) => {
-        const active = mode === tab.value
-        return (
-          <Pressable
-            key={tab.value}
-            onPress={() => handlePress(tab.value)}
-            className={`items-center justify-center rounded-t-2xl px-10 py-5 ${
-              active ? 'elevation-8 bg-surface-variant' : 'elevation-0 bg-neutral-50'
-            }`}
-            style={
-              active
-                ? {
-                    shadowColor: '#DBDBDB',
-                    shadowOffset: { width: 0, height: 10 },
-                    shadowOpacity: 0.24,
-                    shadowRadius: 10,
-                  }
-                : undefined
-            }
-          >
-            <Text
-              className={`font-manrope-bold text-[22px] font-black ${
-                active ? 'text-primary' : 'text-neutral-900'
-              }`}
-              numberOfLines={1}
-            >
-              {tab.label}
-            </Text>
-          </Pressable>
-        )
-      })}
-    </View>
-  )
-})
+export type OrderMode = 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
 
 // ── Guide owner select (CTV / Đối tác) with isolated queries ──
 const GuideOwnerBar = memo(function GuideOwnerBar({
@@ -200,17 +125,35 @@ const OnlineOrdersResults = memo(function OnlineOrdersResults({
   mode,
   affiliateId,
   partnerId,
+  activeId,
+  onChangeId,
+  onPreviewReconciliation,
   onOpenDetails,
   onExchange,
   onRefund,
+  visible,
 }: {
   mode: OrderMode
   affiliateId: string | null
   partnerId: string | null
+  activeId: string | null
+  onChangeId: (id: string | null) => void
+  onPreviewReconciliation: (ownerName: string, ownerCode: string) => void
   onOpenDetails: (order: IOrder) => void
   onExchange: (order: IOrder) => void
   onRefund: (order: IOrder) => void
+  visible: boolean
 }) {
+  // Tránh việc 4 tab cùng gọi API 1 lúc khi user đổi ngày tháng (DateFilter).
+  // Cho phép tab ẩn được fetch 1 lần duy nhất lúc vừa mount (để lấy cache), sau 2s thì khoá lại, chỉ fetch khi visible.
+  const hasInitialized = useRef(false)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      hasInitialized.current = true
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [])
+
   const status = useOrderFilterStore((s) => s.status)
   const dateFrom = useOrderFilterStore((s) => s.dateFrom)
   const dateTo = useOrderFilterStore((s) => s.dateTo)
@@ -226,17 +169,42 @@ const OnlineOrdersResults = memo(function OnlineOrdersResults({
           ? ('collaborator' as const)
           : ('agent' as const)
 
-  const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
-    useOrders({
-      status,
-      dateFrom,
-      dateTo,
-      staffId,
-      affiliateId: mode === 'collaborator' ? affiliateId : null,
-      partnerId: mode === 'agent' ? partnerId : null,
-      guideType,
-      paymentMethod,
-    })
+  const {
+    orders,
+    stats,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch,
+    isFetching,
+  } = useOrders({
+    status,
+    dateFrom,
+    dateTo,
+    staffId,
+    affiliateId: mode === 'collaborator' ? affiliateId : null,
+    partnerId: mode === 'agent' ? partnerId : null,
+    guideType,
+    paymentMethod,
+    enabled: visible || !hasInitialized.current,
+  })
+
+  // Debounced EasyLoading: chỉ show nếu fetch kéo dài > 150ms (tránh flicker khi cache hit nhanh)
+  useEffect(() => {
+    if (!visible) return
+    if (!isFetching || isLoading) {
+      useAlertStore.getState().hideLoading()
+      return
+    }
+    const timer = setTimeout(() => {
+      useAlertStore.getState().showLoading()
+    }, 150)
+    return () => {
+      clearTimeout(timer)
+      useAlertStore.getState().hideLoading()
+    }
+  }, [isFetching, isLoading, visible])
 
   const [refreshing, setRefreshing] = useState(false)
   const handleRefresh = useCallback(async () => {
@@ -249,21 +217,39 @@ const OnlineOrdersResults = memo(function OnlineOrdersResults({
   }, [refetch])
 
   return (
-    <View className="flex-1 rounded-lg border border-outline">
-      <OrderList
-        mode={mode}
-        onOpenDetails={onOpenDetails}
-        onExchange={onExchange}
-        onRefund={onRefund}
-        orders={orders}
-        isLoading={isLoading}
-        fetchNextPage={fetchNextPage}
-        hasNextPage={!!hasNextPage}
-        isFetchingNextPage={isFetchingNextPage}
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-      />
-      <OrderStatsFooter stats={stats} />
+    <View className="flex-1">
+      {mode === 'collaborator' && (
+        <GuideOwnerBar
+          mode="collaborator"
+          activeId={activeId}
+          onChangeId={onChangeId}
+          onPreviewReconciliation={onPreviewReconciliation}
+        />
+      )}
+      {mode === 'agent' && (
+        <GuideOwnerBar
+          mode="agent"
+          activeId={activeId}
+          onChangeId={onChangeId}
+          onPreviewReconciliation={onPreviewReconciliation}
+        />
+      )}
+      <View className="flex-1 rounded-lg border border-outline">
+        <OrderList
+          mode={mode}
+          onOpenDetails={onOpenDetails}
+          onExchange={onExchange}
+          onRefund={onRefund}
+          orders={orders}
+          isLoading={isLoading}
+          fetchNextPage={fetchNextPage}
+          hasNextPage={!!hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+        />
+        <OrderStatsFooter stats={stats} />
+      </View>
     </View>
   )
 })
@@ -273,10 +259,12 @@ const OfflineOrdersResults = memo(function OfflineOrdersResults({
   onOpenDetails,
   onExchange,
   onRefund,
+  visible,
 }: {
   onOpenDetails: (order: IOrder) => void
   onExchange: (order: IOrder) => void
   onRefund: (order: IOrder) => void
+  visible: boolean
 }) {
   const { orders, stats, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useOfflineOrders()
@@ -318,32 +306,75 @@ function OrdersContent() {
   const reconciliationModalRef = useRef<ReconciliationModalRef>(null)
   const refundModalRef = useRef<RefundConfirmModalRef>(null)
 
+  // mode: Dành cho UI của thanh Tab (cập nhật ngay lập tức)
   const [mode, setMode] = useState<OrderMode>('all')
+
   const [selectedAffiliateId, setSelectedAffiliateId] = useState<string | null>(null)
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
 
-  // Lazy mount modals on first user interaction
-  const [mountModals, setMountModals] = useState(false)
-  const mountModalsRef = useRef(false)
+  // Khởi tạo chỉ với tab 'all' để lazy load các tab còn lại, tránh lag và render shimmer quá nhiều
+  const [mountedModes, setMountedModes] = useState<Set<OrderMode>>(new Set(['all']))
+
+  // TỐI ƯU: Lén lút mount các Tab còn lại ở background một cách "nhỏ giọt" (staggered).
+  // Đợi UI nghỉ ngơi xong mới nạp từng tab (cách nhau 800ms) để không gây lag/đơ máy.
+  useEffect(() => {
+    const queue = ['pos', 'collaborator', 'agent'] as OrderMode[]
+
+    const mountNext = () => {
+      const nextMode = queue.shift()
+      if (!nextMode) return
+
+      InteractionManager.runAfterInteractions(() => {
+        setMountedModes((prev) => {
+          if (prev.has(nextMode)) return prev
+          const next = new Set(prev)
+          next.add(nextMode)
+          return next
+        })
+
+        // Nghỉ 800ms cho JS thread thở trước khi nạp tab tiếp theo
+        setTimeout(mountNext, 800)
+      })
+    }
+
+    const t = setTimeout(mountNext, 1500)
+    return () => {
+      clearTimeout(t)
+      queue.length = 0 // Huỷ queue nếu unmount
+    }
+  }, []) // Lazy mount modals on first user interaction (tối ưu: tách riêng rẽ từng modal)
+  const [mountDetail, setMountDetail] = useState(false)
+  const [mountRefund, setMountRefund] = useState(false)
+  const [mountRecon, setMountRecon] = useState(false)
+
+  const mountDetailRef = useRef(false)
+  const mountRefundRef = useRef(false)
+  const mountReconRef = useRef(false)
+
   const pendingDetail = useRef<IOrder | null>(null)
   const pendingRefund = useRef<IOrder | null>(null)
   const pendingRecon = useRef<Parameters<ReconciliationModalRef['open']>[0] | null>(null)
 
   useEffect(() => {
-    if (!mountModals) return
-    if (pendingDetail.current) {
+    if (mountDetail && pendingDetail.current) {
       modalRef.current?.open(pendingDetail.current)
       pendingDetail.current = null
     }
-    if (pendingRefund.current) {
+  }, [mountDetail])
+
+  useEffect(() => {
+    if (mountRefund && pendingRefund.current) {
       refundModalRef.current?.open(pendingRefund.current)
       pendingRefund.current = null
     }
-    if (pendingRecon.current) {
+  }, [mountRefund])
+
+  useEffect(() => {
+    if (mountRecon && pendingRecon.current) {
       reconciliationModalRef.current?.open(pendingRecon.current)
       pendingRecon.current = null
     }
-  }, [mountModals])
+  }, [mountRecon])
 
   const activeId =
     mode === 'collaborator' ? selectedAffiliateId : mode === 'agent' ? selectedPartnerId : null
@@ -362,10 +393,10 @@ function OrdersContent() {
   )
 
   const handleOpenDetails = useCallback((order: IOrder) => {
-    if (!mountModalsRef.current) {
+    if (!mountDetailRef.current) {
       pendingDetail.current = order
-      mountModalsRef.current = true
-      setMountModals(true)
+      mountDetailRef.current = true
+      setMountDetail(true)
       return
     }
     modalRef.current?.open(order)
@@ -380,10 +411,10 @@ function OrdersContent() {
   )
 
   const handleRefund = useCallback((order: IOrder) => {
-    if (!mountModalsRef.current) {
+    if (!mountRefundRef.current) {
       pendingRefund.current = order
-      mountModalsRef.current = true
-      setMountModals(true)
+      mountRefundRef.current = true
+      setMountRefund(true)
       return
     }
     refundModalRef.current?.open(order)
@@ -414,10 +445,10 @@ function OrdersContent() {
         dateFrom,
         dateTo,
       }
-      if (!mountModalsRef.current) {
+      if (!mountReconRef.current) {
         pendingRecon.current = payload
-        mountModalsRef.current = true
-        setMountModals(true)
+        mountReconRef.current = true
+        setMountRecon(true)
         return
       }
       reconciliationModalRef.current?.open(payload)
@@ -425,11 +456,27 @@ function OrdersContent() {
     [mode, selectedAffiliateId, selectedPartnerId],
   )
 
-  const handleTabChange = useCallback((newMode: OrderMode) => {
-    setMode((prev) => (prev === newMode ? prev : newMode))
-    setSelectedAffiliateId(null)
-    setSelectedPartnerId(null)
-  }, [])
+  const handleTabChange = useCallback(
+    (newMode: OrderMode) => {
+      if (mode === newMode) return
+      const t0 = performance.now()
+
+      // Đổi màu tab ngay lập tức
+      setMode(newMode)
+      setSelectedAffiliateId(null)
+      setSelectedPartnerId(null)
+
+      // Trì hoãn việc mount List để nhường luồng cho UI chạy animation mượt mà
+      requestAnimationFrame(() => {
+        setMountedModes((prev) => (prev.has(newMode) ? prev : new Set([...prev, newMode])))
+
+        requestAnimationFrame(() => {
+          console.log(`[PERF][tab] ${newMode} painted: ${(performance.now() - t0).toFixed(0)}ms`)
+        })
+      })
+    },
+    [mode],
+  )
 
   return (
     <SafeAreaView className="flex-1">
@@ -447,41 +494,57 @@ function OrdersContent() {
             elevation: 4,
           }}
         >
-          <OrderFilterBar showStaffFilter={mode !== 'offline'} hideFilters={mode === 'offline'} />
+          {/* Đã tối ưu gộp chung 1 component để tránh phình to cây DOM */}
+          <View className="flex-none">
+            <OrderFilterBar showStaffFilter={mode !== 'offline'} hideFilters={mode === 'offline'} />
+          </View>
 
-          {mode === 'collaborator' || mode === 'agent' ? (
-            <GuideOwnerBar
-              mode={mode}
-              activeId={activeId}
-              onChangeId={setActiveId}
-              onPreviewReconciliation={handlePreviewReconciliation}
-            />
-          ) : null}
-
-          {mode === 'offline' ? (
-            <OfflineOrdersResults
-              onOpenDetails={handleOpenDetails}
-              onExchange={handleExchange}
-              onRefund={handleRefund}
-            />
-          ) : (
-            <OnlineOrdersResults
-              mode={mode}
-              affiliateId={selectedAffiliateId}
-              partnerId={selectedPartnerId}
-              onOpenDetails={handleOpenDetails}
-              onExchange={handleExchange}
-              onRefund={handleRefund}
-            />
-          )}
+          <View className="relative flex-1">
+            {['all', 'pos', 'collaborator', 'agent'].map((m) =>
+              mountedModes.has(m as OrderMode) ? (
+                <View
+                  key={m}
+                  className="absolute inset-0"
+                  style={mode === m ? { opacity: 1, zIndex: 1 } : { opacity: 0, zIndex: -1 }}
+                  pointerEvents={mode === m ? 'auto' : 'none'}
+                >
+                  <OnlineOrdersResults
+                    mode={m as OrderMode}
+                    affiliateId={selectedAffiliateId}
+                    partnerId={selectedPartnerId}
+                    activeId={activeId}
+                    onChangeId={setActiveId}
+                    onPreviewReconciliation={handlePreviewReconciliation}
+                    onOpenDetails={handleOpenDetails}
+                    onExchange={handleExchange}
+                    onRefund={handleRefund}
+                    visible={mode === m}
+                  />
+                </View>
+              ) : null,
+            )}
+            {mountedModes.has('offline') ? (
+              <View
+                key="offline"
+                className="absolute inset-0"
+                style={mode === 'offline' ? { opacity: 1, zIndex: 1 } : { opacity: 0, zIndex: -1 }}
+                pointerEvents={mode === 'offline' ? 'auto' : 'none'}
+              >
+                <OfflineOrdersResults
+                  onOpenDetails={handleOpenDetails}
+                  onExchange={handleExchange}
+                  onRefund={handleRefund}
+                  visible={mode === 'offline'}
+                />
+              </View>
+            ) : null}
+          </View>
         </View>
 
-        {mountModals ? (
-          <>
-            <OrderDetailModal ref={modalRef} />
-            <ReconciliationModal ref={reconciliationModalRef} />
-            <RefundConfirmModal ref={refundModalRef} onSuccess={handleRefundSuccess} />
-          </>
+        {mountDetail ? <OrderDetailModal ref={modalRef} /> : null}
+        {mountRecon ? <ReconciliationModal ref={reconciliationModalRef} /> : null}
+        {mountRefund ? (
+          <RefundConfirmModal ref={refundModalRef} onSuccess={handleRefundSuccess} />
         ) : null}
       </View>
     </SafeAreaView>

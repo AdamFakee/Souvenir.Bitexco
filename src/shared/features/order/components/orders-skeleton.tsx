@@ -1,38 +1,94 @@
-import { Shimmer } from '@/shared/components/ui/shimmer'
+import { ChevronDown, Search } from 'lucide-react-native'
 import React, { memo } from 'react'
-import { View } from 'react-native'
+import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+
+const MockModeTabs = memo(function MockModeTabs() {
+  return (
+    <View className="pointer-events-none flex-row gap-2 px-4 pt-3 opacity-60">
+      {['Tất cả', 'Khách lẻ', 'Cộng tác viên', 'Đối tác'].map((label, idx) => (
+        <View
+          key={idx}
+          className={`items-center justify-center rounded-t-2xl px-10 py-5 ${
+            idx === 0 ? 'elevation-8 bg-surface-variant' : 'elevation-0 bg-neutral-50'
+          }`}
+        >
+          <Text
+            className={`font-manrope-bold text-[22px] font-black ${
+              idx === 0 ? 'text-primary' : 'text-neutral-900'
+            }`}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+        </View>
+      ))}
+    </View>
+  )
+})
+
+const MockFilterBar = memo(function MockFilterBar() {
+  return (
+    <View className="pointer-events-none mb-4 flex-row items-center gap-3 opacity-50">
+      <View className="h-[64px] flex-1 flex-row items-center rounded-xl border border-outline-variant bg-white px-4">
+        <Search size={24} color="#8d8e8f" />
+        <Text className="ml-3 text-[18px] text-muted">Tìm kiếm đơn hàng...</Text>
+      </View>
+      <View className="h-[64px] w-[340px] flex-row items-center justify-between rounded-xl border border-outline-variant bg-white px-4">
+        <Text className="text-[20px] font-bold text-surface-on">Hôm nay</Text>
+        <ChevronDown size={20} color="#8d8e8f" />
+      </View>
+      <View className="h-[64px] w-60 flex-row items-center justify-between rounded-xl border border-outline-variant bg-white px-4">
+        <Text className="text-[20px] font-bold text-surface-on">Tất cả nhân viên</Text>
+        <ChevronDown size={20} color="#8d8e8f" />
+      </View>
+    </View>
+  )
+})
+
+const MockTableHeader = memo(function MockTableHeader() {
+  return (
+    <View
+      className="flex-row items-center border-b border-outline bg-white px-4"
+      style={{ height: 64 }}
+    >
+      <View className="h-6 w-10 rounded bg-neutral-200" />
+      <View className="ml-4 flex-1 flex-row gap-2">
+        {[2, 3, 2, 2, 2, 2, 2].map((flex, i) => (
+          <View key={i} style={{ flex }}>
+            <View className="h-5 w-20 rounded bg-neutral-200" />
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+})
+
+const MockRow = memo(function MockRow() {
+  return (
+    <View
+      className="flex-row items-center border-b border-outline bg-white px-4"
+      style={{ minHeight: 62, paddingVertical: 8 }}
+    >
+      <View className="h-10 w-10 rounded-full bg-neutral-200" />
+      <View className="ml-4 flex-1 flex-row items-center gap-2" style={{ height: 60 }}>
+        {[2, 3, 2, 2, 2, 2, 2].map((flex, i) => (
+          <View key={i} style={{ flex }}>
+            <View className="h-4 w-20 rounded bg-neutral-200" />
+            <View className="mt-2 h-3 w-16 rounded bg-neutral-200" />
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+})
 
 export const OrdersSkeleton = memo(function OrdersSkeleton() {
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1">
       <View className="flex-1 bg-white">
-        {/* ─── Top Tabs ─── */}
-        <View className="flex-row gap-2 px-4 pt-3">
-          <View
-            className="items-center justify-center rounded-t-2xl bg-surface-variant px-10 py-5"
-            style={{
-              shadowColor: '#DBDBDB',
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.24,
-              shadowRadius: 10,
-              elevation: 8,
-            }}
-          >
-            <Shimmer className="h-6 w-20 rounded" />
-          </View>
-          <View className="items-center justify-center rounded-t-2xl bg-neutral-50 px-10 py-5">
-            <Shimmer className="h-6 w-24 rounded opacity-50" />
-          </View>
-          <View className="items-center justify-center rounded-t-2xl bg-neutral-50 px-10 py-5">
-            <Shimmer className="h-6 w-32 rounded opacity-50" />
-          </View>
-          <View className="items-center justify-center rounded-t-2xl bg-neutral-50 px-10 py-5">
-            <Shimmer className="h-6 w-20 rounded opacity-50" />
-          </View>
-        </View>
+        <MockModeTabs />
 
-        {/* ─── Main Content Box ─── */}
         <View
           className="flex-1 rounded-b-xl rounded-tr-xl px-5 pb-5 pt-4"
           style={{
@@ -44,98 +100,22 @@ export const OrdersSkeleton = memo(function OrdersSkeleton() {
             elevation: 4,
           }}
         >
-          {/* Filter Bar */}
-          <View className="mb-4 flex-row items-center gap-3">
-            <Shimmer className="h-[64px] flex-1 rounded-xl" />
-            <Shimmer className="h-[64px] w-[340px] rounded-xl" />
-            <Shimmer className="h-[64px] w-60 rounded-xl" />
-          </View>
+          <MockFilterBar />
 
-          {/* Table Container */}
           <View className="flex-1 rounded-lg border border-outline">
-            {/* Table Header */}
-            <View className="flex-row items-center border-b border-outline bg-surface-50 px-4 py-4">
-              <View className="flex-1">
-                <Shimmer className="h-5 w-28 rounded" />
-              </View>
-              <View className="flex-1">
-                <Shimmer className="h-5 w-32 rounded" />
-              </View>
-              <View className="flex-1">
-                <Shimmer className="h-5 w-28 rounded" />
-              </View>
-              <View className="flex-[0.7]">
-                <Shimmer className="h-5 w-16 rounded" />
-              </View>
-              <View className="flex-[0.8]">
-                <Shimmer className="h-5 w-20 rounded" />
-              </View>
-              <View className="flex-[0.8]">
-                <Shimmer className="h-5 w-24 rounded" />
-              </View>
-              <View className="flex-[0.7] items-center">
-                <Shimmer className="h-5 w-20 rounded" />
-              </View>
-            </View>
+            <MockTableHeader />
 
-            {/* Table Rows */}
-            <View className="flex-1">
+            <View className="flex-1 overflow-hidden">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <View
-                  key={i}
-                  className="flex-row items-center border-b border-surface-100 px-4 py-4"
-                  style={{ backgroundColor: i % 2 === 0 ? '#FAFAFB' : '#FFFFFF' }}
-                >
-                  <View className="flex-1 pr-2">
-                    <Shimmer className="h-5 w-32 rounded" />
-                    <Shimmer className="mt-1.5 h-3.5 w-20 rounded opacity-60" />
-                  </View>
-                  <View className="flex-1 pr-2">
-                    <Shimmer className="h-5 w-36 rounded" />
-                    <Shimmer className="mt-1.5 h-3.5 w-24 rounded opacity-60" />
-                  </View>
-                  <View className="flex-1">
-                    <Shimmer className="h-5 w-32 rounded" />
-                  </View>
-                  <View className="flex-[0.7]">
-                    <Shimmer className="h-7 w-20 rounded-full" />
-                  </View>
-                  <View className="flex-[0.8]">
-                    <Shimmer className="h-5 w-24 rounded" />
-                  </View>
-                  <View className="flex-[0.8]">
-                    <Shimmer className="h-7 w-28 rounded-full" />
-                  </View>
-                  <View className="flex-[0.7] flex-row items-center justify-center gap-2">
-                    <Shimmer className="h-9 w-9 rounded-lg" />
-                    <Shimmer className="h-9 w-9 rounded-lg" />
-                  </View>
-                </View>
+                <MockRow key={i} />
               ))}
             </View>
 
-            {/* Stats Footer */}
-            <View
-              className="flex-row items-center border-t px-6 py-5"
-              style={{ borderColor: '#DFE0E1', backgroundColor: '#FAFAFB' }}
-            >
+            <View className="pointer-events-none flex-row items-center justify-between border-t border-outline bg-surface-50 px-6 py-5 opacity-60">
+              <View className="h-8 w-32 rounded bg-neutral-200" />
               <View className="flex-row items-center gap-6">
-                <View className="flex-row items-baseline gap-2">
-                  <Shimmer className="h-5 w-20 rounded" />
-                  <Shimmer className="h-6 w-12 rounded" />
-                </View>
-                <View className="h-6 w-px bg-neutral-200" />
-                <View className="flex-row items-baseline gap-2">
-                  <Shimmer className="h-5 w-20 rounded" />
-                  <Shimmer className="h-6 w-12 rounded" />
-                </View>
-              </View>
-
-              <View className="flex-1" />
-
-              <View className="flex-row items-baseline gap-2">
-                <Shimmer className="h-5 w-32 rounded" />
-                <Shimmer className="h-7 w-40 rounded" />
+                <View className="h-8 w-24 rounded bg-neutral-200" />
+                <View className="h-8 w-32 rounded bg-neutral-200" />
               </View>
             </View>
           </View>
