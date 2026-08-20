@@ -147,15 +147,9 @@ const CustomSidebarInner = React.memo(
       (name: string) => {
         if (name === activeTab && !pendingTab) return
         setPendingTab(name)
-        const t0 = performance.now()
         // Paint highlight trước; navigate frame sau để tránh block cùng commit mount màn nặng
         requestAnimationFrame(() => {
           router.navigate(`/(tab)/${name}` as Href)
-          requestAnimationFrame(() => {
-            console.log(
-              `[PERF][main_tab] ${name} painted: ${(performance.now() - t0).toFixed(0)}ms`,
-            )
-          })
         })
       },
       [activeTab, pendingTab, router],
@@ -172,7 +166,7 @@ const CustomSidebarInner = React.memo(
     return (
       <View
         className="h-full w-[280px] flex-col justify-between bg-primary px-0"
-        style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 16 }}
+        style={{ paddingTop: insets.top + 24, paddingBottom: 16 }}
       >
         <View>
           {/* Logo */}
@@ -272,9 +266,6 @@ const CustomSidebarInner = React.memo(
               <View className="flex-1">
                 <Text className="font-manrope text-lg font-bold text-white" numberOfLines={1}>
                   {employee?.displayName || 'Nhân viên'}
-                </Text>
-                <Text className="font-manrope text-lg font-medium text-white/60" numberOfLines={1}>
-                  {employee?.roles?.length ? `Role: ${employee.roles.join(', ')}` : 'Role: N/A'}
                 </Text>
               </View>
             </View>

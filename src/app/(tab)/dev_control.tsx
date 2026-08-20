@@ -463,6 +463,42 @@ export default function DevControlScreen() {
     }
   }
 
+  const handleTestSyncPartner = async () => {
+    try {
+      setIsEntityLoading(true)
+      toast.info('Đang gọi GET /v1/pos/partners/sync...')
+      const response = await AxiosService.getInstance().get('/v1/pos/partners/sync', {
+        params: { lastSyncedAt: new Date(0).toISOString(), limit: 5, page: 0 },
+      })
+      setEntityModalTitle('Partner Sync JSON')
+      setEntityModalData(response.data)
+      setIsEntityModalVisible(true)
+      toast.success('Lấy danh sách Partner thành công!')
+    } catch (error: any) {
+      toast.error('Lỗi Partner Sync: ' + error.message)
+    } finally {
+      setIsEntityLoading(false)
+    }
+  }
+
+  const handleTestSyncAffiliate = async () => {
+    try {
+      setIsEntityLoading(true)
+      toast.info('Đang gọi GET /v1/pos/affiliates/sync...')
+      const response = await AxiosService.getInstance().get('/v1/pos/affiliates/sync', {
+        params: { lastSyncedAt: new Date(0).toISOString(), limit: 5, page: 0 },
+      })
+      setEntityModalTitle('Affiliate Sync JSON')
+      setEntityModalData(response.data)
+      setIsEntityModalVisible(true)
+      toast.success('Lấy danh sách Affiliate thành công!')
+    } catch (error: any) {
+      toast.error('Lỗi Affiliate Sync: ' + error.message)
+    } finally {
+      setIsEntityLoading(false)
+    }
+  }
+
   const handleTestOrderLookup = async () => {
     try {
       toast.info('Đang tìm đơn hàng để tra cứu...')
@@ -1491,6 +1527,16 @@ export default function DevControlScreen() {
             className="bg-orange-600"
             loading={isFetchingChanges}
             onPress={handleTestFetchChanges}
+          />
+          <Button
+            label="Test API: Đồng bộ Đối tác (Partner)"
+            className="bg-purple-600"
+            onPress={handleTestSyncPartner}
+          />
+          <Button
+            label="Test API: Đồng bộ CTV (Affiliate)"
+            className="bg-pink-600"
+            onPress={handleTestSyncAffiliate}
           />
           <Button
             label="Đồng bộ sản phẩm & danh mục từ Server (Lưu Local DB)"

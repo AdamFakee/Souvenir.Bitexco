@@ -121,11 +121,6 @@ export default function DeviceActivation() {
           />
         </View>
       </View>
-
-      {/* Footer copyright */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>© 2024 Skystore. Tất cả quyền được bảo lưu.</Text>
-      </View>
     </ImageBackground>
   )
 }

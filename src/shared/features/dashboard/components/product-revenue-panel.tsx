@@ -158,6 +158,7 @@ export const ProductRevenuePanel = memo(function ProductRevenuePanel({
               renderItem={renderItem}
               onEndReached={onEndReached}
               onEndReachedThreshold={0.2}
+              nestedScrollEnabled={true}
               contentContainerStyle={{ paddingBottom: 16 }}
               ListFooterComponent={
                 isFetchingNextPage ? (

@@ -268,7 +268,8 @@ export const MixPaymentPopup = memo(
         isAuthorizingCard ||
         isCapturingCardPayment ||
         isPreparingReceipt ||
-        isPrinting
+        isPrinting ||
+        isSuccess
 
       // Quick cash suggestions smaller than the total amount
       const suggestions = useMemo(() => getMixPaymentSuggestions(total), [total])
@@ -329,73 +330,77 @@ export const MixPaymentPopup = memo(
         actorRef.send({ type: 'CANCEL' })
       }, [actorRef, resetManagerForm])
 
-      // Gộp effect ViceService
+      // Gộp effect ViceService (hoãn sang frame kế tiếp để không block animation mở popup)
       useEffect(() => {
         if (!visible) return
 
-        const isCardProcessing =
-          isProcessingCard ||
-          isConnectingCard ||
-          isSendingCardCmd ||
-          isVerifyingCard ||
-          isCapturingCardInfo ||
-          isCapturingCardManual ||
-          isAuthorizingCard ||
-          isCapturingCardPayment ||
-          isManualResolution ||
-          isPaymentFailed
+        const handle = requestAnimationFrame(() => {
+          const isCardProcessing =
+            isProcessingCard ||
+            isConnectingCard ||
+            isSendingCardCmd ||
+            isVerifyingCard ||
+            isCapturingCardInfo ||
+            isCapturingCardManual ||
+            isAuthorizingCard ||
+            isCapturingCardPayment ||
+            isManualResolution ||
+            isPaymentFailed
 
-        if (isSuccess) {
-          ViceService.paymentSuccess({
-            subtotal: totals.subtotal,
-            discount,
-            tax: totals.tax,
-            total,
-            customerPaid: total,
-            change: 0,
-          })
-          const snap = actorRef.getSnapshot()
-          const resolvedOrderId = snap.context.orderId || snap.context.sessionId
-          const resolvedBillCode = snap.context.orderCode || resolvedOrderId
-          const isOnline = snap.context.paymentResult?.isOnline ?? true
-
-          const timer = setTimeout(() => {
-            setVisible(false)
-            onSuccess({
-              success: true,
-              method: 'mix',
-              paidAmount: total,
+          if (isSuccess) {
+            ViceService.paymentSuccess({
+              subtotal: totals.subtotal,
+              discount,
+              tax: totals.tax,
+              total,
+              customerPaid: total,
               change: 0,
-              referenceCode: resolvedBillCode,
-              isOnline,
-              orderId: resolvedOrderId,
             })
-          }, 1500)
-          return () => clearTimeout(timer)
-        }
+            const snap = actorRef.getSnapshot()
+            const resolvedOrderId = snap.context.orderId || snap.context.sessionId
+            const resolvedBillCode = snap.context.orderCode || resolvedOrderId
+            const isOnline = snap.context.paymentResult?.isOnline ?? true
 
-        if (isPaymentFailed || isError) {
-          ViceService.showStatus(getPaymentErrorStatus(errorCode))
-        } else if (isIdle || isCreatingCheckout) {
-          ViceService.showMixPayment({
-            subtotal: totals.subtotal,
-            discount,
-            tax: totals.tax,
-            total,
-            cashPaid: cashAmount,
-            nonCashAmount,
-          })
-        } else if ((isFetchingQr || isWaitingQr) && qrContent) {
-          ViceService.showPayment({
-            qrCodeUrl: qrContent,
-            subtotal: totals.subtotal,
-            discount,
-            tax: totals.tax,
-            total: nonCashAmount,
-          })
-        } else if (selectedMethod === 'card' && isCardProcessing && !isSuccess) {
-          ViceService.showPortablePayment({ total: nonCashAmount })
-        }
+            const timer = setTimeout(() => {
+              setVisible(false)
+              onSuccess({
+                success: true,
+                method: 'mix',
+                paidAmount: total,
+                change: 0,
+                referenceCode: resolvedBillCode,
+                isOnline,
+                orderId: resolvedOrderId,
+              })
+            }, 1500)
+            return () => clearTimeout(timer)
+          }
+
+          if (isPaymentFailed || isError) {
+            ViceService.showStatus(getPaymentErrorStatus(errorCode))
+          } else if (isIdle || isCreatingCheckout) {
+            ViceService.showMixPayment({
+              subtotal: totals.subtotal,
+              discount,
+              tax: totals.tax,
+              total,
+              cashPaid: cashAmount,
+              nonCashAmount,
+            })
+          } else if ((isFetchingQr || isWaitingQr) && qrContent) {
+            ViceService.showPayment({
+              qrCodeUrl: qrContent,
+              subtotal: totals.subtotal,
+              discount,
+              tax: totals.tax,
+              total: nonCashAmount,
+            })
+          } else if (selectedMethod === 'card' && isCardProcessing && !isSuccess) {
+            ViceService.showPortablePayment({ total: nonCashAmount })
+          }
+        })
+
+        return () => cancelAnimationFrame(handle)
       }, [
         visible,
         isSuccess,
@@ -1185,7 +1190,7 @@ export const MixPaymentPopup = memo(
 
               {/* Hidden Print Template */}
               <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-                {receiptOrder && (
+                {(isPreparingReceipt || isPrinting || isSuccess) && receiptOrder && (
                   <View collapsable={false} ref={printRef}>
                     <BitexcoReceiptTemplate order={receiptOrder} staffName={staffName} />
                   </View>

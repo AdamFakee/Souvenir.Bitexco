@@ -1,4 +1,9 @@
-import { database, OrderModel } from '@/shared/lib/database'
+import {
+  database,
+  OrderModel,
+  sanitizePaymentsSnapshot,
+  PaymentSnapshot,
+} from '@/shared/lib/database'
 import { Q } from '@nozbe/watermelondb'
 import { useEffect, useMemo, useState } from 'react'
 import { useOrderFilterStore } from '../store'
@@ -9,6 +14,19 @@ const mapLocalOrderToIOrder = (o: OrderModel): IOrder => {
     (o._raw as any).created_at || (o.createdAt ? new Date(o.createdAt).getTime() : Date.now())
   const updatedTime =
     (o._raw as any).updated_at || (o.updatedAt ? new Date(o.updatedAt).getTime() : Date.now())
+
+  let rawPayments: PaymentSnapshot[] = o.paymentsSnapshot || []
+  if ((!rawPayments || rawPayments.length === 0) && (o._raw as any).payments_snapshot) {
+    try {
+      const parsed =
+        typeof (o._raw as any).payments_snapshot === 'string'
+          ? JSON.parse((o._raw as any).payments_snapshot)
+          : (o._raw as any).payments_snapshot
+      rawPayments = sanitizePaymentsSnapshot(parsed)
+    } catch (e) {
+      console.error('[mapLocalOrderToIOrder] Lỗi parse raw payments_snapshot:', e)
+    }
+  }
 
   return {
     id: o.id,
@@ -27,12 +45,22 @@ const mapLocalOrderToIOrder = (o: OrderModel): IOrder => {
     originalOrderId: o.originalOrderId,
     customerTaxInfo: o.customerTaxInfo,
     itemsSnapshot: o.itemsSnapshot || [],
-    paymentsSnapshot: o.paymentsSnapshot || [],
+    paymentsSnapshot: rawPayments,
     isDeleted: o.isDeleted || false,
     canReturn: false,
     canExchange: false,
     createdAt: new Date(createdTime),
     updatedAt: new Date(updatedTime),
+    partnerId: o.partnerId || (o._raw as any).partner_id || null,
+    partnerName: o.partnerName || (o._raw as any).partner_name || null,
+    affiliateId: o.affiliateId || (o._raw as any).affiliate_id || null,
+    affiliateName: o.affiliateName || (o._raw as any).affiliate_name || null,
+    agentType:
+      o.partnerId || (o._raw as any).partner_id
+        ? 'agent'
+        : o.affiliateId || (o._raw as any).affiliate_id
+          ? 'collaborator'
+          : 'retail',
   }
 }
 

@@ -1,13 +1,15 @@
 import type { PortablePaymentCommandResult } from '@/shared/features/payment/types/portable-payment.type'
 import type { CartItem } from '@/shared/features/pos/types/cart.types'
 import { ProductLocalAPI } from '@/shared/features/product/api/local/product.local.api'
-import { generateGuid } from '../remote/order.remote.api'
+import { generateOfflineOrderCode } from '../../utils'
 
 import type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 import {
+  AffiliateModel,
   database,
   OrderModel,
   OrderStatus,
+  PartnerModel,
   type ItemSnapshot,
   type PaymentSnapshot,
 } from '@/shared/lib/database'
@@ -44,9 +46,53 @@ export interface CheckoutPayload {
   total: number
   note?: string
   payment: CheckoutPaymentPayload
+  affiliateId?: string
+  affiliateName?: string
+  partnerId?: string
+  partnerName?: string
 }
 
 export const OrderLocalAPI = {
+  /**
+   * Lấy Đối tác từ Local Database.
+   */
+  searchPartners: async (q?: string): Promise<PartnerModel[]> => {
+    let clauses: any[] = [Q.where('is_active', true)]
+    if (q) {
+      clauses.push(
+        Q.or(
+          Q.where('name_vi', Q.like(`%${Q.sanitizeLikeString(q)}%`)),
+          Q.where('code', Q.like(`%${Q.sanitizeLikeString(q)}%`)),
+          Q.where('phone', Q.like(`%${Q.sanitizeLikeString(q)}%`)),
+        ),
+      )
+    }
+    return database
+      .get<PartnerModel>('partners')
+      .query(...clauses)
+      .fetch()
+  },
+
+  /**
+   * Lấy CTV từ Local Database.
+   */
+  searchAffiliates: async (q?: string): Promise<AffiliateModel[]> => {
+    let clauses: any[] = [Q.where('is_active', true)]
+    if (q) {
+      clauses.push(
+        Q.or(
+          Q.where('name', Q.like(`%${Q.sanitizeLikeString(q)}%`)),
+          Q.where('code', Q.like(`%${Q.sanitizeLikeString(q)}%`)),
+          Q.where('phone', Q.like(`%${Q.sanitizeLikeString(q)}%`)),
+        ),
+      )
+    }
+    return database
+      .get<AffiliateModel>('affiliates')
+      .query(...clauses)
+      .fetch()
+  },
+
   /**
    * Lấy danh sách đơn hàng từ Local Database (WatermelonDB).
    * Hỗ trợ tìm kiếm theo ID/Sản phẩm, lọc theo trạng thái và khoảng ngày.
@@ -151,7 +197,7 @@ export const OrderLocalAPI = {
     // 1. Prepare Order
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
       const now = Date.now()
-      o._raw.id = generateGuid()
+      o._raw.id = generateOfflineOrderCode()
       ;(o._raw as any).created_at = now
       ;(o._raw as any).updated_at = now
       o.shiftId = payload.shiftId
@@ -159,6 +205,10 @@ export const OrderLocalAPI = {
       o.status = OrderStatus.COMPLETED
       o.subtotal = payload.subtotal
       o.discount = payload.discount
+      o.affiliateId = payload.affiliateId
+      o.affiliateName = payload.affiliateName
+      o.partnerId = payload.partnerId
+      o.partnerName = payload.partnerName
       o.voucherCode = payload.voucherCode
       o.voucherDiscount = payload.voucherDiscount
       o.total = payload.total
@@ -206,7 +256,7 @@ export const OrderLocalAPI = {
 
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
       const now = Date.now()
-      o._raw.id = generateGuid()
+      o._raw.id = generateOfflineOrderCode()
       ;(o._raw as any).created_at = now
       ;(o._raw as any).updated_at = now
       o.shiftId = payload.shiftId
@@ -214,6 +264,10 @@ export const OrderLocalAPI = {
       o.status = OrderStatus.PENDING
       o.subtotal = payload.subtotal
       o.discount = payload.discount
+      o.affiliateId = payload.affiliateId
+      o.affiliateName = payload.affiliateName
+      o.partnerId = payload.partnerId
+      o.partnerName = payload.partnerName
       o.voucherCode = payload.voucherCode
       o.voucherDiscount = payload.voucherDiscount
       o.total = payload.total
@@ -257,7 +311,7 @@ export const OrderLocalAPI = {
 
     const preparedOrder = database.get<OrderModel>('orders').prepareCreate((o) => {
       const now = Date.now()
-      o._raw.id = generateGuid()
+      o._raw.id = generateOfflineOrderCode()
       ;(o._raw as any).created_at = now
       ;(o._raw as any).updated_at = now
       o.shiftId = payload.shiftId
@@ -265,6 +319,8 @@ export const OrderLocalAPI = {
       o.status = OrderStatus.PENDING
       o.subtotal = payload.subtotal
       o.discount = payload.discount
+      o.affiliateId = payload.affiliateId
+      o.partnerId = payload.partnerId
       o.voucherCode = payload.voucherCode
       o.voucherDiscount = payload.voucherDiscount
       o.total = payload.total

@@ -28,6 +28,7 @@ import { AppState } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { configureReanimatedLogger } from 'react-native-reanimated'
+import { PortalProvider, PortalHost } from '@gorhom/portal'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { enableScreens } from 'react-native-screens'
 import './global.css'
@@ -84,25 +85,31 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <KeyboardProvider>
           <AppDatabaseProvider>
-            <QueryClientProvider client={queryClient}>
-              <AppBootstrapper />
-              <StatusBar style="dark" />
+            <PortalProvider>
+              <QueryClientProvider client={queryClient}>
+                <AppBootstrapper />
+                <StatusBar style="dark" />
 
-              <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => {}}>
-                <Stack
-                  screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'white' } }}
-                >
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="(tab)" />
-                  <Stack.Screen name="exchange" options={{ animation: 'slide_from_right' }} />
-                </Stack>
-              </ErrorBoundary>
-              <GlobalPopup />
-              <GlobalToast />
-              <GlobalEasyLoading />
-              <HandoverReminderOverlay />
-            </QueryClientProvider>
+                <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => {}}>
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: 'white' },
+                    }}
+                  >
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="(tab)" />
+                    <Stack.Screen name="exchange" options={{ animation: 'slide_from_right' }} />
+                  </Stack>
+                </ErrorBoundary>
+                <GlobalPopup />
+                <GlobalToast />
+                <GlobalEasyLoading />
+                <HandoverReminderOverlay />
+                <PortalHost name="modal" />
+              </QueryClientProvider>
+            </PortalProvider>
           </AppDatabaseProvider>
         </KeyboardProvider>
       </SafeAreaProvider>

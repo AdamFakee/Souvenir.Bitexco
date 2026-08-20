@@ -2,7 +2,7 @@ import { useAppStore } from '@/shared/features/app/store/use-app-store'
 import { storage } from '@/shared/lib/storage'
 import PaymentPortable from '../../../../../modules/payment-portable'
 
-const DEFAULT_POS_URL = 'http://192.168.1.28:8080'
+const DEFAULT_POS_URL = 'http://192.168.1.5:8080'
 
 const MERCHANT_NAME = 'BIDV'
 const CASHIER_ID = 'cashier01'

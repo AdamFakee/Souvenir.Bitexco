@@ -15,6 +15,7 @@ import React, {
   useState,
 } from 'react'
 import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
+import { AffiliateModel, database, PartnerModel } from '@/shared/lib/database'
 import { IOrder } from '../types'
 import { formatReceiptCode, getOrderDisplayStatus } from '../utils'
 import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
@@ -37,9 +38,10 @@ interface OrderDetailModalProps {
 export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDetailModalProps) {
   const [visible, setVisible] = useState(false)
   const [order, setOrder] = useState<IOrder | null>(null)
-  // Shell paint trước — order gắn frame sau để tránh jank lúc bấm
   const [ready, setReady] = useState(false)
   const [printReady, setPrintReady] = useState(false)
+  const [resolvedPartnerName, setResolvedPartnerName] = useState<string | null>(null)
+  const [resolvedAffiliateName, setResolvedAffiliateName] = useState<string | null>(null)
   const pendingOrderRef = useRef<IOrder | null>(null)
   const printRef = useRef(null)
 
@@ -68,6 +70,40 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
     })
     return () => cancelAnimationFrame(id)
   }, [visible])
+
+  useEffect(() => {
+    if (!order) {
+      setResolvedPartnerName(null)
+      setResolvedAffiliateName(null)
+      return
+    }
+
+    const pName = order.partner?.nameVi || order.partner?.nameEn || order.partnerName || null
+    const aName = order.affiliate?.name || order.affiliateName || null
+
+    setResolvedPartnerName(pName)
+    setResolvedAffiliateName(aName)
+
+    if (!pName && order.partnerId) {
+      database
+        .get<PartnerModel>('partners')
+        .find(order.partnerId)
+        .then((p) => {
+          if (p) setResolvedPartnerName(p.nameVi || p.nameEn || p.code || null)
+        })
+        .catch(() => {})
+    }
+
+    if (!aName && order.affiliateId) {
+      database
+        .get<AffiliateModel>('affiliates')
+        .find(order.affiliateId)
+        .then((a) => {
+          if (a) setResolvedAffiliateName(a.name || a.code || null)
+        })
+        .catch(() => {})
+    }
+  }, [order])
 
   const close = useCallback(() => {
     pendingOrderRef.current = null
@@ -209,12 +245,17 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
     ({ item, index }: { item: any; index: number }) => {
       const returnedQty = getReturnedQty(item)
       const refundLine = resolvedRefund?.lines?.find((l: any) => l.productId === item.productId)
-      const originalQty = isReturnOrder
-        ? (refundLine?.orderedQty ?? (item.remainingQty || 0) + (item.quantity || 0))
-        : item.quantity || 0
-      const remainingQty = isReturnOrder
-        ? (item.remainingQty ?? refundLine?.remainingQty ?? 0)
-        : (item.remainingQty ?? originalQty - returnedQty)
+      // Món đổi mới (isExchange): không có trong đơn gốc → originalQty = 0
+      const originalQty = item.isExchange
+        ? 0
+        : isReturnOrder
+          ? (refundLine?.orderedQty ?? (item.remainingQty || 0) + (item.quantity || 0))
+          : item.quantity || 0
+      const remainingQty = item.isExchange
+        ? item.quantity || 0
+        : isReturnOrder
+          ? (item.remainingQty ?? refundLine?.remainingQty ?? 0)
+          : (item.remainingQty ?? originalQty - returnedQty)
       const isEven = index % 2 === 0
 
       return (
@@ -268,26 +309,32 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                   {originalQty}
                 </Text>
               </View>
+              {/* Đổi/Trả: món trả → -N đỏ | món đổi mới → +N xanh | không có → '-' */}
               <View className="w-[96px] items-center">
                 <Text
                   className="text-[24px] font-extrabold"
                   style={{
-                    color: returnedQty > 0 ? '#DC2626' : '#9CA3AF',
+                    color: item.isExchange ? '#16A34A' : returnedQty > 0 ? '#DC2626' : '#9CA3AF',
                     fontFamily: 'Manrope-Bold',
                   }}
                 >
-                  {returnedQty > 0 ? returnedQty : '-'}
+                  {item.isExchange
+                    ? `+${item.quantity}`
+                    : returnedQty > 0
+                      ? `-${returnedQty}`
+                      : '-'}
                 </Text>
               </View>
+              {/* Đơn mới: tổng SL hiện tại (không dấu +) */}
               <View className="w-[96px] items-center">
                 <Text
                   className="text-[24px] font-extrabold"
                   style={{
-                    color: remainingQty > 0 ? BRAND : '#9CA3AF',
+                    color: remainingQty > 0 ? TEXT_PRIMARY : '#9CA3AF',
                     fontFamily: 'Manrope-Bold',
                   }}
                 >
-                  {remainingQty}
+                  {remainingQty > 0 ? remainingQty : '0'}
                 </Text>
               </View>
             </>
@@ -426,19 +473,19 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                         className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
                         style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
                       >
-                        Gốc
+                        Đơn gốc
                       </Text>
                       <Text
                         className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
                         style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
                       >
-                        Đã trả
+                        Đổi/Trả
                       </Text>
                       <Text
                         className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
-                        style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
+                        style={{ color: '#16A34A', fontFamily: 'Manrope-Bold' }}
                       >
-                        Còn
+                        Đơn mới
                       </Text>
                     </>
                   ) : (
@@ -505,19 +552,30 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                     )}
                     <InfoRow
                       label="Thời gian"
-                      value={order.createdAt.toLocaleString('vi-VN', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      value={(() => {
+                        if (!order.createdAt) return '—'
+                        const d =
+                          order.createdAt instanceof Date
+                            ? order.createdAt
+                            : new Date(order.createdAt)
+                        return isNaN(d.getTime())
+                          ? '—'
+                          : d.toLocaleString('vi-VN', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                      })()}
                     />
                     {!!order.staffName && <InfoRow label="Nhân viên" value={order.staffName} />}
-                    {!!order.affiliate && (
-                      <InfoRow label="Cộng tác viên" value={order.affiliate.name} />
+                    {!!resolvedPartnerName && (
+                      <InfoRow label="Đối tác" value={resolvedPartnerName} />
                     )}
-                    {!!order.partner && <InfoRow label="Đối tác" value={order.partner.nameVi} />}
+                    {!!resolvedAffiliateName && !resolvedPartnerName && (
+                      <InfoRow label="Cộng tác viên" value={resolvedAffiliateName} />
+                    )}
 
                     <View className="mt-1 flex-row items-center justify-between py-2">
                       <Text
@@ -641,17 +699,23 @@ export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDet
                         )}
                         <InfoRow
                           label="Ngày trả"
-                          value={new Date(
-                            order.refund?.refundedAt ||
+                          value={(() => {
+                            const raw =
+                              order.refund?.refundedAt ||
                               order.refunds?.[0]?.refundedAt ||
-                              order.updatedAt,
-                          ).toLocaleString('vi-VN', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                              order.updatedAt
+                            if (!raw) return '—'
+                            const d = raw instanceof Date ? raw : new Date(raw)
+                            return isNaN(d.getTime())
+                              ? '—'
+                              : d.toLocaleString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                          })()}
                         />
                         <InfoRow label="Tổng số món gốc" value={`${totalOriginalQty} món`} />
                         <InfoRow

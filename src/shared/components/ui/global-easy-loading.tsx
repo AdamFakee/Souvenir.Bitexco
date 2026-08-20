@@ -1,16 +1,41 @@
+import { LoadingIndicator } from '@/shared/components/ui/loading'
 import { useAlertStore } from '@/shared/store'
-import React from 'react'
-import { ActivityIndicator, Text, View } from 'react-native'
+import React, { useEffect, useRef } from 'react'
+import { Animated, Easing, Text } from 'react-native'
 
 export const GlobalEasyLoading = () => {
   const isLoading = useAlertStore((s) => s.isLoading)
   const message = useAlertStore((s) => s.loadingMessage)
 
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const scaleAnim = useRef(new Animated.Value(0.92)).current
+
+  useEffect(() => {
+    if (isLoading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.quad),
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 7,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+      ]).start()
+    } else {
+      fadeAnim.setValue(0)
+      scaleAnim.setValue(0.92)
+    }
+  }, [isLoading, fadeAnim, scaleAnim])
+
   if (!isLoading) return null
 
   return (
-    <View
-      pointerEvents="none"
+    <Animated.View
       style={{
         position: 'absolute',
         top: 0,
@@ -19,36 +44,39 @@ export const GlobalEasyLoading = () => {
         bottom: 0,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(0,0,0,0.18)',
-        zIndex: 9999,
+        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        opacity: fadeAnim,
+        zIndex: 99999,
       }}
     >
-      <View
+      <Animated.View
         style={{
-          backgroundColor: '#fff',
-          borderRadius: 20,
-          paddingVertical: 28,
-          paddingHorizontal: 36,
+          transform: [{ scale: scaleAnim }],
           alignItems: 'center',
-          gap: 14,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.15,
-          shadowRadius: 20,
-          elevation: 12,
-          minWidth: 140,
+          justifyContent: 'center',
+          paddingHorizontal: 24,
+          maxWidth: 320,
         }}
       >
-        <ActivityIndicator size="large" color="#1C4E68" />
+        <LoadingIndicator size="large" color="#FFFFFF" />
+
         {message ? (
           <Text
-            style={{ fontFamily: 'Manrope-SemiBold', fontSize: 15, color: '#303036' }}
+            style={{
+              fontFamily: 'Manrope-Bold',
+              fontSize: 15,
+              lineHeight: 22,
+              color: '#FFFFFF',
+              textAlign: 'center',
+              letterSpacing: -0.2,
+              marginTop: 14,
+            }}
             numberOfLines={2}
           >
             {message}
           </Text>
         ) : null}
-      </View>
-    </View>
+      </Animated.View>
+    </Animated.View>
   )
 }

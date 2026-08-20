@@ -1,8 +1,9 @@
 import { COLORS } from '@/shared/constants'
 import { cn } from '@/shared/utils'
+import { Portal } from '@gorhom/portal'
 import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react-native'
 import React, { useImperativeHandle, useState } from 'react'
-import { Modal, Text, TouchableWithoutFeedback, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeIn, FadeOut, Keyframe, ZoomIn, ZoomOut } from 'react-native-reanimated'
 import { GlobalToast } from './global-toast'
 import { IconButton } from './icon-button'
@@ -145,73 +146,68 @@ export const Popup = ({
     exitingAnim = diagonalExiting
   }
 
+  if (!visible) return null
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={handleDismiss}
-    >
-      <TouchableWithoutFeedback onPress={handleDismiss}>
+    <Portal hostName="modal">
+      <View style={[StyleSheet.absoluteFill, { zIndex: 10000 }]}>
         <View className="flex-1 items-center justify-center bg-black/40 px-6">
-          <TouchableWithoutFeedback>
-            <Animated.View
-              entering={enteringAnim}
-              exiting={exitingAnim}
-              className="w-full max-w-[480px] overflow-hidden rounded-2xl border border-outline-variant/50 bg-white p-8 shadow-2xl"
-            >
-              {/* Close Button */}
-              {showCloseButton && (
-                <View className="absolute right-6 top-6 z-10">
-                  <IconButton
-                    icon={X}
-                    variant="xl"
-                    color={COLORS.surface.on}
-                    onPress={() => {
-                      setVisible(false)
-                      onClose?.()
-                    }}
-                  />
+          <Pressable className="absolute inset-0" onPress={handleDismiss} />
+          <Animated.View
+            entering={enteringAnim}
+            exiting={exitingAnim}
+            className="w-full max-w-[480px] overflow-hidden rounded-2xl border border-outline-variant/50 bg-white p-8 shadow-2xl"
+          >
+            {/* Close Button */}
+            {showCloseButton && (
+              <View className="absolute right-6 top-6 z-10">
+                <IconButton
+                  icon={X}
+                  variant="xl"
+                  color={COLORS.surface.on}
+                  onPress={() => {
+                    setVisible(false)
+                    onClose?.()
+                  }}
+                />
+              </View>
+            )}
+
+            {/* Header / Visual */}
+            <View className="items-center py-2">
+              {renderedIcon && (
+                <View
+                  className={cn(
+                    'mb-6 h-20 w-20 items-center justify-center rounded-full',
+                    finalIconBgColor,
+                  )}
+                >
+                  {renderedIcon}
                 </View>
               )}
-
-              {/* Header / Visual */}
-              <View className="items-center py-2">
-                {renderedIcon && (
-                  <View
-                    className={cn(
-                      'mb-6 h-20 w-20 items-center justify-center rounded-full',
-                      finalIconBgColor,
-                    )}
-                  >
-                    {renderedIcon}
-                  </View>
-                )}
+              <Text
+                className="mb-3 text-center text-2xl font-black text-surface-on"
+                style={{ fontFamily: 'Manrope-Bold' }}
+              >
+                {title}
+              </Text>
+              {description && (
                 <Text
-                  className="mb-3 text-center text-2xl font-black text-surface-on"
-                  style={{ fontFamily: 'Manrope-Bold' }}
+                  className="text-center text-lg leading-relaxed text-muted"
+                  style={{ fontFamily: 'Manrope-Medium' }}
                 >
-                  {title}
+                  {description}
                 </Text>
-                {description && (
-                  <Text
-                    className="text-center text-lg leading-relaxed text-muted"
-                    style={{ fontFamily: 'Manrope-Medium' }}
-                  >
-                    {description}
-                  </Text>
-                )}
-              </View>
+              )}
+            </View>
 
-              {/* Content / Buttons */}
-              <View className="mt-8 gap-3">{children}</View>
-            </Animated.View>
-          </TouchableWithoutFeedback>
+            {/* Content / Buttons */}
+            <View className="mt-8 gap-3">{children}</View>
+          </Animated.View>
         </View>
-      </TouchableWithoutFeedback>
-      <GlobalToast />
-    </Modal>
+        <GlobalToast />
+      </View>
+    </Portal>
   )
 }
 

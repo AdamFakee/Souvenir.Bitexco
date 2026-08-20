@@ -4,11 +4,13 @@ import { SyncDatabaseChangeSet, synchronize } from '@nozbe/watermelondb/sync'
 import { database } from '../database'
 
 import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
+import { AffiliateRemoteAPI } from '@/shared/features/order/api/remote/affiliate.remote.api'
 import {
   OrderRaw,
   OrderRemoteAPI,
   localIdToGuid,
 } from '@/shared/features/order/api/remote/order.remote.api'
+import { PartnerRemoteAPI } from '@/shared/features/order/api/remote/partner.remote.api'
 import { queryClient } from '@/shared/lib/react-query'
 
 /**
@@ -26,25 +28,38 @@ export const SyncService = {
         pullChanges: async ({ lastPulledAt }) => {
           const timestamp = lastPulledAt ?? null
 
-          // Luôn lấy đầy đủ thay đổi của Product và Category
-          const [product, category] = await Promise.all([
+          // Luôn lấy đầy đủ thay đổi của Product, Category, Partner, Affiliate
+          const [product, category, partner, affiliate] = await Promise.all([
             ProductRemoteAPI.fetchChanges!({ lastPulledAt: timestamp }),
             CategoryRemoteAPI.fetchChanges!({ lastPulledAt: timestamp }),
+            PartnerRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
+            AffiliateRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
           ])
 
           const changes: SyncDatabaseChangeSet = {
             products: product.products,
             categories: category.categories,
+            partners: partner.partners,
+            affiliates: affiliate.affiliates,
           }
 
-          const nextTimestamp = product?.syncedAt || category?.syncedAt || Date.now()
+          const nextTimestamp =
+            product?.syncedAt ||
+            category?.syncedAt ||
+            partner?.syncedAt ||
+            affiliate?.syncedAt ||
+            Date.now()
           return { changes, timestamp: nextTimestamp }
         },
         pushChanges: async () => {
           // KHÔNG đẩy Orders thông qua WatermelonDB
         },
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error(
+        '[SyncService.pullMasterData] Lỗi kéo dữ liệu Master Data:',
+        error?.response?.data || error?.message || error,
+      )
       throw error
     }
   },
@@ -63,14 +78,22 @@ export const SyncService = {
         return // Không có gì để sync
       }
 
+      console.log(
+        `[SyncService.drainOutbox] Bắt đầu đồng bộ ${unsyncedOrders.length} đơn hàng offline...`,
+      )
+
       // 2. Chuyển đổi sang định dạng OrderRaw thô (raw JSON)
       const rawOrders: OrderRaw[] = unsyncedOrders.map((o) => ({
-        id: localIdToGuid(o.id),
+        id: o.id,
+        code: o.id,
+        order_code: o.id,
         shift_id: o.shiftId,
         staff_id: o.staffId,
         status: o.status,
         subtotal: o.subtotal,
         discount: o.discount,
+        partner_id: o.partnerId || null,
+        affiliate_id: o.affiliateId || null,
         voucher_code: o.voucherCode || null,
         voucher_discount: o.voucherDiscount,
         total: o.total,
@@ -94,13 +117,28 @@ export const SyncService = {
         const chunk = rawOrders.slice(i, i + CHUNK_SIZE)
 
         try {
+          console.log(
+            `[SyncService.drainOutbox] Đang sync chunk ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} đơn)...`,
+          )
           await OrderRemoteAPI.syncOfflineOrders(chunk)
 
           // 4. Xóa các đơn trong chunk này khỏi local SQLite vì đã sync thành công
           const chunkIds = chunk.map((o) => o.id)
           await OrderLocalAPI.markOrdersAsSynced(chunkIds)
           hasSyncedAny = true
-        } catch {
+          console.log(
+            `[SyncService.drainOutbox] Sync thành công chunk ${Math.floor(i / CHUNK_SIZE) + 1}`,
+          )
+        } catch (chunkError: any) {
+          console.error(
+            `[SyncService.drainOutbox] LỖI SYNC CHUNK ${Math.floor(i / CHUNK_SIZE) + 1}:`,
+            chunkError?.response?.status,
+            JSON.stringify(
+              chunkError?.response?.data || chunkError?.message || chunkError,
+              null,
+              2,
+            ),
+          )
           break
         }
       }
@@ -110,7 +148,11 @@ export const SyncService = {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] })
         queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error(
+        '[SyncService.drainOutbox] Lỗi tổng quát khi sync đơn offline:',
+        error?.response?.data || error?.message || error,
+      )
       throw error
     }
   },

@@ -9,6 +9,7 @@ import { formatCurrency } from '@/shared/utils'
 import { useActorRef, useSelector } from '@xstate/react'
 import React, {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -83,8 +84,8 @@ function buildReceiptOrder(
   }
 }
 
-export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
-  function DebtPaymentPopup(
+export const DebtPaymentPopup = memo(
+  forwardRef<PaymentPopupRef, PaymentPopupProps>(function DebtPaymentPopup(
     {
       total,
       items,
@@ -347,7 +348,7 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
 
             {/* Hidden Printer Template — Rendered inside popup using real saved data */}
             <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-              {savedOrder && (
+              {(isCheckingOut || isDone) && savedOrder && (
                 <View collapsable={false} ref={printRef}>
                   <BitexcoReceiptTemplate
                     order={buildReceiptOrder(
@@ -369,5 +370,8 @@ export const DebtPaymentPopup = forwardRef<PaymentPopupRef, PaymentPopupProps>(
         )}
       </ModalBase>
     )
-  },
+  }),
 )
+
+DebtPaymentPopup.displayName = 'DebtPaymentPopup'
+export default DebtPaymentPopup

@@ -108,28 +108,32 @@ export const QrPaymentPopup = memo(
       const isFetchingQR = machineState === 'fetchingQR'
       const isWaiting = typeof machineState === 'object' && 'waitingForPayment' in machineState
       const isSaving = machineState === 'savingOrder'
+      const isPreparing = machineState === 'preparingReceipt'
       const isPrinting = machineState === 'printingReceipt'
       const isCanceling = machineState === 'cancelingPayment' || machineState === 'cancellingOrder'
-      const isLoading =
-        isCreatingOrder || isFetchingQR || isWaiting || isSaving || isPrinting || isCanceling
+      const isForceCapturing = machineState === 'forceCapturingPayment'
+      const isProcessing =
+        isForceCapturing || isSaving || isPreparing || isPrinting || isCanceling || isSuccess
+      const isLoading = isCreatingOrder || isFetchingQR
 
-      // Gộp effect ViceService
+      // Gộp effect ViceService (hoãn sang frame kế tiếp để không block animation mở popup)
       useEffect(() => {
         if (!visible) return
 
-        if (isSuccess) {
-          ViceService.paymentSuccess({
-            subtotal: totals.subtotal,
-            discount,
-            tax: totals.tax,
-            total,
-            customerPaid: total,
-            change: 0,
-          })
-          const snap = actorRef.getSnapshot()
-          const resolvedOrderId = snap.context.orderId ?? snap.context.sessionId
-          const resolvedBillNumber = snap.context.billNumber ?? resolvedOrderId
-          const timer = setTimeout(() => {
+        const handle = requestAnimationFrame(() => {
+          if (isSuccess) {
+            ViceService.paymentSuccess({
+              subtotal: totals.subtotal,
+              discount,
+              tax: totals.tax,
+              total,
+              customerPaid: total,
+              change: 0,
+            })
+            const snap = actorRef.getSnapshot()
+            const resolvedOrderId = snap.context.orderId ?? snap.context.sessionId
+            const resolvedBillNumber = snap.context.billNumber ?? resolvedOrderId
+
             setVisible(false)
             onSuccess({
               success: true,
@@ -140,21 +144,20 @@ export const QrPaymentPopup = memo(
               isOnline: true,
               orderId: resolvedOrderId,
             })
-          }, 1500)
-          return () => clearTimeout(timer)
-        }
+          } else if (isError) {
+            ViceService.showStatus(getPaymentErrorStatus(errorCode))
+          } else if (qrContent) {
+            ViceService.showPayment({
+              qrCodeUrl: qrContent,
+              subtotal: totals.subtotal,
+              discount,
+              tax: totals.tax,
+              total,
+            })
+          }
+        })
 
-        if (isError) {
-          ViceService.showStatus(getPaymentErrorStatus(errorCode))
-        } else if (qrContent) {
-          ViceService.showPayment({
-            qrCodeUrl: qrContent,
-            subtotal: totals.subtotal,
-            discount,
-            tax: totals.tax,
-            total,
-          })
-        }
+        return () => cancelAnimationFrame(handle)
       }, [
         visible,
         isSuccess,
@@ -336,6 +339,8 @@ export const QrPaymentPopup = memo(
           receiptOrder={receiptOrder}
           staffName={staffName}
           printRef={printRef}
+          isForceCapturing={isForceCapturing}
+          isProcessing={isProcessing}
           onCancel={handleCancel}
           onRetry={handleRetry}
           onCheckStatus={handleCheckStatus}

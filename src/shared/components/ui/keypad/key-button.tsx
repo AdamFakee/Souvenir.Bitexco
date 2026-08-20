@@ -29,7 +29,7 @@ export const KeyButton = memo(
         {({ pressed }) => (
           <View
             className={cn(
-              'aspect-square w-full items-center justify-center rounded-2xl border transition-all duration-150',
+              'aspect-square w-full items-center justify-center rounded-2xl border',
               // Variants
               variant === 'default' && [
                 'border-slate-200 bg-white',

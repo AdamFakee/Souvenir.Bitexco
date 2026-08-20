@@ -1,6 +1,5 @@
 import { EmptyState, LoadMore, SearchInput, Shimmer } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
-import { SearchX } from 'lucide-react-native'
 import React, { memo, useCallback, useState } from 'react'
 import { Keyboard, Pressable, Text, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
@@ -59,6 +58,9 @@ export const ProductSearch = memo(function ProductSearch() {
   const [debouncedText] = useDebounce(localText, 400)
   const { products, isLoading, isFetchingNextPage, loadMore } = useProductSearch(debouncedText)
 
+  const isDebouncing = localText.trim() !== debouncedText.trim()
+  const isSearching = isLoading || isDebouncing
+
   const handleSelectItem = useCallback(
     (product: UnifiedProduct) => {
       setLocalText('')
@@ -112,17 +114,17 @@ export const ProductSearch = memo(function ProductSearch() {
 
           <View
             className="absolute left-0 right-0 top-full z-[999] mt-2 overflow-hidden rounded-xl border border-outline-variant bg-surface-50 shadow-lg"
-            style={{ maxHeight: 720, elevation: 10 }}
+            style={{ height: 720, elevation: 10 }}
           >
-            {isLoading ? (
-              <View>
+            {isSearching ? (
+              <View className="flex-1">
                 <View className="flex-row items-center border-b border-surface-200 bg-surface-100 px-6 py-4">
                   <Shimmer className="h-6 w-24 rounded-lg" style={{ flex: 3 }} />
                   <Shimmer className="h-6 w-16 rounded-lg px-2" style={{ flex: 1.5 }} />
                   <Shimmer className="h-6 w-16 self-center rounded-lg px-2" style={{ flex: 1 }} />
                   <Shimmer className="h-6 w-20 rounded-lg text-right" style={{ flex: 1.5 }} />
                 </View>
-                {[1, 2, 3].map((i) => (
+                {[1, 2, 3, 4, 5].map((i) => (
                   <View
                     key={i}
                     className="flex-row items-center border-b border-surface-200 px-6 py-5"
@@ -144,12 +146,9 @@ export const ProductSearch = memo(function ProductSearch() {
                 ))}
               </View>
             ) : products.length === 0 ? (
-              <EmptyState
-                title="Không tìm thấy sản phẩm"
-                description={`Không tìm thấy kết quả cho "${debouncedText}"`}
-                icon={SearchX}
-                className="py-10"
-              />
+              <View className="flex-1 items-center justify-center">
+                <EmptyState title="Không tìm thấy sản phẩm phù hợp" variant="search" size="md" />
+              </View>
             ) : (
               <View className="flex-1">
                 <View className="flex-row items-center border-b border-surface bg-primary/25 px-6 py-4">
@@ -183,6 +182,7 @@ export const ProductSearch = memo(function ProductSearch() {
                   nestedScrollEnabled={true}
                   onEndReached={loadMore}
                   onEndReachedThreshold={0.3}
+                  style={{ marginBottom: 10 }}
                   ListFooterComponent={isFetchingNextPage ? <LoadMore isLoading /> : null}
                   contentContainerStyle={{ flexGrow: 1 }}
                   showsVerticalScrollIndicator={true}

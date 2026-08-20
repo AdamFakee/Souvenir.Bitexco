@@ -23,9 +23,13 @@ export interface SelectProps<T = string> {
   triggerClassName?: string
   /** Custom class cho text trigger */
   triggerTextClassName?: string
+  /** Custom class cho mỗi item trong dropdown */
+  itemClassName?: string
+  /** Custom class cho text của mỗi item trong dropdown */
+  itemTextClassName?: string
   /** Disable select */
   disabled?: boolean
-  /** Chiều cao tối đa của dropdown (mặc định 280) */
+  /** Chiều cao tối đa của dropdown (mặc định 320) */
   maxDropdownHeight?: number
 }
 
@@ -37,8 +41,10 @@ function SelectInner<T extends string = string>({
   className,
   triggerClassName,
   triggerTextClassName,
+  itemClassName,
+  itemTextClassName,
   disabled = false,
-  maxDropdownHeight = 280,
+  maxDropdownHeight = 320,
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<View>(null)
@@ -121,21 +127,23 @@ function SelectInner<T extends string = string>({
                     key={String(opt.value)}
                     onPress={() => handleSelect(opt)}
                     className={cn(
-                      'flex-row items-center justify-between px-5 py-4 active:bg-surface-100',
+                      'flex-row items-center justify-between px-5 py-[18px] active:bg-surface-100',
                       isSelected && 'bg-primary/5',
                       index < options.length - 1 && 'border-b border-outline-variant/20',
+                      itemClassName,
                     )}
                   >
                     <Text
                       className={cn(
-                        'flex-1 text-lg',
+                        'flex-1 text-[18px]',
                         isSelected ? 'font-bold text-primary' : 'font-medium text-surface-on',
+                        itemTextClassName,
                       )}
                       numberOfLines={1}
                     >
                       {opt.label}
                     </Text>
-                    {isSelected && <Check size={20} color="#2563eb" />}
+                    {isSelected && <Check size={22} color="#2563eb" />}
                   </Pressable>
                 )
               })}

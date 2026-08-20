@@ -113,7 +113,9 @@ export interface IOrder {
   refunds?: any[]
   agentType?: 'collaborator' | 'agent' | 'retail'
   affiliateId?: string | null
+  affiliateName?: string | null
   partnerId?: string | null
+  partnerName?: string | null
   affiliate?: Affiliate | null
   partner?: Partner | null
 }

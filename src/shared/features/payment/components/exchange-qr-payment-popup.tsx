@@ -125,9 +125,13 @@ export const ExchangeQrPaymentPopup = memo(
       const isFetchingQR = machineState === 'fetchingQR'
       const isWaiting = typeof machineState === 'object' && 'waitingForPayment' in machineState
       const isSaving = machineState === 'savingOrder'
+      const isPreparing = machineState === 'preparingReceipt'
       const isPrinting = machineState === 'printingReceipt'
       const isCanceling = machineState === 'cancelingPayment' || machineState === 'cancellingOrder'
-      const isLoading = isFetchingQR || isWaiting || isSaving || isPrinting || isCanceling
+      const isForceCapturing = machineState === 'forceCapturingPayment'
+      const isProcessing = isForceCapturing || isSaving || isPreparing || isPrinting || isCanceling
+      const isLoading =
+        isFetchingQR || isWaiting || isSaving || isPrinting || isCanceling || isForceCapturing
 
       // Gộp effect ViceService
       useEffect(() => {
@@ -362,6 +366,8 @@ export const ExchangeQrPaymentPopup = memo(
           receiptOrder={receiptOrder}
           staffName={staffName}
           printRef={printRef}
+          isForceCapturing={isForceCapturing}
+          isProcessing={isProcessing}
           onCancel={handleCancel}
           onRetry={handleRetry}
           onCheckStatus={handleCheckStatus}

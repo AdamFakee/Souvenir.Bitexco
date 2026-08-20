@@ -129,14 +129,14 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
           title="Không có kết nối mạng"
           description="Đổi hàng chỉ hỗ trợ khi online."
           icon={PackageSearch}
-          className="py-20"
+          size="sm"
         />
       ) : skus.length === 0 ? (
         <EmptyState
           title="Chọn món trả bên trái"
           description="Chọn sản phẩm khách trả để hiện SP cùng danh mục."
           icon={PackageSearch}
-          className="py-20"
+          size="sm"
         />
       ) : categoryQuery.isLoading ? (
         <View className="p-5">
@@ -155,7 +155,7 @@ export const ExchangeReplacementSearchPanel = memo(function ExchangeReplacementS
           title="Không có sản phẩm"
           description="Không có SP cùng danh mục với món đang trả."
           icon={PackageSearch}
-          className="py-20"
+          size="sm"
         />
       ) : (
         <FlatList

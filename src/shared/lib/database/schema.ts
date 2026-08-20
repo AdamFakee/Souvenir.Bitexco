@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const schema = appSchema({
-  version: 7,
+  version: 10,
   tables: [
     tableSchema({
       name: 'categories',
@@ -37,6 +37,10 @@ export const schema = appSchema({
       columns: [
         { name: 'shift_id', type: 'string', isIndexed: true },
         { name: 'staff_id', type: 'string', isIndexed: true },
+        { name: 'partner_id', type: 'string', isOptional: true },
+        { name: 'partner_name', type: 'string', isOptional: true },
+        { name: 'affiliate_id', type: 'string', isOptional: true },
+        { name: 'affiliate_name', type: 'string', isOptional: true },
         { name: 'status', type: 'string' },
         { name: 'subtotal', type: 'number' },
         { name: 'discount', type: 'number' },
@@ -53,6 +57,42 @@ export const schema = appSchema({
         { name: 'is_deleted', type: 'boolean' },
         { name: 'is_synced', type: 'boolean' },
         { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'partners',
+      columns: [
+        { name: 'code', type: 'string', isIndexed: true },
+        { name: 'name_vi', type: 'string' },
+        { name: 'name_en', type: 'string', isOptional: true },
+        { name: 'company_name', type: 'string', isOptional: true },
+        { name: 'tax_id', type: 'string', isOptional: true },
+        { name: 'address', type: 'string', isOptional: true },
+        { name: 'representative', type: 'string', isOptional: true },
+        { name: 'representative_title', type: 'string', isOptional: true },
+        { name: 'phone', type: 'string', isOptional: true },
+        { name: 'email', type: 'string', isOptional: true },
+        { name: 'debt_code', type: 'string', isOptional: true },
+        { name: 'sap_code', type: 'string', isOptional: true },
+        { name: 'invoice_email', type: 'string', isOptional: true },
+        { name: 'other_email', type: 'string', isOptional: true },
+        { name: 'allow_credit', type: 'boolean' },
+        { name: 'credit_limit', type: 'number', isOptional: true },
+        { name: 'remaining_credit', type: 'number', isOptional: true },
+        { name: 'is_active', type: 'boolean' },
+        { name: 'version', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'affiliates',
+      columns: [
+        { name: 'code', type: 'string', isIndexed: true },
+        { name: 'name', type: 'string' },
+        { name: 'phone', type: 'string', isOptional: true },
+        { name: 'is_active', type: 'boolean' },
+        { name: 'state', type: 'string', isOptional: true },
         { name: 'updated_at', type: 'number' },
       ],
     }),

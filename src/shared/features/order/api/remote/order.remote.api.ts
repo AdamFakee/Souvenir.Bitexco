@@ -3,7 +3,7 @@ import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { OrderStatus } from '@/shared/lib/database'
 import { ItemSnapshot, PaymentSnapshot, TaxInfo } from '@/shared/lib/database/types'
 import { IBaseResponse, PagedResponse } from '@/shared/types/api'
-import { endOfDay, startOfDay } from '@/shared/utils'
+import { endOfDay, formatDate, startOfDay } from '@/shared/utils'
 import {
   IOrder,
   OrderFulfillmentStatus,
@@ -15,7 +15,7 @@ import {
   Partner,
   RefundReceiptData,
 } from '../../types'
-import { checkCanExchange, checkCanReturn } from '../../utils'
+import { checkCanExchange, checkCanReturn, incrementDailyOrderCount } from '../../utils'
 
 // ─── POS Atomic Checkout ──────────────────────────────────────────────────────
 
@@ -88,6 +88,8 @@ export interface PosCheckoutResult {
  */
 export interface OrderRaw {
   id: string
+  code?: string | null
+  order_code?: string | null
   shift_id: string
   staff_id: string
   status: OrderStatus
@@ -106,6 +108,8 @@ export interface OrderRaw {
   is_deleted: boolean
   created_at: number
   updated_at: number
+  partner_id?: string | null
+  affiliate_id?: string | null
 }
 
 interface OrderListApiItem {
@@ -473,8 +477,8 @@ export const localIdToGuid = (localId: string): string => {
 export interface GetReconciliationParams {
   partnerId?: string | null
   affiliateId?: string | null
-  dateFrom: Date
-  dateTo: Date
+  dateFrom: Date | string
+  dateTo: Date | string
 }
 
 /**
@@ -502,45 +506,71 @@ export const OrderRemoteAPI = {
       return
     }
     try {
-      const payload = {
-        orders: orders.map((order) => ({
-          id: order.id,
-          shiftId: order.shift_id,
-          staffId: order.staff_id,
-          status: order.status,
-          subTotal: order.subtotal,
-          discount: order.discount,
-          voucherCode: order.voucher_code || null,
-          voucherDiscount: order.voucher_discount,
-          totalTax: order.total_tax,
-          total: order.total,
-          note: order.note || null,
-          refundReason: order.refund_reason || null,
-          originalOrderId: order.original_order_id || null,
-          customerTaxInfo: order.customer_tax_info || null,
-          createdAt: new Date(order.created_at).toISOString(),
-          updatedAt: new Date(order.updated_at).toISOString(),
-          itemsSnapshot: (order.items_snapshot || []).map((item) => ({
-            productId: item.productId,
-            sku: item.sku,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            subtotal: item.subtotal,
-            taxRate: item.taxRate,
-            taxAmount: item.taxAmount,
-            discountAmount: item.discountAmount,
-          })),
-          paymentsSnapshot: (order.payments_snapshot || []).map((payment) => ({
+      const mappedOrders = orders.map((order: any) => {
+        const rawCode = order.code || order.order_code || order.id || ''
+        const guidId = localIdToGuid(rawCode)
+
+        const itemsSnapshot = (order.items_snapshot || order.itemsSnapshot || []).map(
+          (item: any) => ({
+            productId: item.productId || item.product_id || '',
+            sku: item.sku || null,
+            name: item.name || null,
+            price: Number(item.price ?? 0),
+            quantity: Number(item.quantity ?? 0),
+            subtotal: Number(item.subtotal ?? (item.price ?? 0) * (item.quantity ?? 0)),
+            taxRate: Number(item.taxRate ?? item.tax_rate ?? 0),
+            taxAmount: Number(item.taxAmount ?? item.tax_amount ?? 0),
+            discountAmount: Number(item.discountAmount ?? item.discount_amount ?? 0),
+          }),
+        )
+
+        const paymentsSnapshot = (order.payments_snapshot || order.paymentsSnapshot || []).map(
+          (payment: any) => ({
             method: payment.method || 'cash',
-            amount: payment.amount,
-            cashTendered: payment.cashTendered ?? 0,
-            cashChange: payment.cashChange ?? 0,
-          })),
-        })),
-      }
+            amount: Number(payment.amount ?? 0),
+            cashTendered: payment.cashTendered ?? payment.cash_tendered ?? null,
+            cashChange: payment.cashChange ?? payment.cash_change ?? null,
+          }),
+        )
+
+        const createdAtMs =
+          typeof order.created_at === 'number'
+            ? order.created_at
+            : order.created_at
+              ? new Date(order.created_at).getTime()
+              : Date.now()
+        const updatedAtMs =
+          typeof order.updated_at === 'number'
+            ? order.updated_at
+            : order.updated_at
+              ? new Date(order.updated_at).getTime()
+              : Date.now()
+
+        return {
+          orderCode: rawCode,
+          shiftId: order.shiftId || order.shift_id || '',
+          staffId: order.staffId || order.staff_id || '',
+          subTotal: Number(order.subtotal ?? order.subTotal ?? 0),
+          discount: Number(order.discount ?? 0),
+          totalTax: Number(order.totalTax ?? order.total_tax ?? 0),
+          total: Number(order.total ?? 0),
+          note: order.note || null,
+          createdAt: new Date(createdAtMs).toISOString(),
+          updatedAt: new Date(updatedAtMs).toISOString(),
+          itemsSnapshot,
+          paymentsSnapshot,
+          partnerId: order.partnerId || order.partner_id || null,
+          affiliateId: order.affiliateId || order.affiliate_id || null,
+        }
+      })
+
+      const payload = { orders: mappedOrders }
       await AxiosService.getInstance().post('/v1/pos/sync/orders', payload)
-    } catch (error) {
+    } catch (error: any) {
+      console.error(
+        '[OrderRemoteAPI.syncOfflineOrders] Lỗi sync đơn offline:',
+        error?.response?.data || error?.message || error,
+      )
       throw error
     }
   },
@@ -827,11 +857,26 @@ export const OrderRemoteAPI = {
    * Thanh toán atomic — gọi trực tiếp khi Online, không qua SQLite local.
    */
   checkout: async (payload: PosCheckoutRequest): Promise<PosCheckoutResult> => {
-    const res = await AxiosService.getInstance().post<PosCheckoutResult>(
-      '/v1/pos/checkout',
-      payload,
-    )
-    return res.data
+    try {
+      console.log('[OrderRemoteAPI.checkout] Request Payload:', JSON.stringify(payload, null, 2))
+      const res = await AxiosService.getInstance().post<PosCheckoutResult>(
+        '/v1/pos/checkout',
+        payload,
+      )
+      console.log('[OrderRemoteAPI.checkout] Success Response:', JSON.stringify(res.data, null, 2))
+      if (res.data && !(res.data as any).error) {
+        incrementDailyOrderCount()
+      }
+      return res.data
+    } catch (error: any) {
+      console.error('[OrderRemoteAPI.checkout] ERROR Status:', error?.response?.status)
+      console.error(
+        '[OrderRemoteAPI.checkout] ERROR Response Data:',
+        JSON.stringify(error?.response?.data, null, 2),
+      )
+      console.error('[OrderRemoteAPI.checkout] Full Error Object:', error)
+      throw error
+    }
   },
 
   /**
@@ -942,8 +987,14 @@ export const OrderRemoteAPI = {
     const urlParams = new URLSearchParams()
     if (partnerId) urlParams.append('partnerId', partnerId)
     if (affiliateId) urlParams.append('affiliateId', affiliateId)
-    urlParams.append('dateFrom', startOfDay(dateFrom).toISOString())
-    urlParams.append('dateTo', endOfDay(dateTo).toISOString())
+
+    const formattedDateFrom =
+      dateFrom instanceof Date ? formatDate(dateFrom, 'YYYY-MM-DD') : String(dateFrom)
+    const formattedDateTo =
+      dateTo instanceof Date ? formatDate(dateTo, 'YYYY-MM-DD') : String(dateTo)
+
+    urlParams.append('dateFrom', formattedDateFrom)
+    urlParams.append('dateTo', formattedDateTo)
 
     try {
       const response = await AxiosService.getInstance().get<ReconciliationResult>(

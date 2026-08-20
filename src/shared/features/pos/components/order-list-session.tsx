@@ -1,11 +1,11 @@
-import { Button, IconButton, QuantityStepper } from '@/shared/components/ui'
+import { Button, EmptyState, IconButton, QuantityStepper } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { toast } from '@/shared/store/use-alert-store'
 import { formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
 import { useSelector } from '@xstate/react'
-import { Plus, ShoppingBasket, Trash2, X } from 'lucide-react-native'
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Trash2, X } from 'lucide-react-native'
+import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ActorRefFrom } from 'xstate'
 import { useActiveCart, usePosActor } from '../hooks'
@@ -29,7 +29,6 @@ const CartItemRow = memo(
     onUpdateQuantity: (productId: string, quantity: number) => void
     onRemove: (productId: string) => void
   }) {
-    console.log(`[PERF] 🧩 CartItemRow render: ${item.product.id}`)
     const itemTotal = Math.round(item.price * item.quantity)
 
     const handleQuantityChange = useCallback(
@@ -113,7 +112,7 @@ const CartTabPill = memo(function CartTabPill({
   return (
     <Pressable
       onPress={handleSwitch}
-      className="h-[48px] flex-row items-center rounded-full px-6"
+      className="h-[52px] flex-row items-center rounded-full px-6"
       style={{ backgroundColor: isActive ? COLORS.primary.default : COLORS.background.default }}
     >
       <Text
@@ -131,12 +130,7 @@ const CartTabPill = memo(function CartTabPill({
 })
 
 const CartEmptyState = memo(function CartEmptyState() {
-  return (
-    <View className="flex-1 items-center justify-center py-32">
-      <ShoppingBasket size={80} color={COLORS.outline.variant} strokeWidth={1} />
-      <Text className="mt-5 text-lg font-semibold text-surface-on-variant">Giỏ hàng trống</Text>
-    </View>
-  )
+  return <EmptyState variant="cart" size="md" />
 })
 
 // ─── Session Tabs Bar: độc lập, không re-render khi thêm món ───
@@ -175,7 +169,6 @@ const SessionTabBar = memo(function SessionTabBar({ onOpenAddTab }: { onOpenAddT
 
   const handleSwitchTab = useCallback(
     (id: string) => {
-      perfTracker.switchStart = Date.now()
       posActor?.send({ type: 'SWITCH_TAB', id })
     },
     [posActor],
@@ -193,12 +186,12 @@ const SessionTabBar = memo(function SessionTabBar({ onOpenAddTab }: { onOpenAddT
   )
 
   return (
-    <View className="flex-row items-center border-b border-surface-100 bg-white px-5 py-4">
+    <View className="h-[68px] flex-row items-center border-b border-surface-100 bg-white px-5">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         className="flex-1"
-        contentContainerStyle={{ gap: 10 }}
+        contentContainerStyle={{ gap: 10, alignItems: 'center' }}
       >
         {cartTabs.map(({ id, label, isActive }) => {
           return (
@@ -217,10 +210,10 @@ const SessionTabBar = memo(function SessionTabBar({ onOpenAddTab }: { onOpenAddT
       <Button
         label="Thêm phiên"
         leftIcon={Plus}
-        iconSize={26}
+        iconSize={24}
         variant="outline"
-        className="ml-3 h-[58px] rounded-full border-outline bg-surface-50 px-6 py-0"
-        textClassName="text-[22px] font-bold text-neutral-600"
+        className="ml-3 h-[52px] rounded-full border-outline bg-surface-50 px-6 py-0"
+        textClassName="text-[20px] font-bold text-neutral-600"
         onPress={onOpenAddTab}
       />
     </View>
@@ -267,8 +260,6 @@ const SessionSearchBar = memo(function SessionSearchBar({
   )
 })
 
-export const perfTracker = { switchStart: 0 }
-
 // ─── Cart Items Table: chỉ re-render khi items trong giỏ thay đổi ───
 const CartTable = memo(function CartTable({
   cartActor,
@@ -306,27 +297,6 @@ const CartTable = memo(function CartTable({
     [handleUpdateQuantity, handleRemoveItem],
   )
 
-  // -- PERFORMANCE LOGGING --
-  const renderStartRef = useRef<number>(Date.now())
-  renderStartRef.current = Date.now() // Track every render start time
-
-  useEffect(() => {
-    const now = Date.now()
-    const renderDuration = now - renderStartRef.current
-
-    if (perfTracker.switchStart > 0) {
-      const totalDuration = now - perfTracker.switchStart
-      console.log(`[PERF] 🏁 Tab switched & orders painted total time: ${totalDuration}ms`)
-      perfTracker.switchStart = 0 // Reset
-    }
-
-    if (renderDuration > 10) {
-      console.log(
-        `[PERF] 🎨 CartTable render -> commit took: ${renderDuration}ms (Cart items: ${cart.length})`,
-      )
-    }
-  })
-
   return (
     <View className="flex-1 bg-white">
       {/* Table Header */}
@@ -357,6 +327,10 @@ const CartTable = memo(function CartTable({
           data={cart}
           keyExtractor={(item) => item.product.id}
           renderItem={renderItem}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: cart.length === 0 ? 'center' : undefined,
+          }}
           ListEmptyComponent={<CartEmptyState />}
         />
       </View>

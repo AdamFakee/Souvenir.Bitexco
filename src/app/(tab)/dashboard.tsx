@@ -1,5 +1,5 @@
-import { COLORS } from '@/shared/constants'
 import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
+import { COLORS } from '@/shared/constants'
 import { useCashSessionId, useEmployee } from '@/shared/features/app'
 import { DashboardSkeleton } from '@/shared/features/dashboard/components/dashboard-skeleton'
 import { DashboardInfoBar } from '@/shared/features/dashboard/components/info-bar'
@@ -10,7 +10,6 @@ import { useDashboardOverview } from '@/shared/features/dashboard/hooks'
 import { StaffSelect } from '@/shared/features/order/components/order-staff-select'
 import React, { useCallback, useMemo, useState } from 'react'
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 
 function DashboardContent() {
   const employee = useEmployee()
@@ -76,7 +75,7 @@ function DashboardContent() {
         <DashboardInfoBar staffId={staffId} overview={overview} isLoading={isLoading} />
         <DashboardStatsCards overview={overview} isLoading={isLoading} />
 
-        <View className="flex-1 flex-row gap-6">
+        <View className="h-[560px] min-h-[520px] flex-1 flex-row gap-6">
           <PaymentMethodsPanel overview={overview} isLoading={isLoading} />
           <ProductRevenuePanel staffId={staffId} shiftId={shiftId} />
         </View>
@@ -85,10 +84,11 @@ function DashboardContent() {
   }, [shiftId, error, overview, isLoading, staffId, handleRetry])
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f3f4f6]">
+    <View className="flex-1 bg-[#f3f4f6] py-2">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ flexGrow: 1 }}
+        nestedScrollEnabled={true}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -130,7 +130,7 @@ function DashboardContent() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   )
 }
 

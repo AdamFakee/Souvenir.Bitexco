@@ -24,6 +24,8 @@ export type QrPaymentViewProps = {
   receiptOrder: any | null
   staffName?: string
   printRef?: React.RefObject<any>
+  isForceCapturing?: boolean
+  isProcessing?: boolean
   onCancel: () => void
   onRetry: () => void
   onCheckStatus: () => void
@@ -48,40 +50,28 @@ export const QrPaymentView = memo(function QrPaymentView({
   receiptOrder,
   staffName,
   printRef,
+  isForceCapturing = false,
+  isProcessing = false,
   onCancel,
   onRetry,
   onCheckStatus,
   onForceComplete,
 }: QrPaymentViewProps) {
   const renderQrStage = () => {
-    if (isSuccess) {
-      return (
-        <View className="items-center justify-center px-4 py-8">
-          <View className="h-20 w-20 items-center justify-center rounded-full bg-success/10">
-            <CheckCircle size={52} color="#00944a" />
-          </View>
-          <Text className="mt-5 text-center text-2xl font-bold text-success">Đã nhận tiền</Text>
-          <Text className="mt-2 max-w-[280px] text-center text-sm leading-6 text-neutral-600">
-            Đang hoàn tất hóa đơn và in biên lai.
-          </Text>
-        </View>
-      )
-    }
-
     if (isError) {
       return (
-        <View className="items-center justify-center px-4 py-8">
-          <View className="h-20 w-20 items-center justify-center rounded-full bg-error/10">
-            <AlertCircle size={52} color="#dd2027" />
+        <View className="h-[400px] w-full items-center justify-center px-4">
+          <View className="h-24 w-24 items-center justify-center rounded-full bg-error/10">
+            <AlertCircle size={60} color="#dd2027" />
           </View>
-          <Text className="mt-5 text-center text-2xl font-bold text-error">
+          <Text className="mt-6 text-center text-3xl font-bold text-error">
             Thanh toán chưa hoàn tất
           </Text>
-          <Text className="mt-2 max-w-[300px] text-center text-sm leading-6 text-neutral-600">
+          <Text className="mt-3 max-w-[320px] text-center text-lg leading-7 text-neutral-600">
             {error ?? 'Vui lòng thử lại.'}
           </Text>
           {retryCount > 0 && (
-            <Text className="mt-4 text-center text-xs font-semibold uppercase tracking-[0.2em] text-error">
+            <Text className="mt-4 text-center text-sm font-semibold uppercase tracking-[0.2em] text-error">
               Lần thử {retryCount} / 3
             </Text>
           )}
@@ -92,47 +82,44 @@ export const QrPaymentView = memo(function QrPaymentView({
     if (qrContent) {
       const isUrl = qrContent.startsWith('http')
       return (
-        <View className="items-center justify-center px-4 py-6">
-          <View className="rounded-[22px] border border-surface-200 bg-white p-4 shadow-sm">
+        <View className="h-[400px] w-full items-center justify-center px-4">
+          <View className="rounded-[22px] border border-surface-200 bg-white p-3 shadow-sm">
             {isUrl ? (
               <Image
                 source={{ uri: qrContent }}
-                style={{ width: 240, height: 240 }}
+                style={{ width: 210, height: 210 }}
                 resizeMode="contain"
               />
             ) : (
-              <QRCode value={qrContent} size={240} color="black" backgroundColor="white" />
+              <QRCode value={qrContent} size={210} color="black" backgroundColor="white" />
             )}
           </View>
-          <Text className="mt-4 text-center text-lg font-bold text-neutral-800">
+          <Text className="mt-3 text-center text-lg font-bold text-neutral-800">
             Đang chờ thanh toán QR
           </Text>
-          <View className="mt-3 flex-row items-center gap-2 rounded-full border border-orange-300 bg-white px-4 py-2">
+          <View className="mt-2 flex-row items-center gap-2 rounded-full border border-orange-300 bg-white px-4 py-1.5">
             <Clock3 size={18} color="#fb8c00" />
             <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">{timeLeft}</Text>
           </View>
-          <Text className="mt-2 max-w-[300px] text-center text-xl leading-6 text-neutral-600">
-            Sau khi thanh toán, vui lòng chờ trong giây lát để hệ thống xác nhận.
-          </Text>
         </View>
       )
     }
 
     return (
-      <View className="items-center justify-center px-4 py-6">
-        <View className="flex h-[220px] w-[220px] items-center justify-center overflow-hidden rounded-[22px] border border-surface-200 bg-surface-100 shadow-sm">
+      <View className="h-[400px] w-full items-center justify-center px-4">
+        <View className="flex h-[210px] w-[210px] items-center justify-center overflow-hidden rounded-[22px] border border-surface-200 bg-surface-100 shadow-sm">
           {isLoading ? (
-            <Shimmer className="h-[160px] w-[160px] rounded-[18px]" />
+            <Shimmer className="h-[150px] w-[150px] rounded-[18px]" />
           ) : (
-            <View className="h-[160px] w-[160px] items-center justify-center rounded-[18px] bg-primary">
+            <View className="h-[150px] w-[150px] items-center justify-center rounded-[18px] bg-primary">
               <QRIcon width={72} height={72} />
             </View>
           )}
         </View>
         <Text className="mt-4 text-center text-lg font-bold text-neutral-800">
-          Đang chờ thanh toán QR
+          Đang khởi tạo mã QR...
         </Text>
-        <View className="mt-3 flex-row items-center gap-2 rounded-full border border-orange-300 bg-white px-4 py-2">
+        <View className="mt-3 flex-row items-center gap-2 rounded-full border border-orange-300 bg-white px-4 py-1.5">
           <Clock3 size={18} color="#fb8c00" />
           <Text className="text-xl font-black tracking-[1px] text-[#fb8c00]">--:--</Text>
         </View>
@@ -149,8 +136,8 @@ export const QrPaymentView = memo(function QrPaymentView({
     >
       {visible && (
         <>
-          <View className="bg-surface-50 px-6 pb-4 pt-4">
-            <View className="overflow-hidden rounded-[32px] border border-surface-200 bg-white px-6 py-6 shadow-sm">
+          <View className="bg-surface-50 px-6 pb-6 pt-4">
+            <View className="h-[400px] overflow-hidden rounded-[32px] border border-surface-200 bg-white px-6 py-2 shadow-sm">
               <View className="items-center">{renderQrStage()}</View>
             </View>
 
@@ -177,51 +164,62 @@ export const QrPaymentView = memo(function QrPaymentView({
               </View>
             </View>
 
-            {!isSuccess && (
-              <View className="mx-auto mt-4 w-full max-w-[640px] gap-3">
-                <Button
-                  label="Kiểm tra trạng thái QR với ngân hàng"
-                  variant="primary"
-                  disabled={!qrContent}
-                  onPress={onCheckStatus}
-                  className="h-16 rounded-[18px]"
-                  textClassName="text-[18px] font-bold"
-                />
-                <Button
-                  label="Xác nhận khách đã chuyển, kiểm tra sau"
-                  variant="primary"
-                  disabled={!qrContent}
-                  onPress={onForceComplete}
-                  className="h-16 rounded-[18px]"
-                  textClassName="text-[18px] font-bold"
-                />
-                <Button
-                  label="Hủy giao dịch"
-                  variant="error"
-                  disabled={!canCancel && !isError}
-                  onPress={onCancel}
-                  className="h-16 rounded-[18px]"
-                  textClassName="text-[18px] font-bold"
-                />
-              </View>
-            )}
+            <View className="mx-auto mt-4 min-h-[216px] w-full max-w-[640px] justify-end">
+              {!isError && (
+                <View className="gap-3">
+                  <Button
+                    label="Kiểm tra trạng thái QR với ngân hàng"
+                    variant="primary"
+                    disabled={!qrContent || isProcessing || isLoading}
+                    onPress={onCheckStatus}
+                    className="h-16 rounded-[18px]"
+                    textClassName="text-[18px] font-bold"
+                  />
+                  <Button
+                    label="Xác nhận khách đã chuyển, kiểm tra sau"
+                    variant="primary"
+                    loading={isForceCapturing}
+                    disabled={!qrContent || isProcessing || isLoading}
+                    onPress={onForceComplete}
+                    className="h-16 rounded-[18px]"
+                    textClassName="text-[18px] font-bold"
+                  />
+                  <Button
+                    label="Hủy giao dịch"
+                    variant="error"
+                    disabled={(!canCancel && !isError) || isProcessing || isLoading}
+                    onPress={onCancel}
+                    className="h-16 rounded-[18px]"
+                    textClassName="text-[18px] font-bold"
+                  />
+                </View>
+              )}
 
-            {isError && (
-              <View className="mt-4 flex-row gap-3">
-                <Button
-                  label="Thử lại"
-                  variant="primary"
-                  disabled={!canRetry}
-                  onPress={onRetry}
-                  className="h-16 flex-1 rounded-[18px]"
-                  textClassName="text-[18px] font-bold"
-                />
-              </View>
-            )}
+              {isError && (
+                <View className="gap-3">
+                  <Button
+                    label="Thử lại"
+                    variant="primary"
+                    disabled={!canRetry || isProcessing || isLoading}
+                    onPress={onRetry}
+                    className="h-16 rounded-[18px]"
+                    textClassName="text-[18px] font-bold"
+                  />
+                  <Button
+                    label="Hủy giao dịch"
+                    variant="error"
+                    disabled={isProcessing || isLoading}
+                    onPress={onCancel}
+                    className="h-16 rounded-[18px]"
+                    textClassName="text-[18px] font-bold"
+                  />
+                </View>
+              )}
+            </View>
           </View>
 
           <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-            {receiptOrder && (
+            {(isProcessing || isSuccess) && receiptOrder && (
               <View collapsable={false} ref={printRef}>
                 <BitexcoReceiptTemplate order={receiptOrder} staffName={staffName} />
               </View>

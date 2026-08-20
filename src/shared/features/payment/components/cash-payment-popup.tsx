@@ -154,6 +154,7 @@ export const CashPaymentPopup = memo(
           appliedVoucher: appliedVoucher || null,
           printRef,
           affiliateId: affiliate?.id ?? null,
+          affiliateName: affiliate?.name ?? null,
           agentType: affiliate?.agentType ?? null,
           note: note || null,
         },
@@ -188,47 +189,52 @@ export const CashPaymentPopup = memo(
       const isProcessing =
         machineState === 'savingOrder' ||
         machineState === 'preparingReceipt' ||
-        machineState === 'printingReceipt'
+        machineState === 'printingReceipt' ||
+        machineState === 'success'
       const isError = machineState === 'error'
       const isSuccess = machineState === 'success'
 
-      // Gộp effect ViceService
+      // Gộp effect ViceService (hoãn sang frame kế tiếp để không block animation mở popup)
       useEffect(() => {
         if (!visible) return
 
-        if (isSuccess) {
-          const paid = Number(cashTendered)
-          const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
+        const handle = requestAnimationFrame(() => {
+          if (isSuccess) {
+            const paid = Number(cashTendered)
+            const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
 
-          ViceService.paymentSuccess({
-            subtotal: totals.subtotal,
-            discount,
-            tax: totals.tax,
-            total: roundedTotal,
-            customerPaid: paid,
-            change: changeAmt,
-          })
+            ViceService.paymentSuccess({
+              subtotal: totals.subtotal,
+              discount,
+              tax: totals.tax,
+              total: roundedTotal,
+              customerPaid: paid,
+              change: changeAmt,
+            })
 
-          setVisible(false)
-          onSuccess({
-            success: true,
-            method: 'cash',
-            paidAmount: paid,
-            change: changeAmt,
-            isOnline: savedOrder?.source === 'online',
-          })
-        } else {
-          const paid = Number(cashTendered) || 0
-          const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
-          ViceService.showCashPayment({
-            subtotal: totals.subtotal,
-            discount,
-            tax: totals.tax,
-            total: roundedTotal,
-            customerPaid: paid,
-            change: changeAmt,
-          })
-        }
+            setVisible(false)
+            onSuccess({
+              success: true,
+              method: 'cash',
+              paidAmount: paid,
+              change: changeAmt,
+              isOnline: savedOrder?.source === 'online',
+            })
+          } else {
+            const paid = Number(cashTendered) || 0
+            const changeAmt = paid >= roundedTotal ? paid - roundedTotal : 0
+            ViceService.showCashPayment({
+              subtotal: totals.subtotal,
+              discount,
+              tax: totals.tax,
+              total: roundedTotal,
+              customerPaid: paid,
+              change: changeAmt,
+            })
+          }
+        })
+
+        return () => cancelAnimationFrame(handle)
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [visible, isSuccess, cashTendered, roundedTotal, discount, totals.subtotal, totals.tax])
 
@@ -487,7 +493,7 @@ export const CashPaymentPopup = memo(
 
               {/* Hidden Printer Template — Rendered inside popup using real saved data */}
               <View style={{ position: 'absolute', left: -2000, top: 0 }}>
-                {receiptOrder && (
+                {(isProcessing || isSuccess) && receiptOrder && (
                   <View collapsable={false} ref={printRef}>
                     <BitexcoReceiptTemplate order={receiptOrder} staffName={staffName} />
                   </View>

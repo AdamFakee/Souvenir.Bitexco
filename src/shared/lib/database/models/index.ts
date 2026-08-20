@@ -1,3 +1,5 @@
 export { default as CategoryModel } from './category'
 export { default as OrderModel, OrderStatus } from './order'
 export { default as ProductModel } from './product'
+export { default as PartnerModel } from './partner'
+export { default as AffiliateModel } from './affiliate'

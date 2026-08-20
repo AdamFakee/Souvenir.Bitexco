@@ -147,7 +147,7 @@ const NoteInput = memo(function NoteInput({
     <View className="min-h-[64px] flex-1 flex-row items-start gap-3 rounded-2xl border border-outline-variant bg-white px-4 py-3">
       <PenSquare className="mt-1" size={22} color={COLORS.muted} />
       <TextInput
-        className="m-0 flex-1 text-[18px] font-bold text-surface-on"
+        className="m-0 flex-1 p-0 text-[18px] font-bold text-surface-on"
         placeholder="Nhập ghi chú đơn hàng..."
         placeholderTextColor="#8D8E8F"
         value={localNote}
@@ -576,7 +576,7 @@ const CheckoutPanel = memo(function CheckoutPanel() {
   const cartActor = useActiveCart()
 
   return (
-    <View className="w-full" style={{ zIndex: 10 }}>
+    <View className="w-full" style={{ zIndex: 10, paddingBottom: 25 }}>
       <View className="w-full rounded-2xl border border-outline-variant bg-white p-4 shadow-sm">
         <View className="flex-row items-stretch gap-3">
           <View className="w-2/5 gap-3">

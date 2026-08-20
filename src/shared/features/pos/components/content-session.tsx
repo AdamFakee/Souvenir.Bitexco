@@ -3,7 +3,6 @@ import { useCategories } from '@/shared/features/category'
 import { useProducts } from '@/shared/features/product'
 import { ProductModel } from '@/shared/lib/database/models'
 import { FlashList } from '@shopify/flash-list'
-import { ShoppingBasket } from 'lucide-react-native'
 import React, { useCallback } from 'react'
 import { Text, View } from 'react-native'
 import { usePosActor } from '../hooks'
@@ -52,7 +51,9 @@ export default function ContentSession() {
           <LoadingIndicator size="large" />
         </View>
       ) : products.length === 0 ? (
-        <EmptyState title="Không tìm thấy sản phẩm nào" icon={ShoppingBasket} />
+        <View className="flex-1 items-center justify-center">
+          <EmptyState title="Chưa có sản phẩm nào trong danh mục này" size="md" />
+        </View>
       ) : (
         <FlashList
           data={products}

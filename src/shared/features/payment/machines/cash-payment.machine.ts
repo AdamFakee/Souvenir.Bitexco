@@ -43,6 +43,7 @@ export interface CashPaymentContext {
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<unknown>
   affiliateId?: string | null
+  affiliateName?: string | null
   agentType?: AgentType | null
   notes?: string | null
 
@@ -71,6 +72,7 @@ export type CashPaymentInput = {
   appliedVoucher: AppliedVoucher | null
   printRef?: React.RefObject<unknown>
   affiliateId?: string | null
+  affiliateName?: string | null
   agentType?: AgentType | null
   note?: string | null
 }
@@ -162,6 +164,11 @@ export const cashPaymentMachine = setup({
         }
 
         // ── OFFLINE ────────────────────────────────────────────────────────────
+        const partnerId = input.agentType === 'agent' ? (input.affiliateId ?? null) : null
+        const partnerName = input.agentType === 'agent' ? (input.affiliateName ?? null) : null
+        const affiliateId = input.agentType !== 'agent' ? (input.affiliateId ?? null) : null
+        const affiliateName = input.agentType !== 'agent' ? (input.affiliateName ?? null) : null
+
         const savedOrder = await OrderLocalAPI.checkout({
           staffId: input.staffId,
           shiftId: input.shiftId,
@@ -181,6 +188,10 @@ export const cashPaymentMachine = setup({
             cashChange: input.change,
             referenceCode: undefined,
           },
+          affiliateId: affiliateId ?? undefined,
+          affiliateName: affiliateName ?? undefined,
+          partnerId: partnerId ?? undefined,
+          partnerName: partnerName ?? undefined,
         })
 
         return {

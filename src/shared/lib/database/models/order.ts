@@ -25,6 +25,10 @@ export default class OrderModel extends Model {
 
   @field('shift_id') shiftId!: string
   @field('staff_id') staffId!: string
+  @field('partner_id') partnerId?: string
+  @field('partner_name') partnerName?: string
+  @field('affiliate_id') affiliateId?: string
+  @field('affiliate_name') affiliateName?: string
   @field('status') status!: OrderStatus
   @field('subtotal') subtotal!: number
   @field('discount') discount!: number

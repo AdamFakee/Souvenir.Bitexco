@@ -3,14 +3,16 @@
  * Currently supports: 'DD/MM/YYYY', 'YYYY-MM-DD'
  */
 export const formatDate = (
-  date: Date | null,
+  date: Date | string | number | null | undefined,
   format: 'DD/MM/YYYY' | 'YYYY-MM-DD' = 'DD/MM/YYYY',
 ): string => {
   if (!date) return ''
+  const d = date instanceof Date ? date : new Date(date)
+  if (isNaN(d.getTime())) return ''
 
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
 
   if (format === 'YYYY-MM-DD') {
     return `${year}-${month}-${day}`
@@ -22,14 +24,16 @@ export const formatDate = (
 /**
  * Formats a Date object to a 'dd/MM/yyyy - HH:mm' string.
  */
-export const formatDateTime = (date: Date | null): string => {
+export const formatDateTime = (date: Date | string | number | null | undefined): string => {
   if (!date) return ''
+  const d = date instanceof Date ? date : new Date(date)
+  if (isNaN(d.getTime())) return ''
 
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
 
   return `${day}/${month}/${year} - ${hours}:${minutes}`
 }

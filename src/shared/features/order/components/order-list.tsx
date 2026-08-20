@@ -1,11 +1,12 @@
 import { EmptyState, IconButton, LoadMore } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
 import { getPaymentMethodStyle, PaymentMethodCode } from '@/shared/features/payment'
+import { AffiliateModel, database, PartnerModel } from '@/shared/lib/database'
 import { cn, formatCurrency } from '@/shared/utils'
 import { FlashList } from '@shopify/flash-list'
-import { PackageOpen, Repeat2, Undo2 } from 'lucide-react-native'
-import React, { memo, useCallback, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { ReceiptText, Repeat2, Undo2 } from 'lucide-react-native'
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { Pressable, RefreshControl, Text, View } from 'react-native'
 import { useOrderFilterStore } from '../store'
 import { IOrder } from '../types'
 import {
@@ -49,9 +50,16 @@ const COLUMNS: { field: SortField | 'actions'; label: string; flex: number; sort
     { field: 'actions', label: 'Hành động', flex: 0.7, sortable: false },
   ]
 
-function formatDateTime(date: Date | string) {
-  const d = typeof date === 'string' ? new Date(date) : date
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear().toString().slice(2))} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+function formatDateTime(date: Date | string | number | null | undefined) {
+  if (!date) return '—'
+  const d = date instanceof Date ? date : new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = String(d.getFullYear()).slice(-2)
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}`
 }
 
 // ── Payment method filter constants ──
@@ -67,7 +75,8 @@ const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethodCode | '' }[]
 const STATUS_OPTIONS: { label: string; value: string | null }[] = [
   { label: 'Tất cả', value: null },
   { label: 'Hoàn thành', value: 'COMPLETED' },
-  { label: 'Hủy hàng', value: 'REFUNDED,RETURNED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED' },
+  { label: 'Hủy đơn', value: 'REFUNDED,RETURNED,PARTIALLY_RETURNED,PARTIALLY_REFUNDED' },
+  { label: 'Đổi hàng', value: 'EXCHANGE' },
 ]
 
 // ── Sortable Header Cell (Thanh toán / Trạng thái header mở popover filter) ──
@@ -254,16 +263,64 @@ const OrderRow = memo(
     const displayTotal = order.refund ? order.refund.refundAmount : order.total
     const displayStatus = getOrderDisplayStatus(order)
 
-    let collaboratorName = '—'
-    let collaboratorCode = ''
+    const initialName = useMemo(() => {
+      if (order.partner?.nameVi) return order.partner.nameVi
+      if (order.partner?.nameEn) return order.partner.nameEn
+      if (order.partnerName) return order.partnerName
+      if (order.affiliate?.name) return order.affiliate.name
+      if (order.affiliateName) return order.affiliateName
+      return null
+    }, [order])
 
-    if (order.agentType === 'agent' && order.partner) {
-      collaboratorName = order.partner.nameVi || '—'
-      collaboratorCode = order.partner.code ? `#${order.partner.code}` : ''
-    } else if (order.affiliate) {
-      collaboratorName = order.affiliate.name || '—'
-      collaboratorCode = order.affiliate.code ? `#${order.affiliate.code}` : ''
-    }
+    const initialCode = useMemo(() => {
+      if (order.partner?.code) return `#${order.partner.code}`
+      if (order.affiliate?.code) return `#${order.affiliate.code}`
+      return ''
+    }, [order])
+
+    const [resolvedName, setResolvedName] = useState<string | null>(initialName)
+    const [resolvedCode, setResolvedCode] = useState<string>(initialCode)
+
+    useEffect(() => {
+      if (initialName) {
+        setResolvedName(initialName)
+        setResolvedCode(initialCode)
+        return
+      }
+
+      let isMounted = true
+
+      if (order.partnerId) {
+        database
+          .get<PartnerModel>('partners')
+          .find(order.partnerId)
+          .then((p) => {
+            if (isMounted && p) {
+              setResolvedName(p.nameVi || p.nameEn || p.code || null)
+              if (p.code) setResolvedCode(`#${p.code}`)
+            }
+          })
+          .catch(() => {})
+      } else if (order.affiliateId) {
+        database
+          .get<AffiliateModel>('affiliates')
+          .find(order.affiliateId)
+          .then((a) => {
+            if (isMounted && a) {
+              setResolvedName(a.name || a.code || null)
+              if (a.code) setResolvedCode(`#${a.code}`)
+            }
+          })
+          .catch(() => {})
+      } else {
+        setResolvedName(null)
+        setResolvedCode('')
+      }
+
+      return () => {
+        isMounted = false
+      }
+    }, [order.partnerId, order.affiliateId, initialName, initialCode])
 
     const canExchange = order.canExchange ?? checkCanExchange(order)
     const canReturn = order.canReturn ?? checkCanReturn(order)
@@ -299,11 +356,11 @@ const OrderRow = memo(
             numberOfLines={1}
             style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold', fontSize: 20 }}
           >
-            {collaboratorName}
+            {resolvedName || '—'}
           </Text>
-          {collaboratorCode ? (
+          {resolvedCode ? (
             <Text style={{ color: TEXT_TERTIARY, fontFamily: 'Manrope-Bold', fontSize: 16 }}>
-              {collaboratorCode}
+              {resolvedCode}
             </Text>
           ) : null}
         </View>
@@ -486,10 +543,21 @@ export const OrderList = memo(function OrderList({
         data={orders}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 8 }}
-        onRefresh={onRefresh}
-        refreshing={refreshing}
+        contentContainerStyle={{
+          paddingBottom: 8,
+          flexGrow: 1,
+          justifyContent: !isLoading && orders.length === 0 ? 'center' : undefined,
+        }}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary.default]}
+              tintColor={COLORS.primary.default}
+            />
+          ) : undefined
+        }
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) {
             fetchNextPage()
@@ -506,9 +574,8 @@ export const OrderList = memo(function OrderList({
             </View>
           ) : (
             <EmptyState
-              title="Danh sách trống"
-              description="Chúng tôi không tìm thấy đơn hàng nào khớp với bộ lọc hiện tại của bạn."
-              icon={PackageOpen}
+              title="Không tìm thấy đơn hàng phù hợp"
+              icon={ReceiptText}
               actionLabel="Xóa bộ lọc"
               onAction={resetFilters}
             />

@@ -7,7 +7,6 @@ import { formatCurrency, formatDateTime } from '@/shared/utils'
 import { Printer, X } from 'lucide-react-native'
 import React, { memo, useRef, useState } from 'react'
 import { ActivityIndicator, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   ReconciliationReceiptData,
   ReconciliationReceiptTemplate,
@@ -120,14 +119,16 @@ export const ReconciliationModal = memo(
           </View>
         )}
 
-        <ModalBase visible={visible} onClose={handleClose} size="default" className="max-w-[600px]">
-          <SafeAreaView className="gap-6 overflow-hidden rounded-3xl bg-white p-8">
+        <ModalBase visible={visible} onClose={handleClose} size="default" className="max-w-[640px]">
+          <View className="gap-3 overflow-hidden rounded-3xl bg-white px-7 py-5">
             {/* Header */}
-            <View className="flex-row items-center justify-between border-b border-outline-variant pb-4">
-              <Text className="text-2xl font-black text-surface-on">Xác nhận đối soát</Text>
+            <View className="flex-row items-center justify-between border-b border-outline-variant pb-3">
+              <Text className="text-[32px] font-black leading-[40px] text-surface-on">
+                Xác nhận đối soát
+              </Text>
               <IconButton
                 icon={X}
-                size={28}
+                size={34}
                 color={COLORS.surface.onVariant}
                 onPress={handleClose}
               />
@@ -135,29 +136,38 @@ export const ReconciliationModal = memo(
 
             {/* Loading skeleton */}
             {isLoading && (
-              <View className="items-center justify-center gap-4 py-12">
+              <View className="items-center justify-center gap-3 py-8">
                 <ActivityIndicator size="large" color={COLORS.primary.default} />
-                <Text className="text-base text-neutral-400">Đang tải dữ liệu đối soát...</Text>
+                <Text className="text-xl text-neutral-400">Đang tải dữ liệu đối soát...</Text>
               </View>
             )}
 
             {/* Error state */}
             {!isLoading && error && (
-              <View className="items-center justify-center gap-3 py-10">
-                <Text className="text-center text-base font-bold text-error">{error}</Text>
-                <Button label="Đóng" variant="error" onPress={handleClose} />
+              <View className="items-center justify-center gap-3 py-8">
+                <Text className="text-center text-xl font-bold text-error">{error}</Text>
+                <Button
+                  label="Đóng"
+                  variant="error"
+                  onPress={handleClose}
+                  className="h-14 px-8"
+                  textClassName="text-xl font-bold"
+                />
               </View>
             )}
 
             {/* Content Body — chỉ render khi có data */}
             {!isLoading && !error && receiptData && (
-              <View className="gap-4 py-2">
-                <View className="flex-row items-center justify-between border-b border-surface-100 py-2">
-                  <Text className="text-base font-medium text-neutral-500" numberOfLines={1}>
+              <View className="gap-1">
+                <View className="flex-row items-center justify-between border-b border-surface-100 py-2.5">
+                  <Text
+                    className="text-[22px] font-semibold leading-7 text-neutral-500"
+                    numberOfLines={1}
+                  >
                     {receiptData.ownerType === 'collaborator' ? 'Cộng tác viên' : 'Đối tác'}
                   </Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-lg font-bold text-surface-on"
+                    className="ml-4 flex-1 text-right text-[26px] font-bold leading-8 text-surface-on"
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
@@ -165,36 +175,45 @@ export const ReconciliationModal = memo(
                   </Text>
                 </View>
 
-                <View className="flex-row items-center justify-between border-b border-surface-100 py-2">
-                  <Text className="text-base font-medium text-neutral-500" numberOfLines={1}>
+                <View className="flex-row items-center justify-between border-b border-surface-100 py-2.5">
+                  <Text
+                    className="text-[22px] font-semibold leading-7 text-neutral-500"
+                    numberOfLines={1}
+                  >
                     Từ ngày
                   </Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-base font-semibold text-surface-on"
+                    className="ml-4 flex-1 text-right text-[22px] font-bold leading-7 text-surface-on"
                     numberOfLines={1}
                   >
                     {receiptData.dateFrom}
                   </Text>
                 </View>
 
-                <View className="flex-row items-center justify-between border-b border-surface-100 py-2">
-                  <Text className="text-base font-medium text-neutral-500" numberOfLines={1}>
+                <View className="flex-row items-center justify-between border-b border-surface-100 py-2.5">
+                  <Text
+                    className="text-[22px] font-semibold leading-7 text-neutral-500"
+                    numberOfLines={1}
+                  >
                     Đến ngày
                   </Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-base font-semibold text-surface-on"
+                    className="ml-4 flex-1 text-right text-[22px] font-bold leading-7 text-surface-on"
                     numberOfLines={1}
                   >
                     {receiptData.dateTo}
                   </Text>
                 </View>
 
-                <View className="flex-row items-center justify-between border-b border-surface-100 py-2">
-                  <Text className="text-base font-medium text-neutral-500" numberOfLines={1}>
+                <View className="flex-row items-center justify-between border-b border-surface-100 py-2.5">
+                  <Text
+                    className="text-[22px] font-semibold leading-7 text-neutral-500"
+                    numberOfLines={1}
+                  >
                     Tổng số lượng đơn
                   </Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-lg font-bold text-surface-on"
+                    className="ml-4 flex-1 text-right text-[26px] font-bold leading-8 text-surface-on"
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
@@ -202,36 +221,45 @@ export const ReconciliationModal = memo(
                   </Text>
                 </View>
 
-                <View className="flex-row items-center justify-between border-b border-surface-100 py-2">
-                  <Text className="text-base font-medium text-neutral-500" numberOfLines={1}>
+                <View className="flex-row items-center justify-between border-b border-surface-100 py-2.5">
+                  <Text
+                    className="text-[22px] font-semibold leading-7 text-neutral-500"
+                    numberOfLines={1}
+                  >
                     Tổng doanh số
                   </Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-2xl font-black text-success"
+                    className="ml-4 flex-1 text-right text-[32px] font-black leading-[38px] text-success"
                     numberOfLines={1}
                   >
                     {formatCurrency(receiptData.totalRevenue)}
                   </Text>
                 </View>
 
-                <View className="flex-row items-center justify-between border-b border-surface-100 py-2">
-                  <Text className="text-base font-medium text-neutral-500" numberOfLines={1}>
+                <View className="flex-row items-center justify-between border-b border-surface-100 py-2.5">
+                  <Text
+                    className="text-[22px] font-semibold leading-7 text-neutral-500"
+                    numberOfLines={1}
+                  >
                     Tỷ lệ hoa hồng
                   </Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-lg font-bold text-primary"
+                    className="ml-4 flex-1 text-right text-[26px] font-bold leading-8 text-primary"
                     numberOfLines={1}
                   >
                     {(receiptData.commissionRate * 100).toFixed(1)}%
                   </Text>
                 </View>
 
-                <View className="flex-row items-center justify-between py-2">
-                  <Text className="text-base font-medium text-neutral-500" numberOfLines={1}>
+                <View className="flex-row items-center justify-between py-2.5">
+                  <Text
+                    className="text-[22px] font-semibold leading-7 text-neutral-500"
+                    numberOfLines={1}
+                  >
                     Hoa hồng
                   </Text>
                   <Text
-                    className="ml-4 flex-1 text-right text-2xl font-black text-primary"
+                    className="ml-4 flex-1 text-right text-[32px] font-black leading-[38px] text-primary"
                     numberOfLines={1}
                   >
                     {formatCurrency(receiptData.commissionAmount)}
@@ -242,11 +270,12 @@ export const ReconciliationModal = memo(
 
             {/* Action buttons — ẩn khi đang loading / error / chưa có data */}
             {!isLoading && !error && receiptData && (
-              <View className="mt-2 flex-row gap-4">
+              <View className="mt-2 flex-row gap-3">
                 <Button
                   label="Huỷ"
                   variant="error"
                   className="flex-1"
+                  textClassName="text-[22px] font-bold"
                   onPress={handleClose}
                   disabled={isPrinting}
                 />
@@ -255,6 +284,7 @@ export const ReconciliationModal = memo(
                   leftIcon={Printer}
                   variant="primary"
                   className="flex-1"
+                  textClassName="text-[22px] font-bold"
                   onPress={() => handlePrint(false)}
                   disabled={isPrinting}
                 />
@@ -263,12 +293,13 @@ export const ReconciliationModal = memo(
                   leftIcon={Printer}
                   variant="primary"
                   className="flex-1"
+                  textClassName="text-[22px] font-bold"
                   onPress={() => handlePrint(true)}
                   disabled={isPrinting}
                 />
               </View>
             )}
-          </SafeAreaView>
+          </View>
         </ModalBase>
       </>
     )

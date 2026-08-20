@@ -23,11 +23,11 @@ import { useOrderFilterStore } from '@/shared/features/order/store/use-order-fil
 import type { IOrder, Partner } from '@/shared/features/order/types'
 import type { Affiliate } from '@/shared/features/pos/types/cart.types'
 import { toast, useAlertStore } from '@/shared/store'
+import { useIsFocused } from '@react-navigation/native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InteractionManager, Pressable, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 
 export type OrderMode = 'all' | 'pos' | 'collaborator' | 'agent' | 'offline'
 
@@ -103,7 +103,7 @@ const GuideOwnerBar = memo(function GuideOwnerBar({
         placeholder={`Tất cả ${mode === 'collaborator' ? 'Cộng tác viên' : 'Đối tác'}`}
         className="flex-1"
         triggerClassName="h-[64px] rounded-xl"
-        triggerTextClassName="text-[20px] font-bold"
+        triggerTextClassName="text-[20px] font-bold text-surface-on"
       />
       {mode === 'collaborator' && (
         <Pressable
@@ -144,6 +144,9 @@ const OnlineOrdersResults = memo(function OnlineOrdersResults({
   onRefund: (order: IOrder) => void
   visible: boolean
 }) {
+  const isFocused = useIsFocused()
+  const isReallyVisible = visible && isFocused
+
   // Tránh việc 4 tab cùng gọi API 1 lúc khi user đổi ngày tháng (DateFilter).
   // Cho phép tab ẩn được fetch 1 lần duy nhất lúc vừa mount (để lấy cache), sau 2s thì khoá lại, chỉ fetch khi visible.
   const hasInitialized = useRef(false)
@@ -190,10 +193,12 @@ const OnlineOrdersResults = memo(function OnlineOrdersResults({
     enabled: visible || !hasInitialized.current,
   })
 
+  const [refreshing, setRefreshing] = useState(false)
+
   // Debounced EasyLoading: chỉ show nếu fetch kéo dài > 150ms (tránh flicker khi cache hit nhanh)
   useEffect(() => {
-    if (!visible) return
-    if (!isFetching || isLoading) {
+    if (!isReallyVisible) return
+    if (!isFetching || isLoading || refreshing) {
       useAlertStore.getState().hideLoading()
       return
     }
@@ -204,9 +209,8 @@ const OnlineOrdersResults = memo(function OnlineOrdersResults({
       clearTimeout(timer)
       useAlertStore.getState().hideLoading()
     }
-  }, [isFetching, isLoading, visible])
+  }, [isFetching, isLoading, isReallyVisible, refreshing])
 
-  const [refreshing, setRefreshing] = useState(false)
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
@@ -459,7 +463,6 @@ function OrdersContent() {
   const handleTabChange = useCallback(
     (newMode: OrderMode) => {
       if (mode === newMode) return
-      const t0 = performance.now()
 
       // Đổi màu tab ngay lập tức
       setMode(newMode)
@@ -469,17 +472,13 @@ function OrdersContent() {
       // Trì hoãn việc mount List để nhường luồng cho UI chạy animation mượt mà
       requestAnimationFrame(() => {
         setMountedModes((prev) => (prev.has(newMode) ? prev : new Set([...prev, newMode])))
-
-        requestAnimationFrame(() => {
-          console.log(`[PERF][tab] ${newMode} painted: ${(performance.now() - t0).toFixed(0)}ms`)
-        })
       })
     },
     [mode],
   )
 
   return (
-    <SafeAreaView className="flex-1">
+    <View className="flex-1 py-2">
       <View className="flex-1 bg-white">
         <ModeTabs mode={mode} onChangeMode={handleTabChange} />
 
@@ -547,7 +546,7 @@ function OrdersContent() {
           <RefundConfirmModal ref={refundModalRef} onSuccess={handleRefundSuccess} />
         ) : null}
       </View>
-    </SafeAreaView>
+    </View>
   )
 }
 

@@ -1,6 +1,7 @@
 import { cn } from '@/shared/utils'
+import { Portal } from '@gorhom/portal'
 import React, { memo } from 'react'
-import { Modal, Pressable, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { GlobalToast } from './global-toast'
 
 export interface ModalBaseProps {
@@ -19,10 +20,6 @@ const SIZE_CLASSES = {
   '80%': 'h-[80%] w-[80%] max-w-none overflow-hidden rounded-[32px] bg-[#f8fafc]',
 } as const
 
-/**
- * Native Modal fade only — bỏ Reanimated FadeIn 300ms chồng animation.
- * Mở modal cảm giác snappy hơn trên tablet.
- */
 export const ModalBase = memo(function ModalBase({
   visible,
   onClose,
@@ -35,14 +32,17 @@ export const ModalBase = memo(function ModalBase({
     if (dismissible) onClose()
   }
 
+  if (!visible) return null
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleDismiss}>
-      <View className="flex-1 items-center justify-center bg-black/50 px-0">
-        <Pressable className="absolute inset-0" onPress={handleDismiss} />
-        <View className={cn(SIZE_CLASSES[size], className)}>{children}</View>
+    <Portal hostName="modal">
+      <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
+        <View className="flex-1 items-center justify-center bg-black/50 px-0">
+          <Pressable className="absolute inset-0" onPress={handleDismiss} />
+          <View className={cn(SIZE_CLASSES[size], className)}>{children}</View>
+        </View>
       </View>
-      <GlobalToast />
-    </Modal>
+    </Portal>
   )
 })
 

@@ -1,6 +1,7 @@
 import type { PaymentMethodCode } from '@/shared/features/payment/types/payment.constants'
 import { PAYMENT_METHOD_LABELS } from '@/shared/features/payment/types/payment.constants'
 import { OrderStatus } from '@/shared/lib/database'
+import { storage } from '@/shared/lib/storage'
 
 /**
  * Trạng thái đơn hàng thực tế từ hệ thống quản lý kho/đơn hàng WMS.
@@ -200,6 +201,8 @@ export const getOrderDisplayStatus = (order: {
   fulfillmentStatus?: string | null
   returnStatus?: string | null
   code?: string | null
+  isExchange?: boolean | null
+  isExchangeOrder?: boolean | null
 }): { label: string; color: string; bgColor: string } => {
   // 1. Hủy đơn (FAILED / CANCELLED)
   if (order.state === 'CANCELLED' || order.status === 'FAILED' || order.status === 'CANCELLED') {
@@ -208,7 +211,12 @@ export const getOrderDisplayStatus = (order: {
 
   // 2. Hoàn trả hàng (REFUNDED)
   if (order.status === 'REFUNDED' || order.status === 'RETURNED' || order.code?.startsWith('RT')) {
-    return { label: 'Hủy hàng', color: '#DC2626', bgColor: '#FEE2E2' }
+    return { label: 'Hủy đơn', color: '#DC2626', bgColor: '#FEE2E2' }
+  }
+
+  // Đổi hàng (EXCHANGE)
+  if (order.status === 'EXCHANGE' || order.isExchange || order.isExchangeOrder) {
+    return { label: 'Đổi hàng', color: '#2563EB', bgColor: '#DBEAFE' } // Blue
   }
 
   // 3. Hoàn thành (COMPLETED)
@@ -235,4 +243,71 @@ export const formatReceiptCode = (codeOrId: string | null | undefined): string =
     return clean.substring(0, 12).toUpperCase()
   }
   return codeOrId.toUpperCase()
+}
+
+const STORAGE_KEY_ORDER_COUNTER_DATE = 'offline_order_counter_date'
+const STORAGE_KEY_ORDER_COUNTER_COUNT = 'offline_order_counter_count'
+
+/**
+ * Tăng số thứ tự (STT) đơn hàng trong ngày lên 1 (dùng chung cho cả Online và Offline).
+ * Tự động reset STT về 1 khi bước sang ngày mới (DDMMYYYY).
+ */
+export const incrementDailyOrderCount = (now: Date = new Date()): number => {
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yyyy = now.getFullYear()
+  const currentDateStr = `${dd}${mm}${yyyy}`
+
+  const storedDate = storage.getString(STORAGE_KEY_ORDER_COUNTER_DATE)
+  let count = storage.getNumber(STORAGE_KEY_ORDER_COUNTER_COUNT) ?? 0
+
+  if (storedDate !== currentDateStr) {
+    count = 1
+  } else {
+    count += 1
+  }
+
+  storage.set(STORAGE_KEY_ORDER_COUNTER_DATE, currentDateStr)
+  storage.set(STORAGE_KEY_ORDER_COUNTER_COUNT, count)
+
+  return count
+}
+
+/**
+ * Lấy số lượng đơn hàng hiện tại trong ngày (không tăng counter).
+ */
+export const getTodayOrderCount = (now: Date = new Date()): number => {
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yyyy = now.getFullYear()
+  const currentDateStr = `${dd}${mm}${yyyy}`
+
+  const storedDate = storage.getString(STORAGE_KEY_ORDER_COUNTER_DATE)
+  if (storedDate !== currentDateStr) {
+    return 0
+  }
+  return storage.getNumber(STORAGE_KEY_ORDER_COUNTER_COUNT) ?? 0
+}
+
+/**
+ * Sinh mã đơn hàng offline theo định dạng: SO-DDMMYYYY-ABSTT
+ * - DDMMYYYY: Ngày tháng năm hiện tại
+ * - AB: 2 ký tự ngẫu nhiên in hoa (A-Z)
+ * - STT: Số thứ tự 3 chữ số (001 - 999), reset khi qua ngày mới
+ */
+export const generateOfflineOrderCode = (now: Date = new Date()): string => {
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yyyy = now.getFullYear()
+  const dateStr = `${dd}${mm}${yyyy}`
+
+  const stt = incrementDailyOrderCount(now)
+  const sttStr = String(stt).padStart(3, '0')
+
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const char1 = chars.charAt(Math.floor(Math.random() * chars.length))
+  const char2 = chars.charAt(Math.floor(Math.random() * chars.length))
+  const randomAB = `${char1}${char2}`
+
+  return `SO-${dateStr}-${randomAB}${sttStr}`
 }

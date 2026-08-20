@@ -98,10 +98,6 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
       const response = await axios.get<PosLookupResult>('/v1/pos/lookup', {
         params: queryParams,
       })
-      console.log(
-        '[ProductRemoteAPI] lookupProduct response:',
-        JSON.stringify(response.data, null, 2),
-      )
       return response.data
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -220,12 +216,6 @@ export const ProductRemoteAPI: FeatureRemoteAPI & {
         if (data && data.items) {
           allItems = allItems.concat(data.items)
           hasMore = data.hasMore
-          console.log(`[ProductRemoteAPI] Phản hồi trang ${page}:`, {
-            itemsCount: data?.items?.length ?? 0,
-            hasMore: data?.hasMore,
-            syncedAt: lastPulledAt,
-          })
-          console.log('data', JSON.stringify(data, null, 2))
           if (data.syncedAt) {
             syncedAtFromServer =
               typeof data.syncedAt === 'string' ? new Date(data.syncedAt).getTime() : data.syncedAt
