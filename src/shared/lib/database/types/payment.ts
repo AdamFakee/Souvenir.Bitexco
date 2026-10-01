@@ -1,8 +1,8 @@
-import type { PaymentMethodCode } from '../../../features/payment/types/payment.constants'
-import type { PortablePaymentCommandResult } from '../../../features/payment/types/portable-payment.type'
+import type { PaymentMethodCode } from '@/shared/types'
+import type { PortablePaymentCommandResult } from '@/core/hardware'
 
 // Re-export để các consumer cũ vẫn import từ đây được
-export type { PaymentMethodCode } from '../../../features/payment/types/payment.constants'
+export type { PaymentMethodCode } from '@/shared/types'
 
 /**
  * Dữ liệu Snapshot ghi nhận lịch sử các giao dịch thanh toán của đơn hàng.

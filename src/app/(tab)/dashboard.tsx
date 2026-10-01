@@ -1,13 +1,13 @@
+import { useCashSessionId, useEmployee } from '@/features/app'
+import { useGetDashboardOverview } from '@/features/dashboard'
+import { DashboardSkeleton } from '@/features/dashboard/components/dashboard-skeleton'
+import { DashboardInfoBar } from '@/features/dashboard/components/info-bar'
+import { PaymentMethodsPanel } from '@/features/dashboard/components/payment-methods-panel'
+import { ProductRevenuePanel } from '@/features/dashboard/components/product-revenue-panel'
+import { DashboardStatsCards } from '@/features/dashboard/components/stats-cards'
+import { StaffSelect } from '@/features/order/components/order-staff-select'
 import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
 import { COLORS } from '@/shared/constants'
-import { useCashSessionId, useEmployee } from '@/shared/features/app'
-import { DashboardSkeleton } from '@/shared/features/dashboard/components/dashboard-skeleton'
-import { DashboardInfoBar } from '@/shared/features/dashboard/components/info-bar'
-import { PaymentMethodsPanel } from '@/shared/features/dashboard/components/payment-methods-panel'
-import { ProductRevenuePanel } from '@/shared/features/dashboard/components/product-revenue-panel'
-import { DashboardStatsCards } from '@/shared/features/dashboard/components/stats-cards'
-import { useDashboardOverview } from '@/shared/features/dashboard/hooks'
-import { StaffSelect } from '@/shared/features/order/components/order-staff-select'
 import React, { useCallback, useMemo, useState } from 'react'
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 
@@ -22,7 +22,10 @@ function DashboardContent() {
   }, [])
 
   const shiftId = cashSessionId ?? undefined
-  const { overview, isLoading, isFetching, error, refetch } = useDashboardOverview(shiftId, staffId)
+  const { overview, isLoading, isFetching, error, refetch } = useGetDashboardOverview(
+    shiftId,
+    staffId,
+  )
 
   const [refreshing, setRefreshing] = useState(false)
   const handleRefresh = useCallback(async () => {

@@ -1,4 +1,4 @@
-import { BG_MAIN } from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import React, { memo } from 'react'
 import { ImageBackground, StyleSheet, Text, View } from 'react-native'
 import Svg, { Circle, Path } from 'react-native-svg'
@@ -57,7 +57,7 @@ function ViceStatusScreen({
   }
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       <View style={styles.overlay} />
 
       <View className="m-4 flex-1 items-center justify-center">

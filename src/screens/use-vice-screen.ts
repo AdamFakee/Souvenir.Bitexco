@@ -1,10 +1,6 @@
-import {
-  calculateVoucherDiscount,
-  calculateTotalTax,
-  calculateSubtotal,
-} from '@/shared/features/payment'
-import { usePosStore } from '@/shared/features/pos'
-import { CartItem } from '@/shared/features/pos/types/cart.types'
+import { calculateVoucherDiscount, calculateTotalTax, calculateSubtotal } from '@/features/payment'
+import { usePosStore } from '@/features/pos'
+import { CartItem } from '@/shared/types'
 import { toast } from '@/shared/store'
 import { useEffect } from 'react'
 import { InteractionManager } from 'react-native'

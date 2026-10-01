@@ -1,5 +1,5 @@
-import { ExchangeScreen } from '@/shared/features/order/components/exchange-screen'
-import { IOrder } from '@/shared/features/order/types'
+import { ExchangeScreen } from '@/features/order/components/exchange-screen'
+import { IOrder } from '@/shared/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useMemo } from 'react'

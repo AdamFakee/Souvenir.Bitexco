@@ -7,11 +7,10 @@
  * Cấu trúc dữ liệu map 1-1 với API v1.8 spec.
  */
 
-import { EmployeePermission, EmployeeRole } from '../features/app/types/app.types'
-import type { Employee, DeviceInfo } from '../features/app/types/app.types'
-import type { LoginResponseData } from '../features/auth/api/auth.api'
-import type { CashSession } from '../features/shift/api/remote/shift.remote.api'
-import type { PagedResponse, StateResponse } from '../types/api'
+import type { DeviceInfo, Employee } from '@/features/app/types/app.types'
+import { EmployeePermission, EmployeeRole } from '@/features/app/types/app.types'
+import type { LoginResponseData } from '@/features/auth/api'
+import type { CashSession, PagedResponse, StateResponse } from '../types'
 
 // ---------------------------------------------------------------------------
 // Device

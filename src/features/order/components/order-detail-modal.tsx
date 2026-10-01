@@ -1,0 +1,907 @@
+import { Button, IconButton, ModalBase } from '@/shared/components/ui'
+import { PAYMENT_METHOD_LABELS } from '@/features/payment/types/payment.constants'
+import { PrinterService } from '@/core/hardware'
+import { toast } from '@/shared/store/use-alert-store'
+import { formatCurrency } from '@/shared/utils'
+import { FlashList } from '@shopify/flash-list'
+import { Copy, Printer, X } from 'lucide-react-native'
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
+import { AffiliateModel, database, PartnerModel } from '@/shared/lib/database'
+import { IOrder } from '@/shared/types'
+import { formatReceiptCode, getOrderDisplayStatus } from '../utils'
+import { BitexcoReceiptTemplate } from './bitexco-receipt-template'
+import { RefundReceiptTemplate } from './refund-receipt-template'
+
+const BRAND = '#1C4E68'
+const BORDER = '#DFE0E1'
+const TEXT_PRIMARY = '#303036'
+const TEXT_MUTED = '#747475'
+
+export interface OrderDetailModalRef {
+  open: (order: IOrder) => void
+  close: () => void
+}
+
+interface OrderDetailModalProps {
+  ref?: React.Ref<OrderDetailModalRef>
+}
+
+export const OrderDetailModal = memo(function OrderDetailModal({ ref }: OrderDetailModalProps) {
+  const [visible, setVisible] = useState(false)
+  const [order, setOrder] = useState<IOrder | null>(null)
+  const [ready, setReady] = useState(false)
+  const [printReady, setPrintReady] = useState(false)
+  const [resolvedPartnerName, setResolvedPartnerName] = useState<string | null>(null)
+  const [resolvedAffiliateName, setResolvedAffiliateName] = useState<string | null>(null)
+  const pendingOrderRef = useRef<IOrder | null>(null)
+  const printRef = useRef(null)
+
+  useImperativeHandle(ref, () => ({
+    open: (o: IOrder) => {
+      pendingOrderRef.current = o
+      setOrder(null)
+      setReady(false)
+      setPrintReady(false)
+      setVisible(true)
+    },
+    close: () => {
+      pendingOrderRef.current = null
+      setVisible(false)
+      setOrder(null)
+      setReady(false)
+      setPrintReady(false)
+    },
+  }))
+
+  useEffect(() => {
+    if (!visible) return
+    const id = requestAnimationFrame(() => {
+      setOrder(pendingOrderRef.current)
+      setReady(true)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [visible])
+
+  useEffect(() => {
+    if (!order) {
+      setResolvedPartnerName(null)
+      setResolvedAffiliateName(null)
+      return
+    }
+
+    const pName = order.partner?.nameVi || order.partner?.nameEn || order.partnerName || null
+    const aName = order.affiliate?.name || order.affiliateName || null
+
+    setResolvedPartnerName(pName)
+    setResolvedAffiliateName(aName)
+
+    if (!pName && order.partnerId) {
+      database
+        .get<PartnerModel>('partners')
+        .find(order.partnerId)
+        .then((p) => {
+          if (p) setResolvedPartnerName(p.nameVi || p.nameEn || p.code || null)
+        })
+        .catch(() => {})
+    }
+
+    if (!aName && order.affiliateId) {
+      database
+        .get<AffiliateModel>('affiliates')
+        .find(order.affiliateId)
+        .then((a) => {
+          if (a) setResolvedAffiliateName(a.name || a.code || null)
+        })
+        .catch(() => {})
+    }
+  }, [order])
+
+  const close = useCallback(() => {
+    pendingOrderRef.current = null
+    setVisible(false)
+    setOrder(null)
+    setReady(false)
+    setPrintReady(false)
+  }, [])
+
+  const items = useMemo(() => order?.itemsSnapshot || [], [order?.itemsSnapshot])
+  const payments = useMemo(() => order?.paymentsSnapshot || [], [order?.paymentsSnapshot])
+  const refundLines = useMemo(() => order?.refund?.lines || [], [order?.refund?.lines])
+  const hasRefunds = !!order?.refund || items.some((it) => (it.returnedQty || 0) > 0)
+  const isExchangeOrReturnOrder = hasRefunds || items.some((it) => it.isExchange)
+
+  const getReturnedQty = useCallback(
+    (item: any): number => {
+      if (typeof item.returnedQty === 'number') return item.returnedQty
+      return refundLines
+        .filter((l: any) => l.productId === item.productId)
+        .reduce((sum: number, l: any) => sum + (l.returnedQty || 0), 0)
+    },
+    [refundLines],
+  )
+
+  const isReturnOrder =
+    !!order?.refund ||
+    (order?.refunds && order.refunds.length > 0) ||
+    order?.status === 'REFUNDED' ||
+    !!order?.code?.startsWith('RT')
+
+  const computed = useMemo(() => {
+    if (!order) {
+      return { subtotal: 0, tax: 0, discount: 0, total: 0 }
+    }
+    if (!isReturnOrder) {
+      return {
+        subtotal: (order.total || 0) + (order.discount || 0),
+        tax: order.totalTax ?? 0,
+        discount: order.discount || 0,
+        total: order.total || 0,
+      }
+    }
+    return {
+      subtotal: items.reduce((sum, it) => sum + (it.subtotal || 0), 0),
+      tax: items.reduce((sum, it) => sum + (it.taxAmount || 0), 0),
+      discount: items.reduce((sum, it) => sum + (it.discountAmount || 0), 0),
+      total: order.refund?.refundAmount ?? order.total,
+    }
+  }, [order, items, isReturnOrder])
+
+  const displayStatus = useMemo(() => (order ? getOrderDisplayStatus(order) : null), [order])
+
+  const resolvedRefund = useMemo(() => {
+    if (!order) return undefined
+    if (order.refund) return order.refund
+    if (order.refunds && order.refunds.length > 0) {
+      const r = order.refunds[0]
+      return {
+        orderId: r.orderId,
+        orderCode: r.orderCode,
+        returnId: r.returnId,
+        returnCode: r.returnCode,
+        reason: r.reason || '',
+        refundedAt: r.refundedAt,
+        refundAmount: r.refundAmount,
+        lines: r.lines.map((l: any) => ({
+          productId: l.productId,
+          sku: l.sku,
+          name: l.name,
+          orderedQty: l.orderedQty,
+          returnedQty: l.returnedQty,
+          remainingQty: l.remainingQty,
+          unitPrice: l.unitPrice,
+          lineRefundAmount: l.lineRefundAmount,
+          isReturned: l.isReturned ?? true,
+        })),
+      }
+    }
+    if (order.status === 'REFUNDED') {
+      return {
+        orderId: order.id,
+        orderCode: order.code || '',
+        returnId: order.id,
+        returnCode: order.code || '',
+        reason: order.refundReason || '',
+        refundedAt: order.createdAt
+          ? typeof order.createdAt === 'string'
+            ? order.createdAt
+            : (order.createdAt as Date).toISOString()
+          : new Date().toISOString(),
+        refundAmount: order.totalRefunded || order.total,
+        lines: items.map((it) => ({
+          productId: it.productId,
+          sku: it.sku,
+          name: it.name,
+          orderedQty: (it.remainingQty || 0) + it.quantity,
+          returnedQty: it.quantity,
+          remainingQty: it.remainingQty || 0,
+          unitPrice: it.price,
+          lineRefundAmount: it.subtotal,
+          isReturned: true,
+        })),
+      }
+    }
+    return undefined
+  }, [order, items])
+
+  const totalOriginalQty = useMemo(() => {
+    if (!order) return 0
+    if (isReturnOrder) {
+      return items.reduce((sum, it) => {
+        const refundLine = resolvedRefund?.lines?.find((l: any) => l.productId === it.productId)
+        return sum + (refundLine?.orderedQty ?? (it.remainingQty || 0) + (it.quantity || 0))
+      }, 0)
+    }
+    return items.reduce((sum, it) => sum + (it.quantity || 0), 0)
+  }, [order, isReturnOrder, items, resolvedRefund])
+
+  const totalReturnedQty = useMemo(() => {
+    if (!order) return 0
+    if (isReturnOrder) return items.reduce((sum, it) => sum + (it.quantity || 0), 0)
+    return items.reduce((sum, it) => sum + getReturnedQty(it), 0)
+  }, [order, isReturnOrder, items, getReturnedQty])
+
+  const handlePrint = useCallback(async (doubleCopy = false) => {
+    try {
+      setPrintReady(true)
+      // 1 frame để ref attach
+      await new Promise((r) => requestAnimationFrame(() => r(null)))
+      if (!printRef.current) return
+      await PrinterService.printComponent(printRef, { doubleCopy })
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi khi in hóa đơn')
+    }
+  }, [])
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: any; index: number }) => {
+      const returnedQty = getReturnedQty(item)
+      const refundLine = resolvedRefund?.lines?.find((l: any) => l.productId === item.productId)
+      // Món đổi mới (isExchange): không có trong đơn gốc → originalQty = 0
+      const originalQty = item.isExchange
+        ? 0
+        : isReturnOrder
+          ? (refundLine?.orderedQty ?? (item.remainingQty || 0) + (item.quantity || 0))
+          : item.quantity || 0
+      const remainingQty = item.isExchange
+        ? item.quantity || 0
+        : isReturnOrder
+          ? (item.remainingQty ?? refundLine?.remainingQty ?? 0)
+          : (item.remainingQty ?? originalQty - returnedQty)
+      const isEven = index % 2 === 0
+
+      return (
+        <View
+          className="flex-row items-center px-6 py-[18px]"
+          style={{
+            borderBottomWidth: 0.5,
+            borderColor: BORDER,
+            backgroundColor: isEven ? '#fff' : '#FAFAFB',
+          }}
+        >
+          <View className="flex-1">
+            <Text
+              className="text-[24px] font-extrabold"
+              style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+              numberOfLines={2}
+            >
+              {item.name}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <Text
+                className="text-[19px]"
+                style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Medium' }}
+              >
+                {item.sku}
+              </Text>
+              {item.isExchange && (
+                <View
+                  style={{
+                    backgroundColor: '#DEF7EC',
+                    paddingHorizontal: 8,
+                    paddingVertical: 1,
+                    borderRadius: 4,
+                    marginLeft: 8,
+                  }}
+                >
+                  <Text style={{ color: '#03543F', fontSize: 13, fontFamily: 'Manrope-Bold' }}>
+                    Đổi mới
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+          {isExchangeOrReturnOrder ? (
+            <>
+              <View className="w-[96px] items-center">
+                <Text
+                  className="text-[24px] font-extrabold"
+                  style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                >
+                  {originalQty}
+                </Text>
+              </View>
+              {/* Đổi/Trả: món trả → -N đỏ | món đổi mới → +N xanh | không có → '-' */}
+              <View className="w-[96px] items-center">
+                <Text
+                  className="text-[24px] font-extrabold"
+                  style={{
+                    color: item.isExchange ? '#16A34A' : returnedQty > 0 ? '#DC2626' : '#9CA3AF',
+                    fontFamily: 'Manrope-Bold',
+                  }}
+                >
+                  {item.isExchange
+                    ? `+${item.quantity}`
+                    : returnedQty > 0
+                      ? `-${returnedQty}`
+                      : '-'}
+                </Text>
+              </View>
+              {/* Đơn mới: tổng SL hiện tại (không dấu +) */}
+              <View className="w-[96px] items-center">
+                <Text
+                  className="text-[24px] font-extrabold"
+                  style={{
+                    color: remainingQty > 0 ? TEXT_PRIMARY : '#9CA3AF',
+                    fontFamily: 'Manrope-Bold',
+                  }}
+                >
+                  {remainingQty > 0 ? remainingQty : '0'}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View className="w-[96px] items-center">
+              <Text
+                className="text-[24px] font-extrabold"
+                style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+              >
+                {item.quantity}
+              </Text>
+            </View>
+          )}
+          <View className="w-[136px] items-end">
+            <Text
+              className="text-[22px] font-bold"
+              style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+              numberOfLines={1}
+            >
+              {formatCurrency(item.price)}
+            </Text>
+          </View>
+          <View className="w-[155px] items-end">
+            <Text
+              className="text-[24px] font-extrabold"
+              style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
+              numberOfLines={1}
+            >
+              {formatCurrency(item.subtotal)}
+            </Text>
+            {item.discountAmount > 0 && (
+              <Text
+                className="mt-0.5 text-[17px] font-bold"
+                style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+              >
+                -{formatCurrency(item.discountAmount)}
+              </Text>
+            )}
+          </View>
+        </View>
+      )
+    },
+    [getReturnedQty, resolvedRefund, isReturnOrder, isExchangeOrReturnOrder],
+  )
+
+  if (!visible) return null
+
+  const headerCode = formatReceiptCode(
+    order?.code || order?.id || pendingOrderRef.current?.code || pendingOrderRef.current?.id || '',
+  )
+
+  const showBody = ready && !!order && !!displayStatus
+
+  return (
+    <>
+      {/* Receipt chỉ mount khi bấm In — không block open */}
+      {printReady && order ? (
+        <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+          <View collapsable={false} ref={printRef}>
+            {order.status === 'REFUNDED' && resolvedRefund ? (
+              <RefundReceiptTemplate receipt={resolvedRefund} />
+            ) : (
+              <BitexcoReceiptTemplate order={order} />
+            )}
+          </View>
+        </View>
+      ) : null}
+
+      <ModalBase
+        visible={visible}
+        onClose={close}
+        size="90%"
+        className="overflow-hidden rounded-3xl bg-white"
+        dismissible={true}
+      >
+        <View className="flex-1">
+          {/* ── Header ── */}
+          <View
+            className="flex-row items-center justify-between px-7 py-[22px]"
+            style={{ borderBottomWidth: 1, borderColor: BORDER }}
+          >
+            <View className="flex-1">
+              <View>
+                <Text
+                  className="text-[29px] font-extrabold"
+                  style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
+                >
+                  Chi tiết đơn hàng
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    const code = headerCode
+                    if (!code || code === '---') return
+                    Clipboard.setString(code)
+                    toast.success('Đã sao chép mã đơn hàng')
+                  }}
+                  className="flex-row items-center gap-1.5 active:opacity-60"
+                >
+                  <Text
+                    className="text-[19px] font-bold"
+                    style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                  >
+                    #{headerCode}
+                  </Text>
+                  <Copy size={17} color={TEXT_MUTED} />
+                </Pressable>
+              </View>
+            </View>
+            <IconButton icon={X} size={33} color={TEXT_MUTED} onPress={close} />
+          </View>
+
+          {!showBody || !order || !displayStatus ? (
+            <View className="flex-1 items-center justify-center">
+              <Text style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold', fontSize: 18 }}>
+                Đang tải…
+              </Text>
+            </View>
+          ) : (
+            <View className="flex-1 flex-row">
+              {/* Left: product list */}
+              <View className="flex-[1.5]" style={{ borderRightWidth: 1, borderColor: BORDER }}>
+                {/* Table header */}
+                <View
+                  className="flex-row items-center px-6 py-[14px]"
+                  style={{ borderBottomWidth: 1, borderColor: BORDER, backgroundColor: '#FAFAFB' }}
+                >
+                  <Text
+                    className="flex-1 text-[19px] font-extrabold uppercase tracking-wider"
+                    style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                  >
+                    Sản phẩm
+                  </Text>
+                  {isExchangeOrReturnOrder ? (
+                    <>
+                      <Text
+                        className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
+                        style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                      >
+                        Đơn gốc
+                      </Text>
+                      <Text
+                        className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
+                        style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+                      >
+                        Đổi/Trả
+                      </Text>
+                      <Text
+                        className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
+                        style={{ color: '#16A34A', fontFamily: 'Manrope-Bold' }}
+                      >
+                        Đơn mới
+                      </Text>
+                    </>
+                  ) : (
+                    <Text
+                      className="w-[96px] text-center text-[19px] font-extrabold uppercase tracking-wider"
+                      style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                    >
+                      SL
+                    </Text>
+                  )}
+                  <Text
+                    className="w-[136px] text-right text-[19px] font-extrabold uppercase tracking-wider"
+                    style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                  >
+                    Đơn giá
+                  </Text>
+                  <Text
+                    className="w-[155px] text-right text-[19px] font-extrabold uppercase tracking-wider"
+                    style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                  >
+                    Thành tiền
+                  </Text>
+                </View>
+
+                <FlashList
+                  data={items}
+                  keyExtractor={(_, index) => index.toString()}
+                  renderItem={renderItem}
+                />
+              </View>
+
+              {/* Right: summary */}
+              <View className="flex-1 bg-gray-50">
+                <ScrollView
+                  className="flex-1 px-7 pb-[90px] pt-[22px]"
+                  showsVerticalScrollIndicator={false}
+                >
+                  <Text
+                    className="mb-7 text-[24px] font-extrabold uppercase tracking-widest"
+                    style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                  >
+                    Thông tin đơn hàng
+                  </Text>
+
+                  <View style={{ gap: 4 }}>
+                    <InfoRow
+                      label="Mã đơn"
+                      value={`#${order.code || order.id.substring(0, 8).toUpperCase()}`}
+                      onPress={() => {
+                        const code = order.code || order.id
+                        Clipboard.setString(code)
+                        toast.success('Đã sao chép mã đơn hàng')
+                      }}
+                    />
+                    {!!order.originalOrderCode && (
+                      <InfoRow
+                        label="Đơn gốc"
+                        value={`#${order.originalOrderCode}`}
+                        onPress={() => {
+                          Clipboard.setString(order.originalOrderCode || '')
+                          toast.success('Đã sao chép mã đơn gốc')
+                        }}
+                      />
+                    )}
+                    <InfoRow
+                      label="Thời gian"
+                      value={(() => {
+                        if (!order.createdAt) return '—'
+                        const d =
+                          order.createdAt instanceof Date
+                            ? order.createdAt
+                            : new Date(order.createdAt)
+                        return isNaN(d.getTime())
+                          ? '—'
+                          : d.toLocaleString('vi-VN', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                      })()}
+                    />
+                    {!!order.staffName && <InfoRow label="Nhân viên" value={order.staffName} />}
+                    {!!resolvedPartnerName && (
+                      <InfoRow label="Đối tác" value={resolvedPartnerName} />
+                    )}
+                    {!!resolvedAffiliateName && !resolvedPartnerName && (
+                      <InfoRow label="Cộng tác viên" value={resolvedAffiliateName} />
+                    )}
+
+                    <View className="mt-1 flex-row items-center justify-between py-2">
+                      <Text
+                        className="text-[19px] font-bold"
+                        style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                      >
+                        Trạng thái
+                      </Text>
+                      <View
+                        className="rounded-full px-5 py-1.5"
+                        style={{ backgroundColor: displayStatus.bgColor }}
+                      >
+                        <Text
+                          className="text-[17px] font-extrabold uppercase tracking-wide"
+                          style={{ color: displayStatus.color, fontFamily: 'Manrope-Bold' }}
+                          numberOfLines={1}
+                        >
+                          {displayStatus.label}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {payments.map((p: any, i: number) => (
+                      <React.Fragment key={i}>
+                        <InfoRow
+                          label={
+                            (PAYMENT_METHOD_LABELS as Record<string, string>)[p.method] ?? p.method
+                          }
+                          value={formatCurrency(p.amount)}
+                        />
+                        {p.method === 'cash' && p.cashTendered !== undefined && (
+                          <View
+                            className="flex-row items-center justify-between py-[7px] pl-5"
+                            style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
+                          >
+                            <Text
+                              className="text-[19px] font-bold"
+                              style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                            >
+                              Khách đưa
+                            </Text>
+                            <Text
+                              className="text-[19px] font-extrabold"
+                              style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                            >
+                              {formatCurrency(p.cashTendered)}
+                            </Text>
+                          </View>
+                        )}
+                        {p.method === 'cash' && p.cashChange !== undefined && (
+                          <View
+                            className="flex-row items-center justify-between py-[7px] pl-5"
+                            style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
+                          >
+                            <Text
+                              className="text-[19px] font-bold"
+                              style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                            >
+                              Tiền thừa
+                            </Text>
+                            <Text
+                              className="text-[19px] font-extrabold"
+                              style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                            >
+                              {formatCurrency(p.cashChange)}
+                            </Text>
+                          </View>
+                        )}
+                      </React.Fragment>
+                    ))}
+
+                    {!!order.voucherCode && (
+                      <InfoRow label="Voucher" value={order.voucherCode} valueColor={BRAND} />
+                    )}
+
+                    {!!order.note && (
+                      <View
+                        className="flex-row items-start justify-between py-3"
+                        style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
+                      >
+                        <Text
+                          className="text-[21px] font-bold"
+                          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                        >
+                          Ghi chú
+                        </Text>
+                        <View className="max-w-[65%]">
+                          <Text
+                            className="text-left text-[21px] font-extrabold"
+                            style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                          >
+                            {order.note}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {!!(order.refund || (order.totalRefunded && order.totalRefunded > 0)) && (
+                      <View
+                        className="mt-5"
+                        style={{ borderTopWidth: 2, borderColor: BORDER, paddingTop: 19 }}
+                      >
+                        <Text
+                          className="mb-[18px] text-[19px] font-extrabold uppercase tracking-widest"
+                          style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+                        >
+                          Thông tin trả hàng
+                        </Text>
+                        {!!(
+                          order.refund?.reason ||
+                          order.refundReason ||
+                          order.refunds?.[0]?.reason
+                        ) && (
+                          <InfoRow
+                            label="Lý do"
+                            value={
+                              order.refund?.reason ||
+                              order.refundReason ||
+                              order.refunds?.[0]?.reason ||
+                              ''
+                            }
+                          />
+                        )}
+                        <InfoRow
+                          label="Ngày trả"
+                          value={(() => {
+                            const raw =
+                              order.refund?.refundedAt ||
+                              order.refunds?.[0]?.refundedAt ||
+                              order.updatedAt
+                            if (!raw) return '—'
+                            const d = raw instanceof Date ? raw : new Date(raw)
+                            return isNaN(d.getTime())
+                              ? '—'
+                              : d.toLocaleString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                          })()}
+                        />
+                        <InfoRow label="Tổng số món gốc" value={`${totalOriginalQty} món`} />
+                        <InfoRow
+                          label="Số món đã trả"
+                          value={`${totalReturnedQty} món`}
+                          valueColor="#DC2626"
+                        />
+                        <InfoRow
+                          label="Số món còn lại"
+                          value={`${
+                            isReturnOrder
+                              ? items.reduce(
+                                  (sum: number, it: any) => sum + (it.remainingQty || 0),
+                                  0,
+                                )
+                              : items.reduce(
+                                  (sum: number, it: any) =>
+                                    sum + (it.remainingQty ?? it.quantity - getReturnedQty(it)),
+                                  0,
+                                )
+                          } món`}
+                          valueColor={BRAND}
+                        />
+                        <InfoRow
+                          label="Tiền hoàn"
+                          value={formatCurrency(
+                            order.totalRefunded || order.refund?.refundAmount || 0,
+                          )}
+                          valueColor="#DC2626"
+                          large
+                        />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Totals */}
+                  <View
+                    className="mt-9"
+                    style={{ borderTopWidth: 2, borderColor: BORDER, paddingTop: 24 }}
+                  >
+                    <View className="mb-4 flex-row items-center justify-between">
+                      <Text
+                        className="text-[24px] font-bold"
+                        style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                      >
+                        Tạm tính
+                      </Text>
+                      <Text
+                        className="text-[24px] font-extrabold"
+                        style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                        numberOfLines={1}
+                      >
+                        {formatCurrency(computed.subtotal)}
+                      </Text>
+                    </View>
+                    {computed.discount > 0 && (
+                      <View className="mb-4 flex-row items-center justify-between">
+                        <Text
+                          className="text-[24px] font-bold"
+                          style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+                        >
+                          Giảm giá
+                        </Text>
+                        <Text
+                          className="text-[24px] font-extrabold"
+                          style={{ color: '#DC2626', fontFamily: 'Manrope-Bold' }}
+                        >
+                          -{formatCurrency(computed.discount)}
+                        </Text>
+                      </View>
+                    )}
+                    {computed.tax > 0 && (
+                      <View className="mb-4 flex-row items-center justify-between">
+                        <Text
+                          className="text-[24px] font-bold"
+                          style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+                        >
+                          Thuế VAT
+                        </Text>
+                        <Text
+                          className="text-[24px] font-extrabold"
+                          style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                          numberOfLines={1}
+                        >
+                          {formatCurrency(computed.tax)}
+                        </Text>
+                      </View>
+                    )}
+                    <View
+                      className="mt-4.5 flex-row items-center justify-between"
+                      style={{
+                        borderTopWidth: 2,
+                        borderColor: BORDER,
+                        paddingTop: 19,
+                        paddingBottom: 72,
+                      }}
+                    >
+                      <Text
+                        className="text-[29px] font-extrabold uppercase tracking-tight"
+                        style={{ color: TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+                      >
+                        Tổng thanh toán
+                      </Text>
+                      <Text
+                        className="text-[44px] font-extrabold"
+                        style={{ color: BRAND, fontFamily: 'Manrope-Bold' }}
+                      >
+                        {formatCurrency(computed.total)}
+                      </Text>
+                    </View>
+                  </View>
+                </ScrollView>
+
+                {/* Action buttons — đổi/trả trên list; detail chỉ in */}
+                <View
+                  className="flex-row justify-end gap-4 px-7 py-[22px]"
+                  style={{ borderTopWidth: 1, borderColor: BORDER, backgroundColor: '#fff' }}
+                >
+                  <Button
+                    label="In 1 liên"
+                    variant="outline"
+                    leftIcon={Printer}
+                    className="h-[68px] rounded-xl px-14"
+                    textClassName="text-[19px] font-bold"
+                    iconSize={24}
+                    onPress={() => handlePrint(false)}
+                  />
+                  <Button
+                    label="In 2 liên"
+                    leftIcon={Printer}
+                    className="h-[68px] rounded-xl px-14"
+                    textClassName="text-[19px] font-bold"
+                    iconSize={24}
+                    onPress={() => handlePrint(true)}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+      </ModalBase>
+    </>
+  )
+})
+
+// ── Tiny info row helper ──
+function InfoRow({
+  label,
+  value,
+  valueColor,
+  large,
+  onPress,
+}: {
+  label: string
+  value: string
+  valueColor?: string
+  large?: boolean
+  onPress?: () => void
+}) {
+  const Container = onPress ? Pressable : View
+  return (
+    <Container
+      onPress={onPress}
+      className="flex-row items-center justify-between py-3"
+      style={{ borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}
+    >
+      <Text
+        className="text-[21px] font-bold"
+        style={{ color: TEXT_MUTED, fontFamily: 'Manrope-Bold' }}
+      >
+        {label}
+      </Text>
+      <View className="flex-row items-center gap-1.5">
+        <Text
+          className={large ? 'text-[29px] font-extrabold' : 'text-[21px] font-extrabold'}
+          style={{ color: valueColor || TEXT_PRIMARY, fontFamily: 'Manrope-Bold' }}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+        {onPress && <Copy size={19} color={valueColor || TEXT_MUTED} />}
+      </View>
+    </Container>
+  )
+}
+
+export default OrderDetailModal

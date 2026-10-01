@@ -1,7 +1,8 @@
+import { useEdcConnection } from '@/features/app/hooks/use-edc-connection'
 import { useViceScreen } from '@/screens/use-vice-screen'
 import { ErrorFallback } from '@/shared/components/common'
 import { GlobalEasyLoading, GlobalPopup, GlobalToast } from '@/shared/components/ui'
-import { HandoverReminderOverlay } from '@/shared/features/note'
+import { HandoverReminderOverlay } from '@/features/note'
 import { useAppGate, useAppInit } from '@/shared/hooks'
 import {
   AppDatabaseProvider,
@@ -54,6 +55,7 @@ configureReanimatedLogger({
 function AppBootstrapper() {
   useAppInit()
   useAppGate()
+  useEdcConnection()
   useViceScreen()
   return null
 }

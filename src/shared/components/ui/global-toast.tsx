@@ -1,9 +1,9 @@
 import { COLORS } from '@/shared/constants'
-import { Toast as ToastType, useAlertStore } from '@/shared/store'
+import { Toast as ToastType, useAlertStore } from '@/shared/store/use-alert-store'
+import { Portal } from '@gorhom/portal'
 import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react-native'
-import React from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import Animated, { SlideInRight, SlideOutRight } from 'react-native-reanimated'
+import React, { useEffect, useRef } from 'react'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const TYPE_CONFIG = {
@@ -38,11 +38,41 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
   const config = TYPE_CONFIG[toast.type]
   const Icon = config.icon
 
+  const anim = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start()
+  }, [anim])
+
+  const handleDismiss = () => {
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      hideToast(toast.id)
+    })
+  }
+
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [360, 0],
+  })
+
   return (
     <Animated.View
-      entering={SlideInRight.duration(350).springify()}
-      exiting={SlideOutRight.duration(250)}
-      style={[styles.card, { borderLeftColor: config.borderColor }]}
+      style={[
+        styles.card,
+        { borderLeftColor: config.borderColor },
+        {
+          opacity: anim,
+          transform: [{ translateX }],
+        },
+      ]}
     >
       {/* Icon */}
       <View style={[styles.iconWrap, { backgroundColor: config.iconBg }]}>
@@ -62,7 +92,7 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
       </View>
 
       {/* Close */}
-      <Pressable onPress={() => hideToast(toast.id)} style={styles.closeBtn} hitSlop={8}>
+      <Pressable onPress={handleDismiss} style={styles.closeBtn} hitSlop={8}>
         <X size={16} color={COLORS.neutral[400]} strokeWidth={2.5} />
       </Pressable>
     </Animated.View>
@@ -76,11 +106,13 @@ export const GlobalToast = () => {
   if (toasts.length === 0) return null
 
   return (
-    <View pointerEvents="box-none" style={[styles.container, { top: insets.top + 16 }]}>
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} />
-      ))}
-    </View>
+    <Portal>
+      <View pointerEvents="box-none" style={[styles.container, { top: insets.top + 16 }]}>
+        {toasts.map((toast) => (
+          <ToastItem key={toast.id} toast={toast} />
+        ))}
+      </View>
+    </Portal>
   )
 }
 

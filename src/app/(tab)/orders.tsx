@@ -1,30 +1,29 @@
-import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
-import { Select } from '@/shared/components/ui/select'
-import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
-import { ModeTabs } from '@/shared/features/order/components/mode-tabs'
-import {
-  OrderDetailModal,
-  type OrderDetailModalRef,
-} from '@/shared/features/order/components/order-detail-modal'
-import { OrderFilterBar } from '@/shared/features/order/components/order-filter-bar'
-import { OrderList } from '@/shared/features/order/components/order-list'
-import { OrderStatsFooter } from '@/shared/features/order/components/order-stats-footer'
-import { OrdersSkeleton } from '@/shared/features/order/components/orders-skeleton'
+import { useAffiliates } from '@/features/pos'
 import {
   ReconciliationModal,
   type ReconciliationModalRef,
-} from '@/shared/features/order/components/reconciliation-modal'
+} from '@/features/order/components/reconciliation-modal'
+import { LazyTabShell } from '@/shared/components/ui/lazy-tab-shell'
+import type { Affiliate , IOrder } from '@/shared/types'
+import { Select } from '@/shared/components/ui/select'
+import { ModeTabs } from '@/features/order/components/mode-tabs'
+import {
+  OrderDetailModal,
+  type OrderDetailModalRef,
+} from '@/features/order/components/order-detail-modal'
+import { OrderFilterBar } from '@/features/order/components/order-filter-bar'
+import { OrderList } from '@/features/order/components/order-list'
+import { OrderStatsFooter } from '@/features/order/components/order-stats-footer'
+import { OrdersSkeleton } from '@/features/order/components/orders-skeleton'
 import {
   RefundConfirmModal,
   type RefundConfirmModalRef,
-} from '@/shared/features/order/components/refund-confirm-modal'
-import { useOfflineOrders, useOrders } from '@/shared/features/order/hooks'
-import { useOrderFilterStore } from '@/shared/features/order/store/use-order-filter-store'
-import type { IOrder, Partner } from '@/shared/features/order/types'
-import type { Affiliate } from '@/shared/features/pos/types/cart.types'
+} from '@/features/order/components/refund-confirm-modal'
+import { useOfflineOrders, useOrders } from '@/features/order/hooks'
+import { useOrderFilterStore } from '@/features/order/store/use-order-filter-store'
 import { toast, useAlertStore } from '@/shared/store'
 import { useIsFocused } from '@react-navigation/native'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { InteractionManager, Pressable, Text, View } from 'react-native'
@@ -43,56 +42,38 @@ const GuideOwnerBar = memo(function GuideOwnerBar({
   onChangeId: (id: string | null) => void
   onPreviewReconciliation: (ownerName: string, ownerCode: string) => void
 }) {
-  const { data: affiliates = [] } = useQuery({
-    queryKey: ['pos-affiliates-list', { isActive: true, hasTransaction: true }],
-    queryFn: async () =>
-      (await OrderRemoteAPI.getAffiliates({ isActive: true, hasTransaction: true })).items,
-    enabled: mode === 'collaborator',
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const { data: partners = [] } = useQuery({
-    queryKey: ['pos-partners-list', { isActive: true, hasTransaction: true }],
-    queryFn: async () =>
-      (await OrderRemoteAPI.getPartners({ isActive: true, hasTransaction: true })).items,
-    enabled: mode === 'agent',
-    staleTime: 5 * 60 * 1000,
+  const { data: owners = [] } = useAffiliates({
+    agentType: mode,
+    hasTransaction: true,
+    isActive: true,
   })
 
   const options = useMemo(() => {
     if (mode === 'collaborator') {
       return [
         { label: 'Tất cả Cộng tác viên', value: '' },
-        ...affiliates.map((a: Affiliate) => ({ label: `${a.name} (${a.code})`, value: a.id })),
+        ...owners.map((a: Affiliate) => ({ label: `${a.name} (${a.code})`, value: a.id })),
       ]
     }
     return [
       { label: 'Tất cả Đối tác', value: '' },
-      ...partners.map((p: Partner) => ({ label: `${p.nameVi} (${p.code})`, value: p.id })),
+      ...owners.map((p: Affiliate) => ({ label: `${p.name} (${p.code})`, value: p.id })),
     ]
-  }, [mode, affiliates, partners])
+  }, [mode, owners])
 
   const handleReconcilePress = useCallback(() => {
-    if (mode === 'collaborator') {
-      if (!activeId) {
-        toast.info('Vui lòng chọn cụ thể một Cộng tác viên để đối soát.', 'Yêu cầu chọn CTV')
-        return
-      }
-      const activeAff = affiliates.find((a: Affiliate) => a.id === activeId)
-      if (activeAff) {
-        onPreviewReconciliation(activeAff.name, activeAff.code)
-      }
-    } else {
-      if (!activeId) {
-        toast.info('Vui lòng chọn cụ thể một Đối tác để đối soát.', 'Yêu cầu chọn Đối tác')
-        return
-      }
-      const activePartner = partners.find((p: Partner) => p.id === activeId)
-      if (activePartner) {
-        onPreviewReconciliation(activePartner.nameVi, activePartner.code)
-      }
+    if (!activeId) {
+      toast.info(
+        `Vui lòng chọn cụ thể một ${mode === 'collaborator' ? 'Cộng tác viên' : 'Đối tác'} để đối soát.`,
+        `Yêu cầu chọn ${mode === 'collaborator' ? 'CTV' : 'Đối tác'}`,
+      )
+      return
     }
-  }, [mode, activeId, affiliates, partners, onPreviewReconciliation])
+    const activeOwner = owners.find((o: Affiliate) => o.id === activeId)
+    if (activeOwner) {
+      onPreviewReconciliation(activeOwner.name, activeOwner.code)
+    }
+  }, [mode, activeId, owners, onPreviewReconciliation])
 
   return (
     <View className="mb-4 flex-row items-center gap-3">

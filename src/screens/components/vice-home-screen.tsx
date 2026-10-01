@@ -1,5 +1,5 @@
 import { LogoSkystore } from '@/shared/components/ui'
-import { BG_MAIN } from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
 import { ImageBackground, StyleSheet, Text, View } from 'react-native'
@@ -15,10 +15,10 @@ function ViceHomeScreen() {
   // 1. Màn hình chờ (Khi không có giỏ hàng)
   if (items.length === 0) {
     return (
-      <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+      <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
         <View style={styles.overlay} />
         <View className="h-full w-full items-center justify-center">
-          <LogoSkystore width={325} height={325} />
+          <LogoSkystore width={320} height={180} />
         </View>
       </ImageBackground>
     )
@@ -26,7 +26,7 @@ function ViceHomeScreen() {
 
   // 2. Màn hình giỏ hàng (Khi đang quét món) - Chỉ hiển thị Summary ở trung tâm
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">

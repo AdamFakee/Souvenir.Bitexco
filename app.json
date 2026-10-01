@@ -5,7 +5,7 @@
     "version": "1.0.1",
     "platforms": ["ios", "android"],
     "orientation": "portrait",
-    "icon": "./src/assets/icons/logo-sky-store-icon-app-mobile.png",
+    "icon": "./src/assets/icons/ic_launcher-playstore.png",
     "scheme": "souvenir",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -19,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#537b90",
-        "foregroundImage": "./src/assets/icons/logo-sky-store.png"
+        "foregroundImage": "./src/assets/icons/ic_launcher-playstore.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -40,7 +40,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./src/assets/icons/logo-sky-store.png",
+          "image": "./src/assets/icons/ic_launcher-playstore.png",
           "imageWidth": 266,
           "resizeMode": "contain",
           "backgroundColor": "#537b90",

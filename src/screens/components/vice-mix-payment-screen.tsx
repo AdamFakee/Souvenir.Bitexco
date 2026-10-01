@@ -1,16 +1,16 @@
-import { BG_MAIN } from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
 import { ImageBackground, StyleSheet, Text, View } from 'react-native'
 import { useViceStore } from '../vice-store'
 
-function ViceMixPaymentScreen() {
+export const ViceMixPaymentScreen = memo(function ViceMixPaymentScreen() {
   const total = useViceStore((state) => state.total)
   const cashPaid = useViceStore((state) => state.cashPaid)
   const nonCashAmount = useViceStore((state) => state.nonCashAmount)
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">
@@ -43,7 +43,7 @@ function ViceMixPaymentScreen() {
       </View>
     </ImageBackground>
   )
-}
+})
 
 const styles = StyleSheet.create({
   bg: { flex: 1 },

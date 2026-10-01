@@ -1,4 +1,4 @@
-import { BG_MAIN } from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import { formatCurrency } from '@/shared/utils'
 import LottieView from 'lottie-react-native'
 import React, { memo } from 'react'
@@ -7,11 +7,11 @@ import { useViceStore } from '../vice-store'
 
 const portableLottieAnimation = require('../../assets/animation/portable-payment-processing.json')
 
-function VicePortablePaymentScreen() {
+export const VicePortablePaymentScreen = memo(function VicePortablePaymentScreen() {
   const total = useViceStore((state) => state.total)
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">
@@ -38,7 +38,7 @@ function VicePortablePaymentScreen() {
       </View>
     </ImageBackground>
   )
-}
+})
 
 const styles = StyleSheet.create({
   bg: { flex: 1 },

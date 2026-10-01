@@ -1,7 +1,8 @@
+import { useAppStore } from '@/features/app'
+import { getDeviceContext } from '@/features/auth'
 import { Button } from '@/shared/components/ui'
 import { LogoSkystore } from '@/shared/components/ui/icons'
-import { useAppStore } from '@/shared/features/app'
-import { AuthAPI, BG_MAIN } from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import { toast } from '@/shared/store'
 import { ShieldX } from 'lucide-react-native'
 import React, { useState } from 'react'
@@ -14,7 +15,7 @@ export default function DeviceLocked() {
   const handleCheckAgain = async () => {
     setLoading(true)
     try {
-      const deviceContext = await AuthAPI.getDeviceContext()
+      const deviceContext = await getDeviceContext()
       if (deviceContext.isActive) {
         appService?.send({ type: 'DEVICE_UNLOCKED' })
       } else {
@@ -28,7 +29,7 @@ export default function DeviceLocked() {
   }
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       {/* Teal gradient overlay matching Figma */}
       <View style={styles.overlay} />
 

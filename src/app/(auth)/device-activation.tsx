@@ -1,12 +1,8 @@
+import { useAppStore } from '@/features/app'
+import { activateDevice, DeviceActivationFormData, deviceActivationSchema } from '@/features/auth'
 import { Button, ControlledInput } from '@/shared/components/ui'
 import { LogoSkystore } from '@/shared/components/ui/icons'
-import { useAppStore } from '@/shared/features/app'
-import {
-  AuthAPI,
-  BG_MAIN,
-  DeviceActivationFormData,
-  deviceActivationSchema,
-} from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import { toast } from '@/shared/store'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { ArrowRight, Key, Smartphone } from 'lucide-react-native'
@@ -29,7 +25,7 @@ export default function DeviceActivation() {
   const onSubmit = async (data: DeviceActivationFormData) => {
     setLoading(true)
     try {
-      const response = await AuthAPI.activateDevice({
+      const response = await activateDevice({
         deviceCode: data.deviceCode,
         activationToken: data.activationToken,
       })
@@ -40,7 +36,6 @@ export default function DeviceActivation() {
         type: 'DEVICE_ACTIVATED',
         device: response,
       })
-      toast.success('Kích hoạt thiết bị thành công')
       // Navigation tự động qua useAppGate
     } catch (error: any) {
       const serverData = error.response?.data
@@ -59,7 +54,7 @@ export default function DeviceActivation() {
   }
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       {/* Teal gradient overlay matching Figma */}
       <View style={styles.overlay} />
 

@@ -13,6 +13,8 @@ interface ControlledInputProps<T extends FieldValues> extends Omit<
   label?: string
   required?: boolean
   error?: string
+  errorClassName?: string
+  errorStyle?: any
   containerClassName?: string
   labelClassName?: string
   labelStyle?: any
@@ -27,6 +29,8 @@ export function ControlledInput<T extends FieldValues>({
   label,
   required,
   error: customError,
+  errorClassName,
+  errorStyle,
   containerClassName,
   labelClassName,
   labelStyle,
@@ -71,7 +75,9 @@ export function ControlledInput<T extends FieldValues>({
         {...inputProps}
       />
 
-      {errorMessage && <InputError message={errorMessage} />}
+      {errorMessage && (
+        <InputError message={errorMessage} className={errorClassName} style={errorStyle} />
+      )}
     </View>
   )
 }

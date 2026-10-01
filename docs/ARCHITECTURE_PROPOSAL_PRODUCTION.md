@@ -2,7 +2,7 @@
 
 > **Dự án**: Mobile POS (Expo / React Native / XState / WatermelonDB / NativeWind)  
 > **Tài liệu**: Bản Đề Xuất & Đặc Tả Tái Cấu Trúc Kiến Trúc Codebase Chuẩn Production  
-> **Phiên bản**: 2.0-PRODUCTION-READY  
+> **Phiên bản**: 2.1-PRODUCTION-READY  
 > **Tệp tin**: `docs/ARCHITECTURE_PROPOSAL_PRODUCTION.md`
 
 ---
@@ -17,15 +17,16 @@
    - [4.2 Layer 2: Core Domain Engines & Hardware Ports (`src/core/`)](#42-layer-2-core-domain-engines--hardware-ports-srccore)
    - [4.3 Layer 3: Feature Business Modules (`src/features/`)](#43-layer-3-feature-business-modules-srcfeatures)
    - [4.4 Layer 4: Shared Infrastructure & Atomic UI (`src/shared/`)](#44-layer-4-shared-infrastructure--atomic-ui-srcshared)
-5. [Đặc Tả Chi Tiết Các Deep Engines & Code Contracts](#5-đặc-tả-chi-tiết-các-deep-engines--code-contracts)
-   - [5.1 Hardware Abstraction Layer (Ports & Adapters Pattern)](#51-hardware-abstraction-layer-ports--adapters-pattern)
-   - [5.2 POS & Cart State Machine Engine](#52-pos--cart-state-machine-engine)
-   - [5.3 Payment Orchestration Engine](#53-payment-orchestration-engine)
-   - [5.4 Offline-First WatermelonDB Sync Engine](#54-offline-first-watermelondb-sync-engine)
-6. [Ma Trận Sở Hữu Trạng Thái & Luồng Dữ Liệu (State Ownership Matrix)](#6-ma-trận-sở-hữu-trạng-thái--luồng-dữ-liệu-state-ownership-matrix)
-7. [Quy Tắc Đóng Gói Module & Ranh Giới Import (Boundary Rules)](#7-quy-tắc-đóng-gói-module--ranh-giới-import-boundary-rules)
-8. [Lộ Trình Tái Cấu Trúc 4 Giai Đoạn (Incremental Migration Plan)](#8-lộ-trình-tái-cấu-trúc-4-giai-đoạn-incremental-migration-plan)
-9. [Đánh Giá Rủi Ro Kỹ Thuật & Giải Pháp Khắc Phục (Risk Mitigation)](#9-đánh-giá-rủi-ro-kỹ-thuật--giải-pháp-khắc-phục-risk-mitigation)
+5. [Chuẩn Thiết Kế Single Endpoint Per File (1 File = 1 API)](#5-chuẩn-thiết-kế-single-endpoint-per-file-1-file--1-api)
+6. [Đặc Tả Chi Tiết Các Deep Engines & Code Contracts](#6-đặc-tả-chi-tiết-các-deep-engines--code-contracts)
+   - [6.1 Hardware Abstraction Layer (Ports & Adapters Pattern)](#61-hardware-abstraction-layer-ports--adapters-pattern)
+   - [6.2 POS & Cart State Machine Engine](#62-pos--cart-state-machine-engine)
+   - [6.3 Payment Orchestration Engine](#63-payment-orchestration-engine)
+   - [6.4 Offline-First WatermelonDB Sync Engine](#64-offline-first-watermelondb-sync-engine)
+7. [Ma Trận Sở Hữu Trạng Thái & Luồng Dữ Liệu (State Ownership Matrix)](#7-ma-trận-sở-hữu-trạng-thái--luồng-dữ-liệu-state-ownership-matrix)
+8. [Quy Tắc Đóng Gói Module & Ranh Giới Import (Boundary Rules)](#8-quy-tắc-đóng-gói-module--ranh-giới-import-boundary-rules)
+9. [Lộ Trình Tái Cấu Trúc 4 Giai Đoạn (Incremental Migration Plan)](#9-lộ-trình-tái-cấu-trúc-4-giai-đoạn-incremental-migration-plan)
+10. [Đánh Giá Rủi Ro Kỹ Thuật & Giải Pháp Khắc Phục (Risk Mitigation)](#10-đánh-giá-rủi-ro-kỹ-thuật--giải-pháp-khắc-phục-risk-mitigation)
 
 ---
 
@@ -60,7 +61,7 @@ Khảo sát thực tế codebase hiện tại (`src/`) ghi nhận ứng dụng �
 
 ## 2. TRIẾT LÝ KIẾN TRÚC & NGUYÊN LÝ THIẾT KẾ CORE
 
-Đề xuất tái cấu trúc dựa trên **4 trụ cột thiết kế phần mềm hiện đại**:
+Đề xuất tái cấu trúc dựa trên **5 trụ cột thiết kế phần mềm hiện đại**:
 
 1. **Deep Modules (Nguyên lý John Ousterhout)**:
    - **Giao diện nhỏ (Small Surface)**: Caller hoặc React UI chỉ cần học một vài methods / custom hooks đơn giản.
@@ -74,7 +75,10 @@ Khảo sát thực tế codebase hiện tại (`src/`) ghi nhận ứng dụng �
    - **Core Engines (`src/core/`)**: Chứa logic nghiệp vụ thuần túy (POS calculation, Payment state machine, Sync engine).
    - **Feature Modules (`src/features/`)**: Chứa giao diện người dùng và container gắn kết UI với Engine.
 
-4. **Single Source of Truth (SSOT) theo từng State Domain**:
+4. **Single Endpoint Per File (1 File = 1 API)**:
+   - Mỗi Endpoint API (Query hoặc Mutation) được đóng gói độc lập hoàn toàn trong 1 file duy nhất bao gồm Schema (Valibot), Fetcher, QueryKey, `queryOptions` (TanStack Query v5) và Hook.
+
+5. **Single Source of Truth (SSOT) theo từng State Domain**:
    - **Workflow State Phức Tạp** $\rightarrow$ Pure XState Actors.
    - **Server Async State** $\rightarrow$ TanStack Query.
    - **Offline Database Persistence** $\rightarrow$ WatermelonDB (SQLite) + MMKV.
@@ -159,44 +163,6 @@ graph TD
   └── global.css                 # Import NativeWind / Tailwind CSS directives
   ```
 
-#### Code Mẫu Chuẩn: `src/app/_layout.tsx`
-
-```tsx
-import { AppDatabaseProvider, queryClient } from '@/shared/lib'
-import { PosProvider } from '@/core/pos-engine'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { Stack } from 'expo-router'
-import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { ErrorBoundary } from 'react-error-boundary'
-import { ErrorFallback } from '@/shared/components/common'
-import './global.css'
-
-export default function RootLayout() {
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <AppDatabaseProvider>
-          <QueryClientProvider client={queryClient}>
-            <PosProvider>
-              <ErrorBoundary FallbackComponent={ErrorFallback}>
-                <Stack
-                  screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'white' } }}
-                >
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="(tab)" />
-                </Stack>
-              </ErrorBoundary>
-            </PosProvider>
-          </QueryClientProvider>
-        </AppDatabaseProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
-  )
-}
-```
-
 ---
 
 ### 4.2 Layer 2: Core Domain Engines & Hardware Ports (`src/core/`)
@@ -254,23 +220,22 @@ export default function RootLayout() {
 ### 4.3 Layer 3: Feature Business Modules (`src/features/`)
 
 - **Mục đích**: Chứa toàn bộ giao diện người dùng (UI Components) và logic tương tác riêng của từng tính năng nghiệp vụ.
-- **Cấu trúc chuẩn của một Feature (`src/features/pos/`)**:
+- **Cấu trúc chuẩn của một Feature (`src/features/session/`)**:
   ```
-  src/features/pos/
+  src/features/session/
+  ├── api/                             # Single Endpoint per File API Modules
+  │   ├── get-active-sessions.ts       # Query: GET /v1/sessions/active
+  │   ├── get-session-detail.ts        # Query: GET /v1/sessions/:id
+  │   ├── close-session.ts             # Mutation: POST /v1/sessions/:id/close
+  │   └── index.ts                     # Barrel API Export
   ├── components/                      # UI Dumb Components
-  │   ├── product-grid.tsx             # Lưới sản phẩm
-  │   ├── cart-summary-panel.tsx       # Bảng tổng tiền giỏ hàng
-  │   ├── cart-item-row.tsx            # Dòng sản phẩm trong giỏ
-  │   └── category-bar.tsx             # Thanh chọn danh mục
+  │   ├── session-list-panel.tsx
+  │   └── session-card.tsx
   ├── containers/                      # Smart Container Component
-  │   └── pos-screen-container.tsx     # Kết nối Engine -> Render UI
-  ├── hooks/                           # Hooks nội bộ của Feature
-  │   └── use-product-search.ts
-  ├── store/                           # Ephemeral UI Store (Nếu cần)
-  │   └── use-pos-ui-store.ts          # VD: Toggle xem dạng Grid/List
-  ├── types/
-  │   └── pos-ui.types.ts
-  └── index.ts                         # Barrel File - Đóng gói Public API
+  │   └── session-screen-container.tsx
+  ├── hooks/                           # Feature local hooks
+  ├── types/                           # Shared Types trong Feature
+  └── index.ts                         # Barrel File Public API
   ```
 
 ---
@@ -315,9 +280,100 @@ export default function RootLayout() {
 
 ---
 
-## 5. ĐẶC TẢ CHI TIẾT CÁC DEEP ENGINES & CODE CONTRACTS
+## 5. CHUẨN THIẾT KẾ SINGLE ENDPOINT PER FILE (1 FILE = 1 API)
 
-### 5.1 Hardware Abstraction Layer (Ports & Adapters Pattern)
+Nhằm đảm bảo tính độc lập và khả năng bảo trì tối đa, mọi tích hợp API Server đều tuân thủ chuẩn **1 File = 1 API Endpoint**.
+
+### Quy chuẩn cấu trúc file API (`get-active-sessions.ts`):
+
+```typescript
+import { api } from '@/shared/lib/axios'
+import { QueryConfig } from '@/shared/lib/react-query'
+import { seconds } from '@/shared/utils'
+import { queryOptions, useQuery } from '@tanstack/react-query'
+import { array, object, string, type InferOutput } from 'valibot'
+
+// 1. Schema & Types DÙNG RIÊNG CHO API NÀY (Valibot)
+export type SessionFilter = 'all' | 'dine_in' | 'counter'
+
+export const sessionSchema = object({
+  id: string(),
+  tableName: string(),
+  // ... fields
+})
+
+export type Session = InferOutput<typeof sessionSchema>
+
+export type GetActiveSessionsParams = {
+  filter?: SessionFilter
+  search?: string
+}
+
+// 2. Query Key DÙNG RIÊNG CHO API NÀY
+export const getActiveSessionsQueryKey = (params?: GetActiveSessionsParams) =>
+  ['sessions', 'active', params?.filter ?? 'all', params?.search ?? ''] as const
+
+// 3. API Fetcher DÙNG RIÊNG CHO API NÀY
+export async function getActiveSessionsFetcher(): Promise<Session[]> {
+  const response = await api.get('/v1/sessions/active')
+  return response.data.sessions
+}
+
+// 4. Query Options DÙNG RIÊNG CHO API NÀY (TanStack Query v5)
+export const getActiveSessionsQueryOptions = (params?: GetActiveSessionsParams) =>
+  queryOptions({
+    queryKey: getActiveSessionsQueryKey(params),
+    queryFn: getActiveSessionsFetcher,
+    staleTime: seconds(15),
+    gcTime: seconds(60),
+    select: (sessions) =>
+      applySessionFilterAndSearch(sessions, params?.filter ?? 'all', params?.search ?? ''),
+  })
+
+type UseGetActiveSessionsOptions = GetActiveSessionsParams & {
+  queryConfig?: QueryConfig<typeof getActiveSessionsQueryOptions>
+}
+
+// 5. Custom Hook DÙNG RIÊNG CHO API NÀY
+export function useGetActiveSessions({
+  filter = 'all',
+  search = '',
+  queryConfig,
+}: UseGetActiveSessionsOptions = {}) {
+  return useQuery({
+    ...getActiveSessionsQueryOptions({ filter, search }),
+    ...queryConfig,
+  })
+}
+
+// Helper nội bộ chỉ phục vụ lọc kết quả client
+function applySessionFilterAndSearch(
+  sessions: Session[],
+  filter: SessionFilter,
+  search: string,
+): Session[] {
+  let list = sessions
+  if (filter === 'dine_in') list = list.filter((s) => s.orderType === 'DINE_IN')
+  if (filter === 'counter') list = list.filter((s) => s.orderType === 'COUNTER')
+  if (search.trim()) {
+    const q = search.trim().toLowerCase()
+    list = list.filter(
+      (s) =>
+        s.tableName.toLowerCase().includes(q) ||
+        s.identifier.toLowerCase().includes(q) ||
+        s.staffId.toLowerCase().includes(q) ||
+        (s.itemNames ?? []).some((n) => n.toLowerCase().includes(q)),
+    )
+  }
+  return [...list].sort((a, b) => a.openedAt - b.openedAt)
+}
+```
+
+---
+
+## 6. ĐẶC TẢ CHI TIẾT CÁC DEEP ENGINES & CODE CONTRACTS
+
+### 6.1 Hardware Abstraction Layer (Ports & Adapters Pattern)
 
 #### Interface Contracts (`src/core/hardware/interfaces/device.interface.ts`)
 
@@ -417,7 +473,7 @@ export const DeviceManager = new DeviceManagerFacade()
 
 ---
 
-### 5.2 POS & Cart State Machine Engine
+### 6.2 POS & Cart State Machine Engine
 
 `posMachine` điều phối danh sách các giỏ hàng (Multi-cart) và spawned child `cartMachine` cho từng tab.
 
@@ -445,38 +501,9 @@ stateDiagram-v2
     PrintAndClear --> Idle: RESET_CART
 ```
 
-#### Context Provider sạch (`src/core/pos-engine/pos-context.tsx`)
-
-```tsx
-import React, { createContext, useContext } from 'react'
-import { useActorRef, useSelector } from '@xstate/react'
-import { posMachine } from './machines/pos.machine'
-
-const PosActorContext = createContext<ReturnType<typeof useActorRef<typeof posMachine>> | null>(
-  null,
-)
-
-export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const posActor = useActorRef(posMachine)
-
-  return <PosActorContext.Provider value={posActor}>{children}</PosActorContext.Provider>
-}
-
-export const usePosActor = () => {
-  const actor = useContext(PosActorContext)
-  if (!actor) throw new Error('usePosActor must be used within PosProvider')
-  return actor
-}
-
-export const useActiveCart = () => {
-  const actor = usePosActor()
-  return useSelector(actor, (snapshot) => snapshot.context.activeCart)
-}
-```
-
 ---
 
-### 5.3 Offline-First WatermelonDB Sync Engine
+### 6.3 Offline-First WatermelonDB Sync Engine
 
 Triển khai cơ chế đồng bộ dữ liệu 2 chiều giữa SQLite local và Server qua REST API:
 
@@ -513,20 +540,20 @@ sequenceDiagram
 
 ---
 
-## 6. MA TRẬN SỞ HỮU TRẠNG THÁI & LUỒNG DỮ LIỆU (STATE OWNERSHIP MATRIX)
+## 7. MA TRẬN SỞ HỮU TRẠNG THÁI & LUỒNG DỮ LIỆU (STATE OWNERSHIP MATRIX)
 
 | Miền Trạng Thái (State Domain)    | Công Nghệ Chủ Sở Hữu      | Bộ Nhớ / Cache Phụ     | Hook / Interface Truy Cập      | Cơ Chế Trigger Re-render       |
 | :-------------------------------- | :------------------------ | :--------------------- | :----------------------------- | :----------------------------- |
 | **Giỏ hàng & Sản phẩm chọn**      | XState (`cartMachine`)    | MMKV (`pos-storage`)   | `useActiveCart()`              | `useSelector` (Granular Slice) |
 | **Quy trình Thanh toán**          | XState (`paymentMachine`) | Ephemeral Memory       | `usePaymentState()`            | `useSelector`                  |
 | **Catalog (Sản phẩm/Danh mục)**   | WatermelonDB              | SQLite Storage         | `withObservables` / `useQuery` | Watermelon Observable          |
-| **Lịch sử Đơn hàng (Server)**     | TanStack Query            | QueryCache (In-memory) | `useOrdersQuery()`             | React Query Refetch            |
+| **Lịch sử Đơn hàng (Server)**     | TanStack Query            | QueryCache (In-memory) | `useGetActiveSessions()`       | React Query Refetch            |
 | **Ca làm việc & Phiên đăng nhập** | XState (`appMachine`)     | MMKV (`app-persist`)   | `useAppSession()`              | `useSelector`                  |
 | **Bật/Tắt Modal, Toast UI**       | React Local State         | Zustand (UI Store)     | `useGlobalModal()`             | Zustand Hook                   |
 
 ---
 
-## 7. QUY TẮC ĐÓNG GÓI MODULE & RANH GIỚI IMPORT (BOUNDARY RULES)
+## 8. QUY TẮC ĐÓNG GÓI MODULE & RANH GIỚI IMPORT (BOUNDARY RULES)
 
 Để giữ cho codebase luôn sạch sẽ và có thể mở rộng lên tới hàng trăm nghìn dòng code, dự án áp dụng nghiêm ngặt các quy tắc phụ thuộc sau:
 
@@ -553,7 +580,7 @@ sequenceDiagram
 
 ---
 
-## 8. LỘ TRÌNH TÁI CẤU TRÚC 4 GIAI ĐOẠN (INCREMENTAL MIGRATION PLAN)
+## 9. LỘ TRÌNH TÁI CẤU TRÚC 4 GIAI ĐOẠN (INCREMENTAL MIGRATION PLAN)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -569,7 +596,7 @@ sequenceDiagram
 ├──────────────────────────────────────────────────────────────────────────────────┤
 │ GIAI ĐOẠN 3: PHÂN TÁCH FEATURE SLICES & BARREL EXPORTS (Tuần 3)                 │
 │ ‣ Di chuyển `src/shared/features/*` về `src/features/` & `src/core/`.            │
-│ ‣ Tạo Barrel Files (`index.ts`) cho từng Feature Module.                         │
+│ ‣ Áp dụng chuẩn "1 File = 1 API Endpoint" cho toàn bộ API calls.                 │
 │ ‣ Bật các quy tắc kiểm tra ESLint Import Boundary Rules.                         │
 ├──────────────────────────────────────────────────────────────────────────────────┤
 │ GIAI ĐOẠN 4: GIA CỐ OFFLINE SYNC ENGINE & KIỂM THỬ (Tuần 4)                     │
@@ -580,7 +607,7 @@ sequenceDiagram
 
 ---
 
-## 9. ĐÁNH GIÁ RỦI RO KỸ THUẬT & GIẢI PHÁP KHẮC PHỤC (RISK MITIGATION)
+## 10. ĐÁNH GIÁ RỦI RO KỸ THUẬT & GIẢI PHÁP KHẮC PHỤC (RISK MITIGATION)
 
 | Rủi Ro Kỹ Thuật                                            | Khả Năng Xảy Ra | Mức Độ Ảnh Hưởng | Giải Pháp Khắc Phục (Mitigation)                                                                                                                            |
 | :--------------------------------------------------------- | :-------------- | :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -591,10 +618,11 @@ sequenceDiagram
 
 ---
 
-## 10. TỔNG KẾT & TIÊU CHÍ SIGN-OFF CHO TECH LEAD
+## 11. TỔNG KẾT & TIÊU CHÍ SIGN-OFF CHO TECH LEAD
 
 - [ ] File `src/app/_layout.tsx` đạt độ gọn nhẹ mục tiêu (< 60 dòng).
 - [ ] Không còn bất kỳ file React Component / Hook UI nào import trực tiếp Native Module phần cứng.
 - [ ] XState Actor `posMachine` chạy độc lập mà không qua Zustand Vanilla Wrapper.
+- [ ] Mọi API Calls đều được đóng gói theo chuẩn **1 File = 1 API Endpoint**.
 - [ ] 100% các đường dẫn import giữa các Feature tuân thủ quy tắc Barrel File (`index.ts`).
 - [ ] Bộ Unit Tests cho `src/core/pos-engine` vượt qua 100% trên Node.js môi trường CLI mà không cần React DOM renderer.

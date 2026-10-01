@@ -5,7 +5,6 @@ import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react-n
 import React, { useImperativeHandle, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeIn, FadeOut, Keyframe, ZoomIn, ZoomOut } from 'react-native-reanimated'
-import { GlobalToast } from './global-toast'
 import { IconButton } from './icon-button'
 
 export interface PopupRef {
@@ -205,7 +204,6 @@ export const Popup = ({
             <View className="mt-8 gap-3">{children}</View>
           </Animated.View>
         </View>
-        <GlobalToast />
       </View>
     </Portal>
   )

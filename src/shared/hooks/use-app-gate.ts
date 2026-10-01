@@ -2,7 +2,7 @@ import { useSelector } from '@xstate/react'
 import { useRootNavigationState, useRouter, useSegments } from 'expo-router'
 import { useEffect } from 'react'
 import { ROUTES } from '../constants'
-import { useAppStore } from '../features/app/store/use-app-store'
+import { useAppStore } from '@/features/app/store/use-app-store'
 
 /**
  * Root navigation guard dựa trên appMachine state.

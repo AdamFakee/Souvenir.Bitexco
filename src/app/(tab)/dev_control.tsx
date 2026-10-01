@@ -1,45 +1,47 @@
+import { useAppStore } from '@/features/app'
+import { getDeviceContext, getEmployees, getMe, refreshToken } from '@/features/auth/api'
+import { useNoteStore } from '@/features/note'
+import {
+  getAffiliatesRemote,
+  getOrders,
+  getPartnersRemote,
+  getReconciliation,
+  lookupOrder,
+  ReconciliationResult,
+} from '@/features/order/api'
+import { BitexcoReceiptTemplate } from '@/features/order/components/bitexco-receipt-template'
+import {
+  ReconciliationModal,
+  type ReconciliationModalRef,
+} from '@/features/order/components/reconciliation-modal'
+import { ReconciliationReceiptTemplate } from '@/features/order/components/reconciliation-receipt-template'
+import { RefundReceiptTemplate } from '@/features/order/components/refund-receipt-template'
+import { CloseShiftReceiptTemplate, type CloseShiftReceiptData } from '@/features/shift'
 import { ViceService } from '@/screens/vice-service'
 import { Container, Input, ModalBase } from '@/shared/components/ui'
 import { Button } from '@/shared/components/ui/button'
-import { useAppStore } from '@/shared/features/app'
-import { AuthAPI } from '@/shared/features/auth'
-import { StaffRemoteAPI } from '@/shared/features/auth/api/remote/staff.remote.api'
-import mockCategories from '@/shared/features/category/api/remote/mock-categories.json'
-import { useNoteStore } from '@/shared/features/note'
-import { ReconciliationModal, type ReconciliationModalRef } from '@/shared/features/order'
-import type { ReconciliationResult } from '@/shared/features/order/api/remote/order.remote.api'
-import { OrderRemoteAPI } from '@/shared/features/order/api/remote/order.remote.api'
-import { BitexcoReceiptTemplate } from '@/shared/features/order/components/bitexco-receipt-template'
-import {
-  CloseShiftReceiptTemplate,
-  type CloseShiftReceiptData,
-} from '@/shared/features/order/components/close-shift-receipt-template'
-import { ReconciliationReceiptTemplate } from '@/shared/features/order/components/reconciliation-receipt-template'
-import { RefundReceiptTemplate } from '@/shared/features/order/components/refund-receipt-template'
 
 import {
   getPortablePosUrl,
+  IMinPrinterDriver,
   setPortablePosUrl,
-} from '@/shared/features/payment/utils/portable-payment.service'
-import mockProducts from '@/shared/features/product/api/remote/mock-products.json'
-import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
-import { ShiftRemoteAPI } from '@/shared/features/shift/api/remote/shift.remote.api'
+  useConnectionStore,
+} from '@/core/hardware'
+import { fetchProductChanges } from '@/features/product'
+import { getZReport } from '@/features/shift/api'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { database } from '@/shared/lib/database'
-import CategoryModel from '@/shared/lib/database/models/category'
 import OrderModel from '@/shared/lib/database/models/order'
 import ProductModel from '@/shared/lib/database/models/product'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import { storage } from '@/shared/lib/storage'
-import { PrinterService } from '@/shared/services/printer-service'
 import { toast } from '@/shared/store'
-import { useConnectionStore } from '@/shared/store/use-connection-store'
 import React, { useEffect, useRef, useState } from 'react'
 import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
 import PrinterImin from 'react-native-printer-imin'
 
 export default function DevControlScreen() {
-  const [categories, setCategories] = useState<CategoryModel[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [products, setProducts] = useState<ProductModel[]>([])
   const [syncResult, setSyncResult] = useState<any>(null)
   const [isSyncResultVisible, setIsSyncResultVisible] = useState(false)
@@ -94,7 +96,7 @@ export default function DevControlScreen() {
     if (isPrinting) return
     setIsPrinting(true)
     try {
-      await PrinterService.printComponent(ref)
+      await IMinPrinterDriver.printComponent(ref)
       toast.success(`Đã gửi lệnh in ${name} thành công!`)
     } catch (err: any) {
       toast.error('Lỗi máy in: ' + (err?.message ?? 'Không xác định'))
@@ -107,7 +109,7 @@ export default function DevControlScreen() {
     if (isPrinting) return
     setIsPrinting(true)
     try {
-      await PrinterService.printComponent(ref, { doubleCopy: true })
+      await IMinPrinterDriver.printComponent(ref, { doubleCopy: true })
       toast.success(`Đã gửi lệnh in 2 liên (${name}) thành công!`)
     } catch (err: any) {
       toast.error('Lỗi máy in: ' + (err?.message ?? 'Không xác định'))
@@ -240,7 +242,7 @@ export default function DevControlScreen() {
 
   const handleOpenCashbox = async () => {
     try {
-      await PrinterService.openCashBox()
+      await IMinPrinterDriver.openCashBox()
       toast.success('Đã gửi lệnh mở két tiền (Cashbox) thành công!')
     } catch (err: any) {
       toast.error('Lỗi mở két: ' + (err?.message ?? 'Không xác định'))
@@ -281,9 +283,8 @@ export default function DevControlScreen() {
 
   const loadData = async () => {
     try {
-      const cats = await database.collections.get<CategoryModel>('categories').query().fetch()
       const prods = await database.collections.get<ProductModel>('products').query().fetch()
-      setCategories(cats)
+      setCategories([])
       setProducts(prods)
     } catch {}
   }
@@ -297,28 +298,47 @@ export default function DevControlScreen() {
       await database.write(async () => {
         // Clear existing first
         const allProds = await database.collections.get<ProductModel>('products').query().fetch()
-        const allCats = await database.collections.get<CategoryModel>('categories').query().fetch()
 
         for (const p of allProds) await p.destroyPermanently()
-        for (const c of allCats) await c.destroyPermanently()
 
-        // Seed Categories
-        for (const cat of mockCategories) {
-          await database.collections.get<CategoryModel>('categories').create((record: any) => {
-            record._raw.id = cat.id
-            record.name = cat.name
-            record.color = cat.color
-            record.displayOrder = cat.display_order
-            record.isDeleted = cat.is_deleted
-          })
-        }
-
-        // Seed Products
-        for (const prod of mockProducts) {
+        // Seed sample products
+        const sampleProducts = [
+          {
+            id: 'prod-001',
+            sku: 'SKU001',
+            barcode: '8930000001',
+            name: 'Móc khóa lưu niệm Bitexco',
+            price: 50000,
+            stock: 100,
+            unitId: 'u1',
+            unitCode: 'CAI',
+          },
+          {
+            id: 'prod-002',
+            sku: 'SKU002',
+            barcode: '8930000002',
+            name: 'Áo thun lưu niệm Bitexco (Size L)',
+            price: 250000,
+            stock: 50,
+            unitId: 'u1',
+            unitCode: 'CAI',
+          },
+          {
+            id: 'prod-003',
+            sku: 'SKU003',
+            barcode: '8930000003',
+            name: 'Mô hình tháp Bitexco 3D',
+            price: 450000,
+            stock: 30,
+            unitId: 'u1',
+            unitCode: 'CAI',
+          },
+        ]
+        for (const prod of sampleProducts) {
           await database.collections.get<ProductModel>('products').create((record: any) => {
             record._raw.id = prod.id
             record.sku = prod.sku
-            record.barcode = prod.barcodes?.[0] || prod.sku
+            record.barcode = prod.barcode
             record.name = prod.name
             record.unitId = prod.unitId
             record.unitCode = prod.unitCode
@@ -330,7 +350,7 @@ export default function DevControlScreen() {
           })
         }
       })
-      toast.success('Đã nạp dữ liệu Mock vào Local DB!', 'Thành công')
+      toast.success('Đã nạp dữ liệu mẫu vào Local DB!', 'Thành công')
       loadData()
     } catch {
       toast.error('Không thể nạp dữ liệu.', 'Lỗi')
@@ -348,12 +368,7 @@ export default function DevControlScreen() {
               .get<ProductModel>('products')
               .query()
               .fetch()
-            const allCats = await database.collections
-              .get<CategoryModel>('categories')
-              .query()
-              .fetch()
             for (const p of allProds) await p.destroyPermanently()
-            for (const c of allCats) await c.destroyPermanently()
           })
           toast.success('Đã xóa sạch DB!', 'Thành công')
           loadData()
@@ -448,7 +463,7 @@ export default function DevControlScreen() {
   const handleTestGetDeviceContext = async () => {
     try {
       toast.info('Đang gọi GET /v1/pos/device-context...')
-      const result = await AuthAPI.getDeviceContext()
+      const result = await getDeviceContext()
       toast.success(
         `isActive: ${result.isActive ? '✅ TRUE' : '❌ FALSE'}\ndeviceCode: ${result.deviceCode}\nwarehouseId: ${result.warehouseId ?? 'null'}`,
         'Device Context',
@@ -510,7 +525,7 @@ export default function DevControlScreen() {
         orderId = orders[0].id
       } else {
         // 2. Try fetching from remote API
-        const remoteOrdersRes = await OrderRemoteAPI.getOrders({ limit: 5 })
+        const remoteOrdersRes = await getOrders({ limit: 5 })
         if (remoteOrdersRes.success && remoteOrdersRes.data && remoteOrdersRes.data.length > 0) {
           orderId = remoteOrdersRes.data[0].id
         }
@@ -522,7 +537,7 @@ export default function DevControlScreen() {
       }
 
       toast.info(`Đang tra cứu đơn hàng code/id: ${orderId}`)
-      await OrderRemoteAPI.lookupOrder(orderId)
+      await lookupOrder(orderId)
       toast.success('Tra cứu thành công! Xem console log.', 'Order Lookup')
     } catch (error: any) {
       const errData = error.response?.data
@@ -539,7 +554,7 @@ export default function DevControlScreen() {
       if (orders.length > 0) {
         orderId = orders[0].id
       } else {
-        const remoteOrdersRes = await OrderRemoteAPI.getOrders({ limit: 5 })
+        const remoteOrdersRes = await getOrders({ limit: 5 })
         if (remoteOrdersRes.success && remoteOrdersRes.data && remoteOrdersRes.data.length > 0) {
           orderId = remoteOrdersRes.data[0].id
         }
@@ -587,7 +602,7 @@ export default function DevControlScreen() {
       }
 
       toast.info(`Đang gọi GET /v1/cash-sessions/${shiftId}/z-report để lấy Z-Report...`)
-      const zReportData = await ShiftRemoteAPI.getZReport(shiftId)
+      const zReportData = await getZReport(shiftId)
 
       console.log('=============== [DevControl] Z-REPORT API RESPONSE ===============')
       console.log(JSON.stringify(zReportData, null, 2))
@@ -617,7 +632,7 @@ export default function DevControlScreen() {
       if (!apiZReportPrintRef.current) {
         throw new Error('Chưa render template in!')
       }
-      await PrinterService.printComponent(apiZReportPrintRef)
+      await IMinPrinterDriver.printComponent(apiZReportPrintRef)
       toast.success('Đã gửi lệnh in Z-Report (API) thành công!')
     } catch (err: any) {
       toast.error('Lỗi in: ' + (err?.message ?? 'Không xác định'))
@@ -629,10 +644,8 @@ export default function DevControlScreen() {
   const handleTestFetchChanges = async () => {
     try {
       setIsFetchingChanges(true)
-      if (!ProductRemoteAPI.fetchChanges) {
-        throw new Error('fetchChanges is not implemented')
-      }
-      const result = await ProductRemoteAPI.fetchChanges({ lastPulledAt: null })
+      const result = await fetchProductChanges({ lastPulledAt: null })
+
       setSyncResult(result)
       setIsSyncResultVisible(true)
       toast.success('Lấy danh sách thay đổi sản phẩm thành công!')
@@ -762,7 +775,7 @@ export default function DevControlScreen() {
     }
     toast.info('Đang gọi POST /v1/device/auth/refresh...')
     try {
-      const result = await AuthAPI.refresh(currentRefreshToken)
+      const result = await refreshToken(currentRefreshToken)
       storage.set('auth-refresh-token', result.refreshToken)
       toast.success(
         `Rotation OK!\nNew accessToken: ${result.accessToken.slice(0, 20)}...\nNew refreshToken: ${result.refreshToken.slice(0, 12)}...`,
@@ -803,9 +816,9 @@ export default function DevControlScreen() {
       accessToken: 'invalid_token_for_testing_silent_refresh',
     })
 
-    toast.info('Đang gọi API (AuthAPI.getMe) thử...')
+    toast.info('Đang gọi API (getMe) thử...')
     try {
-      const result = await AuthAPI.getMe()
+      const result = await getMe()
       toast.success(
         `Thành công!\nAPI phản hồi: Chào ${result.displayName}.\nToken đã tự động được refresh!`,
         'Silent Refresh OK',
@@ -905,17 +918,20 @@ export default function DevControlScreen() {
       const dateFrom = new Date(recoDateFrom)
       const dateTo = new Date(recoDateTo)
       toast.info('Đang gọi API đối soát...')
-      const result = await OrderRemoteAPI.getReconciliation({
+      const result = await getReconciliation({
         partnerId: partnerIdTrimmed || null,
         affiliateId: affiliateIdTrimmed || null,
         dateFrom,
         dateTo,
       })
       setRecoResult(result)
-      toast.success(
-        `Đối soát thành công! ${result.totalOrdersCount} đơn — Hoa hồng: ${result.commissionAmount.toLocaleString('vi-VN')}đ`,
-        'Đối soát',
-      )
+      if (result) {
+        const reco = result as any
+        toast.success(
+          `Đối soát thành công! ${reco.totalOrdersCount ?? 0} đơn — Hoa hồng: ${(reco.commissionAmount ?? 0).toLocaleString('vi-VN')}đ`,
+          'Đối soát',
+        )
+      }
     } catch (error: any) {
       const status = error?.status ?? error?.response?.status
       const msg = error?.message || 'Lỗi không xác định'
@@ -1029,7 +1045,7 @@ export default function DevControlScreen() {
     setIsEntityModalVisible(true)
     try {
       toast.info('Đang gọi API lấy danh sách CTV...')
-      const res = await OrderRemoteAPI.getAffiliates({
+      const res = await getAffiliatesRemote({
         isActive: ctvIsActive,
         hasTransaction: ctvHasTransaction,
         limit: ctvLimit,
@@ -1052,7 +1068,7 @@ export default function DevControlScreen() {
     setIsEntityModalVisible(true)
     try {
       toast.info('Đang gọi API lấy danh sách Đối tác...')
-      const res = await OrderRemoteAPI.getPartners({
+      const res = await getPartnersRemote({
         isActive: partnerIsActive,
         hasTransaction: partnerHasTransaction,
         limit: partnerLimit,
@@ -1080,7 +1096,7 @@ export default function DevControlScreen() {
     try {
       const shiftIdParam = empMode === 'shift' ? empShiftId : undefined
       toast.info('Đang gọi API lấy danh sách nhân viên...')
-      const res = await StaffRemoteAPI.getEmployees({
+      const res = await getEmployees({
         shiftId: shiftIdParam,
         isPos: empIsPos,
         status: empStatus,

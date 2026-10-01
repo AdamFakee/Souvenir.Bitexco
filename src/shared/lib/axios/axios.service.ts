@@ -1,11 +1,11 @@
-import { API_CONSTANT } from '@/shared/constants'
+import { API_BASE_URL, API_CONSTANT } from '@/shared/constants'
 import { AxiosInstance, AxiosRequestConfig, create } from 'axios'
 import { setupInterceptorsTo } from './axios.interceptor'
 
 export class AxiosService {
   private static instance: AxiosService
   private axiosInstance: AxiosInstance
-  readonly baseUrl: string = 'https://wms-api-uat.aidx.vn'
+  readonly baseUrl: string = API_BASE_URL
 
   constructor() {
     this.axiosInstance = setupInterceptorsTo(

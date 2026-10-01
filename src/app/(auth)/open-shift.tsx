@@ -1,15 +1,15 @@
+import { useAppStore, useDevice, useEmployee } from '@/features/app'
+import { logout } from '@/features/auth'
+import { useOpenStaffShift } from '@/features/shift'
 import { Button, Numpad } from '@/shared/components/ui'
 import { LogoSkystore } from '@/shared/components/ui/icons'
-import { COLORS, ROUTES } from '@/shared/constants'
-import { useAppStore, useDevice, useEmployee } from '@/shared/features/app'
-import { AuthAPI, BG_MAIN } from '@/shared/features/auth'
+import { COLORS, IMAGES, ROUTES } from '@/shared/constants'
 import { toast, useAlertStore } from '@/shared/store'
 import { formatVND } from '@/shared/utils'
 import { useRouter } from 'expo-router'
 import { Coins, LogOut, User } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { ImageBackground, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useOpenStaffShift } from '../../shared/features/shift'
 
 export default function OpenShift() {
   const router = useRouter()
@@ -89,7 +89,7 @@ export default function OpenShift() {
             // Revoke refresh token server-side (fire-and-forget)
             const refreshToken = store.getRefreshToken()
             if (refreshToken) {
-              AuthAPI.logout(refreshToken).catch(() => {})
+              logout(refreshToken).catch(() => {})
             }
             appService.send({ type: 'LOGGED_OUT' })
             toast.success('Đã đăng xuất nhân viên')
@@ -102,7 +102,7 @@ export default function OpenShift() {
   }
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       {/* Teal overlay matching Figma */}
       <View style={styles.overlay} />
 

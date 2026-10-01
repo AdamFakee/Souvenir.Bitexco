@@ -1,5 +1,6 @@
 export * from './cn'
 export * from './date-format'
+export * from './error.util'
 export * from './number'
 export * from './query'
 export * from './time'

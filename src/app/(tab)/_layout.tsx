@@ -1,3 +1,9 @@
+import { IMinPrinterDriver } from '@/core/hardware'
+import { useAppStore, useCashSessionId, useEmployee } from '@/features/app'
+import { logout } from '@/features/auth'
+import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/features/note'
+import { useUnsyncedOrdersCount } from '@/features/order/hooks'
+import { CloseShiftModal, CloseShiftModalRef } from '@/features/shift'
 import {
   Button,
   CartIcon,
@@ -13,13 +19,7 @@ import {
   WorkingIcon,
 } from '@/shared/components/ui'
 import { COLORS } from '@/shared/constants'
-import { useAppStore, useCashSessionId, useEmployee } from '@/shared/features/app'
-import { AuthAPI } from '@/shared/features/auth'
-import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/shared/features/note'
-import { useUnsyncedOrdersCount } from '@/shared/features/order/hooks'
-import { CloseShiftModal, CloseShiftModalRef } from '@/shared/features/shift'
 import { useSync } from '@/shared/lib/database/sync'
-import { PrinterService } from '@/shared/services/printer-service'
 import { toast, useAlertStore } from '@/shared/store'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, usePathname, useRouter } from 'expo-router'
@@ -131,7 +131,7 @@ const CustomSidebarInner = React.memo(
             if (appService) {
               const refreshToken = store.getRefreshToken()
               if (refreshToken) {
-                AuthAPI.logout(refreshToken).catch(() => {})
+                logout(refreshToken).catch(() => {})
               }
               appService.send({ type: 'LOGGED_OUT' })
               toast.success('Đã đăng xuất nhân viên')
@@ -157,7 +157,7 @@ const CustomSidebarInner = React.memo(
 
     const handleOpenCashbox = useCallback(async () => {
       try {
-        await PrinterService.openCashBox()
+        await IMinPrinterDriver.openCashBox()
       } catch (err: any) {
         toast.error('Lỗi mở két: ' + (err?.message ?? 'Không xác định'))
       }
@@ -184,6 +184,7 @@ const CustomSidebarInner = React.memo(
               return (
                 <Pressable
                   key={item.name}
+                  focusable={false}
                   onPress={() => handleTabPress(item.name)}
                   className={
                     isFocused
@@ -206,6 +207,7 @@ const CustomSidebarInner = React.memo(
 
             {/* Mở két (Cashbox) Button */}
             <Pressable
+              focusable={false}
               onPress={handleOpenCashbox}
               className="h-[120px] w-full flex-col items-center justify-center gap-2 bg-transparent px-6 py-3 active:bg-primary-deep/50"
             >

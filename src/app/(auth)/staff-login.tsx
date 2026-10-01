@@ -1,7 +1,8 @@
+import { useAppStore } from '@/features/app'
+import { login } from '@/features/auth'
 import { Button, ControlledInput } from '@/shared/components/ui'
 import { LogoSkystore } from '@/shared/components/ui/icons'
-import { useAppStore } from '@/shared/features/app'
-import { AuthAPI, BG_MAIN } from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import { toast } from '@/shared/store'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { ArrowRight, Lock, User } from 'lucide-react-native'
@@ -39,7 +40,7 @@ export default function StaffLogin() {
         return
       }
 
-      const response = await AuthAPI.login({
+      const response = await login({
         deviceId,
         employeeCode: data.employeeCode,
         pin: data.pin,
@@ -74,7 +75,7 @@ export default function StaffLogin() {
   }
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       {/* Teal gradient overlay matching Figma */}
       <View style={styles.overlay} />
 

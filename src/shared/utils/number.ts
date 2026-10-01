@@ -44,3 +44,12 @@ export const formatCurrency = (
   if (options.showSymbol === false) return formatted
   return `${formatted} ${options.suffix || '₫'}`
 }
+
+/**
+ * Làm tròn số tiền theo quy tắc tiền mặt Việt Nam (đến hàng nghìn):
+ * - Dưới 500đ: Làm tròn xuống (ví dụ 10.400 -> 10.000)
+ * - Từ 500đ trở lên: Làm tròn lên (ví dụ 10.500 -> 11.000)
+ */
+export const roundCashAmount = (amount: number): number => {
+  return Math.round(amount / 1000) * 1000
+}

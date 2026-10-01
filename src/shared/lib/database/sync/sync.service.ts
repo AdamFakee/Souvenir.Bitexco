@@ -1,24 +1,23 @@
-import { CategoryRemoteAPI } from '@/shared/features/category/api/remote/category.remote.api'
-import { ProductRemoteAPI } from '@/shared/features/product/api/remote/product.remote.api'
+import { OrderRaw } from '@/features/order'
+import {
+  fetchAffiliateChanges,
+  fetchPartnerChanges,
+  getUnsyncedLocalOrders,
+  localIdToGuid,
+  markLocalOrdersSynced,
+  syncOfflineOrders,
+} from '@/features/order/api'
+import { fetchProductChanges } from '@/features/product/api'
+import { queryClient } from '@/shared/lib/react-query'
 import { SyncDatabaseChangeSet, synchronize } from '@nozbe/watermelondb/sync'
 import { database } from '../database'
-
-import { OrderLocalAPI } from '@/shared/features/order/api/local/order.local.api'
-import { AffiliateRemoteAPI } from '@/shared/features/order/api/remote/affiliate.remote.api'
-import {
-  OrderRaw,
-  OrderRemoteAPI,
-  localIdToGuid,
-} from '@/shared/features/order/api/remote/order.remote.api'
-import { PartnerRemoteAPI } from '@/shared/features/order/api/remote/partner.remote.api'
-import { queryClient } from '@/shared/lib/react-query'
 
 /**
  * SyncService - Quản lý đồng bộ dữ liệu Offline/Online.
  */
 export const SyncService = {
   /**
-   * Kéo dữ liệu danh mục (Product, Category,...) từ server bằng WatermelonDB.
+   * Kéo dữ liệu danh mục (Product, Partner, Affiliate) từ server bằng WatermelonDB.
    * Chạy nền định kỳ hoặc khi có kết nối mạng.
    */
   pullMasterData: async () => {
@@ -28,26 +27,25 @@ export const SyncService = {
         pullChanges: async ({ lastPulledAt }) => {
           const timestamp = lastPulledAt ?? null
 
-          // Luôn lấy đầy đủ thay đổi của Product, Category, Partner, Affiliate
-          const [product, category, partner, affiliate] = await Promise.all([
-            ProductRemoteAPI.fetchChanges!({ lastPulledAt: timestamp }),
-            CategoryRemoteAPI.fetchChanges!({ lastPulledAt: timestamp }),
-            PartnerRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
-            AffiliateRemoteAPI.fetchChanges({ lastPulledAt: timestamp }),
+          // Luôn lấy đầy đủ thay đổi của Product, Partner, Affiliate
+          const [product, partner, affiliate] = await Promise.all([
+            fetchProductChanges({ lastPulledAt: timestamp }),
+            fetchPartnerChanges({ lastPulledAt: timestamp }),
+            fetchAffiliateChanges({ lastPulledAt: timestamp }),
           ])
 
           const changes: SyncDatabaseChangeSet = {
             products: product.products,
-            categories: category.categories,
+            categories: { created: [], updated: [], deleted: [] },
             partners: partner.partners,
             affiliates: affiliate.affiliates,
           }
 
           const nextTimestamp =
-            product?.syncedAt ||
-            category?.syncedAt ||
-            partner?.syncedAt ||
-            affiliate?.syncedAt ||
+            (product as any)?.syncedAt ||
+            (partner as any)?.syncedAt ||
+            (partner as any)?.timestamp ||
+            (affiliate as any)?.timestamp ||
             Date.now()
           return { changes, timestamp: nextTimestamp }
         },
@@ -72,7 +70,7 @@ export const SyncService = {
   drainOutbox: async () => {
     try {
       // 1. Lấy các đơn hàng chưa đồng bộ (is_synced = false)
-      const unsyncedOrders = await OrderLocalAPI.getUnsyncedOrders()
+      const unsyncedOrders = await getUnsyncedLocalOrders()
 
       if (unsyncedOrders.length === 0) {
         return // Không có gì để sync
@@ -120,11 +118,11 @@ export const SyncService = {
           console.log(
             `[SyncService.drainOutbox] Đang sync chunk ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} đơn)...`,
           )
-          await OrderRemoteAPI.syncOfflineOrders(chunk)
+          await syncOfflineOrders(chunk)
 
           // 4. Xóa các đơn trong chunk này khỏi local SQLite vì đã sync thành công
           const chunkIds = chunk.map((o) => o.id)
-          await OrderLocalAPI.markOrdersAsSynced(chunkIds)
+          await markLocalOrdersSynced(chunkIds)
           hasSyncedAny = true
           console.log(
             `[SyncService.drainOutbox] Sync thành công chunk ${Math.floor(i / CHUNK_SIZE) + 1}`,

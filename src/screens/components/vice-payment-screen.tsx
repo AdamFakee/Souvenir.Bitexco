@@ -1,5 +1,5 @@
 import { Shimmer } from '@/shared/components/ui'
-import { BG_MAIN } from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
 import { Image, ImageBackground, StyleSheet, Text, View } from 'react-native'
@@ -8,12 +8,12 @@ import { useViceStore } from '../vice-store'
 
 const QRCODE_SIZE = 286
 
-function VicePaymentScreen() {
+export const VicePaymentScreen = memo(function VicePaymentScreen() {
   const qrCodeUrl = useViceStore((state) => state.qrCodeUrl)
   const total = useViceStore((state) => state.total)
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">
@@ -61,7 +61,7 @@ function VicePaymentScreen() {
       </View>
     </ImageBackground>
   )
-}
+})
 
 const styles = StyleSheet.create({
   bg: { flex: 1 },

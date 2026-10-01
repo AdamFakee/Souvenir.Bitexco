@@ -1,4 +1,4 @@
-import { BG_MAIN } from '@/shared/features/auth'
+import { IMAGES } from '@/shared/constants'
 import { formatCurrency } from '@/shared/utils'
 import React, { memo } from 'react'
 import { ImageBackground, StyleSheet, Text, View } from 'react-native'
@@ -10,7 +10,7 @@ function ViceCashPaymentScreen() {
   const change = useViceStore((state) => state.change)
 
   return (
-    <ImageBackground source={BG_MAIN} style={styles.bg} resizeMode="cover">
+    <ImageBackground source={IMAGES.BG_MAIN} style={styles.bg} resizeMode="cover">
       <View style={styles.overlay} />
 
       <View className="flex-1 items-center justify-center p-4">

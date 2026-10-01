@@ -1,5 +1,0 @@
-export * from './types'
-export * from './api/remote/dashboard.remote.api'
-export * from './hooks'
-export * from './components'
-export * from './icons'
