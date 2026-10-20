@@ -17,6 +17,8 @@ export interface UnifiedProduct {
   unitCode: string
   taxRate: number
   barcode?: string
+  isActive?: boolean
+  priceStatus?: string
 }
 
 export function useProductSearch(searchText: string) {
@@ -42,12 +44,14 @@ export function useProductSearch(searchText: string) {
               id: r.variantId,
               name: r.productNameEn || r.productName,
               sku: r.sku,
-              price: r.price,
+              price: r.price ?? 0,
               stock: r.available,
               unitId: r.unitId,
               unitCode: r.unitCode,
               taxRate: (r as any).taxRate ?? (r as any).tax_rate ?? 0,
-              barcode: r.barcode,
+              barcode: r.barcode || undefined,
+              isActive: r.isActive,
+              priceStatus: r.priceStatus,
             }))
           } catch (err) {
             console.error('Online search failed, falling back to local search:', err)
@@ -71,6 +75,8 @@ export function useProductSearch(searchText: string) {
           unitCode: p.unitCode,
           taxRate: p.taxRate || 0,
           barcode: p.barcode,
+          isActive: p.isActive,
+          priceStatus: p.priceStatus || 'available',
         }))
       } catch {
         toast.error('Không thể tìm kiếm sản phẩm. Vui lòng thử lại!', 'Lỗi tìm kiếm')
@@ -82,8 +88,8 @@ export function useProductSearch(searchText: string) {
     },
     initialPageParam: 0,
     enabled: searchText.trim().length > 0,
-    staleTime: 30_000,
-    gcTime: 2 * 60_000,
+    staleTime: 0,
+    gcTime: 0,
     networkMode: 'always',
   })
 

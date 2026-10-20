@@ -1,7 +1,7 @@
+import { PrinterService } from '@/core/hardware'
 import { TenantConfig } from '@/features/app/types/app.types'
 import { PAYMENT_ERROR_CODES, PaymentErrorCode, PaymentResult } from '@/features/payment/types'
 import { AgentType, AppliedVoucher, CartItem } from '@/shared/types'
-import { PrinterService } from '@/core/hardware'
 import React from 'react'
 import { SnapshotFrom, assign, fromPromise, setup } from 'xstate'
 import { createCancelOrderActor } from '../flows/cancel-order.actor'
@@ -105,7 +105,7 @@ export const exchangeQrPaymentMachine = setup({
     assignQRData: assign(({ event }) => {
       const output = (event as any).output
       return {
-        qrContent: output?.qrPayload ?? output?.qrUrl ?? null,
+        qrContent: output?.qrUrl ?? output?.qrPayload ?? null,
         expiresAt: output?.expiresAt ?? null,
         createdAt: output?.createdAt ?? new Date().toISOString(),
       }

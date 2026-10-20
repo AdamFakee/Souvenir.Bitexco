@@ -9,33 +9,45 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 const TYPE_CONFIG = {
   success: {
     icon: CheckCircle,
-    accentColor: COLORS.success.default, // #00944a
-    iconBg: COLORS.success.container, // #ecf1f4
-    borderColor: COLORS.success.default,
+    accentColor: '#059669',
+    bgColor: '#ECFDF5',
+    borderColor: '#10B981',
+    textColor: '#064E3B',
+    titleColor: '#065F46',
+    iconBg: '#D1FAE5',
   },
   error: {
     icon: AlertCircle,
-    accentColor: COLORS.error.default, // #dd2027
-    iconBg: COLORS.error.container, // #fef3f2
-    borderColor: COLORS.error.default,
+    accentColor: '#DC2626',
+    bgColor: '#FEF2F2',
+    borderColor: '#EF4444',
+    textColor: '#7F1D1D',
+    titleColor: '#991B1B',
+    iconBg: '#FEE2E2',
   },
   warning: {
     icon: AlertTriangle,
-    accentColor: COLORS.warning.default, // #fb6514
-    iconBg: COLORS.warning.container, // #fff4f2
-    borderColor: COLORS.warning.default,
+    accentColor: '#D97706',
+    bgColor: '#FFFBEB',
+    borderColor: '#F59E0B',
+    textColor: '#78350F',
+    titleColor: '#92400E',
+    iconBg: '#FEF3C7',
   },
   info: {
     icon: Info,
-    accentColor: COLORS.info.default, // #2f6bff
-    iconBg: COLORS.info.container, // #dbeafe
-    borderColor: COLORS.info.default,
+    accentColor: COLORS.info.default,
+    bgColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+    textColor: '#1E3A8A',
+    titleColor: '#1E40AF',
+    iconBg: '#DBEAFE',
   },
 }
 
 const ToastItem = ({ toast }: { toast: ToastType }) => {
   const { hideToast } = useAlertStore()
-  const config = TYPE_CONFIG[toast.type]
+  const config = TYPE_CONFIG[toast.type] || TYPE_CONFIG.info
   const Icon = config.icon
 
   const anim = useRef(new Animated.Value(0)).current
@@ -43,7 +55,7 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
   useEffect(() => {
     Animated.timing(anim, {
       toValue: 1,
-      duration: 300,
+      duration: 350,
       useNativeDriver: true,
     }).start()
   }, [anim])
@@ -58,42 +70,53 @@ const ToastItem = ({ toast }: { toast: ToastType }) => {
     })
   }
 
-  const translateX = anim.interpolate({
+  const translateY = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [360, 0],
+    outputRange: [-70, 0],
+  })
+
+  const scale = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.92, 1],
   })
 
   return (
     <Animated.View
       style={[
         styles.card,
-        { borderLeftColor: config.borderColor },
+        {
+          backgroundColor: config.bgColor,
+          borderColor: config.borderColor,
+        },
         {
           opacity: anim,
-          transform: [{ translateX }],
+          transform: [{ translateY }, { scale }],
         },
       ]}
     >
       {/* Icon */}
       <View style={[styles.iconWrap, { backgroundColor: config.iconBg }]}>
-        <Icon size={22} color={config.accentColor} strokeWidth={2.2} />
+        <Icon size={28} color={config.accentColor} strokeWidth={2.5} />
       </View>
 
       {/* Text */}
       <View style={styles.textWrap}>
         {toast.title ? (
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, { color: config.titleColor }]} numberOfLines={1}>
             {toast.title}
           </Text>
         ) : null}
-        <Text style={[styles.message, !toast.title && styles.messageOnly]} numberOfLines={2}>
+        <Text
+          style={[styles.message, { color: config.textColor }, !toast.title && styles.messageOnly]}
+          numberOfLines={3}
+        >
           {toast.message}
         </Text>
       </View>
 
       {/* Close */}
-      <Pressable onPress={handleDismiss} style={styles.closeBtn} hitSlop={8}>
-        <X size={16} color={COLORS.neutral[400]} strokeWidth={2.5} />
+      <Pressable onPress={handleDismiss} style={styles.closeBtn} hitSlop={10}>
+        <X size={22} color={config.accentColor} strokeWidth={2.5} />
       </Pressable>
     </Animated.View>
   )
@@ -119,71 +142,67 @@ export const GlobalToast = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    right: 20,
-    zIndex: 9999,
-    alignItems: 'flex-end',
+    left: 0,
+    right: 0,
+    zIndex: 99999,
+    elevation: 99999,
+    alignItems: 'center',
+    paddingHorizontal: 24,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 360,
-    marginBottom: 10,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: COLORS.surface[50], // #ffffff
-    borderLeftWidth: 4,
-    // Figma border: #dfe0e1
-    borderTopWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderTopColor: COLORS.outline.default,
-    borderRightColor: COLORS.outline.default,
-    borderBottomColor: COLORS.outline.default,
-    // shadow
-    shadowColor: 'rgba(15,23,42,0.10)',
-    shadowOffset: { width: 0, height: 4 },
+    width: '100%',
+    maxWidth: 680,
+    minHeight: 76,
+    marginBottom: 12,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderWidth: 2,
+    shadowColor: 'rgba(15,23,42,0.18)',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: 16,
+    elevation: 12,
   },
   iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 14,
-    marginRight: 12,
+    marginRight: 16,
     flexShrink: 0,
   },
   textWrap: {
     flex: 1,
-    paddingVertical: 14,
-    paddingRight: 4,
+    justifyContent: 'center',
+    paddingRight: 8,
   },
   title: {
     fontFamily: 'Manrope-Bold',
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.neutral[900], // #0f0f0f
-    letterSpacing: 0.1,
-    marginBottom: 2,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    marginBottom: 3,
   },
   message: {
-    fontFamily: 'Manrope-SemiBold',
-    fontSize: 13,
-    fontWeight: '500',
-    color: COLORS.neutral[500], // #5b5b5c
-    lineHeight: 18,
+    fontFamily: 'Manrope-Bold',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   messageOnly: {
-    color: COLORS.neutral[800],
-    fontSize: 14,
+    fontSize: 19,
+    lineHeight: 26,
   },
   closeBtn: {
-    padding: 14,
-    alignSelf: 'stretch',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 8,
   },
 })

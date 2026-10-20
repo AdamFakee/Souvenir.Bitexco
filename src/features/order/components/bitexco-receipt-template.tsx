@@ -1,9 +1,11 @@
 import { PAYMENT_METHOD_LABELS_EN } from '@/features/payment/types/payment.constants'
+import { buildInvoiceQrUrl } from '@/shared/constants'
 import { ItemSnapshot, PaymentSnapshot } from '@/shared/lib/database/types'
 import { IOrder } from '@/shared/types'
 import { formatDateTime } from '@/shared/utils'
 import React, { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
+import QRCode from 'react-native-qrcode-svg'
 
 import { useEmployee } from '@/features/app/hooks/use-app-context'
 import { DashedLine, ReceiptWrapper, S } from './receipt-wrapper'
@@ -85,7 +87,26 @@ export const BitexcoReceiptTemplate = ({
     return sum + qty
   }, 0)
 
-  const isExchange = items.some((item: ItemSnapshot) => item.isExchange)
+  const isExchange =
+    order.isExchange ||
+    order.isExchangeOrder ||
+    Boolean(order.originalOrderId) ||
+    items.some((item: ItemSnapshot) => item.isExchange)
+
+  const isCancelledOrRefunded =
+    order.isDeleted ||
+    order.status === 'CANCELLED' ||
+    order.status === 'FAILED' ||
+    order.status === 'REFUNDED' ||
+    order.status === 'RETURNED' ||
+    order.status === 'PARTIALLY_RETURNED' ||
+    order.status === 'PARTIALLY_REFUNDED' ||
+    order.state === 'CANCELLED'
+
+  // Chỉ in mã QR hóa đơn cho đơn bán hàng mua lần đầu (không in cho đơn đổi hoặc đơn hủy/hoàn)
+  const isInitialSale = !isExchange && !isCancelledOrRefunded
+  const invoiceOrderCode = code || orderId
+  const invoiceQrUrl = isInitialSale ? buildInvoiceQrUrl(invoiceOrderCode, total) : null
 
   return (
     <ReceiptWrapper
@@ -210,6 +231,20 @@ export const BitexcoReceiptTemplate = ({
           </View>
         ))}
       </View>
+
+      {invoiceQrUrl && total > 0 && (
+        <>
+          <DashedLine />
+          <View style={{ alignItems: 'center', marginVertical: 6, gap: 2 }}>
+            <Text style={S.fs30b}>E-INVOICE</Text>
+            <Text style={S.fs24}>Scan to get your e-invoice</Text>
+            <View style={{ marginVertical: 8 }}>
+              <QRCode value={invoiceQrUrl} size={180} color="#000" backgroundColor="#fff" />
+            </View>
+            <Text style={S.fs24}>Valid for 2 hours</Text>
+          </View>
+        </>
+      )}
     </ReceiptWrapper>
   )
 }

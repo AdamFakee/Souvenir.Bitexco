@@ -5,6 +5,7 @@ import { LogoSkystore } from '@/shared/components/ui/icons'
 import { IMAGES } from '@/shared/constants'
 import { toast } from '@/shared/store'
 import { valibotResolver } from '@hookform/resolvers/valibot'
+import { useSelector } from '@xstate/react'
 import { ArrowRight, Lock, User } from 'lucide-react-native'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -21,6 +22,9 @@ type LoginFormData = v.InferOutput<typeof loginSchema>
 export default function StaffLogin() {
   const [loading, setLoading] = useState(false)
   const appService = useAppStore((s) => s.appService)
+  const isRevalidating = useSelector(appService ?? undefined, (s) =>
+    s?.matches('revalidatingShift'),
+  )
 
   const { control, handleSubmit, setError } = useForm<LoginFormData>({
     resolver: valibotResolver(loginSchema),
@@ -133,7 +137,8 @@ export default function StaffLogin() {
             label="Đăng nhập ngay"
             variant="primary"
             onPress={handleSubmit(onSubmit)}
-            loading={loading}
+            loading={loading || !!isRevalidating}
+            disabled={loading || !!isRevalidating}
             rightIcon={ArrowRight}
             className="h-20 rounded-[16px]"
             textClassName="text-2xl font-black"

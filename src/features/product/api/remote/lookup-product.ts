@@ -1,6 +1,6 @@
 import { useQuery, UseQueryOptions } from '@tanstack/react-query'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
-import type { PosLookupResult } from '@/shared/types'
+import type { PosLookupRawResult, PosLookupResult } from '@/shared/types'
 
 // 1. Types cục bộ cho endpoint
 export interface LookupProductParams {
@@ -27,11 +27,23 @@ export const lookupProduct = async (
   if (params.warehouseId) queryParams.warehouseId = params.warehouseId
 
   try {
-    const response = await axios.get<PosLookupResult>('/v1/pos/lookup', {
+    const response = await axios.get<PosLookupRawResult>('/v1/pos/lookup', {
       params: queryParams,
     })
-    return response.data
+    const data = response.data
+    if (!data) return null
+
+    return {
+      ...data,
+      price: data.price ?? 0,
+      barcode: data.barcode ?? data.sku ?? '',
+    }
   } catch (error: any) {
+    console.warn(
+      '[lookupProduct] RESPONSE ERROR:',
+      error.response?.status,
+      JSON.stringify(error.response?.data || error.message, null, 2),
+    )
     if (error.response?.status === 404) {
       return null
     }

@@ -1,11 +1,46 @@
 import { seconds } from '../utils/time'
 
-// URL Host theo môi trường (Tự động nhận diện qua __DEV__)
-const API_HOST_DEV = 'https://wms-api-uat.aidx.vn'
-// const API_HOST_DEV = 'https://bsale-api.aidx.vn'
-const API_HOST_PROD = 'https://bsale-api.aidx.vn'
+export type AppEnvironment = 'uat' | 'prod'
 
-export const API_BASE_URL = API_HOST_PROD
+/**
+ * CẤU HÌNH MÔI TRƯỜNG DẠNG TYPESCRIPT
+ * Chuyển giữa 'uat' và 'prod' trực tiếp tại đây mà không cần file .env
+ */
+export const CURRENT_ENV: AppEnvironment = 'prod'
+
+export const ENV_CONFIG = {
+  uat: {
+    name: 'UAT / Staging',
+    apiBaseUrl: 'https://wms-api-uat.aidx.vn',
+    invoiceBaseUrl: 'https://wms-api-uat.aidx.vn',
+  },
+  prod: {
+    name: 'Production (Saigonskydeck)',
+    apiBaseUrl: 'https://bsale-api.aidx.vn',
+    invoiceBaseUrl: 'https://sinvoice.saigonskydeck.com:40443',
+  },
+} as const
+
+// API Base URL cho Axios Client
+export const API_BASE_URL = ENV_CONFIG[CURRENT_ENV].apiBaseUrl
+
+// Base URL cho hệ thống xuất hoá đơn điện tử
+export const INVOICE_BASE_URL = ENV_CONFIG[CURRENT_ENV].invoiceBaseUrl
+
+/**
+ * Tạo link QR xuất hoá đơn điện tử in lên bill
+ * Format: {BASE}/inv?order={mã đơn}&a={tổng tiền}
+ * @param orderCode Mã đơn in trên bill (SO-...)
+ * @param grandTotal Tổng tiền đơn hàng (số nguyên)
+ */
+export const buildInvoiceQrUrl = (
+  orderCode: string | null | undefined,
+  grandTotal: number | null | undefined,
+): string | null => {
+  if (!orderCode) return null
+  const amount = Math.round(grandTotal ?? 0)
+  return `${INVOICE_BASE_URL}/inv?order=${encodeURIComponent(orderCode)}&a=${amount}`
+}
 
 export const API_QUERY_CONFIG = {
   // Request times out after 30s

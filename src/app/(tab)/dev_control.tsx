@@ -27,7 +27,8 @@ import {
   setPortablePosUrl,
   useConnectionStore,
 } from '@/core/hardware'
-import { fetchProductChanges } from '@/features/product'
+import { useScanLookup } from '@/features/pos'
+import { fetchProductChanges, lookupProduct, searchProducts } from '@/features/product'
 import { getZReport } from '@/features/shift/api'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { database } from '@/shared/lib/database'
@@ -41,6 +42,7 @@ import { Clipboard, Pressable, ScrollView, Text, View } from 'react-native'
 import PrinterImin from 'react-native-printer-imin'
 
 export default function DevControlScreen() {
+  const { handleScan: scanLookupProduct, isProcessing: isScanning } = useScanLookup()
   const [categories, setCategories] = useState<any[]>([])
   const [products, setProducts] = useState<ProductModel[]>([])
   const [syncResult, setSyncResult] = useState<any>(null)
@@ -91,6 +93,52 @@ export default function DevControlScreen() {
   const [entityModalData, setEntityModalData] = useState<any>(null)
   const [isEntityModalVisible, setIsEntityModalVisible] = useState(false)
   const [isEntityLoading, setIsEntityLoading] = useState(false)
+
+  // ─── Toast Test State & Handlers ──────────────────────────────────────────
+  const [toastTestCount, setToastTestCount] = useState(1)
+
+  const handleTestToastSwapSuccess = () => {
+    toast.success(`Đã thêm sản phẩm #${toastTestCount} vào giỏ (Swap)`, 'Quét Barcode', {
+      swap: true,
+    })
+    setToastTestCount((prev) => prev + 1)
+  }
+
+  const handleTestToastSwapError = () => {
+    toast.error(`Không tìm thấy mã vạch SP #${toastTestCount} (Swap)`, 'Lỗi quét mã', {
+      swap: true,
+    })
+    setToastTestCount((prev) => prev + 1)
+  }
+
+  const handleTestToastStackSuccess = () => {
+    toast.success(`Đã thêm sản phẩm #${toastTestCount} vào giỏ (Stack)`, 'Quét Barcode')
+    setToastTestCount((prev) => prev + 1)
+  }
+
+  const handleTestRapidSwap = () => {
+    const start = toastTestCount
+    toast.success(`Quét SP #${start} (1/3)`, 'Barcode Swap', { swap: true })
+    setTimeout(() => {
+      toast.success(`Quét SP #${start + 1} (2/3 - Đã swap)`, 'Barcode Swap', { swap: true })
+    }, 250)
+    setTimeout(() => {
+      toast.success(`Quét SP #${start + 2} (3/3 - Chỉ 1 toast)`, 'Barcode Swap', { swap: true })
+    }, 500)
+    setToastTestCount((prev) => prev + 3)
+  }
+
+  const handleTestRapidStack = () => {
+    const start = toastTestCount
+    toast.info(`Quét SP #${start} (1/3 - Dồn)`, 'Barcode Stack')
+    setTimeout(() => {
+      toast.info(`Quét SP #${start + 1} (2/3 - Dồn)`, 'Barcode Stack')
+    }, 250)
+    setTimeout(() => {
+      toast.info(`Quét SP #${start + 2} (3/3 - Dồn 3 cái)`, 'Barcode Stack')
+    }, 500)
+    setToastTestCount((prev) => prev + 3)
+  }
 
   const handlePrint = async (ref: React.RefObject<any>, name: string) => {
     if (isPrinting) return
@@ -542,6 +590,63 @@ export default function DevControlScreen() {
     } catch (error: any) {
       const errData = error.response?.data
       toast.error('Lỗi: ' + (errData?.detail || errData?.message || error.message), 'Order Lookup')
+    }
+  }
+
+  const handleTestProductLookup = async () => {
+    try {
+      setIsEntityLoading(true)
+      setEntityModalTitle('Tra cứu sản phẩm (20501080005179)')
+      setEntityModalData(null)
+      setIsEntityModalVisible(true)
+      toast.info('Đang gọi API tra cứu mã 20501080005179...')
+
+      const appService = useAppStore.getState().appService
+      const warehouseId = appService?.getSnapshot().context.device?.warehouseId
+
+      const requestPayload = {
+        endpoint: '/v1/pos/lookup',
+        method: 'GET',
+        params: {
+          barcode: '20501080005179',
+          sku: '20501080005179',
+          warehouseId: warehouseId || 'null',
+        },
+        fullUrl: `/v1/pos/lookup?barcode=20501080005179&sku=20501080005179${warehouseId ? `&warehouseId=${warehouseId}` : ''}`,
+      }
+
+      console.log('=============== [DevControl] TEST LOOKUP PRODUCT REQUEST ===============')
+      console.log(JSON.stringify(requestPayload, null, 2))
+      console.log('=========================================================================')
+
+      const lookupRes = await lookupProduct({
+        barcode: '20501080005179',
+        sku: '20501080005179',
+        warehouseId,
+      })
+
+      const searchRes = await searchProducts({
+        q: '20501080005179',
+        warehouseId,
+      })
+
+      setEntityModalData({
+        requestSent: requestPayload,
+        lookupResult: lookupRes,
+        searchResults: searchRes,
+      })
+
+      if (lookupRes || (searchRes && searchRes.length > 0)) {
+        toast.success('Tra cứu thành công! Xem chi tiết JSON.')
+      } else {
+        toast.warning('Không tìm thấy sản phẩm trên Server.')
+      }
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.message || error.message || 'Lỗi không xác định'
+      setEntityModalData({ error: errMsg, response: error?.response?.data })
+      toast.error('Lỗi tra cứu: ' + errMsg)
+    } finally {
+      setIsEntityLoading(false)
     }
   }
 
@@ -1118,16 +1223,81 @@ export default function DevControlScreen() {
       <Text className="mb-6 text-headline-md font-bold text-primary">Dev Control Panel</Text>
       {/* 1.5. Toast & Alert Testing */}
       <Container className="mb-6 p-4">
-        <Text className="text-title-md mb-3 font-bold text-surface-on">Test Alert & Toast</Text>
-        <View className="flex-row flex-wrap gap-3">
+        <View className="mb-3 flex-row items-center justify-between">
+          <Text className="text-title-md font-bold text-surface-on">
+            Test Alert & Toast Notification
+          </Text>
+          <View className="rounded-full bg-primary/10 px-3 py-1">
+            <Text className="text-body-sm font-semibold text-primary">
+              Lượt test: #{toastTestCount}
+            </Text>
+          </View>
+        </View>
+
+        {/* Section 1: Swap Mode Test (Tránh dài xuống khi quét liên tục) */}
+        <View className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+          <Text className="mb-1 text-body-md font-bold text-emerald-700 dark:text-emerald-400">
+            ⚡ Chế độ SWAP (Thay thế toast cũ ngay lập tức - Không dồn hàng)
+          </Text>
+          <Text className="mb-3 text-body-sm text-surface-500">
+            Dùng cho luồng quét mã vạch liên tục (useScanLookup). Khi quét nhiều món liên tiếp,
+            toast mới sẽ thay thế toast cũ thay vì xếp chồng dài xuống màn hình.
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            <Button
+              label={`⚡ Swap Success (SP #${toastTestCount})`}
+              className="bg-emerald-600"
+              onPress={handleTestToastSwapSuccess}
+            />
+            <Button
+              label={`⚡ Swap Error (SP #${toastTestCount})`}
+              className="bg-rose-600"
+              onPress={handleTestToastSwapError}
+            />
+            <Button
+              label="⚡ Bắn nhanh 3 Toast Swap (250ms)"
+              className="bg-teal-700"
+              onPress={handleTestRapidSwap}
+            />
+          </View>
+        </View>
+
+        {/* Section 2: Stack Mode Test (Mặc định để so sánh) */}
+        <View className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+          <Text className="mb-1 text-body-md font-bold text-amber-700 dark:text-amber-400">
+            📚 Chế độ STACK (Mặc định - Xếp chồng dồn xuống)
+          </Text>
+          <Text className="mb-3 text-body-sm text-surface-500">
+            Hành vi mặc định khi không truyền swap: true. Các toast sẽ xếp chồng xuống dưới màn hình
+            để so sánh trực quan.
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            <Button
+              label={`📚 Stack Success (SP #${toastTestCount})`}
+              className="bg-amber-600"
+              onPress={handleTestToastStackSuccess}
+            />
+            <Button
+              label="📚 Bắn nhanh 3 Toast Stack (250ms)"
+              className="bg-orange-600"
+              onPress={handleTestRapidStack}
+            />
+          </View>
+        </View>
+
+        {/* Section 3: Standard Toasts & Dialogs */}
+        <Text className="mb-2 text-body-sm font-semibold text-surface-500">
+          Toast tiêu chuẩn & Hộp thoại xác nhận:
+        </Text>
+        <View className="flex-row flex-wrap gap-2">
           <Button
             label="Toast Success"
-            className="bg-green-500"
+            className="bg-green-600"
             onPress={() => toast.success('Giao dịch đã được thực hiện thành công!', 'Thành công')}
           />
           <Button
             label="Toast Error"
-            className="bg-red-500"
+            className="bg-red-600"
             onPress={() => toast.error('Có lỗi xảy ra khi kết nối máy chủ.', 'Lỗi kết nối')}
           />
           <Button
@@ -1137,7 +1307,7 @@ export default function DevControlScreen() {
           />
           <Button
             label="Toast Info"
-            className="bg-blue-500"
+            className="bg-blue-600"
             onPress={() => toast.info('Phiên bản phần mềm đã được cập nhật.', 'Thông báo')}
           />
           <Button
@@ -1166,6 +1336,13 @@ export default function DevControlScreen() {
                 onConfirm: () => {},
               })
             }
+          />
+          <Button
+            label="🔄 Reset số lần test"
+            variant="outline"
+            className="border-surface-400"
+            textClassName="text-surface-600"
+            onPress={() => setToastTestCount(1)}
           />
         </View>
       </Container>
@@ -1521,6 +1698,28 @@ export default function DevControlScreen() {
             label="Test API: Tra cứu đơn hàng (/v1/orders/lookup)"
             className="bg-indigo-600"
             onPress={handleTestOrderLookup}
+          />
+          <Button
+            label="Test Scan: Quét mã 20501080005179 (useScanLookup)"
+            className="bg-teal-600"
+            loading={isScanning}
+            onPress={() => scanLookupProduct(['20501080005179'])}
+          />
+          <Button
+            label="Test Quét 2 lần liên tục (useScanLookup - Test Swap)"
+            className="bg-emerald-700"
+            loading={isScanning}
+            onPress={() => {
+              scanLookupProduct(['20501080005179'])
+              setTimeout(() => {
+                scanLookupProduct(['20501080005179'])
+              }, 400)
+            }}
+          />
+          <Button
+            label="Test API: Tra cứu SP 20501080005179 (/v1/pos/lookup)"
+            className="bg-emerald-600"
+            onPress={handleTestProductLookup}
           />
           <Button
             label="Test API: Đổi hàng (/v1/pos/orders/{id}/exchange)"

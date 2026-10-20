@@ -45,6 +45,9 @@ Mô-đun quản lý danh sách đơn hàng đã bán, in lại hóa đơn, hoàn
 3. **Bắt buộc duyệt Quản lý (Manager Approval) khi có yêu cầu:**
    - **Quyết định**: Hỗ trợ modal nhập mã nhân viên và mã PIN quản lý để ủy quyền giao dịch đổi/trả.
    - **Lý giải**: Kiểm soát thất thoát và tuân thủ quy trình kiểm soát nội bộ của tòa nhà Bitexco.
+4. **Sinh mã đơn hàng offline chuẩn `SO-DDMMYYYY-xxxxx` & Auto Sync ngầm:**
+   - **Quyết định**: Sinh mã đơn offline theo format `SO-DDMMYYYY-xxxxx` với 5 ký tự ngẫu nhiên A-Z 0-9 (loại bỏ bộ đếm STT đơn hàng theo ngày). Tích hợp Auto Sync tự động trong `useSync` (đẩy đơn khi reconnect mạng & chạy ngầm 5 phút/lần).
+   - **Lý giải**: Đảm bảo mã đơn duy nhất, loại bỏ rủi ro trùng số thứ tự giữa nhiều máy POS độc lập trong ca bán hàng offline.
 
 ---
 

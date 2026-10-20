@@ -1,5 +1,6 @@
 import { EmptyState, LoadMore, SearchInput, Shimmer } from '@/shared/components/ui'
 import { formatCurrency } from '@/shared/utils'
+import { toast } from '@/shared/store'
 import React, { memo, useCallback, useState } from 'react'
 import { Keyboard, Pressable, Text, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
@@ -17,11 +18,33 @@ const ProductItem = memo(function ProductItem({
 }) {
   const priceAfterTax = Math.round(p.price)
   const taxRate = p.taxRate ?? 0
-  const handlePress = useCallback(() => onSelect(p), [onSelect, p])
+  const isOutOfStock = p.stock <= 0
+  const isNoPrice =
+    p.priceStatus === 'no_price' ||
+    p.priceStatus === 'not_available' ||
+    p.priceStatus === 'inactive'
+  const isNotAvailable = isOutOfStock || p.isActive === false || isNoPrice
+
+  const handlePress = useCallback(() => {
+    if (isNotAvailable) {
+      const errorMsg =
+        p.isActive === false
+          ? 'Sản phẩm đã ngừng kinh doanh!'
+          : isNoPrice
+            ? 'Sản phẩm chưa được cấu hình giá bán!'
+            : 'Sản phẩm đã hết hàng trong kho!'
+      toast.error(errorMsg, 'Không thể chọn')
+      return
+    }
+    onSelect(p)
+  }, [onSelect, p, isNotAvailable, isNoPrice])
+
   return (
     <Pressable
       onPress={handlePress}
-      className="flex-row items-center border-b border-surface-200 px-6 py-5 active:bg-surface-100"
+      className={`flex-row items-center border-b border-surface-200 px-6 py-5 ${
+        isNotAvailable ? 'bg-red-50 opacity-60' : 'active:bg-surface-100'
+      }`}
     >
       <View style={{ flex: 3 }}>
         <Text className="text-[24px] font-bold text-surface-on" numberOfLines={2}>
@@ -34,15 +57,21 @@ const ProductItem = memo(function ProductItem({
         </Text>
       </View>
       <View style={{ flex: 1 }} className="px-2">
-        <Text className="text-center text-[22px] font-medium text-black" numberOfLines={1}>
-          {p.stock}
+        <Text
+          className={`text-center text-[22px] font-bold ${isNotAvailable ? 'text-red-500' : 'text-black'}`}
+          numberOfLines={1}
+        >
+          {isOutOfStock ? 'Hết hàng' : isNoPrice ? 'Chưa có giá' : p.stock}
         </Text>
       </View>
       <View style={{ flex: 1.5 }} className="items-end">
-        <Text className="text-right text-[26px] font-bold text-primary" numberOfLines={1}>
-          {formatCurrency(priceAfterTax)}
+        <Text
+          className={`text-right text-[26px] font-bold ${isNoPrice ? 'text-[20px] text-neutral-500' : 'text-primary'}`}
+          numberOfLines={1}
+        >
+          {isNoPrice ? 'Chưa có giá' : formatCurrency(priceAfterTax)}
         </Text>
-        {taxRate > 0 && (
+        {taxRate > 0 && !isNoPrice && (
           <Text className="mt-0.5 text-right text-[17px] font-medium text-neutral-500">
             VAT: {taxRate}%
           </Text>

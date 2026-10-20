@@ -21,16 +21,16 @@ Tài liệu đặc tả kiến trúc lưu trữ cơ sở dữ liệu cục bộ 
 
 ```mermaid
 flowchart TD
-    A[Thu ngân bấm Thanh toán] --> B{Trạng thái Mạng?}
-    B -- Online --> C[Gửi POST /v1/pos/orders/checkout]
+    A[Thu ngân bấm Thanh toán] --> B{isNetworkConnected?}
+    B -- true: Mạng OK & Server OK --> C[Gửi POST /v1/pos/checkout]
     C -- Thành công --> D[Lưu Order vào WatermelonDB synced=true]
-    C -- Thất bại / Timeout --> E[Ghi vào Outbox Table synced=false]
-    B -- Offline --> E
+    C -- Thất bại / Timeout --> E[Ghi Order vào Local SQLite & Outbox synced=false]
+    B -- false: Mất Mạng HOẶC Sập Server --> E
 
     E --> F[In Hóa đơn Khách hàng & Mở két]
     F --> G[Cập nhật Badge Đơn chưa đồng bộ trên Sidebar]
 
-    H[Lắng nghe Sự kiện Mạng On / Nút Sync thủ công] --> I{Kiểm tra Outbox}
+    H[Lắng nghe sự kiện /health 15s & Ping thủ công] --> I{Kiểm tra Outbox}
     I -- Có đơn PENDING --> J[Gửi tuần tự từng đơn lên Server]
     J -- Server chấp thuận --> K[Cập nhật synced=true & Xóa khỏi Outbox]
     J -- Lỗi Server / Timeout --> L[Giữ lại trong Outbox để Retry lần sau]

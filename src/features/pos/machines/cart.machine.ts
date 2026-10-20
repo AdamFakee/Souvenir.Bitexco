@@ -80,6 +80,22 @@ export const cartMachine = setup({
               const existingItem = context.items[product.id]
               const currentQty = existingItem ? existingItem.quantity : 0
 
+              const priceStatus =
+                productInput.priceStatus ||
+                ('price_status' in productInput ? productInput.price_status : undefined)
+
+              if (
+                priceStatus === 'no_price' ||
+                priceStatus === 'not_available' ||
+                priceStatus === 'inactive'
+              ) {
+                toast.warning(
+                  `Sản phẩm [${product.name}] chưa được cấu hình giá bán!`,
+                  'Chưa có giá',
+                )
+                return {}
+              }
+
               if (product.stock !== undefined && product.stock !== null) {
                 if (product.stock <= 0) {
                   toast.warning(`Sản phẩm [${product.name}] đã hết hàng!`, 'Hết hàng')

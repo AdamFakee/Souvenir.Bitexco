@@ -1,7 +1,6 @@
 import { AxiosService } from '@/shared/lib/axios/axios.service'
 import { OrderStatus } from '@/shared/lib/database'
 import { AgentType } from '@/shared/types'
-import { incrementDailyOrderCount } from '../../utils'
 
 export interface PosCartLine {
   variantId: string
@@ -78,7 +77,7 @@ export async function checkoutRemote(payload: PosCheckoutRequest): Promise<PosCh
     )
     console.log('[checkoutRemote] Success Response:', JSON.stringify(res.data, null, 2))
     if (res.data && !(res.data as any).error) {
-      incrementDailyOrderCount()
+      // Đã bỏ đếm đơn trong ngày
     }
     return res.data
   } catch (error: any) {

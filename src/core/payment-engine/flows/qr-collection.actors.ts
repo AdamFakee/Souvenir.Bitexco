@@ -26,7 +26,7 @@ export const fetchQrActor = fromPromise(
     }
     try {
       const qrData = await generateQrCode(input.paymentId, params)
-      if (qrData && (qrData.qrPayload || qrData.qrUrl)) {
+      if (qrData && (qrData.qrUrl || qrData.qrPayload)) {
         return qrData
       }
       throw new Error('Server không trả về nội dung mã QR.')

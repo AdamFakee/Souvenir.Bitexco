@@ -199,7 +199,12 @@ const VoucherRow = memo(function VoucherRow({
   }, [cartActor])
 
   return (
-    <View className="min-h-[64px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
+    <View className="relative min-h-[64px] flex-row items-center gap-3 rounded-2xl border border-outline-variant bg-white px-4">
+      {/* Overlay chặn tương tác và hiển thị thông báo tính năng đang phát triển */}
+      <Pressable
+        onPress={() => toast.info('Tính năng đang phát triển', 'Thông báo')}
+        className="absolute inset-0 z-10 rounded-2xl active:bg-black/5"
+      />
       <Pressable
         onPress={handleOpenVoucherModal}
         disabled={!appliedVoucher}
@@ -377,12 +382,6 @@ const PaymentButtons = memo(function PaymentButtons({
   )
 
   const affiliate = cartContext?.affiliate ?? null
-  const maxAllowedDebt = useMemo(() => {
-    if (!affiliate) return null
-    return affiliate.remainingCredit !== undefined && affiliate.remainingCredit !== null
-      ? affiliate.remainingCredit
-      : (affiliate.creditLimit ?? null)
-  }, [affiliate])
 
   const activeStrategies = useMemo(() => {
     let list = []
@@ -480,38 +479,13 @@ const PaymentButtons = memo(function PaymentButtons({
 
   return (
     <View className="w-[430px] justify-end gap-3">
-      {((isVoucherInvalid && cartContext?.appliedVoucher && cart.length > 0) ||
-        (affiliate?.agentType === 'agent' &&
-          (!affiliate.isDebt || (maxAllowedDebt !== null && pricing.total > maxAllowedDebt)))) && (
+      {isVoucherInvalid && cartContext?.appliedVoucher && cart.length > 0 && (
         <View className="mb-2 gap-1 rounded-2xl border border-error/20 bg-red-100 p-4">
-          {isVoucherInvalid && cartContext?.appliedVoucher && cart.length > 0 && (
-            <Text className="text-[15px] font-bold text-red-800">
-              {pricing.voucherInvalidReason
-                ? `⚠ ${pricing.voucherInvalidReason}`
-                : '⚠ Mã giảm giá không hợp lệ với đơn này.'}
-            </Text>
-          )}
-          {affiliate?.agentType === 'agent' && !affiliate.isDebt && (
-            <Text className="text-[15px] font-bold text-red-800">
-              ⚠ Đối tác không được phép ghi nợ
-            </Text>
-          )}
-          {affiliate?.agentType === 'agent' &&
-            affiliate.isDebt &&
-            maxAllowedDebt !== null &&
-            pricing.total > maxAllowedDebt && (
-              <Text className="text-[15px] font-bold text-error">
-                ⚠ Vượt hạn mức công nợ (
-                {affiliate.remainingCredit !== undefined && affiliate.remainingCredit !== null
-                  ? formatCurrency(affiliate.remainingCredit)
-                  : '0'}{' '}
-                /{' '}
-                {affiliate.creditLimit !== undefined && affiliate.creditLimit !== null
-                  ? formatCurrency(affiliate.creditLimit)
-                  : '∞'}
-                )
-              </Text>
-            )}
+          <Text className="text-[15px] font-bold text-red-800">
+            {pricing.voucherInvalidReason
+              ? `⚠ ${pricing.voucherInvalidReason}`
+              : '⚠ Mã giảm giá không hợp lệ với đơn này.'}
+          </Text>
         </View>
       )}
 
@@ -520,12 +494,9 @@ const PaymentButtons = memo(function PaymentButtons({
           {row.map((method: any) => {
             const isAvailable = method.isAvailable(paymentContext, !isNetworkConnected)
             const isDebt = method.type === 'cong_no'
+            // Hạn mức công nợ còn lại do server kiểm tra khi tạo đơn
             const isDebtDisabled =
-              isDebt &&
-              (!affiliate ||
-                affiliate.agentType !== 'agent' ||
-                affiliate.isDebt !== true ||
-                (maxAllowedDebt !== null && pricing.total > maxAllowedDebt))
+              isDebt && (!affiliate || affiliate.agentType !== 'agent' || affiliate.isDebt !== true)
             const isDisabled =
               cart.length === 0 ||
               !isAvailable ||

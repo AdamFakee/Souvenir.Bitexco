@@ -101,7 +101,7 @@ export const closeShiftMachine = setup({
             action: 'start_close',
             expectedVersion: currentVersion,
           })
-          // Re-fetch để lấy version chính xác — không phụ thuộc format response của transitions
+          // Re-fetch để lấy version chính xác
           const updated = await getShiftById(input.shiftId)
           currentVersion = updated.version
           currentState = updated.state
@@ -135,7 +135,13 @@ export const closeShiftMachine = setup({
           appService.send({ type: 'SHIFT_OPENED', cashSessionId: null as any })
         }
 
-        const zReportData = await getZReport(input.shiftId)
+        let zReportData: ZReportResponse | null = null
+        try {
+          zReportData = await getZReport(input.shiftId)
+        } catch (zErr: any) {
+          toast.warning('Đã kết ca thành công! (Tài khoản chưa có quyền in phiếu kết ca)')
+        }
+
         return zReportData
       },
     ),

@@ -22,8 +22,28 @@ export interface ProductRaw {
   unit_code: string
   is_active: boolean
   is_deleted: boolean
+  price_status?: string
   created_at?: number
   updated_at?: number
+}
+
+export interface ProductSyncItem {
+  id: string
+  productId: string
+  sku: string
+  name: string
+  nameEn: string | null
+  price: number
+  priceStatus?: 'available' | 'no_price'
+  taxRate: number
+  stock: number
+  unitId: string | null
+  barcode: string | null
+  isActive: boolean
+  isDeleted: boolean
+  updatedAt: string
+  createdAt?: string
+  unitCode?: string
 }
 
 // API Functions
@@ -39,7 +59,7 @@ export const fetchProductChanges = async ({
     }
   } catch {}
   const axios = AxiosService.getInstance()
-  let allItems: any[] = []
+  let allItems: ProductSyncItem[] = []
   let page = 0
   let hasMore = true
   const limit = 200 // page limit
@@ -48,7 +68,7 @@ export const fetchProductChanges = async ({
   try {
     while (hasMore) {
       const response = await axios.get<{
-        items: any[]
+        items: ProductSyncItem[]
         hasMore: boolean
         syncedAt: number | string
       }>('/v1/pos/products/sync', {
@@ -77,7 +97,7 @@ export const fetchProductChanges = async ({
     }
 
     // Khử trùng lặp ID sản phẩm nhận được từ Server để tránh sqlite error 1555 (UNIQUE constraint failed: products.id)
-    const uniqueItemsMap = new Map<string, any>()
+    const uniqueItemsMap = new Map<string, ProductSyncItem>()
     for (const item of allItems) {
       if (item.id) {
         uniqueItemsMap.set(item.id, item)
@@ -86,8 +106,9 @@ export const fetchProductChanges = async ({
     const uniqueItems = Array.from(uniqueItemsMap.values())
 
     // Lấy danh sách IDs đã tồn tại dưới DB Local để quyết định CREATE hay UPDATE
+    // (Bắt buộc kiểm tra để tránh lỗi SQLite Error: UNIQUE constraint failed: products.id ngay cả khi sync lần đầu)
     const existingIds = new Set<string>()
-    if (lastPulledAt && uniqueItems.length > 0) {
+    if (uniqueItems.length > 0) {
       const productIds = uniqueItems.map((item) => item.id).filter(Boolean)
       const chunkSize = 500
       for (let i = 0; i < productIds.length; i += chunkSize) {
@@ -105,6 +126,9 @@ export const fetchProductChanges = async ({
     const deleted: string[] = []
 
     for (const item of uniqueItems) {
+      const updatedAtMs = item.updatedAt ? new Date(item.updatedAt).getTime() : Date.now()
+      const createdAtMs = item.createdAt ? new Date(item.createdAt).getTime() : updatedAtMs
+
       const mapped: ProductRaw = {
         id: item.id,
         sku: item.sku,
@@ -114,20 +138,21 @@ export const fetchProductChanges = async ({
         price: item.price,
         tax_rate: item.taxRate ?? 0,
         stock: item.stock ?? 0,
-        unit_id: item.unitId,
+        unit_id: item.unitId || '',
         unit_code: item.unitCode || 'CAI',
         is_active: item.isActive ?? true,
         is_deleted: item.isDeleted ?? false,
-        created_at: item.createdAt || Date.now(),
-        updated_at: item.updatedAt || Date.now(),
+        price_status: item.priceStatus || 'available',
+        created_at: createdAtMs,
+        updated_at: updatedAtMs,
       }
 
       if (item.isDeleted) {
-        if (lastPulledAt && existingIds.has(item.id)) {
+        if (existingIds.has(item.id)) {
           deleted.push(item.id)
         }
       } else {
-        if (lastPulledAt && existingIds.has(item.id)) {
+        if (existingIds.has(item.id)) {
           updated.push(mapped)
         } else {
           created.push(mapped)

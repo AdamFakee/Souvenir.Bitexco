@@ -1,6 +1,6 @@
-import { useQuery, UseQueryOptions } from '@tanstack/react-query'
 import { AxiosService } from '@/shared/lib/axios/axios.service'
-import type { PosLookupResult } from '@/shared/types'
+import type { PosLookupRawResult, PosLookupResult } from '@/shared/types'
+import { useQuery, UseQueryOptions } from '@tanstack/react-query'
 
 // 1. Types cục bộ cho endpoint
 export interface SearchProductsParams {
@@ -21,14 +21,20 @@ export const searchProducts = async (
 ): Promise<SearchProductsResponse> => {
   const axios = AxiosService.getInstance()
 
-  const response = await axios.get<PosLookupResult[]>('/v1/pos/search', {
+  const response = await axios.get<PosLookupRawResult[]>('/v1/pos/search', {
     params: {
       q: params.q,
       warehouseId: params.warehouseId,
       limit: params.limit || 25,
     },
   })
-  return response.data
+
+  const rawItems = response.data || []
+  return rawItems.map((item) => ({
+    ...item,
+    price: item.price ?? 0,
+    barcode: item.barcode ?? item.sku ?? '',
+  }))
 }
 
 // 4. Custom Hook
@@ -40,6 +46,9 @@ export const useSearchProducts = (
     queryKey: searchProductsQueryKey(params),
     queryFn: () => searchProducts(params),
     enabled: Boolean(params.q?.trim()),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
     ...options,
   })
 }

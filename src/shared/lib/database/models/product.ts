@@ -15,6 +15,7 @@ export default class ProductModel extends Model {
   @field('unit_code') unitCode!: string
   @field('is_active') isActive!: boolean
   @field('is_deleted') isDeleted!: boolean
+  @field('price_status') priceStatus?: 'available' | 'no_price' | string
 
   @readonly @date('created_at') createdAt!: Date
   @readonly @date('updated_at') updatedAt!: Date

@@ -217,55 +217,11 @@ export const formatReceiptCode = (codeOrId: string | null | undefined): string =
   return codeOrId.toUpperCase()
 }
 
-const STORAGE_KEY_ORDER_COUNTER_DATE = 'offline_order_counter_date'
-const STORAGE_KEY_ORDER_COUNTER_COUNT = 'offline_order_counter_count'
-
 /**
- * Tăng số thứ tự (STT) đơn hàng trong ngày lên 1 (dùng chung cho cả Online và Offline).
- * Tự động reset STT về 1 khi bước sang ngày mới (DDMMYYYY).
- */
-export const incrementDailyOrderCount = (now: Date = new Date()): number => {
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = now.getFullYear()
-  const currentDateStr = `${dd}${mm}${yyyy}`
-
-  const storedDate = storage.getString(STORAGE_KEY_ORDER_COUNTER_DATE)
-  let count = storage.getNumber(STORAGE_KEY_ORDER_COUNTER_COUNT) ?? 0
-
-  if (storedDate !== currentDateStr) {
-    count = 1
-  } else {
-    count += 1
-  }
-
-  storage.set(STORAGE_KEY_ORDER_COUNTER_DATE, currentDateStr)
-  storage.set(STORAGE_KEY_ORDER_COUNTER_COUNT, count)
-
-  return count
-}
-
-/**
- * Lấy số lượng đơn hàng hiện tại trong ngày (không tăng counter).
- */
-export const getTodayOrderCount = (now: Date = new Date()): number => {
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = now.getFullYear()
-  const currentDateStr = `${dd}${mm}${yyyy}`
-
-  const storedDate = storage.getString(STORAGE_KEY_ORDER_COUNTER_DATE)
-  if (storedDate !== currentDateStr) {
-    return 0
-  }
-  return storage.getNumber(STORAGE_KEY_ORDER_COUNTER_COUNT) ?? 0
-}
-
-/**
- * Sinh mã đơn hàng offline theo định dạng: SO-DDMMYYYY-ABSTT
- * - DDMMYYYY: Ngày tháng năm hiện tại
- * - AB: 2 ký tự ngẫu nhiên in hoa (A-Z)
- * - STT: Số thứ tự 3 chữ số (001 - 999), reset khi qua ngày mới
+ * Sinh mã đơn hàng offline theo định dạng: SO-DDMMYYYY-xxxxx
+ * - DDMMYYYY: Ngày tháng năm hiện tại (ví dụ: 06102026)
+ * - xxxxx: 5 ký tự ngẫu nhiên gồm chữ in hoa và số (ví dụ: A8F3K)
+ * Ví dụ kết quả: "SO-06102026-A8F3K"
  */
 export const generateOfflineOrderCode = (now: Date = new Date()): string => {
   const dd = String(now.getDate()).padStart(2, '0')
@@ -273,13 +229,11 @@ export const generateOfflineOrderCode = (now: Date = new Date()): string => {
   const yyyy = now.getFullYear()
   const dateStr = `${dd}${mm}${yyyy}`
 
-  const stt = incrementDailyOrderCount(now)
-  const sttStr = String(stt).padStart(3, '0')
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let randomStr = ''
+  for (let i = 0; i < 5; i++) {
+    randomStr += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
 
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  const char1 = chars.charAt(Math.floor(Math.random() * chars.length))
-  const char2 = chars.charAt(Math.floor(Math.random() * chars.length))
-  const randomAB = `${char1}${char2}`
-
-  return `SO-${dateStr}-${randomAB}${sttStr}`
+  return `SO-${dateStr}-${randomStr}`
 }

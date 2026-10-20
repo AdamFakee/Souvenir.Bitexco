@@ -146,9 +146,6 @@ export const appMachine = setup({
           paymentMethods = await getPaymentMethods()
         } catch {}
 
-        // 7. Kéo dữ liệu master data ngầm (offline cache)
-        SyncService.pullMasterData().catch(() => {})
-
         return { accessToken, employee, cashSessionId, paymentMethods, warehouseId }
       },
     ),

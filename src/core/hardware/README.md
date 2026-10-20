@@ -28,6 +28,7 @@ Tầng lõi giao tiếp và điều khiển các thiết bị ngoại vi phần 
 | `adapters/native-device.adapter.ts` | Adapter chạy thực tế trên máy Android iMin                | ⚠️ Native Module   |
 | `adapters/mock-device.adapter.ts`   | Adapter giả lập cho môi trường Web / Simulator / Test     | ❌ Zero I/O (Mock) |
 | `device-manager.ts`                 | Factory tự động chọn Adapter phù hợp theo nền tảng        | ❌ Logic thuần     |
+| `store/use-connection-store.ts`     | Quản lý kết nối mạng (`NetInfo` + `/health`) & POS EDC    | 🌐 REST & NetInfo  |
 
 ---
 

@@ -52,6 +52,8 @@ export function useScanLookup() {
                 taxRate: localProduct.taxRate,
                 unit: localProduct.unitCode,
                 unitId: localProduct.unitId,
+                isActive: localProduct.isActive,
+                priceStatus: localProduct.priceStatus || 'available',
               }
             }
           } catch (e) {
@@ -80,12 +82,14 @@ export function useScanLookup() {
                   id: remoteResult.variantId,
                   name: remoteResult.productNameEn || remoteResult.productName,
                   sku: remoteResult.sku,
-                  price: remoteResult.price,
+                  price: remoteResult.price ?? 0,
                   stock: remoteResult.available,
-                  barcode: remoteResult.barcode,
+                  barcode: remoteResult.barcode || undefined,
                   taxRate: remoteResult.taxRate,
                   unit: remoteResult.unitCode,
                   unitId: remoteResult.unitId,
+                  isActive: remoteResult.isActive,
+                  priceStatus: remoteResult.priceStatus,
                 }
               }
             } catch {
@@ -97,10 +101,28 @@ export function useScanLookup() {
           // 3. XỬ LÝ KẾT QUẢ: Thêm vào giỏ hàng hoặc báo lỗi không tìm thấy
           // =====================================================================
           if (product) {
-            posActor?.send({ type: 'ADD_ITEM', product })
-            toast.success(`Đã thêm: ${product.name}`)
+            const isNoPrice =
+              product.priceStatus === 'no_price' ||
+              product.priceStatus === 'not_available' ||
+              product.priceStatus === 'inactive'
+            const isNotAvailable = product.stock <= 0 || product.isActive === false || isNoPrice
+
+            if (isNotAvailable) {
+              const reason =
+                product.isActive === false
+                  ? 'đã ngừng kinh doanh'
+                  : isNoPrice
+                    ? 'chưa được cấu hình giá bán'
+                    : 'đã hết hàng trong kho'
+              toast.error(`Sản phẩm ${product.name} ${reason}!`, 'Không thể thêm', { swap: true })
+            } else {
+              posActor?.send({ type: 'ADD_ITEM', product })
+              toast.success(`Đã thêm: ${product.name}`, 'Thành công', { swap: true })
+            }
           } else {
-            toast.error(`Không tìm thấy sản phẩm cho mã: ${trimmedCode}`, 'Thông báo')
+            toast.error(`Không tìm thấy sản phẩm cho mã: ${trimmedCode}`, 'Thông báo', {
+              swap: true,
+            })
           }
         }
       } finally {

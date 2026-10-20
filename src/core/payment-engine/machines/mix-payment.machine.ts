@@ -200,7 +200,7 @@ export const mixPaymentMachine = setup({
     }),
     assignQrData: assign({
       qrContent: ({ event }) =>
-        (event as any).output?.qrPayload ?? (event as any).output?.qrUrl ?? null,
+        (event as any).output?.qrUrl ?? (event as any).output?.qrPayload ?? null,
       expiresAt: ({ event }) => (event as any).output?.expiresAt ?? null,
       createdAt: ({ event }) => (event as any).output?.createdAt ?? null,
       rawCommandResult: ({ event }) => (event as any).output ?? null,

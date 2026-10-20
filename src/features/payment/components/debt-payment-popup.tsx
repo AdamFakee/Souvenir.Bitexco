@@ -102,13 +102,6 @@ export const DebtPaymentPopup = memo(
   ) {
     const [visible, setVisible] = useState(false)
 
-    const maxAllowedDebt = useMemo(() => {
-      if (!affiliate) return null
-      return affiliate.remainingCredit !== undefined && affiliate.remainingCredit !== null
-        ? affiliate.remainingCredit
-        : (affiliate.creditLimit ?? null)
-    }, [affiliate])
-
     const subtotal = useMemo(() => calculateSubtotal(items), [items])
 
     const actorRef = useActorRef(debtPaymentMachine, {
@@ -164,17 +157,8 @@ export const DebtPaymentPopup = memo(
 
     const handleConfirm = useCallback(() => {
       if (isCheckingOut || isDone) return
-      if (affiliate?.agentType === 'agent' && maxAllowedDebt !== null) {
-        if (total > maxAllowedDebt) {
-          toast.infoPopup({
-            title: 'Vượt hạn mức công nợ',
-            message: `Giao dịch vượt quá hạn mức công nợ khả dụng (${formatCurrency(maxAllowedDebt)}) của đối tác.`,
-          })
-          return
-        }
-      }
       actorRef.send({ type: 'CONFIRM' })
-    }, [isCheckingOut, isDone, affiliate, maxAllowedDebt, total, actorRef])
+    }, [isCheckingOut, isDone, actorRef])
 
     const handleClose = useCallback(() => {
       if (isCheckingOut) return
@@ -269,20 +253,6 @@ export const DebtPaymentPopup = memo(
                     </Text>
                   </View>
                 )}
-                <View className="flex-row items-center justify-between gap-4">
-                  <Text className="shrink-0 text-lg text-muted">Hạn mức nợ (Còn lại / Tối đa)</Text>
-                  <Text
-                    className="flex-1 text-right text-lg font-semibold text-surface-on"
-                    numberOfLines={1}
-                  >
-                    {affiliate.remainingCredit !== undefined && affiliate.remainingCredit !== null
-                      ? `${formatCurrency(affiliate.remainingCredit)} / `
-                      : ''}
-                    {affiliate.creditLimit !== undefined && affiliate.creditLimit !== null
-                      ? formatCurrency(affiliate.creditLimit)
-                      : 'Không giới hạn'}
-                  </Text>
-                </View>
               </View>
             )}
 
@@ -299,25 +269,6 @@ export const DebtPaymentPopup = memo(
                 </Text>
               )}
             </View>
-
-            {/* Credit limit warning */}
-            {affiliate?.agentType === 'agent' &&
-              maxAllowedDebt !== null &&
-              total > maxAllowedDebt && (
-                <View className="rounded-xl border border-error/30 bg-error/10 p-5">
-                  <Text className="text-xl font-semibold text-error">
-                    ⚠ Vượt hạn mức công nợ (
-                    {affiliate.remainingCredit !== undefined && affiliate.remainingCredit !== null
-                      ? formatCurrency(affiliate.remainingCredit)
-                      : '0'}{' '}
-                    /{' '}
-                    {affiliate.creditLimit !== undefined && affiliate.creditLimit !== null
-                      ? formatCurrency(affiliate.creditLimit)
-                      : '∞'}
-                    )
-                  </Text>
-                </View>
-              )}
 
             {/* Error banner */}
             {isError && error && (

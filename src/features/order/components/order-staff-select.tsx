@@ -47,7 +47,7 @@ export const StaffSelect = memo(function StaffSelect({
   )
 
   return (
-    <View className={className}>
+    <View className={className} style={{ zIndex: 999, elevation: 999 }}>
       <Select
         options={options}
         value={value ?? ''}

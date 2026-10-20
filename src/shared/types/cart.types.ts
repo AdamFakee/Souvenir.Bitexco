@@ -8,6 +8,7 @@ export type CartProduct = {
   taxRate: number
   image?: string | null
   stock?: number | null
+  priceStatus?: string
 }
 
 export type CartItem = {

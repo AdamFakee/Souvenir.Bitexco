@@ -1,4 +1,4 @@
-import { IMinPrinterDriver } from '@/core/hardware'
+import { IMinPrinterDriver, useConnectionStore } from '@/core/hardware'
 import { useAppStore, useCashSessionId, useEmployee } from '@/features/app'
 import { logout } from '@/features/auth'
 import { HandoverNotesModal, HandoverNotesModalRef, useNoteStore } from '@/features/note'
@@ -21,7 +21,6 @@ import {
 import { COLORS } from '@/shared/constants'
 import { useSync } from '@/shared/lib/database/sync'
 import { toast, useAlertStore } from '@/shared/store'
-import { MaterialIcons } from '@expo/vector-icons'
 import { Href, Tabs, usePathname, useRouter } from 'expo-router'
 import { ClipboardList, LogOut, RefreshCw, Terminal } from 'lucide-react-native'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -40,6 +39,85 @@ const MENU_ITEMS: MenuItem[] = [
   { name: 'dashboard', label: 'Báo cáo', icon: WorkingIcon },
   ...(__DEV__ ? [{ name: 'dev_control', label: 'Dev Control', icon: Terminal }] : []),
 ]
+
+const SidebarHeaderLogoOrDowntime = React.memo(() => {
+  const offlineReason = useConnectionStore((s) => s.offlineReason)
+  const downtimeStartTime = useConnectionStore((s) => s.downtimeStartTime)
+  const checkServerHealth = useConnectionStore((s) => s.checkServerHealth)
+
+  const [elapsedStr, setElapsedStr] = useState<string>('00:00')
+
+  useEffect(() => {
+    if (!downtimeStartTime) {
+      setElapsedStr('00:00')
+      return
+    }
+
+    const updateTimer = () => {
+      const diffSecs = Math.max(0, Math.floor((Date.now() - downtimeStartTime) / 1000))
+      const hrs = Math.floor(diffSecs / 3600)
+      const mins = Math.floor((diffSecs % 3600) / 60)
+      const secs = diffSecs % 60
+      const pad = (n: number) => String(n).padStart(2, '0')
+
+      if (hrs > 0) {
+        setElapsedStr(`${pad(hrs)}:${pad(mins)}:${pad(secs)}`)
+      } else {
+        setElapsedStr(`${pad(mins)}:${pad(secs)}`)
+      }
+    }
+
+    updateTimer()
+    const timerId = setInterval(updateTimer, 1000)
+    return () => clearInterval(timerId)
+  }, [downtimeStartTime])
+
+  if (!offlineReason) {
+    return (
+      <View className="w-full items-center justify-center pb-6 pt-2">
+        <LogoSkystore width={180} height={100} color="#ffffff" />
+      </View>
+    )
+  }
+
+  const isNetworkError = offlineReason === 'NETWORK'
+  const reasonText = isNetworkError ? 'MẤT MẠNG INTERNET' : 'SẬP SERVER'
+
+  const theme = isNetworkError
+    ? {
+        bg: 'bg-amber-500/20',
+        border: 'border-amber-400/40',
+        dot: 'bg-amber-400',
+        textTitle: 'text-amber-200',
+      }
+    : {
+        bg: 'bg-rose-500/20',
+        border: 'border-rose-400/40',
+        dot: 'bg-rose-400',
+        textTitle: 'text-rose-200',
+      }
+
+  return (
+    <View className="h-[126px] w-full items-center justify-center px-3 pb-6 pt-2">
+      <Pressable
+        onPress={() => checkServerHealth()}
+        className={`h-full w-full flex-col items-center justify-center rounded-2xl border ${theme.border} ${theme.bg} p-3 active:opacity-80`}
+      >
+        <View className="flex-row items-center gap-2 pb-1.5">
+          <View className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
+          <Text className={`font-manrope text-[13px] font-bold tracking-wide ${theme.textTitle}`}>
+            {reasonText}
+          </Text>
+        </View>
+
+        <Text className="font-mono text-[24px] font-extrabold tracking-wider text-white">
+          {elapsedStr}
+        </Text>
+      </Pressable>
+    </View>
+  )
+})
+SidebarHeaderLogoOrDowntime.displayName = 'SidebarHeaderLogoOrDowntime'
 
 const NoteSidebarButton = React.memo(() => {
   const handoverNotesModalRef = useRef<HandoverNotesModalRef>(null)
@@ -169,10 +247,8 @@ const CustomSidebarInner = React.memo(
         style={{ paddingTop: insets.top + 24, paddingBottom: 16 }}
       >
         <View>
-          {/* Logo */}
-          <View className="w-full items-center justify-center pb-6 pt-2">
-            <LogoSkystore width={180} height={100} color="#ffffff" />
-          </View>
+          {/* Logo / Downtime Counter */}
+          <SidebarHeaderLogoOrDowntime />
 
           {/* Nav Items */}
           <View className="gap-3">
@@ -262,11 +338,11 @@ const CustomSidebarInner = React.memo(
 
           <Container className="flex-row items-center justify-between rounded-2xl border border-white/10 bg-white/10 p-4 shadow-sm">
             <View className="mr-2 flex-1 flex-row items-center gap-3">
-              <View className="h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/10 shadow-sm">
-                <MaterialIcons name="person" size={24} color={COLORS.primary.on} />
-              </View>
               <View className="flex-1">
-                <Text className="font-manrope text-lg font-bold text-white" numberOfLines={1}>
+                <Text
+                  className="text-center font-manrope text-lg font-bold text-white"
+                  numberOfLines={1}
+                >
                   {employee?.displayName || 'Nhân viên'}
                 </Text>
               </View>

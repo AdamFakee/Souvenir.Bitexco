@@ -19,11 +19,16 @@ export const HardwareBarcodeScanner = ({
   onScan,
   onFocusChange,
   ref,
+  onBlur: propsOnBlur,
+  onFocus: propsOnFocus,
+  style,
   ...props
 }: HardwareBarcodeScannerProps) => {
   const inputRef = useRef<TextInput>(null)
   const rawBufferRef = useRef('')
   const readCursorRef = useRef(0)
+  const refocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isKeyboardVisibleRef = useRef(false)
 
   // Công khai các hàm điều khiển cho component cha
   useImperativeHandle(ref, () => ({
@@ -35,11 +40,17 @@ export const HardwareBarcodeScanner = ({
     },
   }))
 
-  // QUẢN LÝ FOCUS HỆ THỐNG
+  // QUẢN LÝ FOCUS HỆ THỐNG & THEO DÕI BÀN PHÍM
   useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 500)
+    const timer = setTimeout(() => inputRef.current?.focus(), 400)
 
-    const keyboardSub = Keyboard.addListener('keyboardDidHide', () => {
+    const keyboardShowSub = Keyboard.addListener('keyboardDidShow', () => {
+      isKeyboardVisibleRef.current = true
+    })
+
+    const keyboardHideSub = Keyboard.addListener('keyboardDidHide', () => {
+      isKeyboardVisibleRef.current = false
+      // Khi đóng bàn phím mềm ở bất kỳ màn hình nào, trả focus ngay về cho scanner
       inputRef.current?.focus()
     })
 
@@ -51,7 +62,9 @@ export const HardwareBarcodeScanner = ({
 
     return () => {
       clearTimeout(timer)
-      keyboardSub.remove()
+      if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current)
+      keyboardShowSub.remove()
+      keyboardHideSub.remove()
       appStateSub.remove()
     }
   }, [])
@@ -75,10 +88,53 @@ export const HardwareBarcodeScanner = ({
     inputRef.current?.clear()
   }, [onScan])
 
+  const handleBlur = useCallback(
+    (e: any) => {
+      onFocusChange?.(false)
+      propsOnBlur?.(e)
+
+      // Auto Re-focus: Tự động lấy lại focus sau khi thu ngân hoàn tất thao tác touch trên màn hình
+      if (refocusTimerRef.current) {
+        clearTimeout(refocusTimerRef.current)
+      }
+      refocusTimerRef.current = setTimeout(() => {
+        // Chỉ re-focus nếu bàn phím mềm không hiển thị (thu ngân không chủ động nhập ô text khác)
+        if (!isKeyboardVisibleRef.current) {
+          inputRef.current?.focus()
+        }
+      }, 350)
+    },
+    [onFocusChange, propsOnBlur],
+  )
+
+  const handleFocus = useCallback(
+    (e: any) => {
+      onFocusChange?.(true)
+      propsOnFocus?.(e)
+    },
+    [onFocusChange, propsOnFocus],
+  )
+
   return (
     <TextInput
       ref={inputRef}
-      className="absolute -left-[1000px] top-0 h-[1px] w-[1px] opacity-0"
+      style={[
+        {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: 1,
+          height: 1,
+          opacity: 0.01,
+        },
+        style,
+      ]}
+      pointerEvents="none"
+      showSoftInputOnFocus={false}
+      autoFocus={true}
+      caretHidden={true}
+      contextMenuHidden={true}
+      blurOnSubmit={false} // Giữ focus liên tục sau khi quét Enter
       onChangeText={(text) => {
         if (text.length < readCursorRef.current) {
           readCursorRef.current = 0
@@ -86,11 +142,8 @@ export const HardwareBarcodeScanner = ({
         rawBufferRef.current = text
       }}
       onSubmitEditing={handleBarcodeScanned}
-      autoFocus={true}
-      showSoftInputOnFocus={false}
-      onFocus={() => onFocusChange?.(true)}
-      onBlur={() => onFocusChange?.(false)}
-      blurOnSubmit={false} // QUAN TRỌNG: Giữ focus liên tục để tránh Metro bắt phím tắt
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       {...props}
     />
   )

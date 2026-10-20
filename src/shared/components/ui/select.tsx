@@ -1,7 +1,8 @@
 import { cn } from '@/shared/utils'
 import { Check, ChevronDown } from 'lucide-react-native'
 import React, { memo, useCallback, useRef, useState } from 'react'
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
+import { Pressable, Text, View, useWindowDimensions } from 'react-native'
+import { ScrollView } from 'react-native-gesture-handler'
 
 export interface SelectOption<T = string> {
   label: string
@@ -69,7 +70,10 @@ function SelectInner<T extends string = string>({
   }, [disabled])
 
   return (
-    <View className={cn('relative', className)}>
+    <View
+      className={cn('relative', className)}
+      style={open ? { zIndex: 9999, elevation: 9999 } : undefined}
+    >
       {/* Trigger */}
       <Pressable
         ref={triggerRef}
@@ -106,20 +110,28 @@ function SelectInner<T extends string = string>({
             onPress={() => setOpen(false)}
             style={{
               position: 'absolute',
-              top: -500,
-              left: -500,
-              right: -500,
-              height: windowHeight + 1000,
+              top: -1000,
+              left: -1000,
+              right: -1000,
+              height: windowHeight + 2000,
               zIndex: 9998,
+              elevation: 9998,
             }}
           />
 
           {/* Options list */}
           <View
             className="absolute left-0 right-0 mt-1 overflow-hidden rounded-xl border border-outline-variant bg-white shadow-lg"
-            style={{ top: '100%', maxHeight: maxDropdownHeight, zIndex: 9999 }}
+            style={{ top: '100%', maxHeight: maxDropdownHeight, zIndex: 9999, elevation: 9999 }}
           >
-            <ScrollView bounces={false} showsVerticalScrollIndicator>
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              style={{ maxHeight: maxDropdownHeight }}
+              contentContainerStyle={{ flexGrow: 0 }}
+            >
               {options.map((opt, index) => {
                 const isSelected = opt.value === value
                 return (

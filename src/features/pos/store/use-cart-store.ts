@@ -119,6 +119,12 @@ export const useCartStore = create<CartState>()(
                 : 0,
           image: 'image' in productInput ? (productInput as { image?: string | null }).image : null,
           stock: 'stock' in productInput ? (productInput.stock as number) : null,
+          priceStatus:
+            'priceStatus' in productInput
+              ? (productInput.priceStatus as string)
+              : 'price_status' in productInput
+                ? (productInput as { price_status?: string }).price_status
+                : undefined,
         }
 
         set((currentState) => {
@@ -142,6 +148,15 @@ export const useCartStore = create<CartState>()(
           const currentSession = newSessions[sessionId]
           const existingItem = currentSession.items[product.id]
           const currentQty = existingItem ? existingItem.quantity : 0
+
+          if (
+            product.priceStatus === 'no_price' ||
+            product.priceStatus === 'not_available' ||
+            product.priceStatus === 'inactive'
+          ) {
+            toast.warning(`Sản phẩm [${product.name}] chưa được cấu hình giá bán!`, 'Chưa có giá')
+            return currentState
+          }
 
           if (product.stock !== undefined && product.stock !== null) {
             if (product.stock <= 0) {

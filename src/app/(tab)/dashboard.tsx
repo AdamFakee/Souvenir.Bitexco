@@ -120,7 +120,7 @@ function DashboardContent() {
                 shiftId={shiftId}
                 className="w-[280px]"
                 triggerClassName="h-16"
-                triggerTextClassName="text-3xl"
+                triggerTextClassName="text-[18px]"
               />
             </View>
 

@@ -9,6 +9,12 @@ export interface Toast {
   message: string
 }
 
+export interface ToastOptions {
+  duration?: number
+  /** Thay thế toast hiện tại thay vì xếp chồng nối tiếp xuống dưới */
+  swap?: boolean
+}
+
 interface AlertState {
   // Confirm/Info Dialog State
   visible: boolean
@@ -30,7 +36,13 @@ interface AlertState {
   /**
    * Hiển thị thông báo (Toast) - Tự động biến mất
    */
-  show: (params: { type?: AlertType; title: string; message: string; duration?: number }) => void
+  show: (params: {
+    type?: AlertType
+    title: string
+    message: string
+    duration?: number
+    swap?: boolean
+  }) => void
   /**
    * Ẩn một Toast cụ thể
    */
@@ -71,12 +83,12 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   isLoading: false,
   loadingMessage: undefined,
 
-  show: ({ type = 'info', title, message, duration = 4000 }) => {
+  show: ({ type = 'info', title, message, duration = 4000, swap = false }) => {
     const id = Math.random().toString(36).substring(2, 9)
     const newToast: Toast = { id, type, title, message }
 
     set((state) => ({
-      toasts: [...state.toasts, newToast],
+      toasts: swap ? [newToast] : [...state.toasts, newToast],
     }))
 
     if (duration > 0) {
@@ -130,19 +142,53 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   hideLoading: () => set({ isLoading: false, loadingMessage: undefined }),
 }))
 
+function resolveToastParams(
+  type: AlertType,
+  defaultTitle: string,
+  message: string,
+  titleOrOptions?: string | ToastOptions,
+  options?: ToastOptions,
+) {
+  let title = defaultTitle
+  let opts: ToastOptions | undefined = options
+
+  if (typeof titleOrOptions === 'string') {
+    title = titleOrOptions
+  } else if (titleOrOptions && typeof titleOrOptions === 'object') {
+    opts = titleOrOptions
+  }
+
+  return {
+    type,
+    title,
+    message,
+    duration: opts?.duration,
+    swap: opts?.swap,
+  }
+}
+
 /**
  * Utility giống GetX: toast.error('lỗi'), toast.success('xong')
  * Có thể gọi ở bất cứ đâu (.ts, .tsx, api, flows...)
+ * Hỗ trợ swap: true để thay thế toast cũ khi scan liên tục
  */
 export const toast = {
-  error: (message: string, title = 'Lỗi hệ thống') =>
-    useAlertStore.getState().show({ type: 'error', title, message }),
-  success: (message: string, title = 'Thành công') =>
-    useAlertStore.getState().show({ type: 'success', title, message }),
-  warning: (message: string, title = 'Cảnh báo') =>
-    useAlertStore.getState().show({ type: 'warning', title, message }),
-  info: (message: string, title = 'Thông báo') =>
-    useAlertStore.getState().show({ type: 'info', title, message }),
+  error: (message: string, titleOrOptions?: string | ToastOptions, options?: ToastOptions) =>
+    useAlertStore
+      .getState()
+      .show(resolveToastParams('error', 'Lỗi hệ thống', message, titleOrOptions, options)),
+  success: (message: string, titleOrOptions?: string | ToastOptions, options?: ToastOptions) =>
+    useAlertStore
+      .getState()
+      .show(resolveToastParams('success', 'Thành công', message, titleOrOptions, options)),
+  warning: (message: string, titleOrOptions?: string | ToastOptions, options?: ToastOptions) =>
+    useAlertStore
+      .getState()
+      .show(resolveToastParams('warning', 'Cảnh báo', message, titleOrOptions, options)),
+  info: (message: string, titleOrOptions?: string | ToastOptions, options?: ToastOptions) =>
+    useAlertStore
+      .getState()
+      .show(resolveToastParams('info', 'Thông báo', message, titleOrOptions, options)),
   confirm: (params: {
     title: string
     message: string

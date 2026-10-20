@@ -25,29 +25,42 @@ App POS hỗ trợ bán hàng ngay cả khi **mất kết nối Internet**. Dữ
 
 ---
 
-## 1. Phát hiện trạng thái mạng
+## 1. Phát hiện trạng thái mạng & Sức khỏe Máy chủ (Network & Server Health)
 
 ### `useIsOnline` hook
 
 **File:** [src/shared/hooks/use-is-online.ts](../src/shared/hooks/use-is-online.ts)
 
-Sử dụng `@react-native-community/netinfo` để lắng nghe trạng thái kết nối mạng.
+Sử dụng `@react-native-community/netinfo` để lắng nghe trạng thái kết nối mạng của thiết bị.
 
 ```ts
-// Trả về boolean — true nếu có mạng, false nếu mất mạng
+// Trả về boolean — true nếu thiết bị nối Wi-Fi/LAN, false nếu mất mạng
 const isOnline = useIsOnline()
 ```
 
 ### `useConnectionStore` (Zustand)
 
-**File:** [src/shared/store/use-connection-store.ts](../src/shared/store/use-connection-store.ts)
+**File:** [src/core/hardware/store/use-connection-store.ts](../src/core/hardware/store/use-connection-store.ts)
 
-Global store quản lý 2 loại kết nối:
+Global store quản lý trạng thái kết nối tổng thể của App POS, kết hợp cả kết nối thiết bị (`NetInfo`) và phản hồi thực tế từ máy chủ Backend (`GET /health`):
 
-- **`isNetworkConnected`**: Kết nối Internet (NetInfo)
-- **`isPosConnected`**: Kết nối tới máy POS EDC (socket local)
+- **`isNetworkConnected`**: Cờ trạng thái Online tổng thể (`true` khi **CẢ MẠNG VÀ SERVER ĐỀU TỐT**, `false` khi **MẤT MẠNG HOẶC SẬP SERVER**). Toàn bộ app (luồng thanh toán, tìm kiếm, sync) sử dụng cờ này để phân nhánh Online / Offline.
+- **`offlineReason`**: Phân loại lý do offline chính xác để hiển thị vận hành:
+  - `'NETWORK'`: Mất kết nối Wi-Fi/4G/LAN tại máy POS.
+  - `'SERVER'`: Thiết bị có mạng nhưng máy chủ Backend không phản hồi / timeout 3 giây.
+  - `null`: Hệ thống hoạt động bình thường (Online).
+- **`downtimeStartTime`**: Timestamp (`Date.now()`) ghi lại chính xác thời điểm bắt đầu xảy ra gián đoạn.
+- **`checkServerHealth()`**: Động cơ định kỳ 15 giây ping `GET /health` (Timeout 3s, Anonymous header) để cập nhật cờ `isNetworkConnected` và lý do `offlineReason`.
 
-Khi mạng khôi phục → tự động gọi `SyncService.drainOutbox()` để đẩy đơn hàng offline lên.
+### Banner Cảnh báo & Bộ đếm thời gian gián đoạn (Downtime Counter)
+
+**File:** [src/app/(tab)/\_layout.tsx](<../src/app/(tab)/_layout.tsx>)
+
+- **Khi Online (`offlineReason === null`)**: Hiển thị Logo Skystore màu trắng chuẩn.
+- **Khi Offline (`offlineReason !== null`)**: Ẩn Logo Skystore, thay thế bằng Banner Cảnh báo đè đúng vị trí Logo:
+  - **Nhãn lý do**: Hiển thị `MẤT MẠNG INTERNET` (tông Amber) hoặc `SẬP SERVER` (tông Rose).
+  - **Đồng hồ đếm gián đoạn**: Đếm thời gian liên tục (`MM:SS` hoặc `HH:MM:SS`) từ `downtimeStartTime`.
+  - **Khôi phục**: Ngay khi `isNetworkConnected` trở lại `true`, đồng hồ tự động dừng, reset về `null`, banner ẩn đi và Logo Skystore xuất hiện trở lại.
 
 ---
 
@@ -119,25 +132,36 @@ Các hàm `completeOrderByQr()` và `completeOrderByPos()` cập nhật trạng 
 
 ---
 
-## 4. Cơ chế sinh ID (generateGuid)
+## 4. Cơ chế sinh Mã đơn hàng Offline (generateOfflineOrderCode)
 
-**File:** [src/shared/features/order/api/remote/order.remote.api.ts:420-440](../src/shared/features/order/api/remote/order.remote.api.ts#L420-L440)
+**File:** [src/features/order/utils.ts](../src/features/order/utils.ts)
 
-### `generateGuid()` — Sinh UUID v4 phía client
+### `generateOfflineOrderCode()` — Định dạng `SO-DDMMYYYY-xxxxx`
 
 ```ts
-export const generateGuid = (): string => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    const v = c === 'x' ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
+export const generateOfflineOrderCode = (now: Date = new Date()): string => {
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yyyy = now.getFullYear()
+  const dateStr = `${dd}${mm}${yyyy}`
+
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let randomStr = ''
+  for (let i = 0; i < 5; i++) {
+    randomStr += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+
+  return `SO-${dateStr}-${randomStr}`
 }
 ```
 
 **Cách hoạt động:**
 
-- Regex replace trên pattern UUID v4 `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`
+- `SO`: Tiền tố Đơn bán lẻ Offline (Sales Order).
+- `DDMMYYYY`: Ngày tháng năm tại thời điểm tạo đơn (VD: `06102026`).
+- `xxxxx`: 5 ký tự ngẫu nhiên gồm chữ cái in hoa (A-Z) và chữ số (0-9) (VD: `A8F3K`).
+- Kết quả ví dụ: `SO-06102026-A8F3K`.
+- **Lưu ý:** Đã bỏ hoàn toàn cơ chế đếm số thứ tự đơn trong ngày (`STT 001-999`).
 - `Math.random() * 16 | 0` → số ngẫu nhiên 0–15 (1 hex digit)
 - Vị trí `4` cố định → version 4
 - Vị trí `y`: `(r & 0x3) | 0x8` → 2 bit đầu luôn `10xx` (theo chuẩn UUID v4 variant 1)
@@ -223,11 +247,12 @@ Gồm 2 cơ chế sync riêng biệt:
 - **Xử lý**: so sánh với local DB → quyết định CREATE / UPDATE / DELETE
 - **Không push ngược** lên server (products/categories là read-only trên client)
 
-#### 5.2 Drain Outbox (Orders)
+#### 5.2 Drain Outbox (Orders) & Auto Sync
 
 - **Trigger**:
-  - Tự động khi mạng khôi phục (trong `useConnectionStore.initListeners()`)
-  - Gọi thủ công qua `useSync().syncNow()`
+  - **Tự động Reconnect**: Tự động đẩy đơn ngầm ngay khi trạng thái mạng chuyển từ `Offline → Online` trong `useSync(autoSyncEnabled = true)`.
+  - **Tự động Chạy ngầm định kỳ**: Chạy ngầm định kỳ mỗi **5 phút** (`minutes(5)`) khi ứng dụng có kết nối mạng để kiểm tra và đẩy các đơn hàng chưa đồng bộ lên server.
+  - **Gọi thủ công**: Bấm nút **RefreshCw** (Đồng bộ) trên thanh Sidebar (`useSync().syncNow()`).
 - **Cơ chế**: Outbox Pattern thủ công (không dùng WatermelonDB sync)
 - **API gọi**: `POST /v1/pos/sync/orders`
 - **Quy trình**:

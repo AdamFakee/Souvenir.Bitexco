@@ -1,10 +1,10 @@
+import { useConnectionStore } from '@/core/hardware'
+import { useAppStore } from '@/features/app/store/use-app-store'
+import { usePosStore } from '@/features/pos/store/use-pos-store'
 import { SyncService } from '@/shared/lib/database/sync/sync.service'
 import i18n from '@/shared/lib/i18n'
 import { useEffect } from 'react'
-import { useAppStore } from '@/features/app/store/use-app-store'
-import { usePosStore } from '@/features/pos/store/use-pos-store'
 import { appSettings } from '../store'
-import { useConnectionStore } from '@/core/hardware'
 import { minutes } from '../utils'
 
 /**
